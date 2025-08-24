@@ -30,6 +30,11 @@ class ToolsTabManager {
         this.brickGroup = null;
         this.toolsAnimationId = null;
         
+        // Surveillance continue pour l'affichage 3D
+        this.canvas3DMonitor = null;
+        this.canvas3DRetryCount = 0;
+        this.maxRetries = 10;
+        
         this.init();
     }
 
@@ -151,6 +156,14 @@ class ToolsTabManager {
                 if (window.skipTabClickHandler) {
                     console.log('🔧 Clic programmatique ignoré - pas de réinitialisation de brique');
                     return;
+                }
+                
+                // Si c'est l'onglet Outils qui devient actif, forcer la mise à jour de l'aperçu 3D
+                if (e.target.dataset.tab === 'outils') {
+                    console.log('🎨 Onglet Outils activé - force refresh aperçu 3D');
+                    setTimeout(() => {
+                        this.forceRefresh3DPreview();
+                    }, 100);
                 }
                 
                 Promise.resolve().then(() => {
@@ -921,6 +934,152 @@ class ToolsTabManager {
         console.log('🔧 Force la mise à jour de l\'aperçu 3D...');
         this.lastPreviewCache = null; // Réinitialiser le cache
         this.updateActiveElementPreview(null, true);
+    }
+    
+    // Méthode pour forcer le refresh de l'aperçu 3D quand l'onglet devient visible
+    forceRefresh3DPreview() {
+        console.log('🎨 [DEBUG] forceRefresh3DPreview démarré');
+        
+        const canvas = document.getElementById('toolsActiveElementCanvas');
+        if (!canvas) {
+            console.error('❌ Canvas non trouvé pour forceRefresh3DPreview');
+            return;
+        }
+        
+        // Vérifier que l'onglet Outils est bien actif
+        const toolsTab = document.querySelector('[data-tab="outils"]');
+        if (!toolsTab || !toolsTab.classList.contains('active')) {
+            console.log('⚠️ Onglet Outils non actif, abandon forceRefresh3DPreview');
+            return;
+        }
+        
+        // Nettoyer l'aperçu actuel
+        if (this.cleanup3DPreview) {
+            this.cleanup3DPreview();
+        }
+        
+        // Réinitialiser le cache et forcer la mise à jour
+        this.lastPreviewCache = null;
+        canvas.removeAttribute('data-element-type');
+        
+        // Obtenir l'élément actif et relancer l'aperçu
+        const activeElement = this.getActiveElement();
+        if (activeElement) {
+            console.log('🎨 [DEBUG] Relancement aperçu pour:', activeElement.type);
+            this.renderElementPreview(activeElement);
+        } else {
+            console.log('⚠️ Aucun élément actif pour forceRefresh3DPreview');
+        }
+        
+        // Démarrer la surveillance continue
+        this.startCanvas3DMonitoring();
+    }
+    
+    // Surveillance continue du canvas 3D
+    startCanvas3DMonitoring() {
+        // Arrêter toute surveillance précédente
+        if (this.canvas3DMonitor) {
+            clearInterval(this.canvas3DMonitor);
+        }
+        
+        this.canvas3DRetryCount = 0;
+        console.log('🔍 [DEBUG] Démarrage surveillance canvas 3D');
+        
+        this.canvas3DMonitor = setInterval(() => {
+            const canvas = document.getElementById('toolsActiveElementCanvas');
+            const toolsTab = document.querySelector('[data-tab="outils"]');
+            const isToolsActive = toolsTab && toolsTab.classList.contains('active');
+            
+            if (!isToolsActive) {
+                // Arrêter la surveillance si l'onglet n'est plus actif
+                clearInterval(this.canvas3DMonitor);
+                this.canvas3DMonitor = null;
+                console.log('🔍 [DEBUG] Surveillance arrêtée - onglet non actif');
+                return;
+            }
+            
+            if (!canvas) {
+                console.log('🔍 [DEBUG] Canvas non trouvé dans surveillance');
+                return;
+            }
+            
+            // Vérifier si le canvas affiche quelque chose
+            const hasContent = this.checkCanvasHasContent(canvas);
+            
+            if (!hasContent && this.canvas3DRetryCount < this.maxRetries) {
+                this.canvas3DRetryCount++;
+                console.log(`🔄 [DEBUG] Canvas vide, retry ${this.canvas3DRetryCount}/${this.maxRetries}`);
+                
+                // Forcer le re-rendu
+                const activeElement = this.getActiveElement();
+                if (activeElement) {
+                    this.renderElementPreview(activeElement);
+                }
+            } else if (hasContent) {
+                // Succès ! Arrêter la surveillance
+                console.log('✅ [DEBUG] Canvas 3D fonctionne - surveillance arrêtée');
+                clearInterval(this.canvas3DMonitor);
+                this.canvas3DMonitor = null;
+            } else if (this.canvas3DRetryCount >= this.maxRetries) {
+                // Échec définitif
+                console.error('❌ [DEBUG] Échec surveillance canvas 3D après', this.maxRetries, 'tentatives');
+                clearInterval(this.canvas3DMonitor);
+                this.canvas3DMonitor = null;
+                
+                // Afficher un placeholder d'erreur
+                this.showErrorPlaceholder(canvas);
+            }
+        }, 2000); // Vérifier toutes les 2 secondes
+    }
+    
+    // Vérifier si le canvas a du contenu
+    checkCanvasHasContent(canvas) {
+        try {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return false;
+            
+            // Obtenir les données de pixels sur une petite zone
+            const imageData = ctx.getImageData(0, 0, Math.min(50, canvas.width), Math.min(50, canvas.height));
+            const data = imageData.data;
+            
+            // Vérifier s'il y a des pixels non transparents
+            for (let i = 3; i < data.length; i += 4) {
+                if (data[i] > 0) { // Alpha > 0
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('Erreur vérification contenu canvas:', error);
+            return false;
+        }
+    }
+    
+    // Afficher un placeholder d'erreur
+    showErrorPlaceholder(canvas) {
+        try {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            
+            // Nettoyer le canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Fond gris
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Texte d'erreur
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Erreur 3D', canvas.width / 2, canvas.height / 2 - 10);
+            ctx.fillText('Rechargez', canvas.width / 2, canvas.height / 2 + 10);
+            
+            console.log('🔧 [DEBUG] Placeholder d\'erreur affiché');
+        } catch (error) {
+            console.error('Erreur affichage placeholder:', error);
+        }
     }
 
     getElementColor(elementType) {
@@ -1979,6 +2138,13 @@ class ToolsTabManager {
     createGLBPreviewUsingLibrary(canvas, glbElement) {
         
         try {
+            // Debug détaillé
+            console.log('🔍 [DEBUG] createGLBPreviewUsingLibrary démarré');
+            console.log('🔍 [DEBUG] Canvas:', canvas);
+            console.log('🔍 [DEBUG] GLB Element:', glbElement);
+            console.log('🔍 [DEBUG] Canvas visible:', canvas.offsetParent !== null);
+            console.log('🔍 [DEBUG] Canvas dimensions:', canvas.width, 'x', canvas.height);
+            
             // Nettoyer toute animation en cours
             if (this.cleanup3DPreview) {
                 this.cleanup3DPreview();
@@ -1986,20 +2152,26 @@ class ToolsTabManager {
 
             // Vérifier THREE.js
             if (typeof THREE === 'undefined') {
-                if (window.DEBUG_TOOLS_TAB) {
-                    console.error('❌ THREE.js non disponible pour aperçu GLB');
-                }
+                console.error('❌ THREE.js non disponible pour aperçu GLB');
                 this.drawFallback2DPreview(canvas, glbElement.type);
                 return;
             }
+            
+            // Vérifier que le canvas est visible et a des dimensions
+            if (!canvas.offsetParent || canvas.width === 0 || canvas.height === 0) {
+                console.warn('⚠️ Canvas non visible ou sans dimensions, retry dans 100ms');
+                setTimeout(() => {
+                    this.createGLBPreviewUsingLibrary(canvas, glbElement);
+                }, 100);
+                return;
+            }
 
+            console.log('✅ [DEBUG] Conditions OK, création aperçu GLB');
             // Créer notre propre système d'aperçu GLB basé sur celui de la bibliothèque
             this.renderOwnGLBPreview(canvas, glbElement);
 
         } catch (error) {
-            if (window.DEBUG_TOOLS_TAB) {
-                console.error('❌ Erreur lors de la création aperçu GLB:', error);
-            }
+            console.error('❌ Erreur lors de la création aperçu GLB:', error);
             this.drawFallback2DPreview(canvas, glbElement.type);
         }
     }
@@ -2007,47 +2179,154 @@ class ToolsTabManager {
     // 📦 Méthode simplifiée pour créer un aperçu GLB
     renderOwnGLBPreview(canvas, glbElement) {
         try {
+            console.log('🎨 [DEBUG] renderOwnGLBPreview démarré');
+            
+            // Vérifier que le canvas est dans le DOM et visible
+            if (!canvas.isConnected) {
+                console.error('❌ Canvas pas connecté au DOM');
+                return;
+            }
+            
+            // Forcer les dimensions du canvas immédiatement
+            const targetSize = 240;
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+            canvas.style.width = targetSize + 'px';
+            canvas.style.height = targetSize + 'px';
+            
+            console.log('🔧 [DEBUG] Dimensions canvas forcées à:', targetSize);
+            
+            // Vérifier immédiatement si Three.js est disponible
+            if (typeof THREE === 'undefined') {
+                console.error('❌ THREE.js non disponible');
+                this.showErrorPlaceholder(canvas);
+                return;
+            }
+            
             // Créer la scène Three.js
             const scene = new THREE.Scene();
             scene.background = new THREE.Color(0x2a2a2a);
-
-            // Ajuster la taille du canvas
-            const size = Math.min(canvas.width, canvas.height);
-            canvas.width = size;
-            canvas.height = size;
 
             // Caméra avec ratio carré
             const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
             camera.position.set(2, 2, 2);
 
-            // Renderer avec taille ajustée
-            const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-            renderer.setSize(size, size);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            // Renderer avec options de compatibilité maximale
+            const renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas, 
+                antialias: true,
+                alpha: false,
+                preserveDrawingBuffer: true,
+                powerPreference: "default",
+                failIfMajorPerformanceCaveat: false
+            });
+            
+            // Forcer la taille du renderer et vérifier
+            renderer.setSize(targetSize, targetSize, false);
+            renderer.shadowMap.enabled = false; // Désactivé pour la compatibilité
+            
+            // Test de rendu immédiat pour vérifier que ça fonctionne
+            renderer.setClearColor(0x2a2a2a, 1.0);
+            renderer.clear();
+            
+            console.log('🔧 [DEBUG] Renderer créé et testé avec taille:', targetSize);
 
-            // Éclairage
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            // Éclairage simple
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
             scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 5, 5);
-            directionalLight.castShadow = true;
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(3, 3, 3);
             scene.add(directionalLight);
 
             // Stocker les objets pour nettoyage
             this.scene = scene;
             this.camera = camera;
             this.renderer = renderer;
+            
+            // Rendu immédiat d'un test pour vérifier
+            renderer.render(scene, camera);
+            
+            console.log('✅ [DEBUG] Scène 3D créée et testée, chargement du modèle...');
 
-            // Charger le modèle GLB
-            this.loadOwnGLBModel(scene, camera, renderer, glbElement);
+            // Charger le modèle GLB avec fallback immédiat
+            this.loadOwnGLBModelWithFallback(scene, camera, renderer, glbElement);
 
         } catch (error) {
-            if (window.DEBUG_TOOLS_TAB) {
-                console.error('❌ Erreur lors de la création de l\'aperçu GLB simplifié:', error);
+            console.error('❌ Erreur lors de la création de l\'aperçu GLB simplifié:', error);
+            this.showErrorPlaceholder(canvas);
+        }
+    }
+    
+    // Chargement GLB avec fallback rapide vers un cube simple
+    loadOwnGLBModelWithFallback(scene, camera, renderer, glbElement) {
+        // D'abord, afficher immédiatement un cube simple
+        this.showSimpleCube(scene, camera, renderer, glbElement);
+        
+        // Ensuite, essayer de charger le GLB en arrière-plan
+        setTimeout(() => {
+            this.loadOwnGLBModel(scene, camera, renderer, glbElement);
+        }, 100);
+    }
+    
+    // Afficher un cube simple immédiatement
+    showSimpleCube(scene, camera, renderer, glbElement) {
+        try {
+            console.log('📦 [DEBUG] Affichage cube simple en attendant GLB');
+            
+            // Nettoyer d'abord
+            while(scene.children.length > 0) {
+                const child = scene.children[0];
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+                scene.remove(child);
             }
-            this.drawFallback2DPreview(canvas, glbElement.type);
+            
+            // Remettre l'éclairage
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(3, 3, 3);
+            scene.add(directionalLight);
+            
+            // Créer un cube simple
+            const geometry = new THREE.BoxGeometry(1, 0.5, 2);
+            const material = new THREE.MeshLambertMaterial({ 
+                color: 0x8B4513,
+                transparent: false
+            });
+            
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(0, 0, 0);
+            
+            // Ajouter des arêtes
+            const edges = new THREE.EdgesGeometry(geometry);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+            const wireframe = new THREE.LineSegments(edges, lineMaterial);
+            cube.add(wireframe);
+            
+            scene.add(cube);
+            
+            // Positionner la caméra
+            camera.position.set(2, 2, 2);
+            camera.lookAt(0, 0, 0);
+            
+            // Rendu immédiat
+            renderer.render(scene, camera);
+            
+            // Animation simple
+            const animate = () => {
+                cube.rotation.y += 0.01;
+                renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+            };
+            animate();
+            
+            console.log('✅ [DEBUG] Cube simple affiché');
+            
+        } catch (error) {
+            console.error('❌ Erreur affichage cube simple:', error);
         }
     }
 
@@ -2057,10 +2336,8 @@ class ToolsTabManager {
             // Extraire le chemin GLB depuis userData.glbPath ou path
             const glbPath = glbElement.userData?.glbPath || glbElement.path;
             
-            if (window.DEBUG_TOOLS_TAB) {
-                console.log('🔧 loadOwnGLBModel appelée avec:', glbElement);
-                console.log('🔧 Chemin GLB extrait:', glbPath);
-            }
+            console.log('🔧 [DEBUG] loadOwnGLBModel appelée avec:', glbElement);
+            console.log('🔧 [DEBUG] Chemin GLB extrait:', glbPath);
             
             // Vérifier que le chemin existe
             if (!glbPath) {
@@ -2069,22 +2346,38 @@ class ToolsTabManager {
 
             // Vérifier GLTFLoader
             if (!window.GLTFLoader) {
-                if (window.DEBUG_TOOLS_TAB) {
-                    console.error('❌ GLTFLoader non disponible');
-                }
+                console.error('❌ GLTFLoader non disponible');
+                this.showSimpleGLBPlaceholder(renderer, scene, camera, glbElement.name || glbElement.type);
                 return;
             }
 
+            console.log('🔄 [DEBUG] Début chargement GLB:', glbPath);
             const loader = new GLTFLoader();
             
-            const gltf = await new Promise((resolve, reject) => {
+            // Ajouter un timeout pour éviter les chargements infinis
+            const loadPromise = new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout de chargement GLB (10s)'));
+                }, 10000);
+                
                 loader.load(
                     glbPath,
-                    resolve,
-                    undefined, // Pas de callback de progression
-                    reject
+                    (gltf) => {
+                        clearTimeout(timeout);
+                        resolve(gltf);
+                    },
+                    (progress) => {
+                        console.log('📈 [DEBUG] Progression GLB:', (progress.loaded / progress.total * 100).toFixed(1) + '%');
+                    },
+                    (error) => {
+                        clearTimeout(timeout);
+                        reject(error);
+                    }
                 );
             });
+            
+            const gltf = await loadPromise;
+            console.log('✅ [DEBUG] GLB chargé avec succès');
 
             if (gltf && gltf.scene) {
                 const model = gltf.scene;
@@ -2092,12 +2385,15 @@ class ToolsTabManager {
                 // Appliquer l'échelle si disponible
                 if (glbElement.scale) {
                     model.scale.set(glbElement.scale.x, glbElement.scale.y, glbElement.scale.z);
+                    console.log('🔧 [DEBUG] Échelle appliquée:', glbElement.scale);
                 }
 
                 // Calculer le centre et la taille APRÈS avoir appliqué l'échelle
                 const box = new THREE.Box3().setFromObject(model);
                 const center = box.getCenter(new THREE.Vector3());
                 const size = box.getSize(new THREE.Vector3());
+                
+                console.log('📏 [DEBUG] Dimensions modèle:', size);
                 
                 // Créer un groupe pour contrôler la rotation
                 const rotationGroup = new THREE.Group();
