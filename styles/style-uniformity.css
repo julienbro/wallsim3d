@@ -1,0 +1,577 @@
+/* =========================================
+   UNIFORMISATION DES STYLES WALSIM3D
+   Correction de toutes les incohérences de style
+   ========================================= */
+
+/* === RÉINITIALISATION ET BASE === */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: var(--font-md);
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: var(--primary-bg);
+    margin: 0;
+    padding: 0;
+}
+
+/* === UNIFORMISATION DES BOUTONS === */
+button, .btn, .walsim-btn, input[type="button"], input[type="submit"], input[type="reset"] {
+    background: linear-gradient(180deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: var(--font-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    text-decoration: none;
+    min-height: 32px;
+}
+
+button:hover, .btn:hover, .walsim-btn:hover,
+input[type="button"]:hover, input[type="submit"]:hover, input[type="reset"]:hover {
+    background: linear-gradient(180deg, var(--border-light) 0%, var(--tertiary-bg) 100%);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-light);
+    transform: translateY(-1px);
+}
+
+button:active, .btn:active, .walsim-btn:active,
+input[type="button"]:active, input[type="submit"]:active, input[type="reset"]:active {
+    transform: translateY(0);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+button:disabled, .btn:disabled, .walsim-btn:disabled,
+input[type="button"]:disabled, input[type="submit"]:disabled, input[type="reset"]:disabled {
+    background: var(--quaternary-bg);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Variantes de boutons uniformisées */
+.btn-primary, .walsim-btn-primary, button.primary {
+    background: linear-gradient(180deg, var(--accent-color) 0%, var(--accent-active) 100%);
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
+}
+
+.btn-primary:hover, .walsim-btn-primary:hover, button.primary:hover {
+    background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent-color) 100%);
+}
+
+.btn-success, button.success {
+    background: linear-gradient(180deg, var(--success-color) 0%, var(--success-hover) 100%);
+    border-color: var(--success-color);
+    color: var(--text-primary);
+}
+
+.btn-warning, button.warning {
+    background: linear-gradient(180deg, var(--warning-color) 0%, var(--warning-hover) 100%);
+    border-color: var(--warning-color);
+    color: var(--text-primary);
+}
+
+.btn-error, button.error {
+    background: linear-gradient(180deg, var(--error-color) 0%, var(--error-hover) 100%);
+    border-color: var(--error-color);
+    color: var(--text-primary);
+}
+
+.btn-small, button.small {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-xs);
+    min-height: 24px;
+}
+
+.btn-large, button.large {
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: var(--font-lg);
+    min-height: 40px;
+}
+
+/* === UNIFORMISATION DES CHAMPS DE SAISIE === */
+input[type="text"], input[type="number"], input[type="email"], input[type="password"],
+input[type="search"], input[type="tel"], input[type="url"], input[type="date"],
+input[type="datetime-local"], input[type="time"], input[type="range"],
+textarea, select, .input, .walsim-input {
+    background: linear-gradient(135deg, var(--secondary-bg) 0%, var(--primary-bg) 100%);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: var(--font-sm);
+    transition: var(--transition-fast);
+    min-height: 32px;
+    width: 100%;
+}
+
+input:focus, textarea:focus, select:focus, .input:focus, .walsim-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-focus);
+    outline: none;
+    background: linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
+}
+
+input:disabled, textarea:disabled, select:disabled {
+    background: var(--quaternary-bg);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+    border-color: var(--border-color);
+}
+
+/* Placeholder uniformisé */
+input::placeholder, textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+/* === UNIFORMISATION DES PANELS ET SECTIONS === */
+.panel, .section, .walsim-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+}
+
+.panel-header, .section-header {
+    background: linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    font-size: var(--font-md);
+    font-weight: 600;
+    margin: calc(-1 * var(--spacing-lg)) calc(-1 * var(--spacing-lg)) var(--spacing-md) calc(-1 * var(--spacing-lg));
+}
+
+/* === UNIFORMISATION DES ONGLETS === */
+.tab-container, .tabs-container {
+    background: var(--quaternary-bg);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xs);
+    border: 1px solid var(--border-color);
+}
+
+.tab, .tab-button {
+    background: linear-gradient(180deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    text-align: center;
+    user-select: none;
+}
+
+.tab:hover, .tab-button:hover {
+    background: linear-gradient(180deg, var(--border-light) 0%, var(--tertiary-bg) 100%);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-light);
+}
+
+.tab.active, .tab-button.active {
+    background: linear-gradient(180deg, var(--accent-color) 0%, var(--accent-active) 100%);
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.tab.active::before, .tab-button.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent-hover);
+}
+
+/* === UNIFORMISATION DES LISTES ET ÉLÉMENTS === */
+.list-item, .item, .library-item {
+    background: linear-gradient(135deg, var(--secondary-bg) 0%, var(--primary-bg) 100%);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+    cursor: pointer;
+    margin-bottom: var(--spacing-xs);
+}
+
+.list-item:hover, .item:hover, .library-item:hover {
+    background: linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
+    border-color: var(--border-light);
+    box-shadow: var(--shadow-light);
+}
+
+.list-item.selected, .item.selected, .library-item.selected {
+    background: linear-gradient(135deg, var(--accent-color) 20%, var(--accent-active) 100%);
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
+}
+
+/* === UNIFORMISATION DES TOOLTIPS === */
+.tooltip, [data-tooltip] {
+    position: relative;
+}
+
+.tooltip::after, [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: var(--text-primary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-xs);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: var(--transition-fast);
+    z-index: 1500;
+    margin-bottom: var(--spacing-xs);
+}
+
+.tooltip:hover::after, [data-tooltip]:hover::after {
+    opacity: 1;
+}
+
+/* === UNIFORMISATION DES MESSAGES D'ÉTAT === */
+.message, .notification, .alert {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    margin-bottom: var(--spacing-md);
+    border: 1px solid transparent;
+}
+
+.message.success, .notification.success, .alert.success {
+    background: var(--success-bg);
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.message.warning, .notification.warning, .alert.warning {
+    background: var(--warning-bg);
+    border-color: var(--warning-color);
+    color: var(--warning-color);
+}
+
+.message.error, .notification.error, .alert.error {
+    background: var(--error-bg);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+.message.info, .notification.info, .alert.info {
+    background: var(--info-bg);
+    border-color: var(--info-color);
+    color: var(--info-color);
+}
+
+/* === UNIFORMISATION DES MODALES === */
+.modal-overlay, .dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--glass-backdrop);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal, .dialog {
+    background: linear-gradient(145deg, var(--primary-bg), var(--secondary-bg));
+    border: 2px solid var(--accent-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-dark);
+}
+
+/* Exception pour la modale d'ajout d'outils manuels */
+#manualItemModal.modal {
+    max-width: 420px !important;
+    width: 420px !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    /* display: flex !important; SUPPRIMÉ - causait l'affichage forcé */
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#manualItemModal .modal-content {
+    max-width: 420px !important;
+    width: 420px !important;
+    height: auto !important;
+    max-height: 85vh !important;
+}
+
+/* Responsive pour la modale d'outils */
+@media (max-width: 480px) {
+    #manualItemModal.modal,
+    #manualItemModal .modal-content {
+        max-width: 95vw !important;
+        width: 95vw !important;
+        height: auto !important;
+    }
+}
+
+.modal-header, .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title, .dialog-title {
+    color: var(--accent-color);
+    font-size: var(--font-xxl);
+    font-weight: 600;
+    margin: 0;
+}
+
+.modal-close, .dialog-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: var(--font-xl);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+.modal-close:hover, .dialog-close:hover {
+    background: var(--error-color);
+    color: var(--text-primary);
+}
+
+/* === UNIFORMISATION DES MENUS === */
+.menu, .dropdown-menu, .context-menu {
+    background: linear-gradient(145deg, var(--secondary-bg), var(--tertiary-bg));
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-dark);
+    padding: var(--spacing-xs);
+    min-width: 200px;
+}
+
+.menu-item, .dropdown-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+    font-size: var(--font-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.menu-item:hover, .dropdown-item:hover {
+    background: var(--accent-color);
+    color: var(--text-primary);
+}
+
+.menu-separator, .dropdown-separator {
+    height: 1px;
+    background: var(--border-color);
+    margin: var(--spacing-xs) 0;
+}
+
+/* === UNIFORMISATION DES BARRES DE PROGRESSION === */
+.progress-bar, .loading-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--quaternary-bg);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin: var(--spacing-sm) 0;
+}
+
+.progress-fill, .loading-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
+    border-radius: var(--radius-sm);
+    transition: width var(--transition-normal);
+}
+
+/* === CORRECTIONS SPÉCIFIQUES POUR LES OUTILS D'ANNOTATION === */
+.measurement-tool, .annotation-tool {
+    background: rgba(0, 0, 0, 0.9) !important;
+    border: 2px solid var(--glass-border) !important;
+    color: var(--text-primary) !important;
+    font-size: var(--font-sm) !important;
+    font-family: inherit !important;
+    padding: var(--spacing-sm) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+.measurement-label, .annotation-label {
+    background: rgba(255, 102, 0, 0.9) !important;
+    color: var(--text-primary) !important;
+    font-size: var(--font-sm) !important;
+    font-family: inherit !important;
+    padding: var(--spacing-xs) var(--spacing-sm) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+/* Uniformisation des boutons d'annotation */
+.annotation-dialog .btn,
+.annotation-dialog button {
+    background: var(--tertiary-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    font-family: inherit !important;
+}
+
+.annotation-dialog .btn:hover,
+.annotation-dialog button:hover {
+    background: var(--accent-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* === UNIFORMISATION DES ICÔNES === */
+.icon, .fa, [class*="fa-"] {
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    line-height: 1;
+}
+
+/* === UNIFORMISATION DES SCROLLBARS === */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--quaternary-bg);
+    border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
+}
+
+/* === UNIFORMISATION RESPONSIVE === */
+@media (max-width: 768px) {
+    .btn, .walsim-btn, button {
+        padding: var(--spacing-xs) var(--spacing-md);
+        font-size: var(--font-xs);
+        min-height: 28px;
+    }
+    
+    .modal, .dialog {
+        padding: var(--spacing-md);
+        margin: var(--spacing-md);
+    }
+    
+    .panel, .section {
+        padding: var(--spacing-md);
+    }
+}
+
+/* === ÉTATS DE FOCUS UNIFORMISÉS POUR L'ACCESSIBILITÉ === */
+*:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+button:focus, .btn:focus, input:focus, textarea:focus, select:focus {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+}
+
+/* === ANIMATIONS UNIFORMISÉES === */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.fade-in {
+    animation: fadeIn var(--transition-normal) ease-out;
+}
+
+.slide-in {
+    animation: slideIn var(--transition-normal) ease-out;
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+/* === CORRECTIONS POUR LA BIBLIOTHÈQUE 3D === */
+.preview-3d canvas {
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-sm) !important;
+    background: var(--primary-bg) !important;
+}
+
+.library-grid .library-item canvas {
+    width: 180px !important;
+    height: 110px !important;
+    max-width: 180px !important;
+    max-height: 110px !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: var(--radius-sm) !important;
+    object-fit: contain !important;
+    box-sizing: border-box !important;
+}
+
+/* === UNIFORMISATION FINALISÉE === */
+/* Toutes les règles CSS ont été standardisées avec les variables du thème unifié */

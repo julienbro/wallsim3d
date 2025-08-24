@@ -1,0 +1,921 @@
+/* Styles pour l'onglet Outils - remplace le menu flottant des assises - Version compacte */
+
+#tab-content-outils {
+    padding: 4px;
+}
+
+#tab-content-outils .tool-section {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 4px;
+    margin-bottom: 6px;
+}
+
+#tab-content-outils .tool-section h4 {
+    color: #ffffff;
+    font-size: 14px;
+    margin: 0 0 8px 0;
+    font-weight: 600;
+}
+
+#tab-content-outils .tool-subsection {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 6px;
+    margin-bottom: 8px;
+}
+
+/* Section Éléments utilisés - avec encadrement */
+#tab-content-outils .tool-subsection:has(#tools-unified-reuse-grid) {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+/* Alternative pour les navigateurs qui ne supportent pas :has() */
+.tool-subsection.reusable-elements-section {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 6px !important;
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+}
+
+#tab-content-outils .tool-subsection h5 {
+    color: #ffffff;
+    font-size: 13px;
+    margin: 0 0 6px 0;
+    font-weight: 500;
+}
+
+/* Informations d'assise - sans bordure */
+.assise-info-panel {
+    background: rgba(0, 150, 255, 0.08);
+    border: none;
+    border-radius: 4px;
+    padding: 6px;
+    margin-bottom: 8px;
+}
+
+.assise-current {
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 3px;
+}
+
+.assise-status {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.assise-status.active {
+    color: #4CAF50;
+}
+
+.assise-status.empty {
+    color: #FFC107;
+}
+
+/* Aperçu d'élément - compacte */
+.element-preview-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.element-preview-canvas {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    margin-bottom: 5px;
+}
+
+.element-name {
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: center;
+}
+
+/* Longueurs de coupe - compacte */
+.cut-lengths-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    padding: 6px;
+}
+
+.cut-lengths-title {
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 500;
+    margin: 0 0 5px 0;
+}
+
+.cut-lengths-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cut-length-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+}
+
+.cut-length-item.cut-btn-mini {
+    cursor: pointer;
+}
+
+.cut-length-item.cut-btn-mini:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.cut-length-item.cut-btn-mini.active {
+    background: rgba(0, 150, 255, 0.25);
+}
+
+.cut-length-item.active .cut-label,
+.cut-length-item.active .cut-value {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.cut-label {
+    color: #cccccc;
+    font-size: 10px;
+}
+
+.cut-value {
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+/* Sélecteur d'assise - compacte */
+.assise-selector {
+    margin-bottom: 8px;
+}
+
+.assise-selector label {
+    color: #ffffff;
+    font-size: 11px;
+    display: block;
+    margin-bottom: 3px;
+}
+
+.assise-select {
+    width: 100%;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 3px;
+    color: #ffffff;
+    font-size: 11px;
+}
+
+.assise-select:focus {
+    outline: none;
+    border-color: rgba(0, 150, 255, 0.5);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.assise-select option {
+    background: #2a2a2a;
+    color: #ffffff;
+}
+
+/* Actions d'assise - compactes */
+.assise-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+
+/* Cases à cocher d'aides visuelles - modernes */
+.visual-aids-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    padding-left: 25px;
+    font-size: 11px;
+    color: #ffffff;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.checkbox-item:hover {
+    color: #00aaff;
+}
+
+.checkbox-item input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    width: 0;
+    height: 0;
+}
+
+.checkmark {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 16px;
+    width: 16px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.checkbox-item:hover .checkmark {
+    background-color: rgba(0, 170, 255, 0.2);
+    border-color: rgba(0, 170, 255, 0.5);
+}
+
+.checkbox-item input:checked ~ .checkmark {
+    background-color: rgba(0, 150, 255, 0.6);
+    border-color: rgba(0, 150, 255, 0.8);
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 5px;
+    top: 2px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-item input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-item i {
+    margin-left: 8px;
+    margin-right: 5px;
+    width: 12px;
+    text-align: center;
+}
+
+/* Contrôle de hauteur des joints - sans bordure */
+.joint-height-control {
+    background: rgba(255, 255, 255, 0.03);
+    border: none;
+    border-radius: 3px;
+    padding: 6px;
+}
+
+.joint-height-control .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.joint-height-control label {
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.joint-height-control .form-input {
+    padding: 4px 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 3px;
+    color: #ffffff;
+    font-size: 11px;
+}
+
+.joint-height-control .form-input:focus {
+    outline: none;
+    border-color: rgba(0, 150, 255, 0.5);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Styles génériques pour les boutons dans l'onglet outils - compacts */
+#tab-content-outils .btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #ffffff;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+    line-height: 1.2;
+    min-height: unset;
+}
+
+#tab-content-outils .btn i {
+    font-size: 10px;
+    margin-right: 4px;
+}
+
+/* Boutons de coupe mini extra compacts */
+.cut-btn-mini {
+    padding: 3px 6px !important;
+    font-size: 10px !important;
+    min-width: 30px;
+    height: 22px;
+    line-height: 1;
+    border-radius: 2px !important;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+}
+
+#tab-content-outils .btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+#tab-content-outils .btn:active {
+    transform: translateY(0);
+}
+
+#tab-content-outils .btn.btn-primary {
+    background: rgba(0, 150, 255, 0.2);
+    border-color: rgba(0, 150, 255, 0.4);
+    color: #ffffff;
+}
+
+#tab-content-outils .btn.btn-primary:hover {
+    background: rgba(0, 150, 255, 0.3);
+    border-color: rgba(0, 150, 255, 0.5);
+}
+
+#tab-content-outils .btn.btn-secondary {
+    background: rgba(108, 117, 125, 0.2);
+    border-color: rgba(108, 117, 125, 0.4);
+}
+
+#tab-content-outils .btn.btn-secondary:hover {
+    background: rgba(108, 117, 125, 0.3);
+    border-color: rgba(108, 117, 125, 0.5);
+}
+
+#tab-content-outils .btn.btn-danger {
+    background: rgba(220, 53, 69, 0.2);
+    border-color: rgba(220, 53, 69, 0.4);
+}
+
+#tab-content-outils .btn.btn-danger:hover {
+    background: rgba(220, 53, 69, 0.3);
+    border-color: rgba(220, 53, 69, 0.5);
+}
+
+/* ===============================================
+   SECTION ÉLÉMENT ACTIF 3D
+   =============================================== */
+
+.tools-active-element {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    padding: 6px;
+}
+
+.tools-element-preview {
+    width: 240px;
+    height: 180px;
+    margin: 0 auto 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none !important;
+    border-radius: 0;
+    box-shadow: none !important;
+    outline: none !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.tools-preview-3d {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border: none !important;
+    border-radius: 0;
+    box-shadow: none !important;
+    outline: none !important;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.tools-element-info {
+    text-align: center;
+    margin-bottom: 6px;
+}
+
+.tools-element-name {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.tools-element-dimensions {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+}
+
+.tools-cut-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    flex-wrap: wrap;
+}
+
+/* Effet de surbrillance pour l'élément actif - sans bordure */
+.tools-active-element.active {
+    background: rgba(0, 150, 255, 0.08);
+}
+
+.tools-active-element.active .tools-element-preview {
+    border-color: #4CAF50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    #tab-content-outils {
+        padding: 10px;
+    }
+    
+    #tab-content-outils .tool-section {
+        padding: 10px;
+    }
+    
+    #tab-content-outils .tool-subsection {
+        padding: 8px;
+    }
+    
+    .tools-element-preview {
+        width: 200px;
+        height: 150px;
+    }
+}
+
+/* === ÉLÉMENTS À RÉUTILISER DANS OUTILS - AFFICHAGE PERMANENT === */
+
+.tools-reusable-content-permanent {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    margin-top: 8px;
+    padding: 12px;
+}
+
+.tools-reuse-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.tools-reuse-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-tools-reuse-refresh,
+.btn-tools-reuse-clear {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s ease;
+}
+
+.btn-tools-reuse-refresh:hover {
+    background: rgba(0, 170, 255, 0.2);
+    border-color: rgba(0, 170, 255, 0.5);
+}
+
+.btn-tools-reuse-clear:hover {
+    background: rgba(255, 100, 100, 0.2);
+    border-color: rgba(255, 100, 100, 0.5);
+}
+
+.tools-reusable-elements {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tools-reuse-category h6 {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 11px;
+    margin: 0 0 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tools-reuse-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(45px, 1fr));
+    gap: 4px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.tools-reuse-placeholder {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    grid-column: 1 / -1;
+}
+
+.tools-reuse-placeholder i {
+    font-size: 14px;
+    opacity: 0.6;
+    margin-bottom: 4px;
+}
+
+.tools-reuse-placeholder small {
+    display: block;
+    line-height: 1.3;
+}
+
+/* Items d'éléments réutilisables compacts */
+.tools-reuse-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    padding: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-height: 50px;
+}
+
+.tools-reuse-item:hover {
+    background: rgba(0, 150, 255, 0.15);
+    border-color: rgba(0, 150, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.tools-reuse-item-name {
+    font-size: 9px;
+    color: #ffffff;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.tools-reuse-item-info {
+    font-size: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.2;
+}
+
+.tools-reuse-item-count {
+    background: rgba(0, 150, 255, 0.8);
+    color: white;
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 8px;
+    margin-top: 2px;
+}
+
+.tools-reuse-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tools-stat-item {
+    text-align: center;
+    flex: 1;
+}
+
+.tools-stat-value {
+    display: block;
+    color: #00aaff;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.tools-stat-label {
+    display: block;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 9px;
+}
+
+/* Scrollbar pour les grilles */
+.tools-reuse-grid::-webkit-scrollbar {
+    width: 3px;
+}
+
+.tools-reuse-grid::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.tools-reuse-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.tools-reuse-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* ===============================================
+   BOUTON AJOUTER ASSISE - MISE EN VALEUR SPÉCIALE
+   =============================================== */
+
+/* Style spécial pour le bouton Ajouter Assise */
+#addAssiseTab {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    border: 2px solid #20c997 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    box-shadow: 
+        0 4px 15px rgba(32, 201, 151, 0.3),
+        0 0 20px rgba(40, 167, 69, 0.2) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Effet de brillance animé */
+#addAssiseTab::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -100%;
+    width: 100%;
+    height: calc(100% + 4px);
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    transition: left 0.5s ease;
+}
+
+/* Animation de brillance au survol */
+#addAssiseTab:hover::before {
+    left: 100%;
+}
+
+/* État au survol */
+#addAssiseTab:hover {
+    background: linear-gradient(135deg, #218838 0%, #1eb890 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 
+        0 6px 20px rgba(32, 201, 151, 0.4),
+        0 0 25px rgba(40, 167, 69, 0.3) !important;
+    border-color: #1eb890 !important;
+}
+
+/* Animation de pulsation subtile */
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 
+            0 4px 15px rgba(32, 201, 151, 0.3),
+            0 0 20px rgba(40, 167, 69, 0.2);
+    }
+    50% {
+        box-shadow: 
+            0 4px 20px rgba(32, 201, 151, 0.4),
+            0 0 25px rgba(40, 167, 69, 0.3);
+    }
+    100% {
+        box-shadow: 
+            0 4px 15px rgba(32, 201, 151, 0.3),
+            0 0 20px rgba(40, 167, 69, 0.2);
+    }
+}
+
+/* Appliquer l'animation de pulsation */
+#addAssiseTab {
+    animation: pulse-glow 2s ease-in-out infinite !important;
+}
+
+/* État actif/focus */
+#addAssiseTab:active,
+#addAssiseTab:focus {
+    background: linear-gradient(135deg, #1e7e34 0%, #17a085 100%) !important;
+    outline: none !important;
+    box-shadow: 
+        0 2px 10px rgba(32, 201, 151, 0.5),
+        0 0 15px rgba(40, 167, 69, 0.4) !important;
+}
+
+/* Icône plus visible */
+#addAssiseTab i.fas {
+    margin-right: 8px !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ===============================================
+   BOUTONS DE COUPE - ÉTAT ACTIF RENFORCÉ
+   =============================================== */
+
+/* S'assurer qu'un seul bouton de coupe soit actif */
+.cut-btn-mini {
+    transition: all 0.2s ease !important;
+    position: relative !important;
+}
+
+.cut-btn-mini.active {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+    border-color: #0056b3 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    box-shadow: 
+        0 2px 8px rgba(0, 123, 255, 0.4),
+        0 0 12px rgba(0, 123, 255, 0.3),
+        inset 0 1px 2px rgba(255, 255, 255, 0.2) !important;
+    transform: translateY(-1px) !important;
+}
+
+.cut-btn-mini.active::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #007bff, #0056b3, #007bff);
+    border-radius: 4px;
+    z-index: -1;
+    opacity: 0.3;
+    animation: activeGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes activeGlow {
+    from { opacity: 0.3; }
+    to { opacity: 0.6; }
+}
+
+/* Désactiver visuellement les boutons non-actifs quand un autre est sélectionné */
+.cut-btn-mini:not(.active) {
+    opacity: 0.7;
+    background: rgba(108, 117, 125, 0.2) !important;
+}
+
+.cut-btn-mini:not(.active):hover {
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+/* Styles pour l'interface de longueur GLB (Hourdis) */
+.glb-length-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(0, 150, 255, 0.08);
+    border-radius: 6px;
+    border: 1px solid rgba(0, 150, 255, 0.2);
+}
+
+.glb-length-label {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.glb-length-presets {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.glb-length-btn {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 50px;
+}
+
+.glb-length-btn[data-length="P"] {
+    background: linear-gradient(135deg, #6f42c1, #5a2d91);
+    font-weight: 700;
+}
+
+.glb-length-btn:hover {
+    background: linear-gradient(135deg, #138496, #117a8b);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.glb-length-btn[data-length="P"]:hover {
+    background: linear-gradient(135deg, #5a2d91, #4c257f);
+}
+
+.glb-length-btn.active {
+    background: linear-gradient(135deg, #28a745, #218838);
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.5);
+}
+
+.glb-length-btn[data-length="P"].active {
+    background: linear-gradient(135deg, #28a745, #218838);
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.5);
+}
+
+.glb-custom-length {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.glb-length-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: #ffffff;
+    font-size: 12px;
+    text-align: center;
+}
+
+.glb-length-input:focus {
+    outline: none;
+    border-color: #17a2b8;
+    box-shadow: 0 0 0 2px rgba(23, 162, 184, 0.3);
+}
+
+.glb-length-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.glb-length-apply {
+    background: linear-gradient(135deg, #28a745, #218838);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.glb-length-apply:hover {
+    background: linear-gradient(135deg, #218838, #1e7e34);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.glb-length-apply:active {
+    transform: translateY(0);
+}

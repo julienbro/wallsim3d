@@ -1,0 +1,587 @@
+/* =========================================
+   CORRECTIONS ET SURCHARGES DE STYLE
+   Corrections pour assurer la cohérence du nouveau thème
+   ========================================= */
+
+/* === CORRECTIONS BIBLIOTHÈQUE DE BRIQUES === */
+.library-section {
+    background: var(--surface-bg) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: var(--spacing-xl) !important;
+    margin-bottom: var(--spacing-xl) !important;
+    box-shadow: var(--shadow-subtle) !important;
+}
+
+.library-section h5 {
+    color: var(--text-primary) !important;
+    font-size: var(--font-lg) !important;
+    font-weight: 600 !important;
+    margin: 0 0 var(--spacing-lg) 0 !important;
+    padding-bottom: var(--spacing-md) !important;
+    border-bottom: 1px solid var(--divider) !important;
+    letter-spacing: 0.005em !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: var(--spacing-sm) !important;
+}
+
+.library-section h5 i {
+    color: var(--accent-color) !important;
+    opacity: 0.8 !important;
+}
+
+.library-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+    gap: var(--spacing-lg) !important;
+    margin-top: var(--spacing-lg) !important;
+}
+
+.library-item {
+    background: var(--elevated-bg) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: var(--spacing-lg) !important;
+    transition: var(--transition-normal) !important;
+    cursor: pointer !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-shadow: var(--shadow-minimal) !important;
+}
+
+.library-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
+    opacity: 0;
+    transition: var(--transition-normal);
+}
+
+.library-item:hover {
+    border-color: var(--border-medium) !important;
+    box-shadow: var(--shadow-light) !important;
+    transform: translateY(-2px) !important;
+}
+
+.library-item:hover::before {
+    opacity: 1;
+}
+
+.item-preview {
+    background: var(--primary-bg) !important;
+    border-radius: var(--radius-md) !important;
+    margin-bottom: var(--spacing-md) !important;
+    overflow: hidden !important;
+    border: 1px solid var(--border-color) !important;
+    position: relative !important;
+}
+
+.item-preview canvas {
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    background: var(--primary-bg) !important;
+}
+
+.item-info {
+    margin-bottom: var(--spacing-md) !important;
+    text-align: center !important;
+}
+
+.item-name {
+    color: var(--text-primary) !important;
+    font-size: var(--font-lg) !important;
+    font-weight: 600 !important;
+    margin-bottom: var(--spacing-xs) !important;
+    letter-spacing: 0.01em !important;
+}
+
+.item-dimensions {
+    color: var(--text-tertiary) !important;
+    font-size: var(--font-sm) !important;
+    font-weight: 400 !important;
+}
+
+.cut-buttons {
+    display: flex !important;
+    gap: var(--spacing-xs) !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+}
+
+.cut-btn-mini {
+    background: var(--surface-bg) !important;
+    border: 1px solid var(--border-light) !important;
+    color: var(--text-secondary) !important;
+    padding: var(--spacing-xs) var(--spacing-sm) !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: var(--font-xs) !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: var(--transition-fast) !important;
+    min-width: 32px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    letter-spacing: 0.01em !important;
+    box-shadow: var(--shadow-minimal) !important;
+}
+
+.cut-btn-mini:hover {
+    background: var(--elevated-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-medium) !important;
+    box-shadow: var(--shadow-subtle) !important;
+    transform: translateY(-1px) !important;
+}
+
+.cut-btn-mini.active {
+    background: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: var(--text-inverse) !important;
+    font-weight: 600 !important;
+    box-shadow: var(--shadow-light) !important;
+}
+
+.cut-btn-mini.active:hover {
+    background: var(--accent-hover) !important;
+    box-shadow: var(--shadow-medium) !important;
+}
+
+/* === CORRECTIONS SUBTABS === */
+.subtab-content {
+    background: var(--secondary-bg) !important;
+    padding: var(--spacing-xl) !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+.subtab-content.active {
+    display: block !important;
+}
+
+/* === CORRECTION DU CORPS ET CONTAINERS === */
+body {
+    background: var(--primary-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+.main-container {
+    background: var(--primary-bg) !important;
+}
+
+/* === CORRECTIONS HEADER === */
+.header,
+header,
+.top-bar,
+.app-header {
+    background: var(--header-bg) !important;
+    border-bottom: 1px solid var(--border-light) !important;
+    color: var(--text-primary) !important;
+    box-shadow: var(--shadow-light) !important;
+    position: relative !important;
+}
+
+.header::after,
+header::after,
+.top-bar::after,
+.app-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-medium), transparent);
+}
+
+/* === CORRECTIONS SIDEBAR === */
+.sidebar {
+    background: var(--surface-bg) !important;
+    border-left: 1px solid var(--border-light) !important;
+    box-shadow: var(--shadow-light) !important;
+    position: relative !important;
+}
+
+.sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(180deg, transparent, var(--border-medium), transparent);
+}
+
+/* === CORRECTIONS PANELS === */
+.panel {
+    background: var(--surface-bg) !important;
+    border: 1px solid var(--border-light) !important;
+    color: var(--text-primary) !important;
+    box-shadow: var(--shadow-subtle) !important;
+    border-radius: var(--radius-lg) !important;
+    position: relative !important;
+}
+
+.panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-medium), transparent);
+}
+
+/* === CORRECTIONS BOUTONS === */
+button,
+.button,
+input[type="button"],
+input[type="submit"] {
+    background: var(--surface-bg) !important;
+    border: 1px solid var(--border-light) !important;
+    color: var(--text-secondary) !important;
+    transition: var(--transition-normal) !important;
+    border-radius: var(--radius-sm) !important;
+    font-weight: 500 !important;
+    box-shadow: var(--shadow-minimal) !important;
+    letter-spacing: 0.01em !important;
+}
+
+button:hover,
+.button:hover,
+input[type="button"]:hover,
+input[type="submit"]:hover {
+    background: var(--elevated-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-medium) !important;
+    box-shadow: var(--shadow-subtle) !important;
+}
+
+/* === CORRECTIONS CHAMPS DE SAISIE === */
+input[type="text"],
+input[type="number"],
+input[type="range"],
+select,
+textarea {
+    background: var(--secondary-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="range"]:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--border-focus) !important;
+    outline: none !important;
+}
+
+/* === CORRECTIONS SÉLECTEURS === */
+.material-selector,
+.brick-selector,
+.block-selector {
+    background: var(--secondary-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+.material-item,
+.brick-item,
+.block-item {
+    background: var(--tertiary-bg) !important;
+    border: 1px solid var(--border-light) !important;
+    color: var(--text-secondary) !important;
+    border-radius: var(--radius-sm) !important;
+    transition: var(--transition-normal) !important;
+}
+
+.material-item:hover,
+.brick-item:hover,
+.block-item:hover {
+    background: var(--quaternary-bg) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-medium) !important;
+}
+
+.material-item.selected,
+.brick-item.selected,
+.block-item.selected {
+    background: var(--accent-color) !important;
+    color: var(--text-dark) !important;
+    border-color: var(--accent-color) !important;
+}
+
+/* === CORRECTIONS MENUS DÉROULANTS === */
+.dropdown,
+.menu-dropdown {
+    background: var(--secondary-bg) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: var(--radius-md) !important;
+}
+
+.dropdown-item,
+.menu-item {
+    color: var(--text-secondary) !important;
+    padding: var(--spacing-sm) var(--spacing-lg) !important;
+    transition: var(--transition-fast) !important;
+}
+
+.dropdown-item:hover,
+.menu-item:hover {
+    background: var(--tertiary-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+/* === CORRECTIONS MODALES ET POPUPS === */
+.modal,
+.popup,
+.dialog {
+    background: var(--primary-bg) !important;
+}
+
+.modal-content,
+.popup-content,
+.dialog-content {
+    background: var(--secondary-bg) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: var(--radius-lg) !important;
+    color: var(--text-primary) !important;
+}
+
+.modal-header,
+.popup-header,
+.dialog-header {
+    background: var(--tertiary-bg) !important;
+    border-bottom: 1px solid var(--border-light) !important;
+    color: var(--text-primary) !important;
+}
+
+/* === CORRECTIONS ONGLETS === */
+.tab,
+.tab-button {
+    background: var(--tertiary-bg) !important;
+    border: 1px solid var(--border-light) !important;
+    color: var(--text-secondary) !important;
+    border-radius: var(--radius-sm) !important;
+    transition: var(--transition-normal) !important;
+}
+
+.tab:hover,
+.tab-button:hover {
+    background: var(--quaternary-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+.tab.active,
+.tab-button.active {
+    background: var(--accent-color) !important;
+    color: var(--text-dark) !important;
+    border-color: var(--accent-color) !important;
+}
+
+/* === CORRECTIONS TABLEAUX === */
+table {
+    background: var(--secondary-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    overflow: hidden !important;
+}
+
+th {
+    background: linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-light) !important;
+}
+
+td {
+    color: var(--text-secondary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+tr:hover {
+    background: var(--glass-hover) !important;
+}
+
+/* === CORRECTIONS LISTES === */
+ul, ol {
+    color: var(--text-secondary) !important;
+}
+
+li {
+    color: var(--text-secondary) !important;
+}
+
+/* === CORRECTIONS LIENS === */
+a {
+    color: var(--accent-color) !important;
+    transition: var(--transition-fast) !important;
+}
+
+a:hover {
+    color: var(--accent-hover) !important;
+}
+
+/* === CORRECTIONS TOOLTIPS === */
+.tooltip,
+[data-tooltip] {
+    background: var(--quaternary-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+/* === CORRECTIONS BARRES DE PROGRESSION === */
+.progress-container {
+    background: transparent !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+}
+
+.progress-bar {
+    background: transparent !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+}
+
+/* IMPORTANT: Garder les couleurs colorées de la barre de progression comme demandé */
+.progress-fill {
+    background: linear-gradient(90deg, #3498db, #2980b9, #27ae60) !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+.progress-fill::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent) !important;
+}
+
+/* === CORRECTIONS STATUS ET ÉTATS === */
+.success {
+    color: var(--success-color) !important;
+    background-color: var(--success-bg) !important;
+}
+
+.warning {
+    color: var(--warning-color) !important;
+    background-color: var(--warning-bg) !important;
+}
+
+.error {
+    color: var(--error-color) !important;
+    background-color: var(--error-bg) !important;
+}
+
+.info {
+    color: var(--info-color) !important;
+    background-color: var(--info-bg) !important;
+}
+
+/* === CORRECTIONS FORMULAIRES === */
+fieldset {
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    background: var(--glass-bg) !important;
+}
+
+legend {
+    color: var(--text-primary) !important;
+    background: var(--secondary-bg) !important;
+    padding: var(--spacing-sm) var(--spacing-lg) !important;
+    border-radius: var(--radius-md) !important;
+}
+
+label {
+    color: var(--text-secondary) !important;
+}
+
+/* === CORRECTIONS SÉPARATEURS === */
+hr {
+    border-color: var(--border-light) !important;
+    background: var(--border-light) !important;
+}
+
+/* === CORRECTIONS CODE === */
+code,
+pre {
+    background: var(--primary-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+/* === CORRECTIONS ÉLÉMENTS SPÉCIAUX === */
+.highlight {
+    background: rgba(212, 216, 220, 0.15) !important;
+    color: var(--text-primary) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+.disabled {
+    opacity: 0.6 !important;
+    pointer-events: none !important;
+    color: var(--text-disabled) !important;
+}
+
+/* === CORRECTIONS INTERFACES SPÉCIFIQUES === */
+.toolbar {
+    background: var(--secondary-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+.statusbar {
+    background: var(--primary-bg) !important;
+    border-top: 1px solid var(--border-color) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* === SURCHARGES IMPORTANTES POUR LA COHÉRENCE === */
+* {
+    scrollbar-width: thin !important;
+    scrollbar-color: var(--quaternary-bg) var(--secondary-bg) !important;
+}
+
+/* Force la cohérence des couleurs sur tous les éléments personnalisés */
+[class*="walsim"],
+[id*="walsim"],
+.custom-element {
+    color: var(--text-secondary) !important;
+    background-color: var(--secondary-bg) !important;
+    border-color: var(--border-color) !important;
+    transition: var(--transition-normal) !important;
+}
+
+/* === CORRECTIONS RESPONSIVE === */
+@media (max-width: 768px) {
+    .sidebar {
+        background: rgba(23, 26, 31, 0.95) !important;
+        backdrop-filter: blur(12px) !important;
+        position: fixed !important;
+        top: 60px !important;
+        height: calc(100vh - 60px) !important;
+        z-index: var(--z-modal) !important;
+    }
+    
+    .main-content {
+        height: calc(100vh - 60px) !important;
+    }
+    
+    body {
+        overflow: hidden !important;
+    }
+    
+    .header {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 1000 !important;
+    }
+}

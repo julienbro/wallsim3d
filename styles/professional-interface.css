@@ -1,0 +1,399 @@
+/* =========================================
+   AMÉLIORATIONS INTERFACE PROFESSIONNELLE
+   Styles pour une apparence très professionnelle
+   ========================================= */
+
+/* === TYPOGRAPHIE PROFESSIONNELLE === */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+}
+
+/* === GRILLE ET ESPACEMENT PROFESSIONNEL === */
+.pro-grid {
+    display: grid;
+    gap: var(--spacing-lg);
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.pro-card {
+    background: var(--surface-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-subtle);
+    transition: var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.pro-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
+    opacity: 0;
+    transition: var(--transition-normal);
+}
+
+.pro-card:hover {
+    border-color: var(--border-medium);
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-1px);
+}
+
+.pro-card:hover::before {
+    opacity: 1;
+}
+
+.pro-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--divider);
+}
+
+.pro-card-title {
+    color: var(--text-primary);
+    font-size: var(--font-lg);
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.pro-card-subtitle {
+    color: var(--text-tertiary);
+    font-size: var(--font-sm);
+    margin: var(--spacing-xs) 0 0 0;
+}
+
+/* === BOUTONS PROFESSIONNELS === */
+.pro-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--surface-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    box-shadow: var(--shadow-minimal);
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.01em;
+}
+
+.pro-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(212, 216, 220, 0.05), transparent);
+    transition: left 0.5s ease;
+}
+
+.pro-button:hover::before {
+    left: 100%;
+}
+
+.pro-button:hover {
+    background: var(--elevated-bg);
+    color: var(--text-primary);
+    border-color: var(--border-medium);
+    box-shadow: var(--shadow-light);
+}
+
+.pro-button.primary {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--text-inverse);
+    font-weight: 600;
+    box-shadow: var(--shadow-light);
+}
+
+.pro-button.primary:hover {
+    background: var(--accent-hover);
+    box-shadow: var(--shadow-medium);
+}
+
+.pro-button.secondary {
+    background: transparent;
+    border-color: var(--border-medium);
+    color: var(--text-secondary);
+}
+
+.pro-button.secondary:hover {
+    background: var(--surface-bg);
+    color: var(--text-primary);
+}
+
+/* === INPUTS PROFESSIONNELS === */
+.pro-input-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.pro-label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+    letter-spacing: 0.01em;
+}
+
+.pro-input {
+    width: 100%;
+    padding: var(--spacing-md);
+    background: var(--surface-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    transition: var(--transition-normal);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.pro-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    background: var(--elevated-bg);
+    box-shadow: var(--shadow-focus), inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.pro-input::placeholder {
+    color: var(--text-muted);
+}
+
+.pro-input.error {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 1px rgba(244, 67, 54, 0.2);
+}
+
+/* === TABLES PROFESSIONNELLES === */
+.pro-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface-bg);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-subtle);
+}
+
+.pro-table thead {
+    background: var(--elevated-bg);
+}
+
+.pro-table th {
+    padding: var(--spacing-lg);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 1px solid var(--divider);
+    letter-spacing: 0.01em;
+}
+
+.pro-table td {
+    padding: var(--spacing-lg);
+    color: var(--text-secondary);
+    font-size: var(--font-sm);
+    border-bottom: 1px solid var(--divider);
+}
+
+.pro-table tbody tr:hover {
+    background: var(--accent-subtle);
+}
+
+.pro-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* === NAVIGATION PROFESSIONNELLE === */
+.pro-nav {
+    display: flex;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-md);
+    background: var(--surface-bg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-minimal);
+}
+
+.pro-nav-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: var(--font-sm);
+    font-weight: 500;
+    transition: var(--transition-normal);
+    position: relative;
+    letter-spacing: 0.01em;
+}
+
+.pro-nav-item:hover {
+    color: var(--text-primary);
+    background: var(--accent-subtle);
+}
+
+.pro-nav-item.active {
+    color: var(--accent-color);
+    background: var(--accent-subtle);
+}
+
+.pro-nav-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background: var(--accent-color);
+    border-radius: 50%;
+}
+
+/* === ALERTES PROFESSIONNELLES === */
+.pro-alert {
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    border-left: 4px solid;
+    margin-bottom: var(--spacing-lg);
+    position: relative;
+    box-shadow: var(--shadow-subtle);
+}
+
+.pro-alert.info {
+    background: var(--info-bg);
+    border-left-color: var(--info-color);
+    color: var(--info-color);
+}
+
+.pro-alert.success {
+    background: var(--success-bg);
+    border-left-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.pro-alert.warning {
+    background: var(--warning-bg);
+    border-left-color: var(--warning-color);
+    color: var(--warning-color);
+}
+
+.pro-alert.error {
+    background: var(--error-bg);
+    border-left-color: var(--error-color);
+    color: var(--error-color);
+}
+
+/* === BADGES PROFESSIONNELS === */
+.pro-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--surface-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    color: var(--text-secondary);
+    font-size: var(--font-xs);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.pro-badge.primary {
+    background: var(--accent-subtle);
+    border-color: var(--accent-border);
+    color: var(--accent-color);
+}
+
+.pro-badge.success {
+    background: var(--success-bg);
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+/* === SIDEBAR PROFESSIONNELLE === */
+.pro-sidebar {
+    background: var(--surface-bg);
+    border-right: 1px solid var(--border-light);
+    box-shadow: var(--shadow-light);
+    position: relative;
+}
+
+.pro-sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(180deg, transparent, var(--border-medium), transparent);
+}
+
+/* === HEADER PROFESSIONNEL === */
+.pro-header {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-light);
+    box-shadow: var(--shadow-light);
+    position: relative;
+    z-index: 1000;
+}
+
+.pro-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-medium), transparent);
+}
+
+/* === RESPONSIVE PROFESSIONNEL === */
+@media (max-width: 1024px) {
+    .pro-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .pro-nav {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    .pro-card {
+        padding: var(--spacing-lg);
+    }
+    
+    .pro-button {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .pro-table {
+        font-size: var(--font-xs);
+    }
+    
+    .pro-table th,
+    .pro-table td {
+        padding: var(--spacing-md);
+    }
+}

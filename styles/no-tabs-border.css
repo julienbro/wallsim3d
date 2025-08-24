@@ -1,0 +1,61 @@
+/* =========================================
+   SUPPRESSION COMPLÈTE DU CONTOUR DES ONGLETS PRINCIPAUX
+   Force la suppression des bordures, ombres et background contrastant
+   ========================================= */
+
+.main-tabs {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+}
+
+.main-tabs,
+div.main-tabs,
+.main-tabs.active,
+.main-tabs:hover,
+.main-tabs:focus {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
+}
+
+/* Suppression spécifique de tous les styles qui pourraient être appliqués */
+.main-tabs[style*="border"],
+.main-tabs[style*="box-shadow"],
+.main-tabs[style*="background"] {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* Version responsive aussi */
+@media (max-width: 1200px) {
+    .main-tabs {
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+        background: transparent !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-tabs {
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+        background: transparent !important;
+    }
+}
+
+/* Force absolue avec spécificité maximale */
+html body .main-tabs,
+html body div.main-tabs {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+}

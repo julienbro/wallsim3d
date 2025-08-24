@@ -1,0 +1,428 @@
+/* ======================================
+   STYLES POUR LES MATÉRIAUX ÉTENDUS
+   ====================================== */
+
+/* Onglets Couleurs/Textures */
+.material-tabs {
+    display: flex;
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.material-tab {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-disabled);
+    transition: all 0.3s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.material-tab.active {
+    color: var(--info-color);
+    border-bottom-color: var(--info-color);
+    background: rgba(33, 150, 243, 0.05);
+}
+
+.material-tab:hover {
+    background: rgba(33, 150, 243, 0.1);
+}
+
+/* Contenu des onglets */
+.material-tab-content {
+    display: none;
+}
+
+.material-tab-content.active {
+    display: block;
+}
+
+/* Sections de matériaux */
+.material-section {
+    margin-bottom: 25px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.material-section-header {
+    background: linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
+    padding: 12px 16px;
+    font-weight: bold;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background var(--transition-normal);
+}
+
+.material-section-header:hover {
+    background: linear-gradient(135deg, var(--border-light) 0%, var(--tertiary-bg) 100%);
+}
+
+.material-section-header .expand-icon {
+    font-size: 14px;
+    transition: transform 0.3s ease;
+}
+
+.material-section.collapsed .expand-icon {
+    transform: rotate(-90deg);
+}
+
+.material-section-content {
+    padding: 16px;
+    background: var(--secondary-bg);
+}
+
+.material-section.collapsed .material-section-content {
+    display: none;
+}
+
+/* Grille des matériaux améliorée */
+.material-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.material-item {
+    background: var(--secondary-bg);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    cursor: pointer;
+    transition: var(--transition-normal);
+    text-align: center;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.material-item:hover {
+    border-color: var(--info-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.material-item.active {
+    border-color: var(--info-color);
+    background: rgba(33, 150, 243, 0.1);
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);
+}
+
+/* === SYSTÈME DE PINCEAU === */
+.material-paint-action {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s ease;
+}
+
+.material-item:hover .material-paint-action {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.paint-btn {
+    background: rgba(74, 144, 226, 0.9);
+    border: none;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.paint-btn:hover {
+    background: #4a90e2;
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(74, 144, 226, 0.4);
+}
+
+.paint-btn:active {
+    transform: scale(0.95);
+}
+
+/* Mode pinceau actif */
+.material-item.painting-selected {
+    border-color: #f39c12;
+    background: #fef9e7;
+    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+}
+
+.material-item.painting-selected .paint-btn {
+    background: #f39c12;
+    animation: pulse-paint 2s infinite;
+}
+
+@keyframes pulse-paint {
+    0% { box-shadow: 0 2px 4px rgba(243, 156, 18, 0.4); }
+    50% { box-shadow: 0 4px 12px rgba(243, 156, 18, 0.8); }
+    100% { box-shadow: 0 2px 4px rgba(243, 156, 18, 0.4); }
+}
+
+.material-preview {
+    width: 100%;
+    height: 40px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.material-preview::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: inherit;
+    opacity: 0.9;
+}
+
+.material-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: #333;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.material-code {
+    font-size: 9px;
+    color: var(--text-disabled);
+    font-family: 'Courier New', monospace;
+    margin-bottom: 2px;
+}
+
+.material-description {
+    font-size: 8px;
+    color: #888;
+    font-style: italic;
+    line-height: 1.1;
+    max-height: 24px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* Tooltip pour les descriptions complètes */
+.material-item[title] {
+    position: relative;
+}
+
+.material-tooltip {
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+    background: rgba(0,0,0,0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 1000;
+    max-width: 200px;
+    white-space: normal;
+    text-align: left;
+}
+
+.material-item:hover .material-tooltip {
+    opacity: 1;
+}
+
+/* Styles pour différents types de matériaux */
+.material-section.bois .material-section-header {
+    background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+    color: white;
+}
+
+.material-section.pierres .material-section-header {
+    background: linear-gradient(135deg, #696969 0%, #808080 100%);
+    color: white;
+}
+
+.material-section.metaux .material-section-header {
+    background: linear-gradient(135deg, #C0C0C0 0%, #A9A9A9 100%);
+    color: #333;
+}
+
+.material-section.briques-tuiles .material-section-header {
+    background: linear-gradient(135deg, #B22222 0%, #CD5C5C 100%);
+    color: white;
+}
+
+.material-section.modernes-composites .material-section-header {
+    background: linear-gradient(135deg, #4169E1 0%, #6495ED 100%);
+    color: white;
+}
+
+/* Recherche de matériaux */
+.material-search {
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.material-search input {
+    width: 100%;
+    padding: 10px 40px 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.material-search .search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-disabled);
+    pointer-events: none;
+}
+
+.material-search .clear-search {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-disabled);
+    cursor: pointer;
+    font-size: 16px;
+    display: none;
+}
+
+.material-search input:not(:placeholder-shown) ~ .search-icon {
+    display: none;
+}
+
+.material-search input:not(:placeholder-shown) ~ .clear-search {
+    display: block;
+}
+
+/* Stats des matériaux */
+.material-stats {
+    background: #f8f9fa;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 15px;
+    font-size: 12px;
+    color: var(--text-disabled);
+}
+
+.material-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+    text-align: center;
+}
+
+.material-stat-item {
+    background: white;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.material-stat-value {
+    font-weight: bold;
+    color: #333;
+    display: block;
+    font-size: 14px;
+}
+
+.material-stat-label {
+    font-size: 10px;
+    color: var(--text-disabled);
+    margin-top: 2px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .material-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 8px;
+    }
+    
+    .material-item {
+        padding: 6px;
+    }
+    
+    .material-name {
+        font-size: 10px;
+    }
+    
+    .material-code,
+    .material-description {
+        font-size: 8px;
+    }
+    
+    .material-tabs {
+        flex-direction: column;
+    }
+    
+    .material-tab {
+        padding: 8px 12px;
+    }
+}
+
+/* Animation d'apparition */
+@keyframes materialFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.material-item {
+    animation: materialFadeIn 0.3s ease-out;
+}
+
+/* États de chargement */
+.material-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
+    color: var(--text-disabled);
+}
+
+.material-loading::after {
+    content: '⟳';
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    margin-left: 8px;
+    font-size: 16px;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

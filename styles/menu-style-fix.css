@@ -1,0 +1,206 @@
+/* ===============================================
+ * CORRECTIF STYLES MENU - UNIFORMISATION COMPLÈTE
+ * =============================================== */
+
+/* Reset et uniformisation de tous les éléments menu */
+.menu-option,
+.dropdown-menu .menu-option {
+    /* Structure et espacements uniformes */
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 10px 16px !important;
+    margin: 0 !important;
+    
+    /* Apparence uniforme */
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 0 !important;
+    
+    /* Typographie uniforme */
+    color: var(--text-secondary) !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    
+    /* Position et overflow */
+    position: relative !important;
+    overflow: hidden !important;
+    
+    /* Background uniforme */
+    background: transparent !important;
+}
+
+/* État hover uniforme */
+.menu-option:hover,
+.dropdown-menu .menu-option:hover {
+    background: rgba(74, 144, 226, 0.2) !important;
+    color: var(--text-primary) !important;
+    transform: none !important;
+}
+
+/* État actif uniforme */
+.menu-option.active,
+.dropdown-menu .menu-option.active {
+    background: rgba(74, 144, 226, 0.3) !important;
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+/* État désactivé uniforme */
+.menu-option.disabled,
+.menu-option[style*="opacity: 0.5"] {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    background: transparent !important;
+}
+
+.menu-option.disabled:hover,
+.menu-option[style*="opacity: 0.5"]:hover {
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Icônes uniformes */
+.menu-option .menu-icon,
+.menu-option .menu-icon i {
+    font-size: 14px !important;
+    width: 16px !important;
+    text-align: center !important;
+    color: inherit !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.menu-option.active .menu-icon,
+.menu-option.active .menu-icon i {
+    color: var(--accent-color) !important;
+}
+
+/* Raccourcis clavier uniformes */
+.menu-option .shortcut {
+    margin-left: auto !important;
+    font-size: 11px !important;
+    color: var(--text-muted) !important;
+    font-family: 'Consolas', 'Monaco', monospace !important;
+    opacity: 0.7 !important;
+}
+
+/* Menu options sans raccourcis - structure uniforme */
+.menu-option {
+    /* Structure flex par défaut */
+    justify-content: flex-start !important;
+}
+
+/* Menu options avec raccourcis - espace entre les éléments */
+.menu-option .shortcut {
+    margin-left: auto !important;
+}
+
+/* Correction spécifique pour le menu Affichage et autres sans raccourcis */
+.menu-option {
+    /* Assure un espacement uniforme */
+    padding-right: 16px !important;
+}
+
+/* Dernier élément sans bordure */
+.menu-option:last-child {
+    border-bottom: none !important;
+}
+
+/* Séparateurs */
+.menu-separator {
+    height: 1px !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    margin: 4px 0 !important;
+    border: none !important;
+}
+
+/* Focus states */
+.menu-option:focus,
+.menu-option:focus-visible {
+    outline: 2px solid #4a90e2 !important;
+    outline-offset: -2px !important;
+    background: rgba(74, 144, 226, 0.1) !important;
+}
+
+/* États spéciaux pour les indicateurs */
+.menu-option.has-content::after {
+    content: '●' !important;
+    color: #27ae60 !important;
+    font-size: 8px !important;
+    position: absolute !important;
+    top: 4px !important;
+    right: 8px !important;
+    animation: contentPulse 2s ease-in-out infinite !important;
+}
+
+/* CORRECTIFS SPÉCIFIQUES PAR TYPE DE MENU */
+
+/* Menu Fichier et Edition (avec raccourcis) - structure par défaut flex */
+.menu-option {
+    justify-content: space-between !important;
+}
+
+/* Correction spécifique pour les menus Affichage (viewTop, viewFront, etc.) */
+#viewTop, #viewFront, #viewSide, #viewPerspective {
+    justify-content: flex-start !important;
+}
+
+/* Force la même largeur pour tous les menus */
+.dropdown-menu {
+    min-width: 200px !important;
+    width: auto !important;
+}
+
+/* Assure l'alignement uniforme du texte principal */
+.menu-option > span:not(.menu-icon):not(.shortcut) {
+    flex: 1 !important;
+    text-align: left !important;
+    margin-left: 0 !important;
+}
+
+/* Espacement uniforme pour les éléments sans raccourcis */
+.menu-option:not([id*="Action"]):not([id*="Project"]) span:last-child:not(.shortcut) {
+    margin-right: auto !important;
+}
+
+/* Animation pour les indicateurs */
+@keyframes contentPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Correction pour les styles inline qui pourraient subsister */
+.menu-option[style*="background"] {
+    /* Force la réinitialisation des backgrounds inline */
+    background: transparent !important;
+}
+
+.menu-option[style*="opacity: 0.5"] {
+    /* Garde l'opacity mais force les autres propriétés */
+    background: transparent !important;
+    cursor: not-allowed !important;
+}
+
+.menu-option[style*="opacity: 0.5"]:hover {
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .menu-option {
+        padding: 12px 20px !important;
+        font-size: 14px !important;
+    }
+    
+    .menu-option .menu-icon {
+        font-size: 16px !important;
+        width: 18px !important;
+    }
+}

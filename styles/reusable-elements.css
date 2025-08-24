@@ -1,0 +1,554 @@
+/**
+ * STYLES POUR LES ÉLÉMENTS À RÉUTILISER
+ * Sous-onglet "Éléments à réutiliser" dans l'onglet Biblio
+ */
+
+/* Sous-onglets principaux de la bibliothèque */
+.main-sub-tabs {
+    display: flex;
+    background: var(--sidebar-bg);
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-color);
+}
+
+.main-sub-tab {
+    flex: 1;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.main-sub-tab:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.main-sub-tab.active {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.main-sub-tab i {
+    font-size: 14px;
+}
+
+/* Contenu des sous-onglets principaux */
+.main-subtab-content {
+    display: none;
+}
+
+.main-subtab-content.active {
+    display: block;
+}
+
+/* Section de réutilisation */
+.reuse-section {
+    padding: 16px;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.reuse-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.reuse-header h5 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reuse-header h5 i {
+    color: var(--primary-color);
+}
+
+.reuse-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-reuse-refresh,
+.btn-reuse-clear {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-reuse-refresh:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.btn-reuse-clear:hover {
+    background: #e74c3c;
+    color: white;
+    border-color: #e74c3c;
+}
+
+/* Catégories de réutilisation */
+.reuse-category {
+    margin-bottom: 24px;
+}
+
+.reuse-category:last-child {
+    margin-bottom: 0;
+}
+
+.reuse-category h6 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.reuse-category h6 i {
+    color: var(--primary-color);
+    font-size: 12px;
+}
+
+/* Grille des éléments à réutiliser */
+.reuse-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+/* Grille unifiée pour afficher tous les éléments en ligne horizontale */
+.unified-grid {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    min-height: 120px;
+    padding: 12px;
+    background: var(--sidebar-bg);
+    border-radius: 6px;
+    border: 1px solid var(--border-light);
+    margin-bottom: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--border-color);
+}
+
+/* Style de la scrollbar pour webkit */
+.unified-grid::-webkit-scrollbar {
+    height: 8px;
+}
+
+.unified-grid::-webkit-scrollbar-track {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.unified-grid::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.unified-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* Style spécial pour les éléments dans la grille unifiée */
+.unified-grid .reuse-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px;
+    position: relative;
+    transition: all 0.2s ease;
+    min-height: 100px;
+    width: 160px;
+    min-width: 160px;
+    flex-shrink: 0;
+    white-space: normal;
+}
+
+.unified-grid .reuse-item:hover {
+    background: rgba(0, 150, 255, 0.1);
+    border-color: rgba(0, 150, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Indicateur de type pour les éléments dans la grille unifiée */
+.unified-grid .reuse-item::before {
+    content: attr(data-type);
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    background: var(--primary-color);
+    color: white;
+    font-size: 8px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    z-index: 2;
+    opacity: 0.9;
+}
+
+/* Ajustements pour les éléments compacts dans la grille unifiée */
+.unified-grid .reuse-item-header {
+    margin-bottom: 4px;
+}
+
+.unified-grid .reuse-item-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.unified-grid .reuse-item-count {
+    font-size: 10px;
+    background: rgba(0, 150, 255, 0.2);
+    color: var(--primary-color);
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-weight: 600;
+}
+
+.unified-grid .reuse-item-dimensions {
+    font-size: 9px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.unified-grid .reuse-item-preview {
+    height: 50px;
+    margin-bottom: 6px;
+}
+
+.unified-grid .reuse-cut-buttons {
+    margin: 4px 0 0 0;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.unified-grid .reuse-cut-btn {
+    padding: 2px 6px;
+    font-size: 9px;
+    margin: 1px;
+    min-width: 25px;
+}
+
+.reuse-item {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.reuse-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.reuse-item.selected {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+}
+
+.reuse-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.reuse-item-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.reuse-item-count {
+    background: var(--primary-color);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.reuse-item-dimensions {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.reuse-item-preview {
+    width: 100%;
+    height: 80px;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    border-radius: 6px;
+    border: 1px solid #444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.reuse-preview-3d {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.reuse-item:hover .reuse-preview-3d {
+    transform: scale(1.05);
+    filter: brightness(1.1);
+}
+
+.reuse-preview-fallback {
+    font-size: 20px;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.reuse-item:hover .reuse-preview-fallback {
+    color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.reuse-item-last-used {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* Boutons de coupe dans les éléments réutilisables */
+.reuse-cut-buttons {
+    margin: 8px 0;
+    padding: 8px;
+    background: var(--sidebar-bg);
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+}
+
+.reuse-cut-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+.reuse-cut-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    padding: 4px 8px;
+    margin: 2px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-block;
+    min-width: 35px;
+    text-align: center;
+}
+
+.reuse-cut-btn:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.reuse-cut-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.reuse-cut-btn:active {
+    transform: translateY(0);
+}
+
+/* Responsive pour les boutons de coupe */
+@media (max-width: 768px) {
+    .reuse-cut-btn {
+        padding: 3px 6px;
+        font-size: 10px;
+        min-width: 30px;
+    }
+}
+
+/* Placeholder quand aucun élément */
+.reuse-placeholder {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+    background: var(--sidebar-bg);
+    border-radius: 8px;
+    border: 2px dashed var(--border-color);
+}
+
+.reuse-placeholder i {
+    font-size: 48px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: block;
+}
+
+.reuse-placeholder p {
+    margin: 0 0 8px 0;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.reuse-placeholder small {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Statistiques de réutilisation */
+.reuse-stats {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.reuse-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+}
+
+.reuse-stat-item {
+    text-align: center;
+    padding: 12px;
+    background: var(--sidebar-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+}
+
+.reuse-stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+.reuse-stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Animations */
+.reuse-item {
+    animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-sub-tabs {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .main-sub-tab {
+        justify-content: center;
+    }
+    
+    .reuse-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+    
+    .reuse-actions {
+        justify-content: center;
+    }
+    
+    .reuse-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 8px;
+    }
+    
+    .reuse-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+}
+
+/* Mode sombre */
+@media (prefers-color-scheme: dark) {
+    .reuse-item-preview {
+        background: var(--dark-bg-secondary);
+    }
+    
+    .reuse-placeholder {
+        background: var(--dark-bg-secondary);
+        border-color: var(--dark-border);
+    }
+    
+    .reuse-stat-item {
+        background: var(--dark-bg-secondary);
+        border-color: var(--dark-border);
+    }
+}

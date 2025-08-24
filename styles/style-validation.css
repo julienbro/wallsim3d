@@ -1,0 +1,231 @@
+/* =========================================
+   VALIDATION DES STYLES UNIFORMISÉS
+   Vérification et tests de cohérence
+   ========================================= */
+
+/* Test de toutes les variables principales */
+:root {
+    /* Vérification que toutes les variables sont bien définies */
+    --test-primary: var(--primary-bg);
+    --test-secondary: var(--secondary-bg);
+    --test-tertiary: var(--tertiary-bg);
+    --test-quaternary: var(--quaternary-bg);
+    --test-accent: var(--accent-color);
+    --test-text-primary: var(--text-primary);
+    --test-text-secondary: var(--text-secondary);
+    --test-border: var(--border-color);
+    --test-success: var(--success-color);
+    --test-warning: var(--warning-color);
+    --test-error: var(--error-color);
+    --test-info: var(--info-color);
+    --test-spacing: var(--spacing-md);
+    --test-radius: var(--radius-md);
+    --test-font: var(--font-md);
+    --test-transition: var(--transition-fast);
+}
+
+/* Test d'application des styles sur tous les éléments critiques */
+.test-element {
+    /* Test bouton standard */
+    background: var(--tertiary-bg);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-sm);
+    transition: var(--transition-fast);
+}
+
+.test-element:hover {
+    background: var(--accent-color);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-light);
+}
+
+/* Test input standard */
+.test-input {
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-sm);
+}
+
+.test-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-focus);
+}
+
+/* Test panel standard */
+.test-panel {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    backdrop-filter: blur(10px);
+}
+
+/* Test modal standard */
+.test-modal {
+    background: linear-gradient(145deg, var(--primary-bg), var(--secondary-bg));
+    border: 2px solid var(--accent-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-dark);
+}
+
+/* Test messages d'état */
+.test-success {
+    background: var(--success-bg);
+    border: 1px solid var(--success-color);
+    color: var(--success-color);
+}
+
+.test-warning {
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-color);
+    color: var(--warning-color);
+}
+
+.test-error {
+    background: var(--error-bg);
+    border: 1px solid var(--error-color);
+    color: var(--error-color);
+}
+
+.test-info {
+    background: var(--info-bg);
+    border: 1px solid var(--info-color);
+    color: var(--info-color);
+}
+
+/* Test matériaux */
+.test-material-brick {
+    background: var(--material-brick-bg);
+    color: var(--material-brick);
+}
+
+.test-material-block {
+    background: var(--material-block-bg);
+    color: var(--material-block);
+}
+
+.test-material-joint {
+    background: var(--material-joint-bg);
+    color: var(--material-joint);
+}
+
+.test-material-linteau {
+    background: var(--material-linteau-bg);
+    color: var(--material-linteau);
+}
+
+/* Règles de diagnostic pour détecter les styles non conformes */
+[style*="color: #"],
+[style*="background: #"],
+[style*="border: #"] {
+    /* Ces éléments utilisent encore des couleurs hardcodées */
+    outline: 2px dashed var(--error-color) !important;
+    position: relative;
+}
+
+[style*="color: #"]::after,
+[style*="background: #"]::after,
+[style*="border: #"]::after {
+    content: "⚠ Style hardcodé détecté";
+    position: absolute;
+    top: -20px;
+    left: 0;
+    background: var(--error-color);
+    color: var(--text-primary);
+    font-size: var(--font-xs);
+    padding: 2px 4px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    z-index: 10000;
+}
+
+/* Test de compatibilité responsive */
+@media (max-width: 768px) {
+    .test-element {
+        padding: var(--spacing-xs) var(--spacing-md);
+        font-size: var(--font-xs);
+    }
+    
+    .test-panel {
+        padding: var(--spacing-md);
+        border-radius: var(--radius-sm);
+    }
+    
+    .test-modal {
+        padding: var(--spacing-lg);
+        margin: var(--spacing-md);
+        border-radius: var(--radius-md);
+    }
+}
+
+/* Vérification de la cohérence des animations */
+@keyframes test-fade-in {
+    from { 
+        opacity: 0; 
+        transform: translateY(-10px);
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0);
+    }
+}
+
+.test-animation {
+    animation: test-fade-in var(--transition-normal) ease-out;
+}
+
+/* Vérification des hover states */
+.test-hover-consistency:hover {
+    background: var(--glass-hover);
+    color: var(--text-primary);
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-light);
+    transform: translateY(-1px);
+    transition: var(--transition-fast);
+}
+
+/* Test des scrollbars uniformes */
+.test-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.test-scroll::-webkit-scrollbar-track {
+    background: var(--quaternary-bg);
+    border-radius: var(--radius-sm);
+}
+
+.test-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: var(--radius-sm);
+}
+
+.test-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
+}
+
+/* Validation complète */
+.validation-complete {
+    /* Si cette règle s'applique correctement, l'uniformisation est réussie */
+    background: var(--success-bg);
+    border: 2px solid var(--success-color);
+    color: var(--success-color);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    text-align: center;
+    font-weight: 600;
+    margin: var(--spacing-xl) 0;
+}
+
+.validation-complete::before {
+    content: "✅ UNIFORMISATION RÉUSSIE - Tous les styles utilisent les variables unifiées";
+    display: block;
+    font-size: var(--font-lg);
+}

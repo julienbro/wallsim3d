@@ -1,0 +1,1167 @@
+/* Styles pour les outils de cotation et d'annotations */
+
+/* === STYLES POUR L'OUTIL DE MESURE === */
+
+/* Curseur de mesure */
+.measurement-cursor {
+    cursor: crosshair !important;
+}
+
+/* Indicateur d'état de l'outil de mesure */
+.measurement-status {
+    position: fixed;
+    top: 120px;
+    left: 80px;
+    background: var(--warning-color);
+    color: var(--text-primary);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: 20px;
+    font-size: var(--font-sm);
+    font-weight: 600;
+    z-index: 10001;
+    display: none;
+    animation: fadeInOut 0.3s ease;
+}
+
+.measurement-status.active {
+    display: block;
+}
+
+/* Panneau de contrôle des mesures */
+.measurement-controls {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 15px;
+    color: white;
+    font-size: 14px;
+    z-index: 10000;
+    display: none;
+    min-width: 200px;
+}
+
+.measurement-controls.active {
+    display: block;
+}
+
+.measurement-controls h3 {
+    margin: 0 0 10px 0;
+    color: #ff6600;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.measurement-unit-selector {
+    margin: 10px 0;
+}
+
+.measurement-unit-selector label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.measurement-unit-selector select {
+    width: 100%;
+    padding: 5px;
+    border: 1px solid #555;
+    background: #333;
+    color: white;
+    border-radius: 4px;
+}
+
+.measurement-precision {
+    margin: 10px 0;
+}
+
+.measurement-precision input {
+    width: 60px;
+    padding: 4px;
+    border: 1px solid #555;
+    background: #333;
+    color: white;
+    border-radius: 4px;
+}
+
+.measurement-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.measurement-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.3s ease;
+}
+
+.measurement-btn-clear {
+    background: #f44336;
+    color: white;
+}
+
+.measurement-btn-clear:hover {
+    background: #d32f2f;
+}
+
+.measurement-btn-export {
+    background: #4caf50;
+    color: white;
+}
+
+.measurement-btn-export:hover {
+    background: #388e3c;
+}
+
+.measurement-btn-hide {
+    background: #757575;
+    color: white;
+}
+
+.measurement-btn-hide:hover {
+    background: #616161;
+}
+
+/* Liste des mesures */
+.measurement-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 10px;
+    border-top: 1px solid #555;
+    padding-top: 10px;
+}
+
+.measurement-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 5px;
+    font-size: 12px;
+}
+
+.measurement-item:last-child {
+    margin-bottom: 0;
+}
+
+.measurement-value {
+    font-weight: bold;
+    color: #ff6600;
+}
+
+.measurement-coords {
+    font-size: 10px;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+/* === STYLES POUR L'OUTIL D'ANNOTATION === */
+
+/* Curseur d'annotation */
+.annotation-cursor {
+    cursor: text !important;
+}
+
+/* Boîte de dialogue d'édition d'annotation */
+.annotation-edit-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.annotation-dialog-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    animation: slideIn 0.3s ease;
+}
+
+.annotation-dialog-header {
+    background: #007acc;
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.annotation-dialog-header h3 {
+    margin: 0;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.annotation-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    transition: background 0.3s ease;
+}
+
+.annotation-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.annotation-dialog-body {
+    padding: 20px;
+}
+
+.annotation-form-group {
+    margin-bottom: 15px;
+}
+
+.annotation-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333;
+}
+
+.annotation-form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    resize: vertical;
+    transition: border-color 0.3s ease;
+}
+
+.annotation-form-group textarea:focus {
+    outline: none;
+    border-color: #007acc;
+}
+
+.annotation-form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    transition: border-color 0.3s ease;
+}
+
+.annotation-form-group select:focus {
+    outline: none;
+    border-color: #007acc;
+}
+
+.annotation-dialog-footer {
+    background: #f5f5f5;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.annotation-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.3s ease, transform 0.1s ease;
+}
+
+.annotation-btn:hover {
+    transform: translateY(-1px);
+}
+
+.annotation-btn-cancel {
+    background: #757575;
+    color: white;
+}
+
+.annotation-btn-cancel:hover {
+    background: #616161;
+}
+
+.annotation-btn-delete {
+    background: #f44336;
+    color: white;
+}
+
+.annotation-btn-delete:hover {
+    background: #d32f2f;
+}
+
+.annotation-btn-save {
+    background: #4caf50;
+    color: white;
+}
+
+.annotation-btn-save:hover {
+    background: #388e3c;
+}
+
+/* Panneau de contrôle des annotations */
+.annotation-controls {
+    position: fixed;
+    top: 100px;
+    right: 240px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 15px;
+    color: white;
+    font-size: 14px;
+    z-index: 10000;
+    display: none;
+    min-width: 200px;
+}
+
+.annotation-controls.active {
+    display: block;
+}
+
+.annotation-controls h3 {
+    margin: 0 0 10px 0;
+    color: #007acc;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.annotation-type-filter {
+    margin: 10px 0;
+}
+
+.annotation-type-filter label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.annotation-type-filter select {
+    width: 100%;
+    padding: 5px;
+    border: 1px solid #555;
+    background: #333;
+    color: white;
+    border-radius: 4px;
+}
+
+.annotation-search {
+    margin: 10px 0;
+}
+
+.annotation-search input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #555;
+    background: #333;
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.annotation-search input::placeholder {
+    color: #999;
+}
+
+.annotation-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.annotation-btn-list {
+    background: #2196f3;
+    color: white;
+}
+
+.annotation-btn-list:hover {
+    background: #1976d2;
+}
+
+/* Liste des annotations */
+.annotation-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
+    border-top: 1px solid #555;
+    padding-top: 10px;
+}
+
+.annotation-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.annotation-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.annotation-item:last-child {
+    margin-bottom: 0;
+}
+
+.annotation-text {
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.annotation-meta {
+    font-size: 10px;
+    color: #aaa;
+    display: flex;
+    justify-content: space-between;
+}
+
+.annotation-type-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.annotation-type-note {
+    background: #007acc;
+    color: white;
+}
+
+.annotation-type-warning {
+    background: #ff9800;
+    color: white;
+}
+
+.annotation-type-info {
+    background: #2196f3;
+    color: white;
+}
+
+.annotation-type-dimension {
+    background: #4caf50;
+    color: white;
+}
+
+.annotation-type-material {
+    background: #f44336;
+    color: white;
+}
+
+.annotation-type-instruction {
+    background: #9c27b0;
+    color: white;
+}
+
+/* === BOUTONS DANS LA BARRE D'OUTILS === */
+/* Note: Les styles sont maintenant uniformisés avec le reste de la toolbar dans main.css */
+/* Tous les boutons utilisent le style standard défini dans main.css pour la cohérence */
+
+/* Bouton de mesure dans la barre d'outils */
+.tool-button#measureTool {
+    position: relative;
+}
+
+/* Bouton d'annotation dans la barre d'outils */
+.tool-button#annotationTool {
+    position: relative;
+}
+
+/* Bouton d'outil texte avec ligne de rappel dans la barre d'outils */
+.tool-button#textLeaderTool {
+    position: relative;
+}
+
+/* === DIALOGUE D'ÉDITION TEXTE AVEC LIGNE DE RAPPEL === */
+.text-leader-edit-dialog {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+}
+
+.text-leader-dialog-content {
+    background: var(--panel-bg, #2a2a2a);
+    border: 2px solid var(--border-color, #555);
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90vw;
+    max-height: 90vh;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.text-leader-dialog-header {
+    background: var(--header-bg, #333);
+    color: var(--text-primary, white);
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color, #555);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.text-leader-dialog-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.text-leader-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-primary, white);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.text-leader-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.text-leader-dialog-body {
+    padding: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.text-leader-form-group {
+    margin-bottom: 15px;
+}
+
+.text-leader-form-group label {
+    display: block;
+    color: var(--text-primary, white);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.text-leader-form-group textarea,
+.text-leader-form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--input-bg, #1a1a1a);
+    border: 1px solid var(--border-color, #555);
+    border-radius: 4px;
+    color: var(--text-primary, white);
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.text-leader-form-group textarea:focus,
+.text-leader-form-group select:focus {
+    outline: none;
+    border-color: var(--accent-color, #66bb6a);
+    box-shadow: 0 0 0 2px rgba(102, 187, 106, 0.2);
+}
+
+.text-leader-form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+    max-height: 150px;
+}
+
+.text-leader-dialog-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border-color, #555);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.text-leader-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 80px;
+}
+
+.text-leader-btn-save {
+    background: var(--success-color, #66bb6a);
+    color: white;
+}
+
+.text-leader-btn-save:hover {
+    background: var(--success-hover, #5cb85c);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 187, 106, 0.3);
+}
+
+.text-leader-btn-delete {
+    background: var(--danger-color, #f44336);
+    color: white;
+}
+
+.text-leader-btn-delete:hover {
+    background: var(--danger-hover, #d32f2f);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+.text-leader-btn-cancel {
+    background: var(--secondary-color, #757575);
+    color: white;
+}
+
+.text-leader-btn-cancel:hover {
+    background: var(--secondary-hover, #616161);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(117, 117, 117, 0.3);
+}
+
+/* === PANNEAU DE CONTRÔLE TEXTE AVEC LIGNE DE RAPPEL === */
+.text-leader-controls {
+    position: fixed;
+    top: 120px;
+    right: 20px;
+    width: 300px;
+    background: var(--panel-bg, #2a2a2a);
+    border: 1px solid var(--border-color, #555);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: translateX(320px);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    max-height: 60vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.text-leader-controls.active {
+    transform: translateX(0);
+}
+
+.text-leader-controls h3 {
+    background: var(--header-bg, #333);
+    color: var(--text-primary, white);
+    margin: 0;
+    padding: 15px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color, #555);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.text-leader-actions {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color, #555);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.text-leader-btn-action {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 1;
+    min-width: 70px;
+}
+
+.text-leader-btn-clear {
+    background: var(--danger-color, #f44336);
+    color: white;
+}
+
+.text-leader-btn-clear:hover {
+    background: var(--danger-hover, #d32f2f);
+}
+
+.text-leader-btn-export {
+    background: var(--info-color, #2196f3);
+    color: white;
+}
+
+.text-leader-btn-export:hover {
+    background: var(--info-hover, #1976d2);
+}
+
+.text-leader-btn-hide {
+    background: var(--secondary-color, #757575);
+    color: white;
+}
+
+.text-leader-btn-hide:hover {
+    background: var(--secondary-hover, #616161);
+}
+
+.text-leader-filter {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color, #555);
+}
+
+.text-leader-filter label {
+    display: block;
+    color: var(--text-primary, white);
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.text-leader-filter select,
+.text-leader-filter input {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--input-bg, #1a1a1a);
+    border: 1px solid var(--border-color, #555);
+    border-radius: 4px;
+    color: var(--text-primary, white);
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.text-leader-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 300px;
+}
+
+.text-leader-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.text-leader-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.text-leader-item:last-child {
+    border-bottom: none;
+}
+
+.text-leader-text {
+    color: var(--text-primary, white);
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.text-leader-meta {
+    color: var(--text-secondary, #aaa);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.text-leader-style-badge {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.text-leader-style-normal {
+    background: #757575;
+    color: white;
+}
+
+.text-leader-style-bold {
+    background: #333333;
+    color: white;
+}
+
+.text-leader-style-italic {
+    background: #9e9e9e;
+    color: white;
+}
+
+.text-leader-style-title {
+    background: #4caf50;
+    color: white;
+}
+
+.text-leader-color-badge {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.text-leader-color-black {
+    background: #000000;
+}
+
+.text-leader-color-blue {
+    background: #0066cc;
+}
+
+.text-leader-color-red {
+    background: #ff3333;
+}
+
+.text-leader-color-green {
+    background: #33cc33;
+}
+
+.text-leader-color-orange {
+    background: #ff9933;
+}
+
+.text-leader-color-purple {
+    background: #9933ff;
+}
+
+/* === ANIMATIONS === */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* === STYLES RESPONSIVE === */
+
+@media (max-width: 768px) {
+    .measurement-controls,
+    .annotation-controls {
+        position: fixed;
+        top: auto;
+        bottom: 20px;
+        right: 20px;
+        left: 20px;
+        width: auto;
+        min-width: auto;
+    }
+    
+    .annotation-dialog-content {
+        width: 95%;
+        margin: 10px;
+    }
+    
+    .annotation-dialog-header,
+    .annotation-dialog-body,
+    .annotation-dialog-footer {
+        padding: 10px 15px;
+    }
+    
+    .annotation-btn {
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+}
+
+/* === COMPATIBILITÉ AVEC LE THÈME EXISTANT === */
+
+/* Assurer que les nouveaux éléments suivent le thème existant */
+.measurement-controls,
+.annotation-controls {
+    border: 2px solid var(--border-color, rgba(255, 255, 255, 0.2));
+    background: var(--panel-bg, rgba(0, 0, 0, 0.9));
+}
+
+.measurement-btn,
+.annotation-btn {
+    font-family: var(--font-family, Arial, sans-serif);
+}
+
+.annotation-dialog-content {
+    font-family: var(--font-family, Arial, sans-serif);
+}
+
+/* Indicateur de nombre d'éléments actifs */
+.tool-counter {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff4444;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.tool-button#measureTool .tool-counter {
+    background: #ff6600;
+}
+
+.tool-button#annotationTool .tool-counter {
+    background: #007acc;
+}
+
+/* === THÈME SOMBRE POUR LES ANNOTATIONS === */
+/* Mode sombre par défaut (sans classe spéciale requise) */
+.annotation-edit-dialog .annotation-dialog-content {
+    background: var(--bg-secondary, #2c2c2c);
+    color: var(--text-primary, #ffffff);
+    border: 1px solid var(--border-primary, #404040);
+}
+
+.annotation-dialog-header {
+    background: var(--accent-primary, #007acc);
+    color: var(--text-primary, #ffffff);
+}
+
+.annotation-dialog-footer {
+    background: var(--bg-tertiary, #1e1e1e);
+    border-top: 1px solid var(--border-primary, #404040);
+}
+
+.annotation-form-group label {
+    color: var(--text-primary, #ffffff);
+}
+
+.annotation-form-group textarea {
+    background: var(--bg-primary, #1a1a1a);
+    color: var(--text-primary, #ffffff);
+    border: 2px solid var(--border-primary, #404040);
+}
+
+.annotation-form-group textarea:focus {
+    border-color: var(--accent-primary, #007acc);
+}
+
+.annotation-form-group select {
+    background: var(--bg-primary, #1a1a1a);
+    color: var(--text-primary, #ffffff);
+    border: 2px solid var(--border-primary, #404040);
+}
+
+.annotation-form-group select:focus {
+    border-color: var(--accent-primary, #007acc);
+}
+
+.annotation-form-group select option {
+    background: var(--bg-primary, #1a1a1a);
+    color: var(--text-primary, #ffffff);
+}
+
+.annotation-btn-cancel {
+    background: var(--btn-secondary, #6c757d);
+    color: var(--text-primary, #ffffff);
+}
+
+.annotation-btn-cancel:hover {
+    background: var(--btn-secondary-hover, #5a6268);
+}
+
+.annotation-btn-delete {
+    background: var(--danger, #dc3545);
+    color: var(--text-primary, #ffffff);
+}
+
+.annotation-btn-delete:hover {
+    background: var(--danger-hover, #c82333);
+}
+
+.annotation-btn-save {
+    background: var(--success, #28a745);
+    color: var(--text-primary, #ffffff);
+}
+
+.annotation-btn-save:hover {
+    background: var(--success-hover, #218838);
+}
+
+.annotation-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mode clair (si explicitement activé) */
+body.light-theme .annotation-edit-dialog .annotation-dialog-content {
+    background: white;
+    color: #333;
+    border: 1px solid #ddd;
+}
+
+body.light-theme .annotation-dialog-footer {
+    background: #f5f5f5;
+    border-top: 1px solid #ddd;
+}
+
+body.light-theme .annotation-form-group label {
+    color: #333;
+}
+
+body.light-theme .annotation-form-group textarea {
+    background: white;
+    color: #333;
+    border: 2px solid #ddd;
+}
+
+body.light-theme .annotation-form-group select {
+    background: white;
+    color: #333;
+    border: 2px solid #ddd;
+}
+
+body.light-theme .annotation-form-group select option {
+    background: white;
+    color: #333;
+}
+
+/* Garder aussi les styles avec body.dark-theme pour compatibilité */
+body.dark-theme .annotation-edit-dialog .annotation-dialog-content {
+    background: var(--bg-secondary, #2c2c2c);
+    color: var(--text-primary, #ffffff);
+    border: 1px solid var(--border-primary, #404040);
+}
+
+body.dark-theme .annotation-dialog-header {
+    background: var(--accent-primary, #007acc);
+    color: var(--text-primary, #ffffff);
+}
+
+body.dark-theme .annotation-dialog-footer {
+    background: var(--bg-tertiary, #1e1e1e);
+    border-top: 1px solid var(--border-primary, #404040);
+}
+
+body.dark-theme .annotation-form-group label {
+    color: var(--text-primary, #ffffff);
+}
+
+body.dark-theme .annotation-form-group textarea {
+    background: var(--bg-primary, #1a1a1a);
+    color: var(--text-primary, #ffffff);
+    border: 2px solid var(--border-primary, #404040);
+}
+
+body.dark-theme .annotation-form-group textarea:focus {
+    border-color: var(--accent-primary, #007acc);
+}
+
+body.dark-theme .annotation-form-group select {
+    background: var(--bg-primary, #1a1a1a);
+    color: var(--text-primary, #ffffff);
+    border: 2px solid var(--border-primary, #404040);
+}
+
+body.dark-theme .annotation-form-group select:focus {
+    border-color: var(--accent-primary, #007acc);
+}
+
+body.dark-theme .annotation-form-group select option {
+    background: var(--bg-primary, #1a1a1a);
+    color: var(--text-primary, #ffffff);
+}
+
+body.dark-theme .annotation-btn-cancel {
+    background: var(--btn-secondary, #6c757d);
+    color: var(--text-primary, #ffffff);
+}
+
+body.dark-theme .annotation-btn-cancel:hover {
+    background: var(--btn-secondary-hover, #5a6268);
+}
+
+body.dark-theme .annotation-btn-delete {
+    background: var(--danger, #dc3545);
+    color: var(--text-primary, #ffffff);
+}
+
+body.dark-theme .annotation-btn-delete:hover {
+    background: var(--danger-hover, #c82333);
+}
+
+body.dark-theme .annotation-btn-save {
+    background: var(--success, #28a745);
+    color: var(--text-primary, #ffffff);
+}
+
+body.dark-theme .annotation-btn-save:hover {
+    background: var(--success-hover, #218838);
+}
+
+body.dark-theme .annotation-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}

@@ -1,0 +1,277 @@
+/* === CORRECTION FORCE POUR AFFICHAGE 2 COLONNES === */
+/* Styles très spécifiques pour garantir 2 colonnes */
+
+.subtab-content .library-section .library-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: auto !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+/* === UNIFORMISATION COMPLÈTE DE TOUS LES ÉLÉMENTS === */
+
+/* Pour les éléments avec item-icon direct (blocs, isolants, linteaux) */
+.subtab-content .library-section .library-grid .library-item:not([data-type*="M"]) {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 8px !important;
+    min-height: 200px !important;
+    box-sizing: border-box !important;
+}
+
+/* Container virtuel pour les item-icon directs */
+.subtab-content .library-section .library-grid .library-item:not([data-type*="M"]) .item-icon {
+    width: 180px !important;
+    height: 110px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%) !important;
+    border-radius: 8px !important;
+    border: 1px solid #444 !important;
+    margin-bottom: 8px !important;
+    font-size: 70px !important;
+    box-sizing: border-box !important;
+}
+
+/* Container pour les infos des éléments sans item-info */
+.subtab-content .library-section .library-grid .library-item:not([data-type*="M"]) .item-name,
+.subtab-content .library-section .library-grid .library-item:not([data-type*="M"]) .item-dimensions {
+    text-align: center !important;
+}
+
+.subtab-content .library-section .library-grid .library-item:not([data-type*="M"]) .item-name {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    margin-bottom: 4px !important;
+}
+
+.subtab-content .library-section .library-grid .library-item:not([data-type*="M"]) .item-dimensions {
+    font-size: 12px !important;
+    opacity: 0.8 !important;
+    margin-bottom: 8px !important;
+}
+
+/* S'assurer que les éléments de la grille ne débordent pas */
+.subtab-content .library-section .library-grid .library-item {
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    width: 100% !important;
+    max-width: 200px !important;
+}
+
+/* Pour les éléments avec item-preview (briques) - maintenir la cohérence */
+.subtab-content .library-section .library-grid .library-item[data-type*="M"] {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 8px !important;
+    min-height: 200px !important;
+}
+
+.subtab-content .library-section .library-grid .library-item[data-type*="M"] .item-preview {
+    width: 180px !important;
+    height: 110px !important;
+    border-radius: 8px !important;
+    margin-bottom: 8px !important;
+}
+
+.subtab-content .library-section .library-grid .library-item[data-type*="M"] .item-info {
+    text-align: center !important;
+}
+
+.subtab-content .library-section .library-grid .library-item[data-type*="M"] .item-info .item-name {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    margin-bottom: 4px !important;
+}
+
+.subtab-content .library-section .library-grid .library-item[data-type*="M"] .item-info .item-dimensions {
+    font-size: 12px !important;
+    opacity: 0.8 !important;
+    margin-bottom: 8px !important;
+}
+.subtab-content .library-section .library-grid .library-item {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 200px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    padding: 6px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    min-height: 200px !important;
+}
+
+/* Styles spécifiques pour uniformiser TOUTES les briques avec aperçu 3D */
+.subtab-content .library-section .library-grid .library-item[data-type="M50"] .preview-3d,
+.subtab-content .library-section .library-grid .library-item[data-type="M57"] .preview-3d,
+.subtab-content .library-section .library-grid .library-item[data-type="M60"] .preview-3d,
+.subtab-content .library-section .library-grid .library-item[data-type="M65"] .preview-3d,
+.subtab-content .library-section .library-grid .library-item[data-type="M90"] .preview-3d {
+    width: 180px !important;
+    height: 110px !important;
+    max-width: 180px !important;
+    max-height: 110px !important;
+    object-fit: contain !important;
+    box-sizing: border-box !important;
+}
+
+.subtab-content .library-section .library-grid .library-item[data-type="M50"] .item-preview,
+.subtab-content .library-section .library-grid .library-item[data-type="M57"] .item-preview,
+.subtab-content .library-section .library-grid .library-item[data-type="M60"] .item-preview,
+.subtab-content .library-section .library-grid .library-item[data-type="M65"] .item-preview,
+.subtab-content .library-section .library-grid .library-item[data-type="M90"] .item-preview {
+    width: 180px !important;
+    height: 110px !important;
+    box-sizing: border-box !important;
+}
+
+/* Ajuster la taille des previews pour qu'ils tiennent dans 2 colonnes */
+.subtab-content .library-section .library-grid .library-item .preview-3d {
+    width: 180px !important;
+    height: 110px !important;
+    max-width: 180px !important;
+    max-height: 110px !important;
+    object-fit: contain !important;
+    box-sizing: border-box !important;
+}
+
+/* Conteneur pour le canvas avec taille fixe */
+.subtab-content .library-section .library-grid .library-item .item-preview {
+    width: 180px !important;
+    height: 110px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+/* Agrandir les icônes des éléments qui n'ont pas d'aperçu 3D */
+.subtab-content .library-section .library-grid .library-item .item-icon {
+    font-size: 70px !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 180px !important;
+    max-height: 110px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+/* Ajuster la taille des informations */
+.subtab-content .library-section .library-grid .library-item .item-info {
+    padding: 4px !important;
+    text-align: center !important;
+}
+
+.subtab-content .library-section .library-grid .library-item .item-name {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    margin-bottom: 4px !important;
+}
+
+.subtab-content .library-section .library-grid .library-item .item-dimensions {
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    opacity: 0.8 !important;
+}
+
+/* Ajuster les boutons de coupe */
+.subtab-content .library-section .library-grid .library-item .cut-buttons {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 2px !important;
+    justify-content: center !important;
+    margin-top: 3px !important;
+}
+
+.subtab-content .library-section .library-grid .library-item .cut-btn-mini {
+    font-size: 10px !important;
+    padding: 3px 6px !important;
+    min-width: auto !important;
+    border-radius: 4px !important;
+}
+
+/* === RÈGLES DE PRIORITÉ ABSOLUE POUR UNIFORMISATION === */
+
+/* Override complet des règles main.css pour item-preview ET item-preview-3d */
+.subtab-content .library-section .library-grid .library-item .item-preview,
+.subtab-content .library-section .library-grid .library-item .item-preview-3d {
+    width: 180px !important;
+    height: 110px !important;
+    border-radius: 8px !important;
+    margin-bottom: 8px !important;
+    box-sizing: border-box !important;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%) !important;
+    border: 1px solid #444 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Override complet des règles main.css pour preview-3d ET preview-3d-static */
+.subtab-content .library-section .library-grid .library-item .preview-3d,
+.subtab-content .library-section .library-grid .library-item .preview-3d-static {
+    width: 180px !important;
+    height: 110px !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%) !important;
+    border: 1px solid #444 !important;
+}
+
+/* Override complet pour les item-icon */
+.subtab-content .library-section .library-grid .library-item .item-icon {
+    font-size: 70px !important;
+    width: 180px !important;
+    max-width: 180px !important;
+    height: 110px !important;
+    box-sizing: border-box !important;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%) !important;
+    border-radius: 8px !important;
+    border: 1px solid #444 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-bottom: 8px !important;
+}
+
+/* Override pour les noms et dimensions */
+.subtab-content .library-section .library-grid .library-item .item-name {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    margin-bottom: 4px !important;
+    text-align: center !important;
+    color: #e0e0e0 !important;
+}
+
+.subtab-content .library-section .library-grid .library-item .item-dimensions {
+    font-size: 12px !important;
+    opacity: 0.8 !important;
+    text-align: center !important;
+    color: #a0a0a0 !important;
+}
+
+/* === NEUTRALISER LES RÈGLES DE library-preview-3d.css === */
+/* Surcharge des règles 240x180 de library-preview-3d.css */
+.subtab-content .library-section .library-grid .item-preview,
+.subtab-content .library-section .library-grid .item-preview-3d {
+    width: 180px !important;
+    height: 110px !important;
+    margin: 0 0 8px 0 !important;
+}

@@ -1,0 +1,240 @@
+/* =========================================
+   STYLES POUR L'AFFICHAGE DES PROPRIÉTÉS
+   ========================================= */
+
+/* Container principal des propriétés */
+.element-info {
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.element-info h4 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--accent-color);
+    font-size: var(--font-lg);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: var(--spacing-xs);
+}
+
+/* Ligne de propriété individuelle */
+.property-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid var(--border-light);
+    font-size: var(--font-sm);
+}
+
+.property-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.property-row strong {
+    color: var(--text-secondary);
+    font-weight: 500;
+    min-width: 100px;
+    margin-right: var(--spacing-sm);
+    text-align: left;
+}
+
+.property-row span {
+    color: var(--text-primary);
+    text-align: right;
+    flex: 1;
+    word-break: break-word;
+}
+
+/* Styles spécifiques selon le type d'élément */
+.element-info[data-type="measurement"] {
+    border-left: 4px solid var(--success-color);
+}
+
+.element-info[data-type="measurement"] h4::before {
+    content: "📏 ";
+}
+
+.element-info[data-type="annotation"] {
+    border-left: 4px solid var(--info-color);
+}
+
+.element-info[data-type="annotation"] h4::before {
+    content: "📝 ";
+}
+
+.element-info[data-type="textleader"] {
+    border-left: 4px solid var(--warning-color);
+}
+
+.element-info[data-type="textleader"] h4::before {
+    content: "📋 ";
+}
+
+.element-info[data-type="construction"] {
+    border-left: 4px solid var(--accent-color);
+}
+
+.element-info[data-type="construction"] h4::before {
+    content: "🧱 ";
+}
+
+/* Styles pour les valeurs spéciales */
+.property-value-coordinates {
+    font-family: 'Courier New', monospace;
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+}
+
+.property-value-distance {
+    font-weight: 600;
+    color: var(--success-color);
+}
+
+.property-value-id {
+    font-family: 'Courier New', monospace;
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+    background: var(--tertiary-bg);
+    padding: 2px 4px;
+    border-radius: var(--radius-sm);
+}
+
+/* Animation pour la sélection */
+.element-info.selected {
+    background: var(--glass-bg);
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-focus);
+    animation: propertyHighlight 0.3s ease;
+}
+
+@keyframes propertyHighlight {
+    from {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+    to {
+        transform: scale(1.02);
+        opacity: 1;
+    }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .property-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
+    
+    .property-row strong {
+        min-width: auto;
+        margin-right: 0;
+    }
+    
+    .property-row span {
+        text-align: left;
+    }
+}
+
+/* Styles pour l'état vide */
+.element-info.empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: var(--spacing-lg);
+}
+
+.element-info.empty::before {
+    content: "Aucun élément sélectionné";
+    font-size: var(--font-md);
+}
+
+/* Inputs pour propriétés éditables */
+.property-input {
+    background: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    padding: 2px 6px;
+    width: 60px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.property-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--accent-color-transparent);
+}
+
+.property-input:hover {
+    border-color: var(--border-hover);
+}
+
+/* Champs texte pour les annotations */
+.property-input-text {
+    background: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    padding: 4px 8px;
+    width: 150px;
+    transition: all 0.2s ease;
+}
+
+.property-input-text:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--accent-color-transparent);
+}
+
+.property-input-text:hover {
+    border-color: var(--border-hover);
+}
+
+/* Sélecteurs pour les annotations */
+.property-input-select {
+    background: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    padding: 4px 8px;
+    width: 100px;
+    transition: all 0.2s ease;
+}
+
+.property-input-select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--accent-color-transparent);
+}
+
+.property-input-select:hover {
+    border-color: var(--border-hover);
+}
+
+/* Style spécial pour les propriétés éditables */
+.property-row:has(.property-input) {
+    background: var(--highlight-bg, rgba(var(--accent-color-rgb), 0.05));
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs);
+    margin: var(--spacing-xs) 0;
+}
+
+.property-row:has(.property-input-text),
+.property-row:has(.property-input-select) {
+    background: var(--highlight-bg, rgba(var(--accent-color-rgb), 0.05));
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs);
+    margin: var(--spacing-xs) 0;
+}

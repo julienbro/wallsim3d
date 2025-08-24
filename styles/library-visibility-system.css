@@ -1,0 +1,242 @@
+/* =========================================
+   SYSTÈME DE VISIBILITÉ GARANTIE BIBLIOTHÈQUE
+   Assure que tous les éléments restent visibles
+   ========================================= */
+
+/* === SYSTÈME ADAPTATIF BASÉ SUR LA LARGEUR DE VIEWPORT === */
+
+/* Container principal avec contrôle de débordement */
+.library-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+}
+
+/* Grille adaptative avec visibilité garantie */
+.library-grid {
+    display: grid !important;
+    width: 100% !important;
+    gap: 0px !important;
+    padding: 0px !important;
+    margin: 0px !important;
+    box-sizing: border-box !important;
+    
+    /* Système adaptatif : ajuste automatiquement le nombre de colonnes */
+    grid-template-columns: repeat(auto-fit, minmax(min(120px, calc(100vw / 6)), 1fr)) !important;
+    
+    /* Si pas assez d'espace, permettre le scroll horizontal */
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+}
+
+/* === BREAKPOINTS POUR VISIBILITÉ OPTIMALE === */
+
+/* Très larges écrans - 6+ éléments visibles */
+@media (min-width: 1400px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    }
+    
+    .library-item {
+        max-width: 160px !important;
+        min-height: 140px !important;
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 80px !important;
+        height: 85px !important;
+    }
+}
+
+/* Écrans larges - 5 éléments visibles */
+@media (min-width: 1200px) and (max-width: 1399px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+    }
+    
+    .library-item {
+        max-width: 140px !important;
+        min-height: 130px !important;
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 110px !important;
+        height: 75px !important;
+    }
+}
+
+/* Écrans moyens - 4 éléments visibles */
+@media (min-width: 1000px) and (max-width: 1199px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+    }
+    
+    .library-item {
+        max-width: 130px !important;
+        min-height: 120px !important;
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 100px !important;
+        height: 70px !important;
+    }
+}
+
+/* Écrans moyens-petits - 3 éléments visibles */
+@media (min-width: 800px) and (max-width: 999px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important;
+    }
+    
+    .library-item {
+        max-width: 120px !important;
+        min-height: 110px !important;
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 90px !important;
+        height: 65px !important;
+    }
+    
+    .cut-btn-mini {
+        height: 20px !important;
+        min-width: 22px !important;
+        font-size: 9px !important;
+        padding: 2px 4px !important;
+    }
+}
+
+/* Tablettes - 2-3 éléments visibles */
+@media (min-width: 600px) and (max-width: 799px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
+    }
+    
+    .library-item {
+        max-width: 110px !important;
+        min-height: 100px !important;
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 80px !important;
+        height: 55px !important;
+    }
+    
+    .item-name {
+        font-size: 10px !important;
+    }
+    
+    .item-dimensions {
+        font-size: 8px !important;
+    }
+}
+
+/* Mobiles - 2 éléments visibles minimum */
+@media (max-width: 599px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)) !important;
+        /* Sur mobile, autoriser le scroll si nécessaire */
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .library-item {
+        max-width: 100px !important;
+        min-height: 90px !important;
+        padding: 2px !important;
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 70px !important;
+        height: 50px !important;
+    }
+    
+    .item-name {
+        font-size: 9px !important;
+    }
+    
+    .item-dimensions {
+        font-size: 7px !important;
+    }
+    
+    .cut-btn-mini {
+        height: 18px !important;
+        min-width: 20px !important;
+        font-size: 8px !important;
+        padding: 1px 3px !important;
+    }
+}
+
+/* === SYSTÈME DE FALLBACK POUR TRÈS PETITS ÉCRANS === */
+@media (max-width: 400px) {
+    .library-grid {
+        /* Force 2 colonnes minimum même sur très petits écrans */
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 1px !important;
+    }
+    
+    .library-item {
+        max-width: none !important;
+        min-height: 80px !important;
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 60px !important;
+        height: 45px !important;
+    }
+}
+
+/* === OPTIMISATION POUR CONTENEURS FLEXIBLES === */
+
+/* Si la bibliothèque est dans un conteneur flexible */
+.subtab-content .library-section {
+    flex: 1 1 auto !important;
+    min-width: 0 !important; /* Permet à flex de rétrécir l'élément */
+}
+
+/* Assurer que les canvas gardent leur ratio */
+.library-item .preview-3d,
+.library-item .preview-3d-static {
+    object-fit: contain !important;
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
+}
+
+/* === SYSTÈME D'AJUSTEMENT DYNAMIQUE === */
+
+/* Classe utilitaire pour forcer la visibilité complète */
+.library-grid.force-visible {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)) !important;
+    overflow-x: auto !important;
+}
+
+.library-grid.force-visible .library-item {
+    min-width: 80px !important;
+    max-width: 80px !important;
+}
+
+/* Indicateur de débordement (si nécessaire) */
+.library-grid::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(to right, transparent, rgba(0,0,0,0.1));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.library-grid.has-overflow::after {
+    opacity: 1;
+}

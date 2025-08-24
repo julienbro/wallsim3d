@@ -1,0 +1,470 @@
+/* 
+ * Styles pour les dialogues du menu Fichier
+ * WallSim3D - File Menu Dialogs
+ */
+
+/* ===============================================
+ * DIALOGUES GÉNÉRAUX
+ * =============================================== */
+
+.export-dialog,
+.import-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.dialog-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.dialog-content {
+    background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
+    border: 2px solid #3498db;
+    border-radius: 15px;
+    padding: 30px;
+    min-width: 400px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    animation: slideIn 0.3s ease;
+}
+
+.dialog-content h3 {
+    color: #3498db;
+    margin: 0 0 25px 0;
+    font-size: 24px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.dialog-content h3 i {
+    font-size: 28px;
+    color: #e74c3c;
+}
+
+/* ===============================================
+ * SECTIONS D'OPTIONS
+ * =============================================== */
+
+.export-options,
+.import-options {
+    display: grid;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.export-section,
+.import-section {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(52, 152, 219, 0.3);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.export-section h4,
+.import-section h4 {
+    color: #ecf0f1;
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 500;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+/* ===============================================
+ * BOUTONS D'ACTION
+ * =============================================== */
+
+.export-btn,
+.import-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 15px 20px;
+    margin: 8px 0;
+    background: linear-gradient(145deg, rgba(52, 152, 219, 0.1), rgba(52, 152, 219, 0.2));
+    border: 2px solid rgba(52, 152, 219, 0.3);
+    border-radius: 8px;
+    color: #ecf0f1;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.export-btn:hover,
+.import-btn:hover {
+    background: linear-gradient(145deg, rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.3));
+    border-color: #3498db;
+    color: #ffffff;
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+    transform: translateY(-2px);
+}
+
+.export-btn:active,
+.import-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+}
+
+.export-btn i,
+.import-btn i {
+    font-size: 18px;
+    width: 20px;
+    text-align: center;
+    color: #3498db;
+}
+
+/* Couleurs spécifiques par type */
+.export-btn[data-format="stl"] i,
+.export-btn[data-format="obj"] i {
+    color: #e67e22;
+}
+
+.export-btn[data-format="png"] i,
+.export-btn[data-format="jpg"] i {
+    color: #27ae60;
+}
+
+.export-btn[data-format="json"] i {
+    color: #f39c12;
+}
+
+.import-btn[data-type="project"] i {
+    color: #3498db;
+}
+
+.import-btn[data-type="elements"] i {
+    color: #27ae60;
+}
+
+.import-btn[data-type="library"] i {
+    color: #9b59b6;
+}
+
+/* ===============================================
+ * BOUTONS DE DIALOGUE
+ * =============================================== */
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+.btn-primary,
+.btn-secondary {
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-primary {
+    background: linear-gradient(145deg, #3498db, #2980b9);
+    color: white;
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(145deg, #2980b9, #21618c);
+    box-shadow: 0 6px 16px rgba(52, 152, 219, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: linear-gradient(145deg, #7f8c8d, #95a5a6);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(145deg, #95a5a6, #7f8c8d);
+    transform: translateY(-1px);
+}
+
+/* ===============================================
+ * ANIMATIONS
+ * =============================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* ===============================================
+ * RESPONSIVE
+ * =============================================== */
+
+@media (max-width: 768px) {
+    .dialog-content {
+        margin: 20px;
+        min-width: auto;
+        width: calc(100% - 40px);
+        padding: 20px;
+    }
+    
+    .export-options,
+    .import-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .dialog-buttons {
+        flex-direction: column;
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+    }
+}
+
+/* ===============================================
+ * ÉTATS SPÉCIAUX
+ * =============================================== */
+
+.export-btn:disabled,
+.import-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.export-btn.loading,
+.import-btn.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.export-btn.loading::after,
+.import-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===============================================
+ * SCROLLBAR CUSTOM
+ * =============================================== */
+
+.dialog-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dialog-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb {
+    background: rgba(52, 152, 219, 0.5);
+    border-radius: 4px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(52, 152, 219, 0.7);
+}
+
+/* ===============================================
+ * STYLES POUR LES NOTIFICATIONS D'ÉTAT
+ * =============================================== */
+
+.dialog-status {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(52, 152, 219, 0.3);
+    border-radius: 6px;
+    padding: 10px 15px;
+    margin: 15px 0;
+    color: #ecf0f1;
+    font-size: 13px;
+    display: none;
+}
+
+.dialog-status.info {
+    background: rgba(52, 152, 219, 0.1);
+    border-color: rgba(52, 152, 219, 0.5);
+    color: #3498db;
+}
+
+.dialog-status.success {
+    background: rgba(39, 174, 96, 0.1);
+    border-color: rgba(39, 174, 96, 0.5);
+    color: #27ae60;
+}
+
+.dialog-status.warning {
+    background: rgba(243, 156, 18, 0.1);
+    border-color: rgba(243, 156, 18, 0.5);
+    color: #f39c12;
+}
+
+.dialog-status.error {
+    background: rgba(231, 76, 60, 0.1);
+    border-color: rgba(231, 76, 60, 0.5);
+    color: #e74c3c;
+}
+
+/* ===============================================
+ * INTÉGRATION AVEC LE THÈME PRINCIPAL
+ * =============================================== */
+
+body.dark-theme .dialog-content {
+    background: linear-gradient(145deg, #0f0f0f, #1a1a1a);
+    border-color: #2c3e50;
+}
+
+body.light-theme .dialog-content {
+    background: linear-gradient(145deg, #ffffff, #f8f9fa);
+    border-color: #3498db;
+    color: #2c3e50;
+}
+
+body.light-theme .dialog-content h3,
+body.light-theme .export-section h4,
+body.light-theme .import-section h4 {
+    color: #2c3e50;
+}
+
+body.light-theme .export-btn,
+body.light-theme .import-btn {
+    color: #2c3e50;
+    background: linear-gradient(145deg, rgba(52, 152, 219, 0.05), rgba(52, 152, 219, 0.1));
+}
+
+body.light-theme .export-btn:hover,
+body.light-theme .import-btn:hover {
+    color: #1a252f;
+    background: linear-gradient(145deg, rgba(52, 152, 219, 0.1), rgba(52, 152, 219, 0.2));
+}
+
+/* ===============================================
+ * STYLES SPÉCIFIQUES POUR LES MODÈLES 3D
+ * =============================================== */
+
+.import-btn[data-type="glb"] {
+    background: linear-gradient(145deg, rgba(46, 204, 113, 0.1), rgba(39, 174, 96, 0.2));
+    border: 2px solid rgba(46, 204, 113, 0.3);
+}
+
+.import-btn[data-type="glb"]:hover {
+    background: linear-gradient(145deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.3));
+    border-color: rgba(46, 204, 113, 0.5);
+    box-shadow: 
+        0 5px 15px rgba(46, 204, 113, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.import-btn[data-type="glb"] i {
+    color: #2ecc71;
+}
+
+/* Animation pour le bouton GLB */
+.import-btn[data-type="glb"]:hover i {
+    animation: pulse3D 1.5s infinite;
+}
+
+@keyframes pulse3D {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Mode clair pour les modèles 3D */
+body.light-theme .import-btn[data-type="glb"] {
+    background: linear-gradient(145deg, rgba(46, 204, 113, 0.05), rgba(39, 174, 96, 0.1));
+    border-color: rgba(46, 204, 113, 0.2);
+}
+
+body.light-theme .import-btn[data-type="glb"]:hover {
+    background: linear-gradient(145deg, rgba(46, 204, 113, 0.1), rgba(39, 174, 96, 0.15));
+    border-color: rgba(46, 204, 113, 0.4);
+}
+
+/* ===============================================
+ * DIALOGUE D'ALTERNATIVES GLB
+ * =============================================== */
+
+.dialog-message {
+    margin: 20px 0;
+    line-height: 1.6;
+}
+
+.dialog-message ul {
+    margin: 15px 0;
+    padding-left: 25px;
+}
+
+.dialog-message li {
+    margin: 8px 0;
+}
+
+.dialog-message strong {
+    color: #3498db;
+}
+
+.dialog-message small {
+    color: #888;
+    font-style: italic;
+}
+
+/* Icône d'avertissement */
+.dialog-content h3 i.fa-exclamation-triangle {
+    color: #f39c12;
+    margin-right: 10px;
+}

@@ -1,0 +1,323 @@
+/* =========================================
+   COMPOSANTS UNIFIÉS WALSIM3D
+   Style Components cohérents pour toute l'application
+   ========================================= */
+
+/* === BOUTONS STANDARDISÉS === */
+.btn, .walsim-btn {
+    background: linear-gradient(180deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-normal);
+    cursor: pointer;
+    font-size: var(--font-sm);
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    text-decoration: none;
+    user-select: none;
+}
+
+.btn:hover, .walsim-btn:hover {
+    background: linear-gradient(180deg, var(--border-light) 0%, var(--tertiary-bg) 100%);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-light);
+    transform: translateY(-1px);
+}
+
+.btn:active, .walsim-btn:active {
+    transform: translateY(0);
+}
+
+/* Variantes de boutons */
+.btn-primary, .walsim-btn-primary {
+    background: linear-gradient(180deg, var(--accent-color) 0%, var(--accent-active) 100%);
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
+}
+
+.btn-primary:hover, .walsim-btn-primary:hover {
+    background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent-color) 100%);
+}
+
+.btn-success {
+    background: linear-gradient(180deg, var(--success-color) 0%, #45a049 100%);
+    border-color: var(--success-color);
+    color: var(--text-primary);
+}
+
+.btn-warning {
+    background: linear-gradient(180deg, var(--warning-color) 0%, #e67e00 100%);
+    border-color: var(--warning-color);
+    color: var(--text-primary);
+}
+
+.btn-error {
+    background: linear-gradient(180deg, var(--error-color) 0%, #d32f2f 100%);
+    border-color: var(--error-color);
+    color: var(--text-primary);
+}
+
+.btn-small {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-xs);
+}
+
+.btn-large {
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: var(--font-lg);
+}
+
+/* === CHAMPS DE SAISIE STANDARDISÉS === */
+.input, .walsim-input, input[type="text"], input[type="number"], input[type="email"], 
+textarea, select {
+    background: linear-gradient(135deg, var(--secondary-bg) 0%, var(--primary-bg) 100%);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-normal);
+    font-size: var(--font-sm);
+    font-family: inherit;
+}
+
+.input:focus, .walsim-input:focus, input:focus, textarea:focus, select:focus {
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-focus);
+    outline: none;
+}
+
+.input:disabled, input:disabled, textarea:disabled, select:disabled {
+    background: var(--quaternary-bg);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+}
+
+/* === PANNEAUX ET SECTIONS STANDARDISÉS === */
+.panel, .walsim-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-light);
+}
+
+.section, .walsim-section {
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--secondary-bg);
+}
+
+.section-header, .walsim-section-header {
+    padding: var(--spacing-md);
+    background: linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: var(--font-md);
+}
+
+.section-content, .walsim-section-content {
+    padding: var(--spacing-lg);
+}
+
+/* === ONGLETS STANDARDISÉS === */
+.tabs {
+    display: flex;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: var(--spacing-lg);
+}
+
+.tab {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-disabled);
+    transition: var(--transition-normal);
+    border-bottom: 2px solid transparent;
+}
+
+.tab.active {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+    background: var(--glass-bg);
+}
+
+.tab:hover {
+    background: var(--glass-bg);
+    color: var(--text-secondary);
+}
+
+/* === DIALOGUES STANDARDISÉS === */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--glass-backdrop);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.dialog {
+    background: linear-gradient(145deg, var(--primary-bg), var(--secondary-bg));
+    border: 2px solid var(--accent-color);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xxl);
+    min-width: 400px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-dark);
+}
+
+.dialog-header {
+    color: var(--accent-color);
+    margin: 0 0 var(--spacing-xl) 0;
+    font-size: var(--font-xxl);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.dialog-content {
+    margin-bottom: var(--spacing-lg);
+}
+
+.dialog-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: flex-end;
+    margin-top: var(--spacing-xl);
+}
+
+/* === GRILLES STANDARDISÉES === */
+.grid {
+    display: grid;
+    gap: var(--spacing-md);
+}
+
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+.grid-auto {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.grid-responsive {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+}
+
+/* === MESSAGES D'ÉTAT === */
+.message {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.message-success {
+    background: var(--success-bg);
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.message-warning {
+    background: var(--warning-bg);
+    border-color: var(--warning-color);
+    color: var(--warning-color);
+}
+
+.message-error {
+    background: var(--error-bg);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+.message-info {
+    background: var(--info-bg);
+    border-color: var(--info-color);
+    color: var(--info-color);
+}
+
+/* === ÉLÉMENTS SPÉCIALISÉS MATÉRIAUX === */
+.material-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: var(--spacing-xs);
+}
+
+.material-brick .material-indicator {
+    background: var(--material-brick);
+}
+
+.material-block .material-indicator {
+    background: var(--material-block);
+}
+
+.material-joint .material-indicator {
+    background: var(--material-joint);
+}
+
+.material-linteau .material-indicator {
+    background: var(--material-linteau);
+}
+
+/* === ANIMATIONS STANDARDISÉES === */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(-20px);
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.fade-in { animation: fadeIn var(--transition-normal); }
+.slide-in { animation: slideIn var(--transition-normal); }
+.pulse { animation: pulse 2s infinite; }
+
+/* === RESPONSIVE UTILITIES === */
+@media (max-width: 768px) {
+    .grid-responsive {
+        grid-template-columns: 1fr;
+    }
+    
+    .dialog {
+        margin: var(--spacing-md);
+        min-width: auto;
+        max-width: calc(100% - 2 * var(--spacing-md));
+    }
+}

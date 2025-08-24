@@ -1,0 +1,289 @@
+/* === STYLES AMÉLIORÉS POUR L'ONGLET ASSISE === */
+
+/* Styles pour la vue d'ensemble globale des assises */
+.assise-global-overview {
+    background: var(--glass-bg);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(100, 100, 120, 0.3);
+}
+
+.overview-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    background: var(--glass-bg);
+    border-radius: 8px;
+    border: 1px solid rgba(100, 100, 120, 0.2);
+}
+
+.stat-label {
+    font-size: 11px;
+    color: #b0b0b0;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--success-color);
+}
+
+.assise-global-list {
+    background: rgba(20, 20, 30, 0.8);
+    border-radius: 8px;
+    border: 1px solid rgba(100, 100, 120, 0.2);
+}
+
+.list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 15px;
+    background: rgba(50, 50, 60, 0.8);
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid rgba(100, 100, 120, 0.2);
+}
+
+.header-icon {
+    font-size: 16px;
+    margin-right: 8px;
+}
+
+.header-title {
+    font-weight: 600;
+    color: #e0e0e0;
+    font-size: 12px;
+}
+
+.list-content {
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.list-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.list-content::-webkit-scrollbar-track {
+    background: rgba(40, 40, 50, 0.8);
+    border-radius: 3px;
+}
+
+.list-content::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 120, 0.6);
+    border-radius: 3px;
+}
+
+.list-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 100, 120, 0.8);
+}
+
+.global-assise-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    background: rgba(50, 50, 60, 0.4);
+    border-radius: 6px;
+    border: 1px solid rgba(100, 100, 120, 0.2);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.global-assise-item:hover {
+    background: rgba(70, 70, 80, 0.6);
+    border-color: var(--success-color);
+    transform: translateX(2px);
+}
+
+.global-assise-item.active {
+    background: rgba(76, 175, 80, 0.3);
+    border-color: var(--success-color);
+}
+
+.assise-item-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.assise-type-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.assise-type-badge.M65 { background: rgba(76, 175, 80, 0.8); color: white; }
+.assise-type-badge.M50 { background: rgba(33, 150, 243, 0.8); color: white; }
+.assise-type-badge.M57 { background: rgba(255, 152, 0, 0.8); color: white; }
+.assise-type-badge.M60 { background: rgba(156, 39, 176, 0.8); color: white; }
+.assise-type-badge.M90 { background: rgba(244, 67, 54, 0.8); color: white; }
+.assise-type-badge.block { background: rgba(96, 125, 139, 0.8); color: white; }
+.assise-type-badge.insulation { background: rgba(255, 193, 7, 0.8); color: black; }
+
+.assise-item-details {
+    font-size: 11px;
+    color: #b0b0b0;
+}
+
+.assise-item-height {
+    font-size: 11px;
+    color: #e0e0e0;
+    font-weight: 500;
+}
+
+.assise-item-flags {
+    display: flex;
+    gap: 4px;
+}
+
+.assise-flag {
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.assise-flag.filled { background: rgba(76, 175, 80, 0.8); color: white; }
+.assise-flag.empty { background: rgba(158, 158, 158, 0.8); color: white; }
+.assise-flag.active { background: rgba(255, 193, 7, 0.8); color: black; }
+
+/* Amélioration de l'affichage des informations du type actuel */
+.current-type-info {
+    background: rgba(30, 30, 40, 0.8);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(100, 100, 120, 0.3);
+}
+
+.type-badge-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.type-badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--success-color);
+    color: white;
+}
+
+.type-description {
+    font-size: 12px;
+    color: #b0b0b0;
+    font-weight: 500;
+}
+
+/* Amélioration des contrôles d'assise */
+.assise-controls .control-group {
+    margin-bottom: 12px;
+}
+
+.assise-controls .info-group {
+    background: rgba(20, 20, 30, 0.6);
+    border-radius: 6px;
+    padding: 10px;
+    border: 1px solid rgba(100, 100, 120, 0.2);
+}
+
+.assise-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 11px;
+}
+
+.detail-label {
+    color: #b0b0b0;
+    font-weight: 500;
+}
+
+.detail-value {
+    color: #e0e0e0;
+    font-weight: 600;
+}
+
+/* Amélioration des boutons dans l'onglet assise */
+.button-group .btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+}
+
+.control-group .btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+}
+
+/* Amélioration des onglets de type d'assise */
+.assise-type-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    margin-bottom: 15px;
+    background: rgba(40, 40, 50, 0.8);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+/* Animation pour les transitions */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.assise-global-overview {
+    animation: slideIn 0.3s ease;
+}
+
+/* Responsive design pour petits écrans */
+@media (max-width: 768px) {
+    .overview-stats {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
+    .assise-type-tabs {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .global-assise-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .assise-item-flags {
+        align-self: flex-end;
+    }
+}

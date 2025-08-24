@@ -1,0 +1,146 @@
+/* =========================================
+   CORRECTIONS POUR L'UNIFORMITÉ CSS
+   Corrections spécifiques pour remplacer les couleurs hardcodées
+   ========================================= */
+
+/* Corrections pour main.css - remplacements de couleurs hardcodées */
+
+/* Correction des boutons secondaires */
+.btn-secondary {
+    background: linear-gradient(180deg, var(--border-light) 0%, var(--border-color) 100%) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-light) !important;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(180deg, var(--border-color) 0%, var(--border-light) 100%) !important;
+}
+
+/* Corrections pour les textes */
+.text-light {
+    color: var(--text-secondary) !important;
+}
+
+.text-lighter {
+    color: var(--text-muted) !important;
+}
+
+.text-lightest {
+    color: var(--text-disabled) !important;
+}
+
+/* Corrections pour les bordures */
+.border-success {
+    border-color: var(--success-color) !important;
+}
+
+.border-warning {
+    border-color: var(--warning-color) !important;
+}
+
+/* Corrections pour materials-extended.css */
+
+/* Section headers avec thème sombre */
+.material-section-header {
+    background: linear-gradient(135deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.material-section-header:hover {
+    background: linear-gradient(135deg, var(--border-light) 0%, var(--tertiary-bg) 100%) !important;
+}
+
+.material-section-content {
+    background: var(--secondary-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+.material-item {
+    background: var(--secondary-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Corrections pour les labels et textes divers */
+.label,
+label {
+    color: var(--text-secondary) !important;
+}
+
+.small-text,
+.text-sm {
+    color: var(--text-muted) !important;
+}
+
+.disabled-text {
+    color: var(--text-disabled) !important;
+}
+
+/* Corrections pour les champs de saisie avec thème sombre */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+textarea,
+select {
+    background: linear-gradient(135deg, var(--secondary-bg) 0%, var(--primary-bg) 100%) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--accent-color) !important;
+    background: var(--secondary-bg) !important;
+}
+
+/* Corrections pour les éléments de warning/attention */
+.warning-text,
+.attention {
+    color: var(--warning-color) !important;
+}
+
+.warning-border {
+    border-color: var(--warning-color) !important;
+}
+
+/* Corrections pour les notes et remarques */
+.note {
+    background: var(--info-bg) !important;
+    color: var(--info-color) !important;
+    border: 1px solid var(--info-color) !important;
+}
+
+.custom-note {
+    color: var(--warning-color) !important;
+    background: var(--warning-bg) !important;
+    border-color: var(--warning-color) !important;
+}
+
+/* Corrections générales pour assurer la cohérence */
+.bg-white {
+    background: var(--secondary-bg) !important;
+}
+
+.text-dark {
+    color: var(--text-primary) !important;
+}
+
+.text-gray {
+    color: var(--text-muted) !important;
+}
+
+/* Corrections pour les survols uniformisés */
+*:hover {
+    transition: var(--transition-normal) !important;
+}
+
+/* Assurer que tous les éléments utilisent les bonnes polices */
+button,
+.btn,
+input,
+textarea,
+select,
+.text {
+    font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif !important;
+}

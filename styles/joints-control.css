@@ -1,0 +1,607 @@
+/* ===== STYLES POUR LA GESTION DES JOINTS ===== */
+
+/* Styles généraux pour tous les contrôles de joints */
+.joints-controls {
+    padding: 15px;
+    background: var(--glass-bg);
+    border: 1px solid rgba(100, 100, 100, 0.3);
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.joints-controls .form-group {
+    margin-bottom: 12px;
+}
+
+.joints-controls .form-group label {
+    display: flex;
+    align-items: center;
+    color: #e0e0e0;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.joints-controls .form-group label:hover {
+    background-color: rgba(60, 60, 60, 0.5);
+}
+
+.joints-controls input[type="checkbox"] {
+    margin-right: 10px;
+    transform: scale(1.2);
+    accent-color: var(--accent-color);
+}
+
+.joints-controls input[type="checkbox"]:checked + label {
+    color: #ffffff;
+}
+
+/* Section spécifique pour les joints de briques */
+#tab-content-joints .tool-section:nth-child(1) {
+    border-left: 4px solid var(--material-brick);
+    background: rgba(230, 126, 34, 0.1);
+}
+
+#tab-content-joints .tool-section:nth-child(1) h4 {
+    color: var(--material-brick);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Section spécifique pour les joints de blocs */
+#tab-content-joints .tool-section:nth-child(2) {
+    border-left: 4px solid #3498db;
+    background: rgba(52, 152, 219, 0.1);
+}
+
+#tab-content-joints .tool-section:nth-child(2) h4 {
+    color: #3498db;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Section générale */
+#tab-content-joints .tool-section:nth-child(3) {
+    border-left: 4px solid #95a5a6;
+    background: rgba(149, 165, 166, 0.1);
+}
+
+#tab-content-joints .tool-section:nth-child(3) h4 {
+    color: #95a5a6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Styles pour les inputs numériques */
+.joints-controls input[type="number"] {
+    background: rgba(60, 60, 60, 0.9);
+    border: 1px solid rgba(100, 100, 100, 0.4);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    width: 80px;
+    font-size: 12px;
+}
+
+.joints-controls input[type="number"]:focus {
+    border-color: var(--accent-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+/* Styles pour les selects */
+.joints-controls select {
+    background: rgba(60, 60, 60, 0.9);
+    border: 1px solid rgba(100, 100, 100, 0.4);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.joints-controls select:focus {
+    border-color: var(--accent-color);
+    outline: none;
+}
+
+/* Boutons spéciaux */
+.joints-controls .btn-secondary {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    border: none;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.joints-controls .btn-secondary:hover {
+    background: linear-gradient(135deg, #5a6268, #6c757d);
+    transform: translateY(-1px);
+}
+
+/* ===== PALETTE DE COULEURS POUR JOINTS DE BRIQUES ===== */
+.color-palette {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 3px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    padding: 10px;
+    background: rgba(60, 60, 60, 0.9);
+    border-radius: 6px;
+    border: 1px solid rgba(100, 100, 100, 0.4);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.color-palette .color-option {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.color-palette .color-option:hover {
+    transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.color-palette .color-option.selected {
+    border-color: var(--accent-color);
+    border-width: 3px;
+    transform: scale(1.15);
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
+}
+
+.color-palette .color-option::after {
+    content: attr(data-name);
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+}
+
+.color-palette .color-option:hover::after {
+    opacity: 1;
+}
+
+.selected-color-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: rgba(40, 40, 40, 0.9);
+    border-radius: 4px;
+    border: 1px solid rgba(100, 100, 100, 0.3);
+    font-size: 11px;
+}
+
+.selected-color-info .color-name {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.selected-color-info .color-code {
+    color: var(--accent-color);
+    font-family: monospace;
+    font-size: 10px;
+}
+
+/* Séparateurs de catégories dans la palette */
+.color-palette .category-separator {
+    grid-column: 1 / -1;
+    height: 1px;
+    background: rgba(100, 100, 100, 0.3);
+    margin: 5px 0;
+}
+
+#jointsControlGroup {
+    border: 2px solid rgba(0, 122, 204, 0.4);
+    background: rgba(0, 122, 204, 0.1);
+}
+
+#jointsControlGroup h5 {
+    color: #ffffff;
+    margin-bottom: 15px;
+    text-align: center;
+    font-weight: 600;
+}
+
+#applyJointChanges {
+    background: linear-gradient(135deg, var(--accent-color), #005a9e);
+    border: none;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#applyJointChanges:hover {
+    background: linear-gradient(135deg, #005a9e, var(--accent-color));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.3);
+}
+
+#applyJointChanges:active {
+    transform: translateY(0);
+}
+
+/* Style pour les joints désactivés (cachés) */
+.joint-disabled {
+    opacity: 0.3 !important;
+    pointer-events: none;
+}
+
+.joint-hidden {
+    display: none !important;
+}
+
+/* Indicateur visuel pour l'élément sélectionné avec joints */
+.element-with-joints-selected {
+    box-shadow: 0 0 15px rgba(0, 255, 100, 0.6) !important;
+}
+
+/* ===== STYLES POUR LES TITRES DE CATÉGORIES ET ESPACEMENT ===== */
+
+/* Titre de catégorie dans la palette */
+.category-title {
+    grid-column: 1 / -1;
+    font-weight: bold;
+    font-size: 12px;
+    color: #495057;
+    padding: 8px 0 4px 0;
+    margin-top: 8px;
+    border-bottom: 1px solid #dee2e6;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 4px 4px 0 0;
+    text-align: center;
+}
+
+.category-title:first-child {
+    margin-top: 0;
+}
+
+/* Espacement entre les catégories */
+.category-spacer {
+    grid-column: 1 / -1;
+    height: 12px;
+}
+
+/* Amélioration des couleurs avec info bulle */
+.color-option[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* ===== STYLES MODERNES POUR LA GESTION DES JOINTS ===== */
+
+.modern-joints-control {
+    background: linear-gradient(145deg, rgba(45, 50, 60, 0.95), rgba(35, 40, 50, 0.95));
+    border: 1px solid rgba(100, 120, 150, 0.3);
+    border-radius: 12px;
+    padding: 0;
+    margin: 15px 0;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+}
+
+.joints-header {
+    display: flex;
+    align-items: center;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, rgba(65, 105, 225, 0.2), rgba(100, 149, 237, 0.15));
+    border-bottom: 1px solid rgba(100, 120, 150, 0.3);
+    margin-bottom: 0;
+}
+
+.joints-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #4169E1, #6495ED);
+    border-radius: 10px;
+    margin-right: 15px;
+    box-shadow: 0 4px 12px rgba(65, 105, 225, 0.3);
+}
+
+.joints-icon i {
+    color: white;
+    font-size: 18px;
+}
+
+.joints-header h5 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.joints-controls-modern {
+    padding: 20px;
+}
+
+.joint-option {
+    display: flex;
+    align-items: center;
+    padding: 15px 18px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, rgba(55, 65, 75, 0.9), rgba(45, 55, 65, 0.9));
+    border: 1px solid rgba(80, 90, 100, 0.5);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.joint-option:last-child {
+    margin-bottom: 0;
+}
+
+.joint-option::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(100, 150, 200, 0.1) 50%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+}
+
+.joint-option:hover {
+    background: linear-gradient(135deg, rgba(65, 75, 85, 0.95), rgba(55, 65, 75, 0.95));
+    border-color: rgba(100, 150, 200, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.joint-option:hover::before {
+    transform: translateX(100%);
+}
+
+.joint-toggle {
+    margin-right: 18px;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+    cursor: pointer;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #555, #444);
+    border: 1px solid rgba(120, 130, 140, 0.4);
+    transition: all 0.3s ease;
+    border-radius: 13px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 2px;
+    bottom: 2px;
+    background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+
+.toggle-switch.active .toggle-slider {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    border-color: rgba(76, 175, 80, 0.5);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.2),
+        0 0 10px rgba(76, 175, 80, 0.3);
+}
+
+.toggle-switch.active .toggle-slider:before {
+    transform: translateX(24px);
+    background: linear-gradient(135deg, #ffffff, #f8f8f8);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.joint-info {
+    flex: 1;
+    cursor: pointer;
+}
+
+.joint-title {
+    display: block;
+    color: #e0e6ed !important;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+}
+
+.joint-description {
+    display: block;
+    color: #a0a8b0 !important;
+    font-size: 12px;
+    line-height: 1.3;
+    cursor: pointer;
+}
+
+/* Règles spécifiques pour forcer le thème sombre */
+.modern-joints-control .joint-title,
+.joints-controls-modern .joint-title {
+    color: #e0e6ed !important;
+}
+
+.modern-joints-control .joint-description,
+.joints-controls-modern .joint-description {
+    color: #a0a8b0 !important;
+}
+
+.joint-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(100, 150, 200, 0.15), rgba(70, 130, 180, 0.15));
+    border: 1px solid rgba(100, 150, 200, 0.25);
+    border-radius: 8px;
+    margin-left: 15px;
+    cursor: pointer;
+}
+
+.joint-icon i {
+    color: rgba(150, 180, 220, 0.9);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+/* Animation pour les changements d'état */
+.joint-option:active {
+    transform: translateY(0);
+    transition: transform 0.1s ease;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .joint-option {
+        padding: 12px 15px;
+    }
+    
+    .joints-header {
+        padding: 15px 18px;
+    }
+    
+    .joint-title {
+        font-size: 13px;
+    }
+    
+    .joint-description {
+        font-size: 11px;
+    }
+}
+
+/* ===== INTERACTIVITÉ DES TOGGLES JOINTS ===== */
+.joint-option {
+    cursor: pointer;
+}
+
+.joint-option * {
+    cursor: pointer;
+}
+
+.joint-option:active .toggle-slider {
+    transform: scale(0.98);
+}
+
+/* Animation du toggle au clic */
+.toggle-switch:active .toggle-slider {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+}
+
+/* S'assurer que tout est cliquable avec le bon curseur */
+.joint-option,
+.joint-option .joint-info,
+.joint-option .joint-title,
+.joint-option .joint-description,
+.joint-option .joint-icon,
+.joint-option .toggle-switch,
+.joint-option .toggle-slider {
+    cursor: pointer !important;
+}
+
+/* Forcer les couleurs du thème sombre avec spécificité élevée */
+.modern-joints-control .joint-option .joint-title,
+.joints-controls-modern .joint-option .joint-title,
+div.modern-joints-control .joint-title,
+div.joints-controls-modern .joint-title {
+    color: #e0e6ed !important;
+    text-shadow: none !important;
+}
+
+.modern-joints-control .joint-option .joint-description,
+.joints-controls-modern .joint-option .joint-description,
+div.modern-joints-control .joint-description,
+div.joints-controls-modern .joint-description {
+    color: #a0a8b0 !important;
+    text-shadow: none !important;
+}
+
+/* FORCER LE THÈME SOMBRE - Priorité maximale */
+span.joint-title {
+    color: #e0e6ed !important;
+    background: transparent !important;
+}
+
+span.joint-description {
+    color: #a0a8b0 !important;
+    background: transparent !important;
+}
+
+/* Alternative avec attributs data pour être sûr */
+[data-joint] .joint-title {
+    color: #e0e6ed !important;
+}
+
+[data-joint] .joint-description {
+    color: #a0a8b0 !important;
+}

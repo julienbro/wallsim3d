@@ -1,0 +1,481 @@
+/* =========================================
+   BIBLIOTHÈQUE COMPACTE - OPTIMISATION ESPACE
+   Réduction des espacements et cadres excessifs
+   ========================================= */
+
+/* === RÉDUCTION PADDING SECTION PRINCIPALE === */
+.library-section {
+    padding: 6px !important; /* Réduction majeure (était 12px) */
+    margin-bottom: 8px !important; /* Réduction (était 16px) */
+    border: none !important; /* Suppression du contour */
+    box-shadow: none !important; /* Suppression de l'ombre */
+    background: transparent !important; /* Suppression du fond coloré */
+}
+
+/* === OPTIMISATION CONTENEUR SUBTAB === */
+#subtab-briques.subtab-content {
+    padding: 0 !important; /* Suppression du padding du conteneur */
+    margin: 0 !important; /* Suppression des marges */
+    border: none !important; /* Suppression des bordures */
+    background: transparent !important; /* Fond transparent */
+}
+
+.library-section h5 {
+    margin: 0 0 6px 0 !important; /* Réduction (était 12px) */
+    padding-bottom: 4px !important; /* Réduction (était 8px) */
+}
+
+/* === RÉDUCTION GRILLE ET ESPACEMENT === */
+.library-grid {
+    gap: 0px !important; /* Suppression complète de l'espacement entre les items */
+    margin-top: 0px !important; /* Suppression des marges */
+    margin-bottom: 0px !important;
+    /* Configuration responsive pour visibilité garantie */
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important; /* Réduction (était 120px) */
+    /* Assurer que les éléments restent entièrement visibles */
+    overflow-x: auto !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* === RÉORGANISATION DE L'ORDRE DES ÉLÉMENTS === */
+.library-item {
+    padding: 2px !important; /* Réduction (était 4px) */
+    border-radius: 0px !important; /* Suppression complète des bordures arrondies */
+    margin: 0 !important; /* Suppression des marges externes */
+    border: none !important; /* Suppression complète de tous les contours */
+    background: transparent !important; /* Fond transparent pour supprimer le cadre visuel */
+    box-shadow: none !important; /* Suppression de toute ombre */
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* === ORDRE DES ÉLÉMENTS : TITRE, DIMENSIONS, APERÇU, LONGUEURS === */
+.library-item .item-name {
+    order: 1 !important; /* Titre en premier */
+    margin-bottom: 1px !important; /* Réduction (était 2px) */
+    font-size: 12px !important;
+    font-weight: bold !important;
+    text-align: center !important;
+}
+
+.library-item .item-dimensions {
+    order: 2 !important; /* Dimensions juste après le titre */
+    margin-bottom: 1px !important; /* Réduction (était 3px) */
+}
+
+.library-item .item-preview {
+    order: 3 !important; /* Aperçu en troisième */
+}
+
+.library-item .cut-buttons {
+    order: 4 !important; /* Boutons de coupe en quatrième */
+}
+
+/* === RÉDUCTION APERÇU 3D === */
+.item-preview {
+    margin-bottom: 1px !important; /* Réduction majeure (était 3px) */
+    border-radius: 0px !important; /* Suppression des bordures arrondies */
+    border: none !important; /* Suppression du contour de l'aperçu */
+    background: transparent !important; /* Fond transparent */
+    box-shadow: none !important; /* Suppression des ombres */
+}
+
+.preview-3d {
+    border-radius: 0px !important; /* Suppression complète des bordures arrondies */
+    border: none !important; /* Suppression de toute bordure */
+    outline: none !important; /* Suppression des contours de focus */
+}
+
+/* === OPTIMISATION INFORMATIONS === */
+.item-info {
+    padding: 0px !important; /* Suppression du padding pour réorganisation */
+    margin: 0 !important;
+    display: contents !important; /* Permet aux enfants de suivre l'ordre flex du parent */
+}
+
+.item-name {
+    margin-bottom: 1px !important; /* Réduction (était 2px) */
+    font-size: 12px !important; /* Légèrement plus petit */
+}
+
+.item-dimensions {
+    padding: 1px 2px !important; /* Réduction (était 1px 4px) */
+    font-size: 10px !important;
+    margin-bottom: 0px !important; /* Plus de marge en bas */
+    text-align: center !important;
+}
+
+/* === OPTIMISATION BOUTONS DE COUPE === */
+.cut-buttons {
+    gap: 1px !important; /* Réduction (était 2px) */
+    padding: 1px 0 !important; /* Réduction (était 2px) */
+    margin: 1px 0 !important; /* Réduction (était 2px) */
+    justify-content: center !important; /* Centrer les boutons */
+}
+
+.cut-btn-mini {
+    padding: 2px 4px !important; /* Réduction (était 3px 6px) */
+    height: 22px !important; /* Réduction (était 24px) */
+    min-width: 26px !important; /* Réduction (était 28px) */
+    font-size: 9px !important; /* Réduction (était 10px) */
+    border-radius: 0px !important; /* Suppression des bordures arrondies */
+    border: none !important; /* Suppression complète des bordures des boutons */
+    outline: none !important; /* Suppression des contours de focus */
+}
+
+/* === RÉDUCTION SHADOWS ET EFFETS === */
+.library-item {
+    box-shadow: none !important; /* Suppression complète des ombres */
+    background: transparent !important; /* Fond transparent pour éliminer tout cadre visuel */
+}
+
+.library-item:hover {
+    box-shadow: none !important; /* Pas d'ombre même au survol */
+    transform: none !important; /* Suppression des effets de transformation */
+    background: rgba(255, 255, 255, 0.02) !important; /* Fond très léger au survol uniquement */
+    border: none !important; /* Pas de bordure au survol */
+}
+
+/* === RÉDUCTION BORDURES === */
+.library-item,
+.library-item *,
+.item-preview,
+.item-preview *,
+.preview-3d,
+.cut-buttons,
+.cut-btn-mini {
+    border: none !important; /* Suppression complète de toutes les bordures */
+    outline: none !important; /* Suppression des contours */
+    box-shadow: none !important; /* Suppression des ombres */
+}
+
+/* Suppression spécifique des bordures d'aperçu */
+.item-preview {
+    border: none !important; /* Suppression complète des bordures d'aperçu */
+}
+
+.preview-3d {
+    border: none !important; /* Suppression des bordures des canvas 3D */
+}
+
+/* Styles spécifiques pour les aperçus GLB */
+.preview-3d-glb {
+    border: none !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    background: #2a2a2a !important;
+    cursor: pointer !important;
+    transition: transform 0.2s ease !important;
+}
+
+.preview-3d-glb:hover {
+    transform: scale(1.02) !important;
+}
+
+/* === OPTIMISATION RESPONSIVE === */
+/* === OPTIMISATION RESPONSIVE === */
+/* Très grands écrans (1600px+) - Éléments plus larges */
+@media (min-width: 1600px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important; /* Réduction (était 160px) */
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 110px !important; /* Réduction (était 140px) */
+        height: 75px !important; /* Réduction (était 90px) */
+    }
+    
+    .library-item .item-preview {
+        width: 110px !important;
+        height: 75px !important;
+    }
+    
+    .library-item {
+        min-height: 130px !important; /* Réduction (était 145px) */
+    }
+    
+    .cut-btn-mini {
+        height: 24px !important;
+        min-width: 28px !important;
+        font-size: 10px !important;
+        padding: 3px 6px !important;
+    }
+}
+
+/* Écrans larges (1200px-1599px) - Taille standard */
+@media (min-width: 1200px) and (max-width: 1599px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important; /* Réduction (était 140px) */
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 100px !important; /* Réduction (était 120px) */
+        height: 70px !important; /* Réduction (était 80px) */
+    }
+    
+    .library-item .item-preview {
+        width: 100px !important;
+        height: 70px !important;
+    }
+    
+    .library-item {
+        min-height: 115px !important; /* Réduction (était 125px) */
+    }
+}
+
+/* Écrans moyens (900px-1199px) - Éléments plus compacts */
+@media (min-width: 900px) and (max-width: 1199px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important; /* Réduction (était 120px) */
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 90px !important; /* Réduction (était 100px) */
+        height: 65px !important; /* Réduction (était 70px) */
+    }
+    
+    .library-item .item-preview {
+        width: 90px !important;
+        height: 65px !important;
+    }
+    
+    .library-item {
+        min-height: 105px !important; /* Réduction (était 110px) */
+        padding: 3px !important;
+    }
+    
+    .item-name {
+        font-size: 11px !important;
+    }
+    
+    .item-dimensions {
+        font-size: 9px !important;
+    }
+    
+    .cut-btn-mini {
+        height: 20px !important;
+        min-width: 24px !important;
+        font-size: 8px !important;
+        padding: 2px 4px !important;
+    }
+}
+
+/* Tablettes (600px-899px) - Plus compact */
+@media (min-width: 600px) and (max-width: 899px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)) !important; /* Réduction (était 100px) */
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 80px !important; /* Réduction (était 85px) */
+        height: 55px !important; /* Réduction (était 60px) */
+    }
+    
+    .library-item .item-preview {
+        width: 80px !important;
+        height: 55px !important;
+    }
+    
+    .library-item {
+        min-height: 90px !important; /* Réduction (était 95px) */
+        padding: 2px !important;
+    }
+    
+    .item-name {
+        font-size: 10px !important;
+        margin-bottom: 1px !important;
+    }
+    
+    .item-dimensions {
+        font-size: 8px !important;
+        margin-bottom: 2px !important;
+    }
+    
+    .cut-buttons {
+        gap: 1px !important;
+        margin: 1px 0 !important;
+    }
+    
+    .cut-btn-mini {
+        height: 18px !important;
+        min-width: 22px !important;
+        font-size: 7px !important;
+        padding: 1px 3px !important;
+    }
+}
+
+@media (max-width: 1200px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important; /* Largeur réduite (était 250px) */
+        gap: 0px !important; /* Suppression complète du gap en responsive */
+    }
+}
+
+/* Mobiles (599px et moins) - Très compact */
+@media (max-width: 768px) {
+    .library-section {
+        padding: 4px !important;
+    }
+    
+    .library-section h5 {
+        font-size: 12px !important;
+        margin-bottom: 6px !important;
+    }
+    
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(75px, 1fr)) !important; /* Réduction (était 80px) */
+        gap: 0px !important;
+    }
+    
+    .library-item {
+        padding: 1px !important;
+        min-height: 75px !important; /* Réduction (était 80px) */
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 65px !important; /* Réduction (était 70px) */
+        height: 45px !important; /* Réduction (était 50px) */
+    }
+    
+    .library-item .item-preview {
+        width: 65px !important;
+        height: 45px !important;
+        margin-bottom: 1px !important;
+    }
+    
+    .item-name {
+        font-size: 9px !important;
+        margin-bottom: 0px !important;
+    }
+    
+    .item-dimensions {
+        font-size: 7px !important;
+        margin-bottom: 1px !important;
+    }
+    
+    .cut-buttons {
+        gap: 0px !important;
+        margin: 1px 0 !important;
+        padding: 1px 0 !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+    
+    .cut-btn-mini {
+        height: 14px !important;
+        min-width: 16px !important;
+        padding: 0px 2px !important;
+        font-size: 6px !important;
+        margin: 0px !important;
+    }
+}
+
+/* Très petits écrans (479px et moins) - Ultra compact */
+@media (max-width: 479px) {
+    .library-grid {
+        grid-template-columns: repeat(auto-fit, minmax(75px, 1fr)) !important;
+    }
+    
+    .library-item {
+        min-height: 75px !important;
+    }
+    
+    .library-item .preview-3d,
+    .library-item .preview-3d-static {
+        width: 65px !important;
+        height: 45px !important;
+    }
+    
+    .library-item .item-preview {
+        width: 65px !important;
+        height: 45px !important;
+    }
+    
+    .cut-btn-mini {
+        height: 14px !important;
+        min-width: 16px !important;
+        font-size: 6px !important;
+        padding: 0px 1px !important;
+    }
+}
+
+/* === SURCHARGES SPÉCIFIQUES === */
+/* Pour forcer la compacité sur tous les éléments de bibliothèque */
+.subtab-content .library-section {
+    padding: 4px !important; /* Réduction majeure (était 8px) */
+    margin: 0 !important; /* Suppression des marges */
+}
+
+.subtab-content {
+    padding: 0 !important; /* Suppression du padding des conteneurs subtab */
+    margin: 0 !important; /* Suppression des marges */
+}
+
+.subtab-content .library-item {
+    padding: 2px !important; /* Réduction (était 4px) */
+    min-height: 115px !important; /* Réduction (était 125px) */
+}
+
+.subtab-content .library-grid {
+    gap: 0px !important; /* Suppression complète de l'espacement entre les items */
+}
+
+/* Configuration spécifique pour forcer 2 colonnes avec gap 0 */
+.subtab-content .library-section .library-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: auto !important;
+    gap: 0px !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+/* Optimisation pour les canvas 3D */
+.subtab-content .library-item .preview-3d,
+.subtab-content .library-item .preview-3d-static {
+    width: 100px !important; /* Réduction majeure (était 120px) */
+    height: 70px !important; /* Réduction proportionnelle (était 80px) */
+}
+
+.subtab-content .library-item .item-preview {
+    width: 100px !important; /* Largeur réduite */
+    height: 70px !important; /* Hauteur réduite */
+    margin-bottom: 1px !important; /* Réduction majeure (était 4px) */
+}
+
+/* Optimisation pour les icônes */
+.subtab-content .library-item .item-icon {
+    width: 100px !important; /* Largeur réduite */
+    height: 70px !important; /* Hauteur réduite */
+    font-size: 38px !important; /* Police réduite proportionnellement */
+}
+
+/* === VARIABLES LOCALES POUR OVERRIDE === */
+:root {
+    --library-padding-compact: 4px; /* Réduction (était 8px) */
+    --library-gap-compact: 2px; /* Réduction (était 6px) */
+    --library-item-padding-compact: 2px; /* Réduction (était 6px) */
+    --library-preview-width-compact: 100px; /* Largeur réduite (était 120px) */
+    --library-preview-height-compact: 70px; /* Hauteur réduite (était 80px) */
+}
+
+/* === APPLICATION DES VARIABLES COMPACTES === */
+.library-section {
+    --spacing-xxl: var(--library-padding-compact) !important;
+    --spacing-xl: var(--library-gap-compact) !important;
+    --spacing-lg: var(--library-item-padding-compact) !important;
+}
+
+/* === NOTE DE PERFORMANCE === */
+/* Ce fichier doit être chargé APRÈS les autres styles de bibliothèque
+   pour s'assurer que les corrections s'appliquent correctement */
