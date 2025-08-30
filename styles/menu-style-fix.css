@@ -155,6 +155,91 @@
 .dropdown-menu {
     min-width: 200px !important;
     width: auto !important;
+    /* CORRECTION: Force l'alignement à gauche pour tous les sous-menus */
+    left: 0 !important;
+    right: auto !important;
+}
+
+/* Gestion spéciale pour les menus près du bord droit */
+.menu-item:last-child .dropdown-menu,
+.menu-item:nth-last-child(1) .dropdown-menu,
+.menu-item:nth-last-child(2) .dropdown-menu {
+    /* Force toujours l'alignement à gauche même pour les derniers menus */
+    left: 0 !important;
+    right: auto !important;
+}
+
+/* CORRECTION RENFORCÉE: Tous les menus dropdown DOIVENT s'aligner à gauche */
+.dropdown-menu,
+.menu-item .dropdown-menu,
+[data-menu="view"] .dropdown-menu,
+[data-menu="help"] .dropdown-menu,
+[data-menu="file"] .dropdown-menu,
+[data-menu="edit"] .dropdown-menu {
+    left: 0 !important;
+    right: auto !important;
+    /* Supprime tout décalage potentiel */
+    transform: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Protection contre toute règle CSS qui pourrait forcer l'alignement à droite */
+.dropdown-menu[style*="right"],
+.dropdown-menu[style*="left: auto"] {
+    left: 0 !important;
+    right: auto !important;
+}
+
+/* CORRECTION: Force l'alignement à gauche pour tous les sous-menus */
+.submenu {
+    left: 0 !important;
+    right: auto !important;
+    /* Assure que les sous-menus s'affichent en dessous et non à droite */
+    top: 100% !important;
+    transform: translateX(0) !important;
+    margin-left: 0 !important;
+}
+
+/* Force l'alignement des sous-menus pour les éléments avec has-submenu */
+.has-submenu .submenu {
+    left: 0 !important;
+    right: auto !important;
+    top: 100% !important;
+}
+
+/* Correction alternative pour éviter le débordement */
+@media (max-width: 1024px) {
+    .dropdown-menu {
+        /* Sur petits écrans, peut aligner à droite si nécessaire */
+        left: auto !important;
+        right: 0 !important;
+    }
+}
+
+/* RÈGLE ULTRA-AGRESSIVE: Empêche TOUT alignement à droite */
+.dropdown-menu,
+.submenu {
+    /* Force la position absolue avec left: 0 */
+    position: absolute !important;
+    left: 0px !important;
+    right: auto !important;
+    /* Empêche le navigateur de repositionner automatiquement */
+    max-width: 300px !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    /* Assure que le z-index est suffisant */
+    z-index: 99999 !important;
+}
+
+/* Force spécifiquement les derniers menus (Affichage, Aide) */
+.menu-item:nth-child(4) .dropdown-menu,  /* Menu Affichage */
+.menu-item:nth-child(5) .dropdown-menu,  /* Menu Aide */
+.menu-item[data-menu="view"] .dropdown-menu,
+.menu-item[data-menu="help"] .dropdown-menu {
+    left: 0px !important;
+    right: auto !important;
+    transform: translateX(0) !important;
 }
 
 /* Assure l'alignement uniforme du texte principal */

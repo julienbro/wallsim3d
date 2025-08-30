@@ -571,6 +571,40 @@
             justify-content: center !important;
         }
     </style>
+    
+    <!-- Script pour forcer l'alignement à gauche des menus -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Force l'alignement à gauche de tous les menus dropdown
+            function forceLeftAlignment() {
+                document.querySelectorAll('.dropdown-menu, .submenu').forEach(menu => {
+                    menu.style.left = '0px';
+                    menu.style.right = 'auto';
+                    menu.style.transform = 'none';
+                    menu.style.marginLeft = '0px';
+                    menu.style.marginRight = '0px';
+                });
+            }
+            
+            // Applique immédiatement
+            forceLeftAlignment();
+            
+            // Réapplique toutes les 500ms pour contrer toute modification
+            setInterval(forceLeftAlignment, 500);
+            
+            // Réapplique lors des interactions avec les menus
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('mouseenter', () => {
+                    setTimeout(forceLeftAlignment, 10);
+                });
+                item.addEventListener('click', () => {
+                    setTimeout(forceLeftAlignment, 10);
+                });
+            });
+            
+            // console.log('🎯 Script d\'alignement des menus activé');
+        });
+    </script>
 </head>
 <body>
     <!-- Barre d'outils -->
