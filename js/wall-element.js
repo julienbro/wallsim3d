@@ -90,9 +90,17 @@ class WallElement {
                 else if (blockType.startsWith('BC_') || blockType.startsWith('BCA_')) {
                     return 'cellular-concrete';
                 }
+                // Blocs creux coupés (B9_HALF, B14_HALF, etc.) → béton gris
+                else if (blockType.includes('_HALF') || blockType.includes('_3Q') || blockType.includes('_1Q')) {
+                    return 'concrete';
+                }
+                // Blocs Argex → béton gris  
+                else if (blockType.startsWith('ARGEX_')) {
+                    return 'concrete';
+                }
             }
-            // Tous les autres blocs → brique rouge classique par défaut
-            return 'brique-rouge-classique';
+            // Tous les autres blocs creux standard → béton gris
+            return 'concrete';
         } else if (options.type === 'joint') {
             // Tous les joints → gris souris
             return 'joint-gris-souris';

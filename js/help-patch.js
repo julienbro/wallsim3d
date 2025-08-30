@@ -234,7 +234,7 @@ window.addEventListener('load', () => {
         
         // Aide simplifiée si le système principal ne marche pas
         function showSimpleHelp(toolId) {
-            console.log('🔧 SHOW-SIMPLE-HELP appelé pour:', toolId);
+            // console.log('🔧 SHOW-SIMPLE-HELP appelé pour:', toolId);
             
             const helpTexts = {
                 selectTool: {
@@ -308,14 +308,14 @@ window.addEventListener('load', () => {
             };
             
             const helpInfo = helpTexts[toolId];
-            console.log('🔍 Recherche aide pour', toolId, ':', helpInfo ? 'TROUVÉ' : 'NON TROUVÉ');
+            // console.log('🔍 Recherche aide pour', toolId, ':', helpInfo ? 'TROUVÉ' : 'NON TROUVÉ');
             if (!helpInfo) {
-                console.error('❌ Aucun texte d\'aide trouvé pour:', toolId);
-                console.log('📝 Textes disponibles:', Object.keys(helpTexts));
+                // console.error('❌ Aucun texte d\'aide trouvé pour:', toolId);
+                // console.log('📝 Textes disponibles:', Object.keys(helpTexts));
                 return;
             }
             
-            console.log('✅ Création de la fenêtre d\'aide pour:', toolId);
+            // console.log('✅ Création de la fenêtre d\'aide pour:', toolId);
             // Créer une fenêtre d'aide temporaire
             const helpWindow = document.createElement('div');
             helpWindow.innerHTML = `
@@ -454,7 +454,7 @@ window.addEventListener('load', () => {
                 autoCloseTimer = setTimeout(() => {
                     if (helpWindow.parentElement && !isMouseOver) {
                         helpWindow.remove();
-                        console.log('⏰ Fermeture automatique de l\'aide (souris absente)');
+                        // console.log('⏰ Fermeture automatique de l\'aide (souris absente)');
                     }
                 }, 8000);
             }
@@ -498,7 +498,7 @@ window.addEventListener('load', () => {
                             if (element.classList.contains('active')) {
                                 // Seulement si ce n'est pas un changement récent
                                 if (!window.helpPatchLastTool || Date.now() - window.helpPatchLastTime > 1000) {
-                                    console.log(`🔥 PATCH: Nouvelle activation détectée pour ${targetTool}`);
+                                    // console.log(`🔥 PATCH: Nouvelle activation détectée pour ${targetTool}`);
                                     setTimeout(() => showToolHelp(targetTool), 200);
                                 }
                             }
@@ -513,7 +513,7 @@ window.addEventListener('load', () => {
                 
                 // 3. Événement de mousedown pour capture précoce
                 element.addEventListener('mousedown', () => {
-                    console.log(`🖱️ PATCH: MouseDown sur ${targetTool}`);
+                    // console.log(`🖱️ PATCH: MouseDown sur ${targetTool}`);
                     setTimeout(() => {
                         if (element.classList.contains('active')) {
                             showToolHelp(targetTool);

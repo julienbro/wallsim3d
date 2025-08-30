@@ -33,7 +33,7 @@ class MeasurementTool {
         // Propriétés configurables pour l'apparence des cotations
         this.textScale = 30; // Taille du texte (largeur) - doublée pour s'adapter au canvas plus grand
         this.textHeight = 8; // Hauteur du texte - doublée pour s'adapter au canvas plus grand
-        this.arrowSize = 6.0; // Taille des flèches (quadruplée de 1.5 à 6.0)
+        this.arrowSize = 2.5; // Taille des flèches - réduite pour un meilleur aspect visuel
         this.lineWidth = 4; // Épaisseur des lignes (doublée de 2 à 4)
         
         this.init();
@@ -1311,52 +1311,65 @@ class MeasurementTool {
         const dimensionLine = new THREE.Line(lineGeometry, lineMaterial);
         group.add(dimensionLine);
         
-        // Calculer la direction pour les flèches
-        const direction = endPoint.clone().sub(startPoint).normalize();
+        // Calculer la direction de la ligne (de début vers fin)
+        const lineDirection = endPoint.clone().sub(startPoint).normalize();
+        // console.log('📐 Cotation - Direction:', lineDirection);
         
-        // Flèche au début (pointant vers l'intérieur) - utiliser la propriété configurable
-        const arrow1 = this.createArrow(startPoint, direction, this.arrowSize);
+        // Pour les cotations, les flèches pointent vers l'intérieur :
+        // - Flèche au point de début : pointe vers l'intérieur (vers endPoint)
+        // - Flèche au point de fin : pointe vers l'intérieur (vers startPoint)
+        
+        const arrow1 = this.createArrow(startPoint, lineDirection, this.arrowSize);
         group.add(arrow1);
         
-        // Flèche à la fin (pointant vers l'intérieur, donc direction inversée) - utiliser la propriété configurable
-        const arrow2 = this.createArrow(endPoint, direction.clone().negate(), this.arrowSize);
+        const arrow2 = this.createArrow(endPoint, lineDirection.clone().negate(), this.arrowSize);
         group.add(arrow2);
     }
 
     createArrow(position, direction, size) {
-        // Créer une flèche simple avec des lignes
+        // Debug : afficher les paramètres (désactivé)
+        /*
+        console.log('🏹 Création flèche:', {
+            position: `(${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)})`,
+            direction: `(${direction.x.toFixed(2)}, ${direction.y.toFixed(2)}, ${direction.z.toFixed(2)})`,
+            size: size
+        });
+        */
+        
+        // Créer une flèche triangulaire pleine avec un cône
         const arrowGroup = new THREE.Group();
         
-        // Angle des barbes de la flèche (30 degrés)
-        const angle = Math.PI / 6;
+        // Géométrie du cône pour la flèche triangulaire
+        const coneRadius = size * 0.3; // Rayon du cône 
+        const coneHeight = size; // Hauteur du cône = taille de la flèche
         
-        // Calculer les directions des barbes
-        const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x);
+        const coneGeometry = new THREE.ConeGeometry(coneRadius, coneHeight, 8);
+        const coneMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x000000, // Retour au noir
+            side: THREE.DoubleSide
+        });
         
-        // Première barbe
-        const barb1Direction = direction.clone()
-            .multiplyScalar(Math.cos(angle))
-            .add(perpendicular.clone().multiplyScalar(Math.sin(angle)));
-        const barb1End = position.clone().add(barb1Direction.multiplyScalar(size));
+        const cone = new THREE.Mesh(coneGeometry, coneMaterial);
         
-        // Deuxième barbe
-        const barb2Direction = direction.clone()
-            .multiplyScalar(Math.cos(angle))
-            .add(perpendicular.clone().multiplyScalar(-Math.sin(angle)));
-        const barb2End = position.clone().add(barb2Direction.multiplyScalar(size));
+        // Placer le cône à la position de base
+        cone.position.copy(position);
         
-        // Créer les lignes des barbes avec l'épaisseur configurable
-        const barb1Geometry = new THREE.BufferGeometry();
-        barb1Geometry.setFromPoints([position, barb1End]);
-        const barb1Material = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: this.lineWidth });
-        const barb1Line = new THREE.Line(barb1Geometry, barb1Material);
-        arrowGroup.add(barb1Line);
+        // Par défaut, le cône pointe vers +Y. On veut qu'il pointe dans la direction donnée
+        // MAIS on inverse la direction pour que la flèche pointe correctement
+        const defaultDirection = new THREE.Vector3(0, 1, 0); // Direction par défaut du cône (+Y)
+        const targetDirection = direction.clone().normalize().negate(); // Inverser la direction (rotation 180°)
         
-        const barb2Geometry = new THREE.BufferGeometry();
-        barb2Geometry.setFromPoints([position, barb2End]);
-        const barb2Material = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: this.lineWidth });
-        const barb2Line = new THREE.Line(barb2Geometry, barb2Material);
-        arrowGroup.add(barb2Line);
+        // Créer le quaternion de rotation
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromUnitVectors(defaultDirection, targetDirection);
+        cone.setRotationFromQuaternion(quaternion);
+        
+        // Ajuster la position pour que la base du cône soit sur la ligne
+        // Avec la direction inversée, on ajuste aussi le positionnement
+        const offsetToBase = direction.clone().normalize().multiplyScalar(coneHeight * 0.5);
+        cone.position.add(offsetToBase);
+        
+        arrowGroup.add(cone);
         
         return arrowGroup;
     }
@@ -1396,9 +1409,11 @@ class MeasurementTool {
         const line = new THREE.Line(lineGeometry, lineMaterial);
         line.name = `measurement-line-${measurementId}`;
         
-        // Créer les marqueurs aux extrémités
-        const startMarker = this.createEndMarker(startPoint);
-        const endMarker = this.createEndMarker(endPoint);
+        // Créer les flèches aux extrémités qui pointent vers l'intérieur
+        const direction = endPoint.clone().sub(startPoint).normalize();
+        console.log('📏 Mesure simple - Direction:', direction);
+        const startArrow = this.createArrow(startPoint, direction, this.arrowSize);
+        const endArrow = this.createArrow(endPoint, direction.clone().negate(), this.arrowSize);
         
         // Créer l'étiquette avec la distance
         const text = this.formatDistance(distance);
@@ -1407,8 +1422,8 @@ class MeasurementTool {
         // Créer un groupe pour cette mesure
         const measurementGroup = new THREE.Group();
         measurementGroup.add(line);
-        measurementGroup.add(startMarker);
-        measurementGroup.add(endMarker);
+        measurementGroup.add(startArrow);
+        measurementGroup.add(endArrow);
         measurementGroup.add(label);
         measurementGroup.name = `measurement-${measurementId}`;
         
@@ -1423,8 +1438,8 @@ class MeasurementTool {
             line: line,
             label: label,
             group: measurementGroup,
-            startMarker: startMarker,
-            endMarker: endMarker,
+            startArrow: startArrow,
+            endArrow: endArrow,
             created: new Date()
         };
         
@@ -1885,7 +1900,7 @@ class MeasurementTool {
                 window.ToolbarManager.hideInstruction();
             }
             
-            console.log('🔧 Barre d\'outils réinitialisée en mode sélection');
+            // console.log('🔧 Barre d\'outils réinitialisée en mode sélection');
         }
         
         if (window.ConstructionTools) {

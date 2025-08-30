@@ -271,12 +271,12 @@ class FileMenuHandler {
     saveProject() {
         // Protection contre les multiples exécutions simultanées
         if (this.savingInProgress) {
-            console.log('💾 Sauvegarde déjà en cours, ignorée');
+            // console.log('💾 Sauvegarde déjà en cours, ignorée');
             return;
         }
 
         this.savingInProgress = true;
-        console.log('💾 Sauvegarde du projet');
+        // console.log('💾 Sauvegarde du projet');
 
         try {
             if (!this.currentProject) {

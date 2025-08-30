@@ -70,20 +70,46 @@ class KeyboardManager {
         
         // Éviter les raccourcis dans les champs de saisie
         document.addEventListener('focusin', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            const target = e.target;
+            if (target.tagName === 'INPUT' || 
+                target.tagName === 'TEXTAREA' || 
+                target.contentEditable === 'true' ||
+                target.isContentEditable ||
+                target.classList.contains('email-input')) {
                 this.isEnabled = false;
             }
         });
         
         document.addEventListener('focusout', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            const target = e.target;
+            if (target.tagName === 'INPUT' || 
+                target.tagName === 'TEXTAREA' || 
+                target.contentEditable === 'true' ||
+                target.isContentEditable ||
+                target.classList.contains('email-input')) {
                 this.isEnabled = true;
             }
         });
     }
 
     handleKeyDown(event) {
-        if (!this.isEnabled) return;
+        // Vérifier si on est dans un champ de saisie (priorité absolue)
+        const target = event.target;
+        const isInputField = target.tagName === 'INPUT' || 
+                           target.tagName === 'TEXTAREA' || 
+                           target.contentEditable === 'true' ||
+                           target.isContentEditable ||
+                           target.hasAttribute('contenteditable');
+                           
+        // Si on est dans un champ de saisie, ignorer complètement les raccourcis
+        if (isInputField) {
+            return;
+        }
+        
+        // Vérification secondaire avec isEnabled
+        if (!this.isEnabled) {
+            return;
+        }
         
         this.updateModifiers(event);
         

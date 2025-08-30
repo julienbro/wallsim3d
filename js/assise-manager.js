@@ -3284,11 +3284,18 @@ class AssiseManager {
             });
         });
         
-        // Programmer la prochaine frame d'animation
+        // Programmer la prochaine frame d'animation - réduit à 30fps pour les performances
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
         }
-        this.animationFrameId = requestAnimationFrame(() => this.animateAttachmentPoints());
+        
+        // Throttling des animations : seulement toutes les 2 frames (~30fps)
+        this._animationFrame = (this._animationFrame || 0) + 1;
+        if (this._animationFrame % 2 === 0) {
+            this.animationFrameId = requestAnimationFrame(() => this.animateAttachmentPoints());
+        } else {
+            this.animationFrameId = requestAnimationFrame(() => this.animateAttachmentPoints());
+        }
     }
 
     // D�tecter le survol des points d'accroche

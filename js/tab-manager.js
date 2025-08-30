@@ -1033,7 +1033,7 @@ class TabManager {
             baseType: baseType,
             timestamp: Date.now()
         };
-        console.log('💾 TabManager: Sélection de coupe mémorisée:', window.lastCutSelection);
+        // console.log('💾 TabManager: Sélection de coupe mémorisée:', window.lastCutSelection);
         
         this.selectLibraryItem(finalType, parentItem);
 
@@ -1642,19 +1642,18 @@ class TabManager {
                 if (window.BlockSelector) {
                     // console.log(`🔄 TabManager: Synchronisation bloc ${itemType} avec BlockSelector`);
                     window.BlockSelector.setBlock(itemType);
-                    // Basculer automatiquement vers l'onglet Assise seulement si l'utilisateur n'a pas sélectionné biblio manuellement
-                    // ET s'il n'est pas sur l'onglet Outils
-                    if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
-                        this.switchMainTab('assise');
-                    }
                     
-                    // NOUVEAU: Déclencher explicitement la mise à jour de l'onglet outils
-                    if (window.ToolsTabManager) {
-                        // console.log(`🔧 TabManager: Mise à jour de l'onglet outils pour le bloc ${itemType}`);
-                        setTimeout(() => {
-                            window.ToolsTabManager.updateActiveElementPreview();
-                        }, 100);
-                    }
+                    // NOUVEAU: Forcer l'activation de l'onglet Outils pour les blocs sélectionnés
+                    // console.log('🔧 TabManager: Activation forcée de l\'onglet Outils pour bloc');
+                    setTimeout(() => {
+                        this.activateToolsTab();
+                        // Forcer la mise à jour de l'aperçu après activation
+                        if (window.ToolsTabManager) {
+                            setTimeout(() => {
+                                window.ToolsTabManager.updateActiveElementPreview(null, true);
+                            }, 100);
+                        }
+                    }, 50);
                 }
                 break;
 

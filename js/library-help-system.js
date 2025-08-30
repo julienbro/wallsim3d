@@ -616,8 +616,8 @@ class LibraryHelpSystem {
     }
 
     createCutLengthHighlights() {
-        // Surligner la zone des longueurs de coupe
-        const cutLengthContainer = document.querySelector('.cut-length-buttons, .length-selector, [class*="length"], [class*="coupe"]');
+        // Surligner la zone des longueurs de coupe - cibler directement le conteneur cut-buttons
+        const cutLengthContainer = document.querySelector('.cut-buttons');
         if (cutLengthContainer) {
             this.createHighlightBox(cutLengthContainer, {
                 label: '✂️ Longueurs de coupes',
@@ -625,22 +625,58 @@ class LibraryHelpSystem {
                 position: 'bottom',
                 delay: 0.8
             });
+            return;
         }
 
-        // Si on ne trouve pas le conteneur spécifique, chercher les boutons individuels
-        if (!cutLengthContainer) {
-            const lengthButtons = document.querySelectorAll('[data-length], button[title*="longueur"], button[title*="coupe"]');
-            if (lengthButtons.length > 0) {
-                lengthButtons.forEach((button, index) => {
-                    if (index < 5) { // Limiter à 5 boutons max
-                        this.createHighlightBox(button, {
-                            label: index === 0 ? '✂️ Longueurs' : '',
-                            color: '#7b1fa2',
-                            position: 'bottom',
-                            delay: 0.8 + (index * 0.1),
-                            small: true
-                        });
-                    }
+        // Fallback : chercher les autres conteneurs possibles
+        const altContainer = document.querySelector('.cut-length-buttons, .length-selector, [class*="length"], [class*="coupe"]');
+        if (altContainer) {
+            this.createHighlightBox(altContainer, {
+                label: '✂️ Longueurs de coupes',
+                color: '#7b1fa2',
+                position: 'bottom',
+                delay: 0.8
+            });
+            return;
+        }
+
+        // Si aucun conteneur trouvé, chercher les boutons cut-btn-mini
+        const cutButtons = document.querySelectorAll('.cut-btn-mini');
+        if (cutButtons.length > 0) {
+            // Calculer les dimensions englobantes des boutons cut-btn-mini
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            
+            Array.from(cutButtons).forEach(button => {
+                const rect = button.getBoundingClientRect();
+                const style = window.getComputedStyle(button);
+                if (rect.width > 0 && rect.height > 0 && 
+                    style.display !== 'none' && 
+                    style.visibility !== 'hidden') {
+                    minX = Math.min(minX, rect.left);
+                    minY = Math.min(minY, rect.top);
+                    maxX = Math.max(maxX, rect.right);
+                    maxY = Math.max(maxY, rect.bottom);
+                }
+            });
+            
+            if (minX !== Infinity) {
+                // Créer un élément virtuel avec les dimensions des cut-btn-mini
+                const virtualContainer = {
+                    getBoundingClientRect: () => ({
+                        left: minX - 4,
+                        top: minY - 4,
+                        right: maxX + 4,
+                        bottom: maxY + 4,
+                        width: (maxX - minX) + 8,
+                        height: (maxY - minY) + 8
+                    })
+                };
+                
+                this.createHighlightBox(virtualContainer, {
+                    label: '✂️ Longueurs de coupes',
+                    color: '#7b1fa2',
+                    position: 'bottom',
+                    delay: 0.8
                 });
             }
         }

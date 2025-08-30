@@ -263,7 +263,7 @@ Ce message a été généré automatiquement par WallSim3D v1.0
         
         document.body.removeChild(link);
         
-        console.log('📧 Email de validation préparé pour:', email);
+        // console.log('📧 Email de validation préparé pour:', email);
     }
 
     showEmailStatus(message, type) {
