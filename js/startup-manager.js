@@ -53,25 +53,11 @@ class StartupManager {
                         <div class="progress-text" id="progress-text">Initialisation...</div>
                     </div>
                     
-                    <div class="email-section" id="email-section" style="display: none;">
-                        <div class="email-header">
-                            <h3>Accès à WallSim3D</h3>
-                            <p>Veuillez saisir votre adresse email pour déverrouiller l'application</p>
-                        </div>
-                        <div class="email-input-container">
-                            <input type="email" id="email-input" class="email-input" placeholder="votre.email@exemple.com" required>
-                            <button class="validate-email-btn" id="validate-email-btn">
-                                <i class="fas fa-check"></i> Valider
-                            </button>
-                        </div>
-                        <div class="email-status" id="email-status"></div>
-                    </div>
-                    
                     <div class="startup-buttons">
-                        <button class="startup-button btn-nouveau" id="btn-nouveau" disabled>
+                        <button class="startup-button btn-nouveau" id="btn-nouveau">
                             <i class="fas fa-plus-circle"></i> Nouveau
                         </button>
-                        <button class="startup-button btn-ouvrir" id="btn-ouvrir" disabled>
+                        <button class="startup-button btn-ouvrir" id="btn-ouvrir">
                             <i class="fas fa-folder-open"></i> Ouvrir
                         </button>
                     </div>
@@ -91,20 +77,13 @@ class StartupManager {
         const btnNouveau = document.getElementById('btn-nouveau');
         const btnOuvrir = document.getElementById('btn-ouvrir');
 
-        if (btnNouveau) {
-            btnNouveau.addEventListener('click', () => {
-                this.handleNewProject();
-            });
-        }
+        btnNouveau.addEventListener('click', () => {
+            this.handleNewProject();
+        });
 
-        if (btnOuvrir) {
-            btnOuvrir.addEventListener('click', () => {
-                this.handleOpenProject();
-            });
-        }
-
-        // Configuration des événements email (sera appelé si besoin)
-        this.setupEmailEvents();
+        btnOuvrir.addEventListener('click', () => {
+            this.handleOpenProject();
+        });
 
         // Empêcher la fermeture en cliquant à côté pendant le chargement
         this.overlay.addEventListener('click', (e) => {
@@ -154,224 +133,15 @@ class StartupManager {
                 this.showAutoSaveOptions(projectData);
             } catch (error) {
                 console.error('❌ Erreur lors de la lecture de la sauvegarde automatique:', error);
-                this.showEmailSection();
+                this.showNormalOptions();
             }
         } else {
-            this.showEmailSection();
+            this.showNormalOptions();
         }
     }
 
-    showEmailSection() {
-        // Masquer la barre de progression
-        const progressContainer = document.querySelector('.progress-container');
-        if (progressContainer) {
-            progressContainer.style.display = 'none';
-        }
-
-        // Vérifier si la section email existe, sinon la créer
-        let emailSection = document.getElementById('email-section');
-        if (!emailSection) {
-            console.log('🔨 Création de la section email manquante');
-            this.createEmailSection();
-            emailSection = document.getElementById('email-section');
-        }
-
-        // Afficher la section email
-        if (emailSection) {
-            emailSection.style.display = 'block';
-        } else {
-            console.error('❌ Impossible de trouver ou créer la section email');
-        }
-    }
-
-    createEmailSection() {
-        // Trouver un conteneur approprié pour la section email
-        const container = document.querySelector('.startup-content') || document.querySelector('.actions-container') || document.body;
-        
-        // Créer la section email
-        const emailSection = document.createElement('div');
-        emailSection.id = 'email-section';
-        emailSection.className = 'email-validation-section';
-        emailSection.style.display = 'none';
-        
-        emailSection.innerHTML = `
-            <div class="email-header">
-                <h3>📧 Validation d'accès</h3>
-                <p>Veuillez saisir votre adresse email pour accéder à WallSim3D :</p>
-            </div>
-            <div class="email-form">
-                <input type="email" id="email-input" class="email-input" placeholder="votre.email@example.com" required>
-                <button id="validate-email-btn" class="validate-email-btn">
-                    <i class="fas fa-check"></i> Valider
-                </button>
-            </div>
-            <div id="email-status" class="email-status"></div>
-            <div class="email-note">
-                <small>💡 La validation ouvrira votre client email pour envoyer un message vers <strong>utilisateurs@wallsim3d.com</strong></small>
-            </div>
-        `;
-        
-        // Insérer avant les boutons si possible
-        const buttonsContainer = container.querySelector('.actions-container');
-        if (buttonsContainer) {
-            container.insertBefore(emailSection, buttonsContainer);
-        } else {
-            container.appendChild(emailSection);
-        }
-        
-        // Ajouter les événements
-        this.setupEmailEvents();
-    }
-
-    setupEmailEvents() {
-        const validateEmailBtn = document.getElementById('validate-email-btn');
-        const emailInput = document.getElementById('email-input');
-        
-        if (validateEmailBtn && emailInput) {
-            // Validation de l'email
-            validateEmailBtn.addEventListener('click', () => {
-                this.validateEmail();
-            });
-
-            // Validation par Entrée
-            emailInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.validateEmail();
-                }
-            });
-        }
-    }
-
-    async validateEmail() {
-        const emailInput = document.getElementById('email-input');
-        const validateBtn = document.getElementById('validate-email-btn');
-        const emailStatus = document.getElementById('email-status');
-        
-        const email = emailInput.value.trim();
-        
-        // Validation basique de l'email
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            this.showEmailStatus('Veuillez saisir une adresse email valide', 'error');
-            return;
-        }
-
-        // Désactiver le bouton et montrer le chargement
-        validateBtn.disabled = true;
-        validateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validation...';
-        
-        try {
-            // Simulation de l'envoi au backend - remplacer par une vraie API plus tard
-            // Pour l'instant, on valide automatiquement après avoir préparé l'email
-            
-            this.showEmailStatus('Validation en cours...', 'info');
-            
-            // Envoyer les informations par email (simulation)
-            this.sendEmailToBackend(email);
-            
-            // Simuler un délai de traitement
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Validation réussie
-            this.showEmailStatus('🔓 Email validé ! Votre client email s\'est ouvert pour envoyer la validation vers utilisateurs@wallsim3d.com', 'success');
-            this.unlockButtons();
-            
-            // Stocker l'email validé pour cette session
-            sessionStorage.setItem('wallsim3d_validated_email', email);
-            
-            // Masquer la section email après un délai
-            setTimeout(() => {
-                const emailSection = document.getElementById('email-section');
-                if (emailSection) {
-                    emailSection.style.display = 'none';
-                }
-            }, 2000);
-                
-        } catch (error) {
-            console.error('Erreur lors de la validation email:', error);
-            this.showEmailStatus('Erreur de connexion. Veuillez réessayer.', 'error');
-            validateBtn.disabled = false;
-            validateBtn.innerHTML = '<i class="fas fa-check"></i> Valider';
-        }
-    }
-
-    async sendEmailToBackend(email) {
-        try {
-            // Tentative d'envoi via un service externe (EmailJS, webhook, etc.)
-            console.log('📧 Tentative d\'envoi d\'email automatique...');
-            
-            // Simuler un envoi d'email côté serveur
-            const emailData = {
-                to: 'utilisateurs@wallsim3d.com',
-                from: email,
-                subject: 'Nouvelle validation WallSim3D',
-                body: `
-Nouvelle validation d'accès WallSim3D
-
-Email utilisateur: ${email}
-Date/Heure: ${new Date().toLocaleString('fr-FR')}
-Navigateur: ${navigator.userAgent}
-URL: ${window.location.href}
-
----
-Ce message a été généré automatiquement par WallSim3D v1.0
-                `.trim()
-            };
-
-            // Pour l'instant, on simule l'envoi (remplacer par vraie API plus tard)
-            const success = await this.simulateEmailSending(emailData);
-            
-            if (success) {
-                console.log('✅ Email envoyé automatiquement vers utilisateurs@wallsim3d.com');
-                return { success: true };
-            } else {
-                throw new Error('Service d\'email temporairement indisponible');
-            }
-            
-        } catch (error) {
-            console.warn('⚠️ Envoi automatique échoué:', error.message);
-            console.log('📝 Email enregistré localement pour traitement différé');
-            
-            // Enregistrer localement pour traitement ultérieur
-            this.storeEmailLocally(email);
-            return { success: true, method: 'local' };
-        }
-    }
-
-    async simulateEmailSending(emailData) {
-        // Simulation d'un appel API (remplacer par vraie intégration)
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                // Simuler un succès pour le moment
-                console.log('� Email simulé envoyé:', emailData);
-                resolve(true);
-            }, 500);
-        });
-    }
-
-    storeEmailLocally(email) {
-        // Stocker les validations localement pour traitement ultérieur
-        const validations = JSON.parse(localStorage.getItem('wallsim3d_validations') || '[]');
-        validations.push({
-            email: email,
-            timestamp: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-            url: window.location.href
-        });
-        localStorage.setItem('wallsim3d_validations', JSON.stringify(validations));
-        console.log('� Validation stockée localement');
-    }
-
-    showEmailStatus(message, type) {
-        const emailStatus = document.getElementById('email-status');
-        if (emailStatus) {
-            emailStatus.textContent = message;
-            emailStatus.className = `email-status ${type}`;
-            emailStatus.style.display = 'block';
-        }
-    }
-
-    unlockButtons() {
+    showNormalOptions() {
+        // Activer directement les boutons
         const btnNouveau = document.getElementById('btn-nouveau');
         const btnOuvrir = document.getElementById('btn-ouvrir');
         
@@ -382,26 +152,6 @@ Ce message a été généré automatiquement par WallSim3D v1.0
         if (btnOuvrir) {
             btnOuvrir.disabled = false;
             btnOuvrir.classList.add('unlocked');
-        }
-    }
-
-    showNormalOptions() {
-        // Ne plus activer automatiquement les boutons - ils seront activés après validation email
-        const btnNouveau = document.getElementById('btn-nouveau');
-        const btnOuvrir = document.getElementById('btn-ouvrir');
-        
-        // Vérifier si l'email a déjà été validé dans cette session
-        const validatedEmail = sessionStorage.getItem('wallsim3d_validated_email');
-        if (validatedEmail) {
-            this.unlockButtons();
-            // Masquer la section email si déjà validé
-            const emailSection = document.getElementById('email-section');
-            if (emailSection) {
-                emailSection.style.display = 'none';
-            }
-        } else {
-            // Afficher la section email
-            this.showEmailSection();
         }
 
         // Changer le texte de progression
@@ -414,23 +164,17 @@ Ce message a été généré automatiquement par WallSim3D v1.0
     }
 
     showAutoSaveOptions(projectData) {
-        // Vérifier d'abord la validation email
-        const validatedEmail = sessionStorage.getItem('wallsim3d_validated_email');
-        if (!validatedEmail) {
-            this.showEmailSection();
-        } else {
-            // Activer les boutons normaux aussi
-            const btnNouveau = document.getElementById('btn-nouveau');
-            const btnOuvrir = document.getElementById('btn-ouvrir');
-            
-            if (btnNouveau) {
-                btnNouveau.disabled = false;
-                btnNouveau.classList.add('unlocked');
-            }
-            if (btnOuvrir) {
-                btnOuvrir.disabled = false;
-                btnOuvrir.classList.add('unlocked');
-            }
+        // Activer directement les boutons normaux
+        const btnNouveau = document.getElementById('btn-nouveau');
+        const btnOuvrir = document.getElementById('btn-ouvrir');
+        
+        if (btnNouveau) {
+            btnNouveau.disabled = false;
+            btnNouveau.classList.add('unlocked');
+        }
+        if (btnOuvrir) {
+            btnOuvrir.disabled = false;
+            btnOuvrir.classList.add('unlocked');
         }
 
         // Modifier la popup pour ajouter une colonne à droite
