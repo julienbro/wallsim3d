@@ -459,7 +459,26 @@ class ConstructionTools {
             if (window.DEBUG_CONSTRUCTION) {
                 console.log('🧱 Fantôme: Options pour brique:', wallElementOptions);
             }
+        } else if (this.currentMode === 'block') {
+            wallElementOptions.type = 'block';
+            wallElementOptions.blockType = elementTypeForMode;
+            if (window.DEBUG_CONSTRUCTION) {
+                console.log('🧊 Fantôme: Options pour bloc:', wallElementOptions);
+            }
+        } else if (this.currentMode === 'insulation') {
+            wallElementOptions.type = 'insulation';
+            wallElementOptions.insulationType = elementTypeForMode;
+            if (window.DEBUG_CONSTRUCTION) {
+                console.log('🧥 Fantôme: Options pour isolant:', wallElementOptions);
+            }
+        } else if (this.currentMode === 'linteau') {
+            wallElementOptions.type = 'linteau';
+            wallElementOptions.linteauType = elementTypeForMode;
+            if (window.DEBUG_CONSTRUCTION) {
+                console.log('🏗️ Fantôme: Options pour linteau:', wallElementOptions);
+            }
         } else {
+            // Fallback pour les autres modes
             wallElementOptions.type = elementTypeForMode;
             wallElementOptions.blockType = elementTypeForMode;
             if (window.DEBUG_CONSTRUCTION) {
@@ -719,7 +738,7 @@ class ConstructionTools {
         
         this._updateDebounceTimer = setTimeout(() => {
             this._performActualGhostUpdate();
-        }, 150); // Augmenté à 150ms pour réduire encore plus les lags
+        }, 100); // 100ms de debounce pour réduire les lags
     }
     
     _performActualGhostUpdate() {
@@ -1822,6 +1841,11 @@ class ConstructionTools {
                     const handleGLBPlaced = () => {
                         // Supprimer l'ancien fantôme avant de créer le nouveau
                         this.removeGhostElement();
+                        
+                        // 🔧 CORRECTION: Maintenir lastPlacedGLBInfo pour préserver l'aperçu
+                        if (window.tempGLBInfo) {
+                            window.lastPlacedGLBInfo = { ...window.tempGLBInfo };
+                        }
                         
                         // Restaurer les infos GLB pour le placement continu
                         window.tempGLBInfo = glbInfoCopy;
@@ -3964,9 +3988,9 @@ class ConstructionTools {
                     else if (category === 'hollow') {
                         return 'concrete'; // Matériau gris pour blocs creux
                     }
-                    // Blocs coupés → même matériau que le bloc de base (béton gris)
+                    // Blocs coupés → même matériau que les blocs entiers
                     else if (category === 'cut') {
-                        return 'concrete'; // Matériau gris pour blocs coupés
+                        return 'concrete'; // Même matériau gris que les blocs entiers
                     }
                 }
             }
@@ -3975,7 +3999,7 @@ class ConstructionTools {
             if (window.currentBlockDimensions && window.currentBlockDimensions.type) {
                 const blockType = window.currentBlockDimensions.type;
                 if (blockType.startsWith('TC_')) {
-                    return 'brique-rouge-classique'; // Blocs terre cuite → rouge
+                    return 'concrete'; // Blocs terre cuite creux → gris
                 } else if (blockType.startsWith('BC_') || blockType.startsWith('BCA_')) {
                     return 'cellular-concrete'; // Blocs béton cellulaire → béton cellulaire blanc
                 }
@@ -4429,6 +4453,17 @@ class ConstructionTools {
         joint.mesh.userData.elementType = 'joint';
         joint.mesh.userData.isVerticalJoint = suggestionGhost.mesh.userData.isVerticalJoint;
         joint.mesh.userData.isHorizontalJoint = suggestionGhost.mesh.userData.isHorizontalJoint;
+        
+        // 🎯 CORRECTION CRITIQUE: Ajouter l'ID de l'élément parent pour l'undo/redo
+        const refElement = this.referenceElement || this.activeBrickForSuggestions;
+        if (refElement && refElement.id) {
+            joint.mesh.userData.parentElementId = refElement.id;
+            joint.userData = joint.userData || {};
+            joint.userData.parentElementId = refElement.id;
+            joint.userData.isJoint = true;
+            joint.userData.parentElementType = joint.mesh.userData.parentElementType;
+            console.log(`🔗 Joint ${joint.id} associé à l'élément parent ${refElement.id}`);
+        }
         
         // Appliquer la couleur appropriée selon le type de parent
         this.applyJointColorToElement(joint, joint.mesh.userData.parentElementType);
@@ -6649,7 +6684,7 @@ class ConstructionTools {
 
         const animate = () => {
             if (!this.showGridSnap) {
-                // console.log('🛑 Animation arrêtée - showGridSnap:', this.showGridSnap);
+                console.log('🛑 Animation arrêtée - showGridSnap:', this.showGridSnap);
                 return;
             }
 
@@ -6658,28 +6693,25 @@ class ConstructionTools {
             // Animer seulement le point snap du curseur avec de beaux effets 2D
             if (this.cursorSnapPoint && this.cursorSnapPoint.material) {
                 try {
-                    // Throttling pour réduire les calculs - seulement 30fps
-                    if ((Date.now() % 32) < 16) {
-                        const cursorPhase = this.cursorSnapPoint.animationPhase || 0;
-                        
-                        // Animation de pulsation douce pour le cercle 2D
-                        const pulseScale = 1.0 + 0.2 * Math.sin(time * 2 + cursorPhase); // Réduit
-                        this.cursorSnapPoint.scale.setScalar(pulseScale);
-                        
-                        // Animation d'opacité ondulante
-                        const opacity = 0.4 + 0.3 * Math.sin(time * 2 + cursorPhase); // Réduit
-                        this.cursorSnapPoint.material.opacity = opacity;
-                        
-                        // Effet de rotation lente pour plus de dynamisme
-                        this.cursorSnapPoint.rotation.z += 0.005; // Ralenti
-                        
-                        // Changement de couleur subtil (du rouge au orange)
-                        const colorPhase = 0.5 + 0.2 * Math.sin(time * 1.5 + cursorPhase); // Réduit
-                        const red = 1.0;
-                        const green = 0.3 * colorPhase;
-                        const blue = 0.1 * colorPhase;
-                        this.cursorSnapPoint.material.color.setRGB(red, green, blue);
-                    }
+                    const cursorPhase = this.cursorSnapPoint.animationPhase || 0;
+                    
+                    // Animation de pulsation douce pour le cercle 2D
+                    const pulseScale = 1.0 + 0.3 * Math.sin(time * 3 + cursorPhase);
+                    this.cursorSnapPoint.scale.setScalar(pulseScale);
+                    
+                    // Animation d'opacité ondulante
+                    const opacity = 0.4 + 0.4 * Math.sin(time * 2.5 + cursorPhase);
+                    this.cursorSnapPoint.material.opacity = opacity;
+                    
+                    // Effet de rotation lente pour plus de dynamisme
+                    this.cursorSnapPoint.rotation.z += 0.01;
+                    
+                    // Changement de couleur subtil (du rouge au orange)
+                    const colorPhase = 0.5 + 0.3 * Math.sin(time * 1.8 + cursorPhase);
+                    const red = 1.0;
+                    const green = 0.3 * colorPhase;
+                    const blue = 0.1 * colorPhase;
+                    this.cursorSnapPoint.material.color.setRGB(red, green, blue);
                     
                 } catch (error) {
                     console.error('Erreur dans l\'animation du point snap curseur:', error);

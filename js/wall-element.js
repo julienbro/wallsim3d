@@ -1,6 +1,9 @@
 ﻿// Classe pour représenter un élément de construction (brique, bloc, isolant)
 class WallElement {
     constructor(options = {}) {
+        // console.log('🏗️ WallElement: Constructeur appelé avec options:', options);
+        // console.log('🏗️ WallElement: Type:', options.type, 'BlockType:', options.blockType, 'Material:', options.material);
+        
         if (window.DEBUG_WALL_ELEMENT) {
             console.log('🏗️ WallElement: Création avec options:', options);
         }
@@ -76,31 +79,30 @@ class WallElement {
 
     // Méthode pour déterminer le matériau par défaut selon les règles spécifiées
     getDefaultMaterial(options) {
+        // console.log('🔧 getDefaultMaterial appelée avec:', options);
+        
         if (options.type === 'brick') {
             // Toutes les briques → brique rouge classique
+            // console.log('🔧 Type brique détecté → brique-rouge-classique');
             return 'brique-rouge-classique';
         } else if (options.type === 'block') {
             const blockType = options.blockType;
+            // console.log('🔧 Type bloc détecté, blockType:', blockType);
             if (blockType) {
                 // Blocs terre cuite → brique rouge classique
                 if (blockType.startsWith('TC_')) {
+                    // console.log('🔧 Bloc terre cuite → brique-rouge-classique');
                     return 'brique-rouge-classique';
                 }
                 // Blocs béton cellulaire → béton cellulaire blanc
                 else if (blockType.startsWith('BC_') || blockType.startsWith('BCA_')) {
+                    // console.log('🔧 Bloc béton cellulaire → cellular-concrete');
                     return 'cellular-concrete';
                 }
-                // Blocs creux coupés (B9_HALF, B14_HALF, etc.) → béton gris
-                else if (blockType.includes('_HALF') || blockType.includes('_3Q') || blockType.includes('_1Q')) {
-                    return 'concrete';
-                }
-                // Blocs Argex → béton gris  
-                else if (blockType.startsWith('ARGEX_')) {
-                    return 'concrete';
-                }
             }
-            // Tous les autres blocs creux standard → béton gris
-            return 'concrete';
+            // Tous les autres blocs (B9, B14, B19, B29, etc.) → brique grise
+            // console.log('🔧 Autres blocs → brique-grise');
+            return 'brique-grise';
         } else if (options.type === 'joint') {
             // Tous les joints → gris souris
             return 'joint-gris-souris';
@@ -148,6 +150,7 @@ class WallElement {
         let material = null;
         if (window.MaterialLibrary) {
             material = window.MaterialLibrary.getThreeJSMaterial(this.material);
+            // console.log('🔧 MaterialLibrary.getThreeJSMaterial:', this.material, '→', material ? 'trouvé' : 'NON TROUVÉ');
             if (material) {
                 // FORCER le matériau à être SOLIDE (pas wireframe)
                 material.wireframe = false;
@@ -172,9 +175,21 @@ class WallElement {
 
         // Fallback: créer un matériau de base si aucun n'est trouvé
         if (!material) {
-            // console.log(`🔧 Création d'un matériau de fallback rouge SOLIDE`);
+            // Déterminer la couleur appropriée selon le type d'élément
+            let fallbackColor = 0xff0000; // rouge par défaut (pour debug)
+            
+            if (this.type === 'block') {
+                fallbackColor = 0x8B4513; // marron pour les blocs
+            } else if (this.type === 'brick') {
+                fallbackColor = 0xD2691E; // orange terre cuite pour les briques
+            } else if (this.type === 'insulation') {
+                fallbackColor = 0xf0ebe2; // beige pour les isolants
+            }
+            
+            // console.log(`🔧 Création d'un matériau de fallback pour type ${this.type} couleur ${fallbackColor.toString(16)}`);
+            // console.log(`🔧 Création d'un matériau de fallback pour type ${this.type} couleur ${fallbackColor.toString(16)}`);
             material = new THREE.MeshLambertMaterial({ 
-                color: 0xff0000,
+                color: fallbackColor,
                 wireframe: false,  // EXPLICITEMENT pas wireframe
                 side: THREE.DoubleSide 
             });

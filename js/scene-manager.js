@@ -591,40 +591,10 @@ class SceneManager {
             });
         });
 
-        // Observer les changements dans le DOM - avec throttling
-        let observerTimeout;
-        const throttledObserver = new MutationObserver((mutations) => {
-            if (observerTimeout) return; // Ignorer si déjà en cours
-            
-            observerTimeout = setTimeout(() => {
-                mutations.forEach((mutation) => {
-                    if (mutation.addedNodes.length > 0) {
-                        mutation.addedNodes.forEach((node) => {
-                            if (node.nodeType === Node.ELEMENT_NODE) {
-                                menuSelectors.forEach(selector => {
-                                    if (node.matches && node.matches(selector)) {
-                                        node.addEventListener('mouseenter', hideGhost);
-                                    }
-                                    
-                                    // Également vérifier les enfants
-                                    const children = node.querySelectorAll && node.querySelectorAll(selector);
-                                    if (children) {
-                                        children.forEach(child => {
-                                            child.addEventListener('mouseenter', hideGhost);
-                                        });
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-                observerTimeout = null;
-            }, 100); // Attendre 100ms avant de traiter les mutations
-        });
-
-        throttledObserver.observe(document.body, {
+        // Observer les changements dans le DOM
+        observer.observe(document.body, {
             childList: true,
-            subtree: false // Réduire la profondeur de surveillance
+            subtree: true
         });
 
         // Ajouter un événement global de document pour capturer tous les survols en dehors de la scène
@@ -644,14 +614,14 @@ class SceneManager {
     */
 
     onMouseMove(event) {
-        // Throttling plus agressif du mouvement de souris pour de meilleures performances
+        // Throttling réduit du mouvement de souris pour une meilleure réactivité
         if (this._mouseMoveThrottle) {
             return;
         }
         
         this._mouseMoveThrottle = setTimeout(() => {
             this._mouseMoveThrottle = null;
-        }, 8); // Augmenté à 8ms pour ~120fps maximum (plus réaliste)
+        }, 4); // Réduit à 4ms pour ~240fps maximum
         
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -2875,9 +2845,9 @@ class SceneManager {
                 this.renderer.render(this.scene, this.camera);
             }
 
-            // Mise à jour des performances - seulement tous les 120 frames (~2 secondes)
+            // Mise à jour des performances - seulement tous les 60 frames (~1 seconde)
             this._perfFrame = (this._perfFrame || 0) + 1;
-            if (this._perfFrame % 120 === 0) {
+            if (this._perfFrame % 60 === 0) {
                 this.updatePerformance();
             }
         };
@@ -3104,38 +3074,6 @@ class SceneManager {
             
             // Mettre à jour l'affichage des performances (si demandé)
             this.updatePerformanceDisplay();
-            
-            // Auto-désactivation des animations si performances faibles
-            if (this.currentFPS < 25) {
-                this.setLowPerformanceMode(true);
-            } else if (this.currentFPS > 45) {
-                this.setLowPerformanceMode(false);
-            }
-        }
-    }
-    
-    setLowPerformanceMode(enabled) {
-        if (this.lowPerformanceMode === enabled) return;
-        
-        this.lowPerformanceMode = enabled;
-        
-        if (enabled) {
-            console.warn('⚠️ Mode performance réduite activé (FPS <25)');
-            // Désactiver certaines animations coûteuses
-            if (window.AssiseManager) {
-                window.AssiseManager.lowPerformanceMode = true;
-            }
-            if (window.ConstructionTools) {
-                window.ConstructionTools.lowPerformanceMode = true;
-            }
-        } else {
-            console.log('✅ Mode performance normale restauré (FPS >45)');
-            if (window.AssiseManager) {
-                window.AssiseManager.lowPerformanceMode = false;
-            }
-            if (window.ConstructionTools) {
-                window.ConstructionTools.lowPerformanceMode = false;
-            }
         }
     }
 

@@ -1313,7 +1313,7 @@ class MeasurementTool {
         
         // Calculer la direction de la ligne (de début vers fin)
         const lineDirection = endPoint.clone().sub(startPoint).normalize();
-        // console.log('📐 Cotation - Direction:', lineDirection);
+        console.log('📐 Cotation - Direction:', lineDirection);
         
         // Pour les cotations, les flèches pointent vers l'intérieur :
         // - Flèche au point de début : pointe vers l'intérieur (vers endPoint)
@@ -1327,14 +1327,12 @@ class MeasurementTool {
     }
 
     createArrow(position, direction, size) {
-        // Debug : afficher les paramètres (désactivé)
-        /*
+        // Debug : afficher les paramètres
         console.log('🏹 Création flèche:', {
             position: `(${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)})`,
             direction: `(${direction.x.toFixed(2)}, ${direction.y.toFixed(2)}, ${direction.z.toFixed(2)})`,
             size: size
         });
-        */
         
         // Créer une flèche triangulaire pleine avec un cône
         const arrowGroup = new THREE.Group();
@@ -1900,7 +1898,7 @@ class MeasurementTool {
                 window.ToolbarManager.hideInstruction();
             }
             
-            // console.log('🔧 Barre d\'outils réinitialisée en mode sélection');
+            console.log('🔧 Barre d\'outils réinitialisée en mode sélection');
         }
         
         if (window.ConstructionTools) {

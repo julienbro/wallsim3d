@@ -1033,7 +1033,7 @@ class TabManager {
             baseType: baseType,
             timestamp: Date.now()
         };
-        // console.log('💾 TabManager: Sélection de coupe mémorisée:', window.lastCutSelection);
+        console.log('💾 TabManager: Sélection de coupe mémorisée:', window.lastCutSelection);
         
         this.selectLibraryItem(finalType, parentItem);
 
@@ -1642,18 +1642,19 @@ class TabManager {
                 if (window.BlockSelector) {
                     // console.log(`🔄 TabManager: Synchronisation bloc ${itemType} avec BlockSelector`);
                     window.BlockSelector.setBlock(itemType);
+                    // Basculer automatiquement vers l'onglet Assise seulement si l'utilisateur n'a pas sélectionné biblio manuellement
+                    // ET s'il n'est pas sur l'onglet Outils
+                    if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
+                        this.switchMainTab('assise');
+                    }
                     
-                    // NOUVEAU: Forcer l'activation de l'onglet Outils pour les blocs sélectionnés
-                    // console.log('🔧 TabManager: Activation forcée de l\'onglet Outils pour bloc');
-                    setTimeout(() => {
-                        this.activateToolsTab();
-                        // Forcer la mise à jour de l'aperçu après activation
-                        if (window.ToolsTabManager) {
-                            setTimeout(() => {
-                                window.ToolsTabManager.updateActiveElementPreview(null, true);
-                            }, 100);
-                        }
-                    }, 50);
+                    // NOUVEAU: Déclencher explicitement la mise à jour de l'onglet outils
+                    if (window.ToolsTabManager) {
+                        // console.log(`🔧 TabManager: Mise à jour de l'onglet outils pour le bloc ${itemType}`);
+                        setTimeout(() => {
+                            window.ToolsTabManager.updateActiveElementPreview();
+                        }, 100);
+                    }
                 }
                 break;
 
@@ -3925,9 +3926,20 @@ class TabManager {
             });
         }
         
-        // Mettre à jour l'affichage
-        this.updateReusableElementsDisplay();
+        // Mettre à jour l'affichage avec debounce pour éviter les appels excessifs
+        this.debouncedUpdateReusableElements();
         this.updateReuseStats();
+    }
+
+    // Fonction debounced pour éviter les mises à jour excessives
+    debouncedUpdateReusableElements() {
+        if (this.updateReusableTimeout) {
+            clearTimeout(this.updateReusableTimeout);
+        }
+        
+        this.updateReusableTimeout = setTimeout(() => {
+            this.updateReusableElementsDisplay();
+        }, 500); // Attendre 500ms avant de mettre à jour (plus long pour éviter les pics)
     }
 
     // Actualiser l'affichage des éléments à réutiliser
@@ -4076,15 +4088,45 @@ class TabManager {
             <div class="reuse-item-last-used">Utilisé ${timeSinceLastUse}</div>
         `;
         
-        // Générer l'aperçu 3D après l'ajout au DOM
+        // Générer l'aperçu 3D après l'ajout au DOM avec limitation
         setTimeout(() => {
-            // Traitement spécial pour les éléments GLB
+            // Traitement spécial pour les éléments GLB avec vérification anti-spam
             if (element.path && element.path.endsWith('.glb')) {
-                this.generateGLBPreview(element, `preview-${key}`);
+                // Vérifier si un aperçu pour ce type GLB est déjà en cours de génération
+                const glbKey = `${element.type}_${element.lengthValue || '300'}`;
+                if (!this.pendingGLBPreviews) {
+                    this.pendingGLBPreviews = new Set();
+                }
+                
+                if (!this.pendingGLBPreviews.has(glbKey)) {
+                    // Vérifier aussi le nombre total de previews en cours
+                    if (this.pendingGLBPreviews.size < 3) { // Maximum 3 types GLB en preview simultané
+                        this.pendingGLBPreviews.add(glbKey);
+                        this.generateGLBPreview(element, `preview-${key}`);
+                        
+                        // Nettoyer après un délai
+                        setTimeout(() => {
+                            this.pendingGLBPreviews.delete(glbKey);
+                        }, 3000);
+                    } else {
+                        console.log(`⏳ Trop de types GLB en preview (${this.pendingGLBPreviews.size}), utilisé fallback`);
+                        const container = document.getElementById(`preview-${key}`);
+                        if (container) {
+                            this.showGLBFallbackPreview(container, element);
+                        }
+                    }
+                } else {
+                    console.log(`⏳ Aperçu GLB pour ${glbKey} déjà en cours, utilisé fallback`);
+                    // Utiliser un aperçu fallback immédiat
+                    const container = document.getElementById(`preview-${key}`);
+                    if (container) {
+                        this.showGLBFallbackPreview(container, element);
+                    }
+                }
             } else {
                 this.generate3DPreview(element.type, element.cut, `preview-${key}`);
             }
-        }, 100);
+        }, Math.random() * 500 + 200); // Délai aléatoire plus étalé (200-700ms)
         
         // Ajouter l'événement de clic pour sélectionner l'élément (éviter les boutons de coupe)
         item.addEventListener('click', (e) => {
@@ -4675,21 +4717,23 @@ class TabManager {
             return;
         }
 
+        // Vérifier si un aperçu est déjà en cours pour ce container
+        if (container.dataset.previewInProgress === 'true') {
+            console.log(`⏳ Aperçu GLB déjà en cours pour ${containerId}, ignoré`);
+            return;
+        }
+        
+        // Marquer comme en cours
+        container.dataset.previewInProgress = 'true';
+
         // Créer un canvas pour l'aperçu GLB
-        const canvas = document.createElement('canvas');
-        canvas.width = 120;
-        canvas.height = 120;
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-
-        // Remplacer le contenu du container
+        // Créer un container pour l'aperçu statique (pas de canvas nécessaire)
         container.innerHTML = '';
-        container.appendChild(canvas);
 
-        // Utiliser le même système que tools-tab-manager pour l'aperçu GLB
-        if (window.ToolsTabManager && window.ToolsTabManager.createGLBPreviewUsingLibrary) {
+        // Utiliser un aperçu statique au lieu de 3D pour de meilleures performances
+        if (window.toolsReusablePanel && window.toolsReusablePanel.generateStaticPreview) {
             try {
-                // Créer un objet compatible avec le système d'aperçu
+                // Créer un objet compatible avec le système d'aperçu statique
                 const glbForPreview = {
                     name: glbElement.name || glbElement.type,
                     type: glbElement.type,
@@ -4697,14 +4741,21 @@ class TabManager {
                     scale: glbElement.scale
                 };
                 
-                window.ToolsTabManager.createGLBPreviewUsingLibrary(canvas, glbForPreview);
+                console.log('🎨 Utilisation aperçu statique pour éléments réutilisables:', glbElement.type);
+                
+                // Utiliser l'aperçu statique immédiatement
+                window.toolsReusablePanel.generateStaticPreview(glbForPreview, container.id);
+                container.dataset.previewInProgress = 'false';
+                
             } catch (error) {
-                console.error('❌ Erreur aperçu GLB réutilisables:', error);
+                console.error('❌ Erreur aperçu statique réutilisables:', error);
                 this.showGLBFallbackPreview(container, glbElement);
+                container.dataset.previewInProgress = 'false';
             }
         } else {
             console.warn('⚠️ ToolsTabManager non disponible, fallback pour aperçu GLB');
             this.showGLBFallbackPreview(container, glbElement);
+            container.dataset.previewInProgress = 'false';
         }
     }
 

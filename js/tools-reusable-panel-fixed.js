@@ -127,19 +127,10 @@ class ToolsReusablePanelFixed {
             </div>
         `;
 
-        // Générer l'aperçu 3D
+        // Générer un aperçu statique après que l'élément soit ajouté au DOM
         setTimeout(() => {
-            // Détecter si c'est un élément GLB
-            if (element.elementType === 'glb' || (element.type && element.type.includes('hourdis'))) {
-                // Utiliser generateGLBPreview pour les éléments GLB
-                if (window.tabManager?.generateGLBPreview) {
-                    window.tabManager.generateGLBPreview(element, `tools-unified-preview-${element.key}`);
-                }
-            } else {
-                // Utiliser generate3DPreview pour les éléments normaux
-                this.generate3DPreview(element.type, element.cut, `tools-unified-preview-${element.key}`);
-            }
-        }, 100);
+            this.generateStaticPreview(element, `tools-unified-preview-${element.key}`);
+        }, 10);
 
         // Ajouter l'événement de clic
         item.addEventListener('click', (e) => {
@@ -279,19 +270,10 @@ class ToolsReusablePanelFixed {
             </div>
         `;
 
-        // Générer l'aperçu 3D
+        // Générer un aperçu statique après que l'élément soit ajouté au DOM
         setTimeout(() => {
-            // Détecter si c'est un élément GLB
-            if (element.elementType === 'glb' || (element.type && element.type.includes('hourdis'))) {
-                // Utiliser generateGLBPreview pour les éléments GLB
-                if (window.tabManager?.generateGLBPreview) {
-                    window.tabManager.generateGLBPreview(element, `tools-preview-${key}`);
-                }
-            } else {
-                // Utiliser generate3DPreview pour les éléments normaux
-                this.generate3DPreview(element.type, element.cut, `tools-preview-${key}`);
-            }
-        }, 100);
+            this.generateStaticPreview(element, `tools-preview-${key}`);
+        }, 10);
 
         // Ajouter l'événement de clic
         item.addEventListener('click', (e) => {
@@ -372,6 +354,239 @@ class ToolsReusablePanelFixed {
         if (sourceTotalCount && targetTotalCount) {
             targetTotalCount.textContent = sourceTotalCount.textContent;
         }
+    }
+
+    // Générer un aperçu statique (SVG/2D) pour performance optimale
+    generateStaticPreview(element, containerId) {
+        // Vérifier que ce n'est pas l'aperçu de l'élément actif (qui doit rester 3D)
+        if (containerId && containerId.includes('toolsActiveElement')) {
+            console.log('🚫 Aperçu statique ignoré pour élément actif (reste 3D)');
+            return;
+        }
+        
+        // Attendre que le container soit disponible
+        const checkContainer = () => {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                // Retry dans 50ms si le container n'est pas encore disponible
+                setTimeout(checkContainer, 50);
+                return;
+            }
+
+            // Effacer le contenu existant
+            container.innerHTML = '';
+
+            // Détecter le type d'élément
+            const elementType = element.type || element.elementType || 'unknown';
+            
+            console.log(`🎨 Génération aperçu statique pour ${elementType} dans ${containerId}`);
+            
+            // Marquer le container comme étant un aperçu statique
+            container.setAttribute('data-preview-type', 'static');
+            
+            if (elementType.includes('hourdis')) {
+                // Aperçu statique pour hourdis
+                this.createHourdisStaticPreview(container, element);
+            } else if (elementType.startsWith('M')) {
+                // Aperçu statique pour briques
+                this.createBrickStaticPreview(container, element);
+            } else if (elementType.includes('bloc')) {
+                // Aperçu statique pour blocs
+                this.createBlockStaticPreview(container, element);
+            } else {
+                // Aperçu générique
+                this.createGenericStaticPreview(container, element);
+            }
+        };
+
+        checkContainer();
+    }
+
+    // Créer un aperçu statique pour hourdis
+    createHourdisStaticPreview(container, element) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.setAttribute('viewBox', '0 0 120 120');
+        svg.style.background = '#f8f9fa';
+
+        // Créer une représentation simplifiée du hourdis
+        const hourdis = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        hourdis.setAttribute('x', '20');
+        hourdis.setAttribute('y', '45');
+        hourdis.setAttribute('width', '80');
+        hourdis.setAttribute('height', '30');
+        hourdis.setAttribute('fill', '#8B4513');
+        hourdis.setAttribute('stroke', '#654321');
+        hourdis.setAttribute('stroke-width', '1');
+
+        // Ajouter des lignes de détail
+        for (let i = 0; i < 4; i++) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', 30 + i * 15);
+            line.setAttribute('y1', '45');
+            line.setAttribute('x2', 30 + i * 15);
+            line.setAttribute('y2', '75');
+            line.setAttribute('stroke', '#654321');
+            line.setAttribute('stroke-width', '0.5');
+            svg.appendChild(line);
+        }
+
+        // Ombre
+        const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        shadow.setAttribute('x', '22');
+        shadow.setAttribute('y', '47');
+        shadow.setAttribute('width', '80');
+        shadow.setAttribute('height', '30');
+        shadow.setAttribute('fill', 'rgba(0,0,0,0.2)');
+
+        svg.appendChild(shadow);
+        svg.appendChild(hourdis);
+
+        // Texte descriptif
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', '60');
+        text.setAttribute('y', '95');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('font-size', '10');
+        text.setAttribute('fill', '#666');
+        text.textContent = 'Hourdis';
+        svg.appendChild(text);
+
+        container.appendChild(svg);
+    }
+
+    // Créer un aperçu statique pour briques
+    createBrickStaticPreview(container, element) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.setAttribute('viewBox', '0 0 120 120');
+        svg.style.background = '#f8f9fa';
+
+        // Brique principale
+        const brick = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        brick.setAttribute('x', '20');
+        brick.setAttribute('y', '50');
+        brick.setAttribute('width', '80');
+        brick.setAttribute('height', '20');
+        brick.setAttribute('fill', '#cc6633');
+        brick.setAttribute('stroke', '#aa5522');
+        brick.setAttribute('stroke-width', '1');
+
+        // Mortier (joints)
+        const mortarTop = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        mortarTop.setAttribute('x', '15');
+        mortarTop.setAttribute('y', '47');
+        mortarTop.setAttribute('width', '90');
+        mortarTop.setAttribute('height', '3');
+        mortarTop.setAttribute('fill', '#ddd');
+
+        const mortarBottom = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        mortarBottom.setAttribute('x', '15');
+        mortarBottom.setAttribute('y', '70');
+        mortarBottom.setAttribute('width', '90');
+        mortarBottom.setAttribute('height', '3');
+        mortarBottom.setAttribute('fill', '#ddd');
+
+        svg.appendChild(mortarTop);
+        svg.appendChild(mortarBottom);
+        svg.appendChild(brick);
+
+        // Texte descriptif
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', '60');
+        text.setAttribute('y', '95');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('font-size', '10');
+        text.setAttribute('fill', '#666');
+        text.textContent = element.type || 'Brique';
+        svg.appendChild(text);
+
+        container.appendChild(svg);
+    }
+
+    // Créer un aperçu statique pour blocs
+    createBlockStaticPreview(container, element) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.setAttribute('viewBox', '0 0 120 120');
+        svg.style.background = '#f8f9fa';
+
+        // Bloc principal
+        const block = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        block.setAttribute('x', '30');
+        block.setAttribute('y', '40');
+        block.setAttribute('width', '60');
+        block.setAttribute('height', '40');
+        block.setAttribute('fill', '#888');
+        block.setAttribute('stroke', '#666');
+        block.setAttribute('stroke-width', '1');
+
+        // Alvéoles (pour blocs creux)
+        const hole1 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        hole1.setAttribute('x', '35');
+        hole1.setAttribute('y', '45');
+        hole1.setAttribute('width', '20');
+        hole1.setAttribute('height', '30');
+        hole1.setAttribute('fill', '#f8f9fa');
+        hole1.setAttribute('stroke', '#666');
+        hole1.setAttribute('stroke-width', '0.5');
+
+        const hole2 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        hole2.setAttribute('x', '65');
+        hole2.setAttribute('y', '45');
+        hole2.setAttribute('width', '20');
+        hole2.setAttribute('height', '30');
+        hole2.setAttribute('fill', '#f8f9fa');
+        hole2.setAttribute('stroke', '#666');
+        hole2.setAttribute('stroke-width', '0.5');
+
+        svg.appendChild(block);
+        svg.appendChild(hole1);
+        svg.appendChild(hole2);
+
+        // Texte descriptif
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', '60');
+        text.setAttribute('y', '95');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('font-size', '10');
+        text.setAttribute('fill', '#666');
+        text.textContent = 'Bloc';
+        svg.appendChild(text);
+
+        container.appendChild(svg);
+    }
+
+    // Créer un aperçu générique
+    createGenericStaticPreview(container, element) {
+        const div = document.createElement('div');
+        div.className = 'static-preview-generic';
+        div.style.cssText = `
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        `;
+
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-cube';
+        icon.style.cssText = 'font-size: 24px; color: #666; margin-bottom: 8px;';
+
+        const text = document.createElement('div');
+        text.style.cssText = 'font-size: 10px; color: #666; text-align: center;';
+        text.textContent = element.type || element.name || 'Élément';
+
+        div.appendChild(icon);
+        div.appendChild(text);
+        container.appendChild(div);
     }
 }
 

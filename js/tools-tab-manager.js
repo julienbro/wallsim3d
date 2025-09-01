@@ -110,7 +110,38 @@ class ToolsTabManager {
         
         // Écouter les changements de sélection de brique/bloc/isolant/linteau
         document.addEventListener('brickSelectionChanged', (e) => {
-            this.updateActiveElementPreview();
+            console.log('🔧 TabManager: Événement brickSelectionChanged reçu');
+            console.log('🔧 TabManager: brickType:', e.detail?.brickType);
+            console.log('🔧 TabManager: brickData:', e.detail?.brickData);
+            
+            // Récupérer l'onglet actuel depuis le TabManager principal
+            const currentMainTab = window.tabManager ? window.tabManager.currentMainTab : null;
+            console.log('🔧 TabManager: currentMainTab:', currentMainTab);
+            
+            // Toujours mettre à jour l'élément actif avec la brique sélectionnée si les données sont disponibles
+            if (e.detail?.brickData) {
+                const brickElement = {
+                    type: e.detail.brickType,
+                    name: e.detail.brickData.name || e.detail.brickType,
+                    dimensions: {
+                        length: e.detail.brickData.length,
+                        width: e.detail.brickData.width,
+                        height: e.detail.brickData.height
+                    },
+                    category: e.detail.brickData.category || 'brick'
+                };
+                console.log('🧱 Mise à jour élément actif avec brique:', brickElement);
+                
+                // Mémoriser la brique sélectionnée pour l'afficher dans l'onglet Outils
+                this.selectedBrickElement = brickElement;
+                
+                // Si nous sommes dans l'onglet Outils, afficher immédiatement
+                if (currentMainTab === 'outils') {
+                    this.renderElementPreview(brickElement);
+                }
+            } else {
+                this.updateActiveElementPreview();
+            }
         });
 
         document.addEventListener('blockSelectionChanged', (e) => {
@@ -480,6 +511,12 @@ class ToolsTabManager {
         }
 
         // console.log('🔍 detectCurrentCut() résultat final:', cutInfo);
+        
+        // 🔥 FIX: Si aucune coupe n'a été détectée, retourner "1/1" par défaut
+        if (cutInfo.type === null) {
+            cutInfo = { type: '1/1', ratio: 1.0, suffix: '' };
+        }
+        
         return cutInfo;
     }
 
@@ -495,6 +532,13 @@ class ToolsTabManager {
                 console.log('🔧 ToolsTabManager: Utilisation d\'élément forcé:', forceElement);
             }
             this.renderElementPreview(forceElement);
+            return;
+        }
+        
+        // Si une brique est sélectionnée et mémorisée, l'utiliser en priorité
+        if (this.selectedBrickElement) {
+            console.log('🧱 Utilisation de la brique mémorisée:', this.selectedBrickElement);
+            this.renderElementPreview(this.selectedBrickElement);
             return;
         }
         
@@ -522,6 +566,7 @@ class ToolsTabManager {
         const nameElement = document.getElementById('toolsElementName');
         const dimensionsElement = document.getElementById('toolsElementDimensions');
         const cutButtonsContainer = document.getElementById('toolsCutButtons');
+        console.log('🔍 Container boutons coupe trouvé:', cutButtonsContainer);
 
         if (!nameElement || !dimensionsElement || !cutButtonsContainer) {
             if (window.DEBUG_TOOLS_TAB) {
@@ -542,7 +587,8 @@ class ToolsTabManager {
             block: window.BlockSelector?.currentBlock || 'none',
             insulation: window.InsulationSelector?.currentInsulation?.name || window.InsulationSelector?.currentInsulation?.type || 'none',
             linteau: window.LinteauSelector?.currentLinteau?.name || window.LinteauSelector?.currentLinteau?.type || 'none',
-            tempGLB: window.tempGLBInfo?.type || 'none'
+            tempGLB: window.tempGLBInfo?.type || 'none',
+            lastPlacedGLB: window.lastPlacedGLBInfo?.type || 'none'
         };
         
         // Créer une clé de cache pour vérifier si quelque chose a changé
@@ -596,6 +642,9 @@ class ToolsTabManager {
         // PRIORITÉ: Vérifier d'abord les éléments GLB actifs
         
         if (window.tempGLBInfo) {
+            // Effacer la brique mémorisée quand un GLB est sélectionné
+            this.selectedBrickElement = null;
+            
             // Élément GLB actif (en cours de sélection)
             const glbInfo = window.tempGLBInfo;
             
@@ -619,6 +668,9 @@ class ToolsTabManager {
         }
         // 🔥 CORRECTION: Vérifier lastPlacedGLBInfo si tempGLBInfo n'existe pas
         else if (window.lastPlacedGLBInfo) {
+            // Effacer la brique mémorisée quand un GLB est sélectionné
+            this.selectedBrickElement = null;
+            
             // Élément GLB récemment placé - maintenir l'affichage de l'élément GLB
             const glbInfo = window.lastPlacedGLBInfo;
             
@@ -780,7 +832,8 @@ class ToolsTabManager {
             if (window.LibraryPreview3D && (elementType === 'brique' || elementType === 'bloc' || elementType === 'isolant' || elementType === 'linteau' || elementType === 'glb')) {
                 // Pour les linteaux, utiliser activeElement.name pour correspondre aux configs, sinon activeElement.type
                 const elementTypeValue = elementType === 'linteau' ? activeElement.name : activeElement.type;
-                const cutSignature = cutInfo.type || 'full';
+                // 🔥 FIX: Traiter correctement le cas "1/1" comme "full"
+                const cutSignature = (cutInfo.type === '1/1' || !cutInfo.type) ? 'full' : cutInfo.type;
                 const canvasSignature = `${elementTypeValue}_${cutSignature}`;
                 const currentCanvasType = canvas.getAttribute('data-element-type');
                 const currentElementType = canvas.getAttribute('data-current-element-type');
@@ -813,12 +866,18 @@ class ToolsTabManager {
             }
 
             // Mettre à jour les boutons de coupe pour les éléments qui supportent les coupes
-            if (elementType === 'glb' && activeElement) {
-                // Pour les éléments GLB, utiliser l'interface spécialisée
-                this.updateGLBLengthButtons(cutButtonsContainer, activeElement);
-            } else if (elementType === 'brique' || elementType === 'bloc' || elementType === 'linteau' || elementType === 'isolant') {
+            console.log('🔍 Type d\'élément pour boutons coupe:', elementType, 'activeElement.type:', activeElement?.type);
+            
+            // Forcer l'affichage des boutons pour tous les éléments pour debug
+            if (activeElement && activeElement.type) {
+                console.log('🧱 Affichage boutons pour TOUS les types (debug):', activeElement.type);
                 this.updateToolsCutButtons(cutButtonsContainer, activeElement);
+            } else if (elementType === 'glb' && activeElement) {
+                // Pour les éléments GLB, utiliser l'interface spécialisée
+                console.log('📐 Affichage boutons GLB pour:', activeElement.type);
+                this.updateGLBLengthButtons(cutButtonsContainer, activeElement);
             } else {
+                console.log('❌ Pas de boutons de coupe pour ce type:', elementType);
                 cutButtonsContainer.style.display = 'none';
             }
 
@@ -879,34 +938,94 @@ class ToolsTabManager {
         }
         dimensionsElement.textContent = dims;
 
-        // Déterminer le type d'élément
-        let elementType = 'glb';
-        if (element.userData && element.userData.isGLB) {
+        // Déterminer le type d'élément plus intelligemment
+        let elementType = 'glb'; // Défaut pour les éléments GLB
+        
+        // Vérifier si c'est une brique simple
+        if (element.type && (element.type.startsWith('M') || element.type.includes('brique'))) {
+            elementType = 'brick';
+        } else if (element.userData && element.userData.isGLB) {
+            elementType = 'glb';
+        } else if (element.path && element.path.includes('.glb')) {
             elementType = 'glb';
         }
 
-        // Initialiser l'aperçu 3D pour l'élément GLB
+        console.log('🔍 Type d\'élément détecté:', elementType, 'pour', element.type);
+
+        // Initialiser l'aperçu selon le type d'élément
         if (window.LibraryPreview3D && elementType === 'glb') {
             const cutSignature = 'full'; // Pas de coupe pour la sélection
             const canvasSignature = `${element.type}_${cutSignature}`;
             const currentCanvasType = canvas.getAttribute('data-element-type');
             
+            // Marquer le canvas comme aperçu actif prioritaire
+            canvas.setAttribute('data-preview-type', '3d-active');
+            canvas.setAttribute('data-priority', 'high');
+            
             if (currentCanvasType !== canvasSignature) {
                 canvas.setAttribute('data-element-type', canvasSignature);
                 canvas.setAttribute('data-current-element-type', elementType);
                 
+                // Nettoyer tout aperçu de brique existant
+                this.cleanupBrickPreview(canvas);
+                
+                // Récupérer le canvas actuel après nettoyage et le réinitialiser pour GLB
+                const currentCanvas = document.getElementById('toolsActiveElementCanvas') || canvas;
+                
+                // Réinitialiser les attributs du canvas pour les GLB
+                currentCanvas.style.display = '';
+                currentCanvas.setAttribute('data-preview-type', '3d-active');
+                currentCanvas.setAttribute('data-current-element-type', 'glb');
+                currentCanvas.setAttribute('data-element-type', canvasSignature);
+                
+                console.log('🔧 Canvas réinitialisé pour GLB:', {
+                    display: currentCanvas.style.display,
+                    previewType: currentCanvas.getAttribute('data-preview-type'),
+                    elementType: currentCanvas.getAttribute('data-current-element-type'),
+                    visible: currentCanvas.offsetWidth > 0 && currentCanvas.offsetHeight > 0
+                });
+                
+                console.log('🎯 Rendu aperçu 3D élément actif pour:', element.type);
+                
                 try {
-                    this.createGLBPreviewUsingLibrary(canvas, element);
-                    if (window.DEBUG_TOOLS_TAB) {
-                        console.log('✅ ToolsTabManager: Aperçu 3D GLB créé pour:', element.type);
+                    // Vérifier que le canvas est visible et prêt
+                    if (currentCanvas.style.display === 'none') {
+                        console.warn('⚠️ Canvas encore caché, forçage de l\'affichage');
+                        currentCanvas.style.display = '';
                     }
+                    
+                    // Attendre un court délai pour que le DOM se mette à jour
+                    setTimeout(() => {
+                        // Utiliser le canvas actuel pour les GLB
+                        this.createGLBPreviewUsingLibrary(currentCanvas, element);
+                        if (window.DEBUG_TOOLS_TAB) {
+                            console.log('✅ ToolsTabManager: Aperçu 3D GLB créé pour:', element.type);
+                        }
+                    }, 50);
                 } catch (error) {
                     if (window.DEBUG_TOOLS_TAB) {
                         console.warn('Erreur lors de la création de l\'aperçu 3D GLB:', error);
                     }
                     this.drawFallbackPreview(canvas, element, elementType);
                 }
+            } else {
+                console.log('🔄 Aperçu 3D élément actif déjà à jour pour:', element.type);
             }
+        } else if (elementType === 'brick') {
+            // Pour les briques simples, créer un aperçu 3D dédié
+            console.log('🧱 Rendu aperçu 3D pour brique:', element.type);
+            
+            // Marquer le canvas comme aperçu de brique 3D
+            canvas.setAttribute('data-preview-type', '3d-brick');
+            canvas.setAttribute('data-priority', 'high');
+            canvas.setAttribute('data-element-type', element.type);
+            canvas.setAttribute('data-current-element-type', elementType);
+            
+            // Nettoyer tout aperçu de brique statique existant
+            this.cleanupBrickPreview(canvas);
+            
+            // Créer un aperçu 3D dédié pour la brique
+            this.createDedicated3DBrickPreview(canvas, element);
         } else {
             this.drawFallbackPreview(canvas, element, elementType);
         }
@@ -926,6 +1045,841 @@ class ToolsTabManager {
         
         if (window.DEBUG_TOOLS_TAB) {
             console.log('✅ ToolsTabManager: Élément GLB rendu:', elementType, '-', element.name || element.type);
+        }
+    }
+
+    // Dessiner un aperçu de brique sur le canvas
+    drawBrickPreview(canvas, element) {
+        console.log('🎨 drawBrickPreview appelée pour:', element.type);
+        
+        // Vérifier si le canvas existe
+        if (!canvas) {
+            console.error('❌ Canvas non fourni pour drawBrickPreview');
+            return;
+        }
+        
+        // Si le canvas a un contexte WebGL, on doit le nettoyer d'abord
+        const existingWebGL = canvas.getContext('webgl') || canvas.getContext('webgl2') || canvas.getContext('experimental-webgl');
+        if (existingWebGL) {
+            console.log('🧹 Nettoyage du contexte WebGL existant');
+            // Perdre le contexte WebGL
+            if (existingWebGL.getExtension('WEBGL_lose_context')) {
+                existingWebGL.getExtension('WEBGL_lose_context').loseContext();
+            }
+        }
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error('❌ Impossible d\'obtenir le contexte 2D pour drawBrickPreview');
+            return;
+        }
+        
+        console.log('✅ Contexte 2D obtenu, début du dessin');
+
+        // Effacer le canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Dimensions du canvas
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        
+        // Calculer les dimensions de la brique à dessiner
+        const brickWidth = canvasWidth * 0.6; // 60% de la largeur du canvas
+        const brickHeight = canvasHeight * 0.3; // 30% de la hauteur du canvas
+        const brickX = (canvasWidth - brickWidth) / 2;
+        const brickY = (canvasHeight - brickHeight) / 2;
+
+        // Couleur de la brique
+        const brickColor = '#cc6633';
+        const mortarColor = '#ddd';
+        const shadowColor = 'rgba(0,0,0,0.2)';
+
+        // Dessiner l'ombre
+        ctx.fillStyle = shadowColor;
+        ctx.fillRect(brickX + 3, brickY + 3, brickWidth, brickHeight);
+
+        // Dessiner le mortier (joints)
+        ctx.fillStyle = mortarColor;
+        ctx.fillRect(brickX - 5, brickY - 3, brickWidth + 10, brickHeight + 6);
+
+        // Dessiner la brique principale
+        ctx.fillStyle = brickColor;
+        ctx.fillRect(brickX, brickY, brickWidth, brickHeight);
+
+        // Dessiner les contours
+        ctx.strokeStyle = '#aa5522';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(brickX, brickY, brickWidth, brickHeight);
+
+        // Ajouter du texte avec le type de brique
+        ctx.fillStyle = '#333';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        const text = element.name || element.type || 'Brique';
+        ctx.fillText(text, canvasWidth / 2, canvasHeight - 30);
+
+        // Ajouter les dimensions si disponibles
+        if (element.dimensions) {
+            ctx.font = '10px Arial';
+            ctx.fillStyle = '#666';
+            const dimText = `${element.dimensions.length}×${element.dimensions.width}×${element.dimensions.height} cm`;
+            ctx.fillText(dimText, canvasWidth / 2, canvasHeight - 15);
+        }
+
+        console.log('✅ Aperçu de brique dessiné pour:', element.type);
+    }
+
+    // Créer un aperçu SVG pour brique en remplaçant le canvas
+    createBrickSVGPreview(canvas, element) {
+        console.log('🎨 createBrickSVGPreview appelée pour:', element.type);
+        
+        // Cacher le canvas
+        canvas.style.display = 'none';
+        
+        // Vérifier s'il y a déjà un aperçu SVG à côté
+        let svgContainer = canvas.parentNode.querySelector('.brick-svg-preview');
+        if (!svgContainer) {
+            // Créer un container pour l'aperçu SVG
+            svgContainer = document.createElement('div');
+            svgContainer.className = 'brick-svg-preview';
+            svgContainer.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+            `;
+            canvas.parentNode.appendChild(svgContainer);
+        }
+        
+        // Utiliser le système d'aperçu statique existant
+        if (window.toolsReusablePanel && window.toolsReusablePanel.createBrickStaticPreview) {
+            console.log('🧱 Génération aperçu statique SVG pour brique:', element.type);
+            window.toolsReusablePanel.createBrickStaticPreview(svgContainer, element);
+        } else {
+            // Fallback : créer un aperçu simple
+            svgContainer.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #f8f9fa; border-radius: 4px;">
+                    <div style="width: 60%; height: 30%; background: #cc6633; border: 1px solid #aa5522; margin-bottom: 10px;"></div>
+                    <div style="font-size: 12px; color: #333; text-align: center;">${element.name || element.type}</div>
+                    ${element.dimensions ? `<div style="font-size: 10px; color: #666;">${element.dimensions.length}×${element.dimensions.width}×${element.dimensions.height} cm</div>` : ''}
+                </div>
+            `;
+        }
+        
+        console.log('✅ Aperçu SVG de brique créé pour:', element.type);
+    }
+
+    // Nettoyer les aperçus de brique existants
+    cleanupBrickPreview(canvas) {
+        console.log('🧹 Nettoyage aperçu de brique');
+        
+        // Arrêter l'animation de brique s'il y en a une
+        this.stopBrickAnimation();
+        
+        // Supprimer le canvas dédié de brique s'il existe, mais garder le canvas original
+        const parent = canvas.parentNode || document.getElementById('toolsActiveElementCanvas')?.parentNode;
+        if (parent) {
+            const brickCanvas = parent.querySelector('.brick-3d-canvas');
+            if (brickCanvas) {
+                brickCanvas.remove();
+                console.log('✅ Canvas 3D de brique supprimé');
+            }
+            
+            // Supprimer l'overlay d'informations de brique
+            const infoOverlay = parent.querySelector('.brick-info-overlay');
+            if (infoOverlay) {
+                infoOverlay.remove();
+                console.log('✅ Overlay informations brique supprimé');
+            }
+            
+            // Supprimer le container d'aperçu statique de brique s'il existe
+            const staticContainer = parent.querySelector('.brick-static-preview');
+            if (staticContainer) {
+                staticContainer.remove();
+                console.log('✅ Container statique de brique supprimé');
+            }
+            
+            // Supprimer l'ancien container SVG s'il existe
+            const svgContainer = parent.querySelector('.brick-svg-preview');
+            if (svgContainer) {
+                svgContainer.remove();
+                console.log('✅ Container SVG de brique supprimé');
+            }
+        }
+        
+        // Réafficher le canvas original pour les GLB
+        const currentCanvas = document.getElementById('toolsActiveElementCanvas');
+        if (currentCanvas) {
+            currentCanvas.style.display = '';
+            
+            // Nettoyer les attributs de brique du canvas
+            currentCanvas.removeAttribute('data-brick-preview');
+            
+            // Si le canvas avait des attributs de brique, les réinitialiser
+            if (currentCanvas.getAttribute('data-current-element-type') === 'brick') {
+                console.log('🔧 Réinitialisation canvas pour GLB');
+                // Ne pas changer les attributs ici, ils seront mis à jour par le caller
+            }
+            
+            console.log('✅ Canvas original GLB restauré');
+        }
+        
+        // Nettoyer SEULEMENT les ressources 3D de brique dédiées (pas celles des GLB)
+        if (this.brickRenderer) {
+            try {
+                this.brickRenderer.dispose();
+                this.brickRenderer = null;
+                console.log('✅ Renderer brique nettoyé');
+            } catch (e) {
+                console.log('⚠️ Erreur nettoyage renderer brique:', e.message);
+            }
+        }
+        
+        if (this.brickScene) {
+            while(this.brickScene.children.length > 0) {
+                this.brickScene.remove(this.brickScene.children[0]);
+            }
+            this.brickScene = null;
+            console.log('✅ Scène brique nettoyée');
+        }
+        
+        this.brickCamera = null;
+        
+        // NE PAS nettoyer les ressources GLB (previewRenderer, previewScene, previewCamera)
+        // car elles sont gérées par le système GLB principal
+    }
+
+    createBrickStaticPreview(canvas, element) {
+        try {
+            console.log('🧱 Création aperçu statique pour brique:', element.type);
+            
+            // Cacher le canvas et utiliser un overlay
+            canvas.style.display = 'none';
+            
+            // Vérifier que le canvas a un parent
+            if (!canvas.parentNode) {
+                console.error('❌ Pas de parentNode pour le canvas, impossible de créer l\'aperçu');
+                return;
+            }
+            
+            // Vérifier s'il y a déjà un aperçu SVG
+            let previewContainer = canvas.parentNode.querySelector('.brick-static-preview');
+            if (!previewContainer) {
+                // Créer un container pour l'aperçu statique
+                previewContainer = document.createElement('div');
+                previewContainer.className = 'brick-static-preview';
+                previewContainer.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+                `;
+                canvas.parentNode.appendChild(previewContainer);
+            }
+            
+            // Créer l'aperçu statique de la brique
+            this.renderBrickStaticContent(previewContainer, element);
+            
+            console.log('✅ Aperçu statique de brique créé:', element.type);
+            
+        } catch (error) {
+            console.error('❌ Erreur création aperçu statique brique:', error);
+            // En cas d'erreur, réafficher le canvas
+            canvas.style.display = '';
+        }
+    }
+
+    renderBrickStaticContent(container, element) {
+        // Couleur de la brique selon le type
+        const color = this.getBrickColor(element.type);
+        const colorHex = '#' + color.toString(16).padStart(6, '0');
+        
+        // Dimensions relatives pour l'affichage
+        const dims = this.getBrickDisplayDimensions(element.type);
+        
+        // Informations de coupe
+        const cutInfo = this.getBrickCutInfo(element);
+        
+        // Contenu HTML de l'aperçu
+        container.innerHTML = `
+            <div style="
+                width: ${dims.width}%;
+                height: ${dims.height}%;
+                background: linear-gradient(135deg, ${colorHex} 0%, ${this.darkenColor(colorHex, 0.2)} 100%);
+                border: 2px solid ${this.darkenColor(colorHex, 0.3)};
+                border-radius: 2px;
+                box-shadow: 
+                    inset 1px 1px 2px rgba(255,255,255,0.3),
+                    2px 2px 4px rgba(0,0,0,0.2);
+                position: relative;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">
+                <div style="
+                    background: ${this.darkenColor(colorHex, 0.1)};
+                    width: 80%;
+                    height: 60%;
+                    border-radius: 1px;
+                    border: 1px solid ${this.darkenColor(colorHex, 0.4)};
+                "></div>
+            </div>
+            <div style="
+                font-size: 11px;
+                font-weight: 600;
+                color: #333;
+                text-align: center;
+                line-height: 1.2;
+                margin-bottom: 2px;
+            ">${element.name || element.type}</div>
+            ${element.dimensions ? `
+                <div style="
+                    font-size: 9px;
+                    color: #666;
+                    text-align: center;
+                    margin-bottom: 2px;
+                ">${element.dimensions.length}×${element.dimensions.width}×${element.dimensions.height} cm</div>
+            ` : ''}
+            ${cutInfo ? `
+                <div style="
+                    font-size: 10px;
+                    color: #e67e22;
+                    text-align: center;
+                    font-weight: 600;
+                    background: rgba(230, 126, 34, 0.1);
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    border: 1px solid rgba(230, 126, 34, 0.3);
+                ">${cutInfo}</div>
+            ` : ''}
+        `;
+    }
+
+    getBrickCutInfo(element) {
+        // Déterminer les informations de coupe selon le type
+        const type = element.type;
+        
+        if (type.includes('1/2') || type.includes('HALF')) {
+            return 'Longueur: 1/2';
+        } else if (type.includes('1/4') || type.includes('1Q')) {
+            return 'Longueur: 1/4';
+        } else if (type.includes('3/4') || type.includes('3Q')) {
+            return 'Longueur: 3/4';
+        } else if (type === 'M65' || type === 'M100' || type === 'M140') {
+            return 'Longueur: entière';
+        }
+        
+        // Vérifier s'il y a des infos de coupe dans les propriétés
+        if (element.cutType) {
+            return `Longueur: ${element.cutType}`;
+        }
+        
+        // Si c'est une brique de coupe selon la catégorie
+        if (element.category === 'cut') {
+            // Extraire le type de coupe du nom
+            const name = element.name || '';
+            if (name.includes('1/2')) return 'Longueur: 1/2';
+            if (name.includes('1/4')) return 'Longueur: 1/4';
+            if (name.includes('3/4')) return 'Longueur: 3/4';
+        }
+        
+        return null; // Pas d'info de coupe spécifique
+    }
+
+    getBrickDisplayDimensions(type) {
+        // Dimensions d'affichage relatives (en %)
+        switch(type) {
+            case 'M50_HALF':
+            case 'M50_1/2':
+                return { width: 70, height: 35 };
+            case 'M50_1Q':
+            case 'M50_1/4':
+                return { width: 45, height: 35 };
+            case 'M65':
+                return { width: 80, height: 35 };
+            case 'M100':
+                return { width: 80, height: 45 };
+            case 'M140':
+                return { width: 80, height: 55 };
+            default:
+                return { width: 70, height: 35 };
+        }
+    }
+
+    darkenColor(hex, amount) {
+        // Fonction utilitaire pour assombrir une couleur hexadécimale
+        const num = parseInt(hex.replace('#', ''), 16);
+        const r = Math.max(0, (num >> 16) - Math.round(255 * amount));
+        const g = Math.max(0, ((num >> 8) & 0x00FF) - Math.round(255 * amount));
+        const b = Math.max(0, (num & 0x0000FF) - Math.round(255 * amount));
+        return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+    }
+
+    createDedicated3DBrickPreview(originalCanvas, element) {
+        try {
+            console.log('🧱 Création aperçu 3D dédié pour brique:', element.type);
+            
+            // Vérifier que le canvas a un parent
+            if (!originalCanvas.parentNode) {
+                console.error('❌ Pas de parentNode pour le canvas');
+                return;
+            }
+            
+            // Cacher le canvas original temporairement pour la brique
+            originalCanvas.style.display = 'none';
+            
+            // Vérifier s'il y a déjà un canvas de brique et le supprimer
+            const existingBrickCanvas = originalCanvas.parentNode.querySelector('.brick-3d-canvas');
+            if (existingBrickCanvas) {
+                existingBrickCanvas.remove();
+                console.log('🧹 Canvas brique existant supprimé');
+            }
+            
+            // Créer un nouveau canvas dédié pour la brique 3D
+            const brickCanvas = document.createElement('canvas');
+            brickCanvas.className = 'tools-preview-3d brick-3d-canvas';
+            brickCanvas.width = originalCanvas.width;
+            brickCanvas.height = originalCanvas.height;
+            brickCanvas.style.cssText = originalCanvas.style.cssText;
+            brickCanvas.style.display = 'block';
+            
+            // Marquer le canvas pour identification
+            brickCanvas.setAttribute('data-brick-preview', 'true');
+            
+            // Ajouter le canvas de brique au parent
+            originalCanvas.parentNode.appendChild(brickCanvas);
+            
+            // Créer un overlay pour afficher les informations de la brique
+            this.createBrickInfoOverlay(originalCanvas.parentNode, element);
+            
+            // Initialiser la scène 3D sur le canvas dédié
+            this.initBrick3DScene(brickCanvas);
+            
+            // Créer la géométrie et le matériau de la brique
+            const brickGeometry = this.createBrickGeometry(element);
+            const color = this.getBrickColor(element.type);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: color,
+                transparent: true,
+                opacity: 0.9,
+                shininess: 30
+            });
+            
+            // Créer le mesh de la brique
+            const brickMesh = new THREE.Mesh(brickGeometry, material);
+            
+            // Positionner la brique au centre
+            const box = new THREE.Box3().setFromObject(brickMesh);
+            const center = box.getCenter(new THREE.Vector3());
+            brickMesh.position.sub(center);
+            
+            // Ajouter à la scène
+            this.brickScene.add(brickMesh);
+            
+            // Ajuster la caméra pour la brique
+            this.adjustBrickCamera(brickMesh);
+            
+            // Démarrer l'animation rotative
+            this.startBrickAnimation(brickCanvas, brickMesh);
+            
+            console.log('✅ Aperçu 3D dédié brique créé avec succès');
+            
+        } catch (error) {
+            console.error('❌ Erreur création aperçu 3D dédié brique:', error);
+            // Fallback: réafficher le canvas original et créer un aperçu statique
+            originalCanvas.style.display = 'block';
+            this.createBrickStaticPreview(originalCanvas, element);
+        }
+    }
+
+    initBrick3DScene(canvas) {
+        try {
+            console.log('🎬 Initialisation scène 3D dédiée pour brique');
+            
+            // Créer la scène dédiée
+            this.brickScene = new THREE.Scene();
+            this.brickScene.background = new THREE.Color(0xf5f5f5);
+            
+            // Créer la caméra dédiée
+            const aspect = canvas.clientWidth / canvas.clientHeight;
+            this.brickCamera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+            
+            // Créer le renderer dédié
+            this.brickRenderer = new THREE.WebGLRenderer({ 
+                canvas: canvas, 
+                antialias: true,
+                alpha: true
+            });
+            this.brickRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            this.brickRenderer.setPixelRatio(window.devicePixelRatio);
+            this.brickRenderer.setClearColor(0xf5f5f5, 1.0);
+            
+            // Ajouter éclairage optimisé pour les briques
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            this.brickScene.add(ambientLight);
+            
+            const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight1.position.set(10, 10, 5);
+            this.brickScene.add(directionalLight1);
+            
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+            directionalLight2.position.set(-5, -5, -5);
+            this.brickScene.add(directionalLight2);
+            
+            console.log('✅ Scène 3D dédiée pour brique initialisée');
+            
+        } catch (error) {
+            console.error('❌ Erreur initialisation scène 3D brique:', error);
+            throw error;
+        }
+    }
+
+    adjustBrickCamera(brickMesh) {
+        if (!this.brickCamera) return;
+        
+        // Calculer la boîte englobante
+        const box = new THREE.Box3().setFromObject(brickMesh);
+        const size = box.getSize(new THREE.Vector3()).length();
+        
+        // Positionner la caméra pour une vue optimale
+        const distance = size * 2.5;
+        this.brickCamera.position.set(distance, distance * 0.6, distance * 0.8);
+        this.brickCamera.lookAt(0, 0, 0);
+        this.brickCamera.updateProjectionMatrix();
+    }
+
+    startBrickAnimation(canvas, brickMesh) {
+        if (!this.brickRenderer || !this.brickScene || !this.brickCamera) return;
+        
+        let animationId;
+        
+        const animate = () => {
+            animationId = requestAnimationFrame(animate);
+            
+            // Rotation lente de la brique
+            if (brickMesh) {
+                brickMesh.rotation.y += 0.01;
+            }
+            
+            // Rendu
+            try {
+                this.brickRenderer.render(this.brickScene, this.brickCamera);
+            } catch (e) {
+                console.log('Arrêt animation brique:', e.message);
+                cancelAnimationFrame(animationId);
+            }
+        };
+        
+        // Sauvegarder l'ID d'animation pour pouvoir l'arrêter
+        this.brickAnimationId = animationId;
+        
+        animate();
+        
+        console.log('🎬 Animation brique démarrée');
+    }
+
+    stopBrickAnimation() {
+        if (this.brickAnimationId) {
+            cancelAnimationFrame(this.brickAnimationId);
+            this.brickAnimationId = null;
+            console.log('⏹️ Animation brique arrêtée');
+        }
+    }
+
+    createBrickInfoOverlay(parentContainer, element) {
+        try {
+            // Supprimer un overlay existant
+            const existingOverlay = parentContainer.querySelector('.brick-info-overlay');
+            if (existingOverlay) {
+                existingOverlay.remove();
+            }
+            
+            // Créer l'overlay d'informations
+            const infoOverlay = document.createElement('div');
+            infoOverlay.className = 'brick-info-overlay';
+            infoOverlay.style.cssText = `
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.6) 70%, transparent 100%);
+                color: white;
+                padding: 8px;
+                font-size: 10px;
+                line-height: 1.2;
+                pointer-events: none;
+                z-index: 10;
+            `;
+            
+            // Informations de coupe
+            const cutInfo = this.getBrickCutInfo(element);
+            
+            // Contenu de l'overlay
+            let overlayContent = `
+                <div style="font-weight: 600; margin-bottom: 2px;">
+                    ${element.name || element.type}
+                </div>
+            `;
+            
+            if (element.dimensions) {
+                overlayContent += `
+                    <div style="color: #bbb; margin-bottom: 2px;">
+                        ${element.dimensions.length}×${element.dimensions.width}×${element.dimensions.height} cm
+                    </div>
+                `;
+            }
+            
+            if (cutInfo) {
+                overlayContent += `
+                    <div style="
+                        color: #f39c12;
+                        font-weight: 600;
+                        background: rgba(243, 156, 18, 0.2);
+                        padding: 2px 4px;
+                        border-radius: 2px;
+                        display: inline-block;
+                        border: 1px solid rgba(243, 156, 18, 0.4);
+                    ">
+                        ${cutInfo}
+                    </div>
+                `;
+            }
+            
+            infoOverlay.innerHTML = overlayContent;
+            
+            // Ajouter l'overlay au container parent
+            parentContainer.appendChild(infoOverlay);
+            
+            console.log('✅ Overlay d\'informations brique créé');
+            
+        } catch (error) {
+            console.error('❌ Erreur création overlay brique:', error);
+        }
+    }
+
+    create3DBrickPreview(canvas, element) {
+        try {
+            console.log('🧱 Création aperçu 3D pour brique:', element.type);
+            
+            // Le canvas a déjà un contexte WebGL du hourdis, nous devons le remplacer
+            // Créer un nouveau canvas temporaire pour contourner le problème de contexte
+            const newCanvas = document.createElement('canvas');
+            newCanvas.width = canvas.width;
+            newCanvas.height = canvas.height;
+            newCanvas.style.cssText = canvas.style.cssText;
+            newCanvas.className = canvas.className;
+            
+            // Remplacer temporairement le canvas dans le DOM
+            const parent = canvas.parentNode;
+            parent.replaceChild(newCanvas, canvas);
+            
+            // Sauvegarder les attributs du canvas original
+            const originalAttributes = {};
+            for (let attr of canvas.attributes) {
+                originalAttributes[attr.name] = attr.value;
+            }
+            
+            // Appliquer les attributs au nouveau canvas
+            for (let [name, value] of Object.entries(originalAttributes)) {
+                newCanvas.setAttribute(name, value);
+            }
+            
+            console.log('🔄 Canvas remplacé pour éviter conflit de contexte WebGL');
+            
+            // Maintenant créer la scène 3D sur le nouveau canvas propre
+            this.initPreviewScene(newCanvas);
+            
+            // Créer une géométrie de brique simple
+            const brickGeometry = this.createBrickGeometry(element);
+            
+            // Matériau avec couleur selon le type de brique
+            const color = this.getBrickColor(element.type);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: color,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            // Créer le mesh de la brique
+            const brickMesh = new THREE.Mesh(brickGeometry, material);
+            
+            // Positionner la brique au centre
+            const box = new THREE.Box3().setFromObject(brickMesh);
+            const center = box.getCenter(new THREE.Vector3());
+            brickMesh.position.sub(center);
+            
+            // Ajouter à la scène
+            this.previewScene.add(brickMesh);
+            
+            // Ajuster la caméra
+            this.adjustCameraForBrick(brickMesh);
+            
+            // Rendre la scène
+            this.renderPreviewScene(newCanvas);
+            
+            // Marquer le nouveau canvas pour le nettoyage futur
+            newCanvas.setAttribute('data-brick-canvas', 'true');
+            
+            console.log('✅ Aperçu 3D brique créé avec succès sur nouveau canvas');
+            
+        } catch (error) {
+            console.error('❌ Erreur création aperçu 3D brique:', error);
+            // Fallback vers aperçu statique
+            this.createBrickSVGPreview(canvas, element);
+        }
+    }
+
+    createBrickGeometry(element) {
+        // Dimensions standard des briques selon le type
+        const dimensions = this.getBrickDimensions(element.type);
+        
+        // Créer une géométrie de boîte avec les bonnes dimensions
+        return new THREE.BoxGeometry(
+            dimensions.width, 
+            dimensions.height, 
+            dimensions.depth
+        );
+    }
+
+    getBrickDimensions(type) {
+        // Dimensions réelles des briques en cm (ajustées pour aperçu)
+        const scale = 0.1; // Échelle plus grande pour bien voir
+        
+        switch(type) {
+            case 'M50_HALF':
+            case 'M50_1/2':
+                return { width: 12.5 * scale, height: 6.5 * scale, depth: 25 * scale };
+            case 'M50_1Q':
+            case 'M50_1/4':
+                return { width: 6.25 * scale, height: 6.5 * scale, depth: 25 * scale };
+            case 'M65':
+                return { width: 25 * scale, height: 6.5 * scale, depth: 25 * scale };
+            case 'M100':
+                return { width: 25 * scale, height: 10 * scale, depth: 25 * scale };
+            case 'M140':
+                return { width: 25 * scale, height: 14 * scale, depth: 25 * scale };
+            default:
+                return { width: 12.5 * scale, height: 6.5 * scale, depth: 25 * scale };
+        }
+    }
+
+    getBrickColor(type) {
+        // Couleurs distinctes selon le type de brique
+        switch(type) {
+            case 'M50_HALF':
+            case 'M50_1/2':
+                return 0xFF6B35; // Orange vif
+            case 'M50_1Q':
+            case 'M50_1/4':
+                return 0xFF8E53; // Orange plus clair pour 1/4
+            case 'M65':
+                return 0xD2691E; // Orange terre cuite
+            case 'M100':
+                return 0xA0522D; // Brun sienna
+            case 'M140':
+                return 0x8B4513; // Brun selle
+            default:
+                return 0xFF6B35; // Orange vif par défaut
+        }
+    }
+
+    adjustCameraForBrick(brickMesh) {
+        if (!this.previewCamera) return;
+        
+        // Calculer la boîte englobante
+        const box = new THREE.Box3().setFromObject(brickMesh);
+        const size = box.getSize(new THREE.Vector3()).length();
+        
+        // Positionner la caméra pour bien voir la brique
+        const distance = size * 2;
+        this.previewCamera.position.set(distance, distance * 0.5, distance);
+        this.previewCamera.lookAt(0, 0, 0);
+        this.previewCamera.updateProjectionMatrix();
+    }
+
+    initPreviewScene(canvas) {
+        try {
+            console.log('🎬 Initialisation scène aperçu 3D');
+            
+            // Vérifier que le canvas est propre (pas de contexte existant)
+            const existingContext = canvas.getContext('webgl', { failIfMajorPerformanceCaveat: false });
+            if (existingContext && existingContext.isContextLost && existingContext.isContextLost()) {
+                console.log('⚠️ Contexte WebGL perdu détecté, recréation...');
+            }
+            
+            // Créer la scène
+            this.previewScene = new THREE.Scene();
+            this.previewScene.background = new THREE.Color(0xf5f5f5);
+            
+            // Créer la caméra
+            const aspect = canvas.clientWidth / canvas.clientHeight;
+            this.previewCamera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+            
+            // Créer le renderer avec gestion d'erreur
+            try {
+                this.previewRenderer = new THREE.WebGLRenderer({ 
+                    canvas: canvas, 
+                    antialias: true,
+                    alpha: true,
+                    preserveDrawingBuffer: false,
+                    premultipliedAlpha: false,
+                    powerPreference: "default"
+                });
+                
+                console.log('✅ Renderer WebGL créé avec succès');
+            } catch (rendererError) {
+                console.error('❌ Erreur création renderer WebGL:', rendererError);
+                throw new Error('Impossible de créer le renderer WebGL: ' + rendererError.message);
+            }
+            
+            // Forcer la taille et les paramètres
+            this.previewRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            this.previewRenderer.setPixelRatio(window.devicePixelRatio);
+            this.previewRenderer.setClearColor(0xf5f5f5, 1.0);
+            
+            // Activer les options de rendu
+            this.previewRenderer.shadowMap.enabled = false;
+            this.previewRenderer.autoClear = true;
+            
+            // Ajouter éclairage
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            this.previewScene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            this.previewScene.add(directionalLight);
+            
+            // Effacer immédiatement le canvas
+            this.previewRenderer.clear();
+            
+            console.log('✅ Scène aperçu 3D initialisée');
+            
+        } catch (error) {
+            console.error('❌ Erreur initialisation scène aperçu:', error);
+            // Rethrow pour que le caller puisse gérer l'erreur
+            throw error;
+        }
+    }
+
+    renderPreviewScene(canvas) {
+        if (this.previewRenderer && this.previewScene && this.previewCamera) {
+            try {
+                this.previewRenderer.render(this.previewScene, this.previewCamera);
+                console.log('✅ Rendu aperçu 3D effectué');
+            } catch (error) {
+                console.error('❌ Erreur rendu aperçu 3D:', error);
+            }
         }
     }
 
@@ -1093,6 +2047,8 @@ class ToolsTabManager {
     }
 
     updateToolsCutButtons(cutButtonsContainer, activeElement) {
+        console.log('🔧 updateToolsCutButtons appelée avec:', activeElement?.type, cutButtonsContainer);
+        
         // Identifier le type de base selon le type d'élément
         let baseType = activeElement.type;
         let elementCategory = 'unknown';
@@ -1104,6 +2060,9 @@ class ToolsTabManager {
             this.updateGLBLengthButtons(cutButtonsContainer, activeElement);
             return; // Utiliser l'interface spéciale pour les GLB
         }
+        
+        // Restaurer les boutons de coupe normaux si l'interface GLB était affichée
+        this.restoreNormalCutButtons(cutButtonsContainer);
         
         // Déterminer la catégorie d'élément pour les éléments traditionnels
         if (activeElement.type.startsWith('M') || activeElement.type.startsWith('B')) {
@@ -1143,6 +2102,7 @@ class ToolsTabManager {
         
         // Mettre à jour les boutons avec le bon type de base
         const buttons = cutButtonsContainer.querySelectorAll('.cut-btn-mini');
+        console.log('🔍 Boutons trouvés dans container:', buttons.length, 'HTML:', cutButtonsContainer.innerHTML.substring(0, 200));
         
         // D'abord, nettoyer tous les états actifs
         buttons.forEach(button => button.classList.remove('active'));
@@ -1176,7 +2136,25 @@ class ToolsTabManager {
         });
         
         cutButtonsContainer.style.display = 'flex';
-        // console.log('🎨 Boutons de coupe mis à jour pour:', baseType, 'catégorie:', elementCategory);
+        console.log('✅ Boutons de coupe affichés pour:', baseType, 'catégorie:', elementCategory, 'buttons:', buttons.length);
+    }
+
+    restoreNormalCutButtons(cutButtonsContainer) {
+        // Vérifier si le conteneur contient l'interface GLB au lieu des boutons normaux
+        if (cutButtonsContainer.querySelector('.glb-length-controls')) {
+            console.log('🔄 Restauration des boutons de coupe normaux (remplacement interface GLB)');
+            
+            // Restaurer les boutons de coupe normaux
+            cutButtonsContainer.innerHTML = `
+                <button class="cut-btn-mini" data-cut="1/1" data-base-type="">1/1</button>
+                <button class="cut-btn-mini" data-cut="3/4" data-base-type="">3/4</button>
+                <button class="cut-btn-mini" data-cut="1/2" data-base-type="">1/2</button>
+                <button class="cut-btn-mini" data-cut="1/4" data-base-type="">1/4</button>
+                <button class="cut-btn-mini" data-cut="P" data-base-type="">P</button>
+            `;
+        } else {
+            console.log('✅ Boutons de coupe normaux déjà présents');
+        }
     }
 
     selectCutInTools(cutInfo, baseType, clickedElement) {
@@ -2135,15 +3113,59 @@ class ToolsTabManager {
         }
     }
     // Méthode pour créer l'aperçu GLB en utilisant le système LibraryPreview3D
-    createGLBPreviewUsingLibrary(canvas, glbElement) {
+    createGLBPreviewUsingLibrary(canvas, glbElement, retryCount = 0) {
         
         try {
-            // Debug détaillé
-            console.log('🔍 [DEBUG] createGLBPreviewUsingLibrary démarré');
-            console.log('🔍 [DEBUG] Canvas:', canvas);
-            console.log('🔍 [DEBUG] GLB Element:', glbElement);
+            // Système de limitation globale des tentatives simultanées
+            if (!this.glbPreviewAttempts) {
+                this.glbPreviewAttempts = new Map();
+            }
+            
+            // Créer un identifiant unique pour ce canvas basé sur sa position dans le DOM
+            const canvasId = canvas.id || canvas.dataset?.containerId || this.getCanvasUniqueId(canvas);
+            const glbKey = `${glbElement.type}_${glbElement.scale?.z || 300}`;
+            const attemptKey = `${canvasId}_${glbKey}`;
+            
+            const existingAttempt = this.glbPreviewAttempts.get(attemptKey);
+            
+            // Si une tentative est déjà en cours pour ce canvas/GLB, l'ignorer
+            if (existingAttempt && (Date.now() - existingAttempt.startTime) < 5000) {
+                console.log(`⏳ Tentative d'aperçu GLB déjà en cours pour ${attemptKey}, ignorée`);
+                return;
+            }
+            
+            // Vérifier le nombre total de tentatives simultanées
+            const activeAttempts = Array.from(this.glbPreviewAttempts.values())
+                .filter(attempt => (Date.now() - attempt.startTime) < 5000).length;
+            
+            if (activeAttempts >= 5) { // Maximum 5 tentatives simultanées
+                console.log(`⏳ Trop d'aperçus GLB en cours (${activeAttempts}), utilisation du fallback`);
+                this.drawFallback2DPreview(canvas, glbElement.type);
+                return;
+            }
+            
+            // Enregistrer cette tentative
+            this.glbPreviewAttempts.set(attemptKey, {
+                startTime: Date.now(),
+                retryCount: retryCount,
+                canvasId: canvasId,
+                glbKey: glbKey
+            });
+            
+            // Debug détaillé (moins verbeux après les premiers essais)
+            if (retryCount === 0) {
+                console.log('🔍 [DEBUG] createGLBPreviewUsingLibrary démarré');
+                console.log('🔍 [DEBUG] Canvas:', canvas);
+                console.log('🔍 [DEBUG] GLB Element:', glbElement);
+            }
             console.log('🔍 [DEBUG] Canvas visible:', canvas.offsetParent !== null);
             console.log('🔍 [DEBUG] Canvas dimensions:', canvas.width, 'x', canvas.height);
+            
+            // Vérifier si c'est l'aperçu de l'élément actif (priorité haute)
+            const isActiveElementCanvas = canvas.id === 'toolsActiveElementCanvas';
+            if (isActiveElementCanvas) {
+                console.log('🎯 Aperçu 3D pour élément actif (priorité haute)');
+            }
             
             // Nettoyer toute animation en cours
             if (this.cleanup3DPreview) {
@@ -2154,26 +3176,67 @@ class ToolsTabManager {
             if (typeof THREE === 'undefined') {
                 console.error('❌ THREE.js non disponible pour aperçu GLB');
                 this.drawFallback2DPreview(canvas, glbElement.type);
+                this.glbPreviewAttempts.delete(attemptKey);
                 return;
             }
             
-            // Vérifier que le canvas est visible et a des dimensions
-            if (!canvas.offsetParent || canvas.width === 0 || canvas.height === 0) {
-                console.warn('⚠️ Canvas non visible ou sans dimensions, retry dans 100ms');
+            // Vérifier que le canvas est visible et a des dimensions avec limite de retry
+            const maxRetries = 10; // Limite à 10 tentatives (1 seconde)
+            if ((!canvas.offsetParent || canvas.width === 0 || canvas.height === 0) && retryCount < maxRetries) {
+                if (retryCount === 0) {
+                    console.warn('⚠️ Canvas non visible ou sans dimensions, tentatives de retry...');
+                }
                 setTimeout(() => {
-                    this.createGLBPreviewUsingLibrary(canvas, glbElement);
+                    this.createGLBPreviewUsingLibrary(canvas, glbElement, retryCount + 1);
                 }, 100);
+                return;
+            }
+            
+            // Si on a dépassé les tentatives et toujours pas visible, utiliser fallback
+            if (retryCount >= maxRetries && (!canvas.offsetParent || canvas.width === 0 || canvas.height === 0)) {
+                console.warn('⚠️ Canvas toujours non visible après', maxRetries, 'tentatives, utilisation du fallback 2D');
+                this.drawFallback2DPreview(canvas, glbElement.type);
+                this.glbPreviewAttempts.delete(attemptKey);
                 return;
             }
 
             console.log('✅ [DEBUG] Conditions OK, création aperçu GLB');
             // Créer notre propre système d'aperçu GLB basé sur celui de la bibliothèque
             this.renderOwnGLBPreview(canvas, glbElement);
+            
+            // Nettoyer l'enregistrement de tentative après succès
+            setTimeout(() => {
+                this.glbPreviewAttempts.delete(attemptKey);
+            }, 1000);
 
         } catch (error) {
             console.error('❌ Erreur lors de la création aperçu GLB:', error);
             this.drawFallback2DPreview(canvas, glbElement.type);
+            if (this.glbPreviewAttempts) {
+                const canvasId = canvas.id || canvas.dataset?.containerId || this.getCanvasUniqueId(canvas);
+                const glbKey = `${glbElement.type}_${glbElement.scale?.z || 300}`;
+                const attemptKey = `${canvasId}_${glbKey}`;
+                this.glbPreviewAttempts.delete(attemptKey);
+            }
         }
+    }
+
+    // Méthode pour générer un ID unique pour un canvas
+    getCanvasUniqueId(canvas) {
+        // Utiliser la position du canvas dans le DOM comme identifiant
+        const parent = canvas.parentElement;
+        if (parent && parent.id) {
+            return `${parent.id}_canvas`;
+        }
+        
+        // Utiliser les attributs data du canvas
+        if (canvas.dataset.elementType) {
+            return `canvas_${canvas.dataset.elementType}`;
+        }
+        
+        // Fallback avec timestamp et position
+        const rect = canvas.getBoundingClientRect();
+        return `canvas_${Math.round(rect.left)}_${Math.round(rect.top)}_${Date.now()}`;
     }
 
     // 📦 Méthode simplifiée pour créer un aperçu GLB
