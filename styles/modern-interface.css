@@ -2507,3 +2507,104 @@ select:focus-visible,
     border-color: var(--success-color);
     box-shadow: 0 0 0 1px var(--success-color);
 }
+
+/* ===============================================
+   ICÔNE DE SUPPRESSION DE BRIQUE
+   =============================================== */
+
+.brick-delete-icon {
+    position: fixed !important;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10000 !important;
+    box-shadow: 
+        0 6px 20px rgba(220, 38, 38, 0.5),
+        0 3px 8px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    animation: brickDeletePulse 2s infinite ease-in-out;
+    pointer-events: auto !important;
+    user-select: none;
+}
+
+.brick-delete-icon:hover {
+    transform: scale(1.1);
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 
+        0 6px 16px rgba(220, 38, 38, 0.6),
+        0 3px 6px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.brick-delete-icon:active {
+    transform: scale(0.95);
+    box-shadow: 
+        0 2px 8px rgba(220, 38, 38, 0.5),
+        0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.brick-delete-icon i {
+    color: white;
+    font-size: 18px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    font-weight: 900;
+}
+
+@keyframes brickDeletePulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+/* Animation d'apparition */
+.brick-delete-icon {
+    animation: brickDeleteAppear 0.3s ease-out, brickDeletePulse 2s infinite ease-in-out 0.3s;
+}
+
+@keyframes brickDeleteAppear {
+    0% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Notifications de construction */
+.construction-notification {
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    font-weight: 500;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.construction-notification-success {
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.95) 0%, rgba(4, 120, 87, 0.95) 100%);
+}
+
+.construction-notification-warning {
+    background: linear-gradient(135deg, rgba(217, 119, 6, 0.95) 0%, rgba(180, 83, 9, 0.95) 100%);
+}
+
+.construction-notification-error {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.95) 0%, rgba(185, 28, 28, 0.95) 100%);
+}
+
+.construction-notification-info {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(37, 99, 235, 0.95) 100%);
+}

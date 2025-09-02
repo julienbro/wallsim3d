@@ -143,6 +143,19 @@
     transform: translateY(-1px) scale(1.005);
 }
 
+/* === SURBRILLANCE POUR ÉLÉMENT SÉLECTIONNÉ === */
+.library-item.active {
+    background: var(--accent-color);
+    border-color: var(--accent-bright);
+    box-shadow: 0 0 15px rgba(52, 152, 219, 0.4);
+    transform: translateY(-2px);
+}
+
+.library-item.active::after {
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(52, 152, 219, 0.2));
+}
+
 /* === APERÇU 3D === */
 .item-preview {
     background: var(--primary-bg);

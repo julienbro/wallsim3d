@@ -121,7 +121,9 @@
 .library-item.selected {
     background: linear-gradient(180deg, var(--accent-color) 0%, var(--accent-active) 100%);
     border-color: var(--accent-color);
-    box-shadow: 0 8px 20px rgba(0, 122, 204, 0.5);
+    box-shadow: 0 8px 20px rgba(0, 122, 204, 0.5), 0 0 0 2px rgba(0, 122, 204, 0.8);
+    transform: scale(1.02);
+    transition: all 0.3s ease;
 }
 
 .library-item.selected::before {
@@ -332,7 +334,7 @@
 .toolbar {
     position: fixed;
     left: 15px;
-    top: 50%;
+    top: calc(50% + 50px);
     transform: translateY(-50%);
     width: 60px;
     background: linear-gradient(180deg, var(--secondary-bg) 0%, var(--quaternary-bg) 100%);
