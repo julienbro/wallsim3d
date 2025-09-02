@@ -769,8 +769,36 @@ class BrickSelector {
             }
         }
         
-        // NOUVELLE FONCTIONNALITÉ: Synchroniser le sélecteur brickTypeSelect
+        // NOUVELLE FONCTIONNALITÉ: Synchroniser le sélecteur brickTypeSelect et la bibliothèque
         this.synchronizeBrickTypeSelect();
+        this.updateLibraryHighlight();
+    }
+    
+    // Nouvelle méthode pour mettre à jour la surbrillance dans la bibliothèque
+    updateLibraryHighlight() {
+        // Supprimer toutes les surbrillances existantes
+        const allLibraryItems = document.querySelectorAll('.library-item');
+        allLibraryItems.forEach(item => {
+            item.classList.remove('active');
+            // Supprimer aussi l'état actif des boutons de coupe
+            const cutButtons = item.querySelectorAll('.cut-btn-mini');
+            cutButtons.forEach(btn => btn.classList.remove('active'));
+        });
+        
+        // Ajouter la surbrillance à l'élément actuel
+        const currentLibraryItem = document.querySelector(`[data-type="${this.currentBrick}"]`);
+        if (currentLibraryItem) {
+            currentLibraryItem.classList.add('active');
+            
+            // Si c'est une brique entière, activer le bouton 1/1
+            const brick = this.brickTypes[this.currentBrick];
+            if (brick && brick.category !== 'cut') {
+                const wholeButton = currentLibraryItem.querySelector('[data-cut="1/1"]');
+                if (wholeButton) {
+                    wholeButton.classList.add('active');
+                }
+            }
+        }
     }
     
     // Nouvelle méthode pour synchroniser le sélecteur de type de brique

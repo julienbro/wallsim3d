@@ -3080,7 +3080,7 @@ class AssiseManager {
                     { x: leftFrontCornerX + 19, z: leftFrontCornerZ, type: 'snap-19cm-front', description: '19cm du coin avant-gauche' },
                     { x: leftFrontCornerX + 20, z: leftFrontCornerZ, type: 'snap-20cm-front', description: '20cm du coin avant-gauche' }
                 );
-                console.log(`??? Bloc creux 3/4: Ajout des points � 9, 10, 19 et 20cm`);
+                // console.log(`🏗️ Bloc creux 3/4: Ajout des points à 9, 10, 19 et 20cm`);
             } else if (cutType === '1/4' && element.dimensions.length === 9) {
                 // Bloc creux 1/4 (9cm) : pas de points interm�diaires
                 console.log(`??? Bloc creux 1/4: Aucun point interm�diaire ajout�`);

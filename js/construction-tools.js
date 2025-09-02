@@ -277,6 +277,11 @@ class ConstructionTools {
             blockJointColor: this.blockJointColor
         }); */
 
+        // Gestion de l'icône de suppression
+        this.currentDeleteIcon = null; // Référence vers l'icône de suppression actuelle
+        this.currentDeleteIconElement = null; // Référence vers l'élément associé à l'icône
+        this.deleteIconUpdateListener = null; // Référence vers le listener de mise à jour
+
         this.setupEventListeners();
         this.setupAssiseEventListeners(); // Écouter les événements d'AssiseManager
         
@@ -302,6 +307,7 @@ class ConstructionTools {
         
         this.createGhostElement();
         this.updateThreeJsVersion(); // Afficher la version de Three.js
+        this.setupDeleteIconListeners(); // Configurer les listeners pour l'icône de suppression
         this.isInitialized = true;
     }
 
@@ -315,6 +321,33 @@ class ConstructionTools {
                 versionElement.textContent = 'Non détectée';
             }
         }
+    }
+
+    // Configurer les listeners pour mettre à jour la position de l'icône de suppression
+    setupDeleteIconListeners() {
+        // Mettre à jour la position de l'icône lors des événements de caméra
+        if (window.SceneManager && window.SceneManager.controls) {
+            const updateIconPosition = () => {
+                if (this.currentDeleteIconElement) {
+                    this.updateDeleteIconPosition(this.currentDeleteIconElement);
+                }
+            };
+            
+            // Écouter les événements de changement de la caméra
+            window.SceneManager.controls.addEventListener('change', updateIconPosition);
+            
+            // Stocker la référence pour pouvoir supprimer les listeners plus tard
+            this.deleteIconUpdateListener = updateIconPosition;
+        }
+        
+        // Mettre à jour lors du redimensionnement de la fenêtre
+        window.addEventListener('resize', () => {
+            if (this.currentDeleteIconElement) {
+                setTimeout(() => {
+                    this.updateDeleteIconPosition(this.currentDeleteIconElement);
+                }, 100); // Délai pour permettre le redimensionnement
+            }
+        });
     }
 
     createGhostElement() {
@@ -3300,6 +3333,9 @@ class ConstructionTools {
         // Désactiver le mode sélection visuel
         document.body.classList.remove('selection-mode');
         
+        // Supprimer l'icône de suppression
+        this.hideDeleteIcon();
+        
         // Restaurer la visibilité du fantôme principal si activé et si on n'est plus en mode suggestions
         if (this.showGhost && this.ghostElement && !this.activeBrickForSuggestions) {
             this.ghostElement.mesh.visible = true;
@@ -3372,6 +3408,9 @@ class ConstructionTools {
             detail: { element }
         }));
         
+        // Afficher l'icône de suppression près de la brique
+        this.showDeleteIcon(element);
+        
         // console.log('Suggestions activées pour la brique:', element.id);
     }
     
@@ -3436,6 +3475,9 @@ class ConstructionTools {
         
         // Désactiver le mode sélection visuel
         document.body.classList.remove('selection-mode');
+        
+        // Supprimer l'icône de suppression
+        this.hideDeleteIcon();
         
         // Rétablir le curseur normal
         document.body.style.cursor = 'default';
@@ -6879,6 +6921,407 @@ class ConstructionTools {
         }
         
         console.log(`📐 Espacement de grille snap mis à jour: ${spacing}cm`);
+    }
+
+    // ========== GESTION DE L'ICÔNE DE SUPPRESSION ==========
+    
+    /**
+     * Afficher l'icône de suppression près de la brique sélectionnée
+     * @param {WallElement} element - La brique sélectionnée
+     */
+    showDeleteIcon(element) {
+        if (!element || !element.mesh) return;
+        
+        // Supprimer l'ancienne icône si elle existe
+        this.hideDeleteIcon();
+        
+        // Créer l'icône de suppression
+        const deleteIcon = document.createElement('div');
+        deleteIcon.className = 'brick-delete-icon';
+        deleteIcon.innerHTML = '<i class="fas fa-trash"></i>';
+        deleteIcon.id = 'brickDeleteIcon';
+        deleteIcon.title = 'Supprimer cette brique et ses joints';
+        
+        // FORCER UNE POSITION VISIBLE IMMÉDIATEMENT
+        deleteIcon.style.cssText = `
+            position: fixed !important;
+            top: 20% !important;
+            left: 20% !important;
+            width: 50px !important;
+            height: 50px !important;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+            border: 3px solid white !important;
+            border-radius: 50% !important;
+            z-index: 99999 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5) !important;
+            transition: all 0.3s ease !important;
+        `;
+        
+        console.log('🗑️ Icône créée avec position forcée visible');
+        
+        // Ajouter l'événement de clic
+        deleteIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.deleteBrickWithJoints(element);
+        });
+        
+        // Ajouter au DOM
+        document.body.appendChild(deleteIcon);
+        
+        // Activer le debug temporaire pour voir le positionnement
+        window.DEBUG_CONSTRUCTION = true;
+        
+        // Sauvegarder la référence
+        this.currentDeleteIcon = deleteIcon;
+        this.currentDeleteIconElement = element;
+        
+        console.log('🗑️ Icône ajoutée au DOM, maintenant visible');
+        
+        // Calculer la vraie position après un court délai et animer vers elle
+        setTimeout(() => {
+            this.animateIconToCorrectPosition(element);
+            this.setupCameraTracking(element);
+        }, 500);
+        
+        console.log('🗑️ Icône de suppression affichée pour:', element.id);
+    }
+    
+    /**
+     * Mettre à jour la position de l'icône de suppression
+     * @param {WallElement} element - La brique sélectionnée
+     */
+    updateDeleteIconPosition(element) {
+        if (!this.currentDeleteIcon || !element || !element.mesh) return;
+        
+        // Calculer la position 3D de la brique
+        const vector = new THREE.Vector3();
+        element.mesh.getWorldPosition(vector);
+        
+        // Ajouter un offset pour positionner l'icône au-dessus et à droite de la brique
+        const offsetY = Math.max(element.dimensions.height / 2 + 10, 15); // Au moins 15cm au-dessus
+        const offsetX = Math.max(element.dimensions.length / 3, 8); // Décalage vers la droite
+        
+        vector.y += offsetY;
+        vector.x += offsetX;
+        
+        // Projeter en coordonnées 2D de l'écran
+        vector.project(window.SceneManager.camera);
+        
+        // Vérifier si l'objet est visible (dans le frustum de la caméra)
+        if (vector.z > 1) {
+            // L'objet est derrière la caméra, masquer l'icône
+            this.currentDeleteIcon.style.display = 'none';
+            return;
+        }
+        
+        const canvas = window.SceneManager.renderer.domElement;
+        const rect = canvas.getBoundingClientRect();
+        
+        // Convertir les coordonnées normalisées (-1 à 1) en pixels
+        const x = (vector.x * 0.5 + 0.5) * canvas.clientWidth + rect.left;
+        const y = (-vector.y * 0.5 + 0.5) * canvas.clientHeight + rect.top;
+        
+        // Vérifier que l'icône reste dans les limites de l'écran
+        const iconSize = 36;
+        const margin = 10;
+        
+        const clampedX = Math.max(margin, Math.min(x, window.innerWidth - iconSize - margin));
+        const clampedY = Math.max(margin, Math.min(y, window.innerHeight - iconSize - margin));
+        
+        // Positionner l'icône
+        this.currentDeleteIcon.style.left = `${clampedX}px`;
+        this.currentDeleteIcon.style.top = `${clampedY}px`;
+        this.currentDeleteIcon.style.display = 'flex';
+        this.currentDeleteIcon.style.visibility = 'visible';
+        this.currentDeleteIcon.style.opacity = '1';
+        
+        // Forcer un rafraîchissement du rendu
+        this.currentDeleteIcon.offsetHeight;
+        
+        // Debug pour comprendre le positionnement (désactivé pour réduire les logs)
+        if (window.DEBUG_CONSTRUCTION && false) {
+            console.log('🗑️ Position icône:', {
+                element: element.id,
+                world3D: {x: vector.x, y: vector.y, z: vector.z},
+                screen2D: {x: clampedX, y: clampedY},
+                canvas: {width: canvas.clientWidth, height: canvas.clientHeight},
+                rect: rect,
+                iconVisible: this.currentDeleteIcon.style.display !== 'none',
+                iconOpacity: this.currentDeleteIcon.style.opacity
+            });
+        }
+    }
+    
+    /**
+     * Animer l'icône vers la position correcte près de la brique
+     * @param {WallElement} element - La brique sélectionnée
+     */
+    animateIconToCorrectPosition(element) {
+        if (!this.currentDeleteIcon || !element || !element.mesh) return;
+        
+        // Calculer la position cible
+        const vector = new THREE.Vector3();
+        element.mesh.getWorldPosition(vector);
+        
+        const offsetY = Math.max(element.dimensions.height / 2 + 10, 15);
+        const offsetX = Math.max(element.dimensions.length / 3, 8);
+        
+        vector.y += offsetY;
+        vector.x += offsetX;
+        vector.project(window.SceneManager.camera);
+        
+        if (vector.z > 1) {
+            console.log('🗑️ Brique hors champ, icône reste en position fixe');
+            return;
+        }
+        
+        const canvas = window.SceneManager.renderer.domElement;
+        const rect = canvas.getBoundingClientRect();
+        
+        const targetX = (vector.x * 0.5 + 0.5) * canvas.clientWidth + rect.left;
+        const targetY = (-vector.y * 0.5 + 0.5) * canvas.clientHeight + rect.top;
+        
+        const iconSize = 50;
+        const margin = 10;
+        
+        const clampedX = Math.max(margin, Math.min(targetX, window.innerWidth - iconSize - margin));
+        const clampedY = Math.max(margin, Math.min(targetY, window.innerHeight - iconSize - margin));
+        
+        // Animer vers la position cible
+        this.currentDeleteIcon.style.left = `${clampedX}px`;
+        this.currentDeleteIcon.style.top = `${clampedY}px`;
+        
+        console.log('🗑️ Animation vers position:', {
+            target: {x: clampedX, y: clampedY},
+            element: element.id
+        });
+    }
+    
+    /**
+     * Configurer le suivi de la caméra pour mettre à jour la position de l'icône
+     * @param {WallElement} element - La brique suivie
+     */
+    setupCameraTracking(element) {
+        if (!element || !this.currentDeleteIcon) return;
+        
+        // Sauvegarder la référence de l'élément tracké
+        this.trackedElement = element;
+        
+        // Fonction de mise à jour de la position
+        const updatePosition = () => {
+            if (this.currentDeleteIcon && this.trackedElement) {
+                this.updateDeleteIconPosition(this.trackedElement);
+            }
+        };
+        
+        // Écouteurs d'événements pour les changements de caméra
+        if (window.SceneManager && window.SceneManager.controls) {
+            const controls = window.SceneManager.controls;
+            
+            // Écouter les changements de position de la caméra
+            controls.addEventListener('change', updatePosition);
+            
+            // Nettoyer les écouteurs lors de la suppression de l'icône
+            this.cameraUpdateListener = updatePosition;
+        }
+        
+        console.log('🗑️ Suivi de caméra configuré pour:', element.id);
+    }
+    
+    /**
+     * Masquer l'icône de suppression
+     */
+    hideDeleteIcon() {
+        if (this.currentDeleteIcon) {
+            // Nettoyer l'écouteur de caméra
+            if (this.cameraUpdateListener && window.SceneManager && window.SceneManager.controls) {
+                window.SceneManager.controls.removeEventListener('change', this.cameraUpdateListener);
+                this.cameraUpdateListener = null;
+            }
+            
+            this.currentDeleteIcon.remove();
+            this.currentDeleteIcon = null;
+            this.currentDeleteIconElement = null;
+            this.trackedElement = null;
+        }
+    }
+    
+    /**
+     * Supprimer la brique et ses joints liés
+     * @param {WallElement} element - La brique à supprimer
+     */
+    deleteBrickWithJoints(element) {
+        if (!element || !element.id) {
+            console.warn('🗑️ Impossible de supprimer: élément invalide');
+            return;
+        }
+        
+        console.log('🗑️ Suppression de la brique et de ses joints liés:', element.id);
+        
+        // Vérifier les permissions de suppression
+        if (window.AssiseManager && !window.AssiseManager.canSelectElement(element.id, true)) {
+            console.log(`🔒 BLOCAGE SUPPRESSION: Élément ${element.id} d'assise inférieure - suppression refusée`);
+            this.showNotification('Impossible de supprimer un élément d\'assise inférieure', 'warning');
+            return;
+        }
+        
+        // Trouver les joints associés
+        const associatedJoints = this.findAssociatedJoints(element);
+        const jointCount = associatedJoints.length;
+        
+        try {
+            // Supprimer les joints associés
+            associatedJoints.forEach(joint => {
+                if (joint.parent) {
+                    joint.parent.remove(joint);
+                }
+                // Supprimer le joint des managers
+                const jointId = joint.userData.elementId || joint.userData.id || joint.name;
+                this.removeElementFromManagers(joint, jointId);
+                console.log('🔗 Joint associé supprimé:', jointId);
+            });
+            
+            // Supprimer l'élément principal
+            if (element.parent) {
+                element.parent.remove(element);
+            }
+            
+            // Supprimer des managers
+            this.removeElementFromManagers(element, element.id);
+            
+            // Masquer l'icône de suppression
+            this.hideDeleteIcon();
+            
+            // Désactiver les suggestions
+            this.deactivateSuggestions();
+            
+            // Afficher un message de confirmation
+            const message = jointCount > 0 
+                ? `🗑️ Brique et ${jointCount} joints supprimés`
+                : `🗑️ Brique supprimée`;
+            this.showNotification(message, 'success');
+            
+            console.log(`✅ Suppression terminée: 1 brique + ${jointCount} joints`);
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de la suppression:', error);
+            this.showNotification('Erreur lors de la suppression', 'error');
+        }
+    }
+    
+    /**
+     * Trouver les joints associés à un élément
+     * @param {WallElement} element - L'élément dont on cherche les joints
+     * @returns {Array} Liste des joints associés
+     */
+    findAssociatedJoints(element) {
+        const joints = [];
+        
+        if (!element || !element.id) return joints;
+        
+        // Parcourir la scène pour trouver les joints liés
+        if (window.SceneManager && window.SceneManager.scene) {
+            window.SceneManager.scene.traverse((child) => {
+                if (child.userData && 
+                    child.userData.isJoint && 
+                    child.userData.parentElementId === element.id) {
+                    joints.push(child);
+                }
+            });
+        }
+        
+        // Parcourir aussi les groupes d'assise si disponibles
+        if (window.SceneManager && window.SceneManager.assiseGroups) {
+            window.SceneManager.assiseGroups.forEach(group => {
+                group.traverse((child) => {
+                    if (child.userData && 
+                        child.userData.isJoint && 
+                        child.userData.parentElementId === element.id) {
+                        joints.push(child);
+                    }
+                });
+            });
+        }
+        
+        console.log(`🔗 ${joints.length} joints trouvés pour l'élément ${element.id}`);
+        return joints;
+    }
+    
+    /**
+     * Supprimer un élément des différents managers
+     * @param {Object} element - L'élément à supprimer
+     * @param {string} elementId - L'ID de l'élément
+     */
+    removeElementFromManagers(element, elementId) {
+        // Supprimer du SceneManager
+        if (window.SceneManager && window.SceneManager.removeElement) {
+            window.SceneManager.removeElement(elementId);
+        }
+        
+        // Supprimer du LayerManager si disponible
+        if (window.LayerManager && window.LayerManager.onElementRemoved) {
+            window.LayerManager.onElementRemoved(element);
+        }
+        
+        // Mettre à jour l'onglet Métré
+        if (window.MetreTabManager && window.MetreTabManager.refreshData) {
+            window.MetreTabManager.refreshData();
+        }
+    }
+    
+    /**
+     * Afficher une notification temporaire
+     * @param {string} message - Le message à afficher
+     * @param {string} type - Le type de notification ('success', 'warning', 'error')
+     */
+    showNotification(message, type = 'info') {
+        // Utiliser le système de notification existant s'il est disponible
+        if (window.BrickSelector && window.BrickSelector.showNotification) {
+            window.BrickSelector.showNotification(message);
+            return;
+        }
+        
+        // Sinon, créer une notification simple
+        const notification = document.createElement('div');
+        notification.className = `construction-notification construction-notification-${type}`;
+        notification.textContent = message;
+        
+        // Style de base
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#059669' : type === 'warning' ? '#D97706' : type === 'error' ? '#DC2626' : '#3B82F6'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 300px;
+            transition: opacity 0.3s ease;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animation d'apparition
+        requestAnimationFrame(() => {
+            notification.style.opacity = '1';
+        });
+        
+        // Suppression automatique
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
     }
 }
 

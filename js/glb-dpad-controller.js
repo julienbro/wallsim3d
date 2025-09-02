@@ -491,7 +491,7 @@ class GLBDpadController {
         const isGLBElement = this.isGLBElement(element);
         const needsY = this.needsYControls(element);
         
-        if (window.DEBUG_CONSTRUCTION) {
+        if (window.DEBUG_CONSTRUCTION && window.VERBOSE_DPAD_LOGS) {
             console.log('🎮 Placement élément détecté:', {
                 type: element.type,
                 isGLB: isGLBElement,

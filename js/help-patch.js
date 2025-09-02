@@ -236,6 +236,13 @@ window.addEventListener('load', () => {
         function showSimpleHelp(toolId) {
             console.log('🔧 SHOW-SIMPLE-HELP appelé pour:', toolId);
             
+            // Vérifier si l'utilisateur a choisi de ne plus afficher cette aide
+            const hideKey = `hideToolHelp_${toolId}`;
+            if (localStorage.getItem(hideKey) === 'true') {
+                console.log('🚫 Aide masquée par l\'utilisateur pour:', toolId);
+                return;
+            }
+            
             const helpTexts = {
                 selectTool: {
                     title: "Outil de Sélection",
@@ -374,11 +381,11 @@ window.addEventListener('load', () => {
                             <!-- Décoration du bouton -->
                             <div style="position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #ffeb3b, transparent);"></div>
                             
-                            <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: linear-gradient(135deg, #2e7d32 0%, #43a047 35%, #66bb6a 70%, #81c784 100%); color: white; border: 3px solid rgba(255, 235, 59, 0.4); padding: 16px 35px; border-radius: 50px; font-weight: 700; cursor: pointer; font-size: 15px; transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); box-shadow: 0 8px 25px rgba(67, 160, 71, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2); letter-spacing: 0.8px; text-transform: uppercase; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-3px) scale(1.05)'; this.style.boxShadow='0 15px 40px rgba(67, 160, 71, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.8)'" onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.boxShadow='0 8px 25px rgba(67, 160, 71, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'">
+                            <button onclick="localStorage.setItem('hideToolHelp_${toolId}', 'true'); this.parentElement.parentElement.parentElement.parentElement.remove();" style="background: linear-gradient(135deg, #757575 0%, #616161 35%, #424242 70%, #212121 100%); color: white; border: 3px solid rgba(255, 255, 255, 0.2); padding: 16px 25px; border-radius: 50px; font-weight: 600; cursor: pointer; font-size: 14px; transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1); letter-spacing: 0.5px; text-transform: uppercase; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-3px) scale(1.05)'; this.style.boxShadow='0 15px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'; this.style.borderColor='rgba(255, 255, 255, 0.4)'" onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)'; this.style.borderColor='rgba(255, 255, 255, 0.2)'">
                                 <!-- Effet de vague -->
-                                <div style="position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent); animation: wave 2s ease-in-out infinite;"></div>
-                                <i class="fas fa-check-circle" style="margin-right: 10px; color: #ffeb3b; font-size: 16px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);"></i>
-                                <span style="position: relative; z-index: 1;">Parfait, j'ai tout compris !</span>
+                                <div style="position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent); animation: wave 2s ease-in-out infinite;"></div>
+                                <i class="fas fa-eye-slash" style="margin-right: 8px; color: #ffffff; font-size: 14px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);"></i>
+                                <span style="position: relative; z-index: 1;">Ne plus afficher</span>
                             </button>
                         </div>
                     </div>

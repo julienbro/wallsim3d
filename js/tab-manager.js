@@ -14,7 +14,7 @@ class TabManager {
         this.sharedScene = null;
         this.sharedCamera = null;
         this.rendererInitialized = false;
-        this.currentMainTab = 'outils';
+        this.currentMainTab = 'biblio';
         this.currentSubTab = 'briques';
         this.currentMainSubTab = 'bibliotheque'; // Nouveau: sous-onglet principal de biblio
         this.selectedLibraryItem = null;
@@ -135,8 +135,9 @@ class TabManager {
             });
         });
         
-        // Écouter l'événement de sélection d'élément de bibliothèque pour activer l'onglet Outils
-        document.addEventListener('libraryItemSelected', (e) => {
+        // DÉSACTIVÉ: Écouter l'événement de sélection d'élément de bibliothèque
+        // pour rester dans l'onglet bibliothèque lors de la sélection
+        /* document.addEventListener('libraryItemSelected', (e) => {
             const { itemType, itemElement } = e.detail;
             if (window.DEBUG_TAB_MANAGER) {
             if (window.DEBUG_TAB_MANAGER) {
@@ -189,7 +190,7 @@ class TabManager {
                     }, 100); // Petit délai pour s'assurer que l'onglet est actif
                 }
             }
-        });
+        }); */
         
         // Écouter les changements de longueur GLB pour mettre à jour l'interface
         document.addEventListener('glbLengthChanged', (e) => {
@@ -285,19 +286,20 @@ class TabManager {
             }
         });
         
-        // NOUVEAU: Écouter l'événement de sélection d'élément de bibliothèque pour activer l'onglet Outils
-        document.addEventListener('libraryItemSelected', (e) => {
-            const { itemType, itemElement } = e.detail;
-            if (window.DEBUG_TAB_MANAGER) {
-                console.log('📚 TabManager: Événement libraryItemSelected reçu:', itemType);
-                console.log('🔧 TabManager: Activation onglet Outils (via événement libraryItemSelected)');
-            }
-            this.activateToolsTab();
-        });
+        // DÉSACTIVÉ: Écouter l'événement de sélection d'élément de bibliothèque 
+        // pour rester dans l'onglet bibliothèque lors de la sélection
+        // document.addEventListener('libraryItemSelected', (e) => {
+        //     const { itemType, itemElement } = e.detail;
+        //     if (window.DEBUG_TAB_MANAGER) {
+        //         console.log('📚 TabManager: Événement libraryItemSelected reçu:', itemType);
+        //         console.log('🔧 TabManager: Activation onglet Outils (via événement libraryItemSelected)');
+        //     }
+        //     this.activateToolsTab();
+        // });
         
-        // Force l'affichage de l'onglet Outils au démarrage
+        // Force l'affichage de l'onglet Biblio au démarrage
         setTimeout(() => {
-            this.switchMainTab('outils');
+            this.switchMainTab('biblio');
         }, 100);
         
     }
@@ -566,18 +568,20 @@ class TabManager {
                     const glbName = glbButton.dataset.glbName || 'Modèle GLB';
                     console.log(`📦 Import GLB depuis bibliothèque: ${glbPath}`);
                     
-                    // NOUVEAU: Activer l'onglet Outils lors de l'import GLB
-                    console.log('🔧 TabManager: Activation onglet Outils (import GLB)');
-                    self.activateToolsTab();
+                    // DÉSACTIVÉ: Ne plus activer automatiquement l'onglet Outils lors de l'import GLB
+                    // pour rester dans l'onglet bibliothèque
+                    // console.log('🔧 TabManager: Activation onglet Outils (import GLB)');
+                    // self.activateToolsTab();
                     
                     self.importGLBFromLibrary(glbPath, glbName);
                 } else if (glbButton.classList.contains('btn-preview-glb')) {
                     const glbPath = glbButton.dataset.glbPath;
                     console.log(`👁️ Aperçu GLB: ${glbPath}`);
                     
-                    // NOUVEAU: Activer l'onglet Outils lors de l'aperçu GLB
-                    console.log('🔧 TabManager: Activation onglet Outils (aperçu GLB)');
-                    self.activateToolsTab();
+                    // DÉSACTIVÉ: Ne plus activer automatiquement l'onglet Outils lors de l'aperçu GLB
+                    // pour rester dans l'onglet bibliothèque
+                    // console.log('🔧 TabManager: Activation onglet Outils (aperçu GLB)');
+                    // self.activateToolsTab();
                     
                     self.previewGLBFromLibrary(glbPath);
                 }
@@ -597,9 +601,10 @@ class TabManager {
                 const glbName = button.dataset.glbName || 'Modèle GLB';
                 console.log(`📦 Import GLB depuis bibliothèque: ${glbPath}`);
                 
-                // NOUVEAU: Activer l'onglet Outils lors de l'import GLB (fallback)
-                console.log('🔧 TabManager: Activation onglet Outils (import GLB fallback)');
-                this.activateToolsTab();
+                // DÉSACTIVÉ: Ne plus activer automatiquement l'onglet Outils lors de l'import GLB (fallback)
+                // pour rester dans l'onglet bibliothèque
+                // console.log('🔧 TabManager: Activation onglet Outils (import GLB fallback)');
+                // this.activateToolsTab();
                 
                 this.importGLBFromLibrary(glbPath, glbName);
             });
@@ -612,9 +617,10 @@ class TabManager {
                 const glbPath = button.dataset.glbPath;
                 console.log(`👁️ Aperçu GLB: ${glbPath}`);
                 
-                // NOUVEAU: Activer l'onglet Outils lors de l'aperçu GLB
-                console.log('🔧 TabManager: Activation onglet Outils (aperçu GLB)');
-                this.activateToolsTab();
+                // DÉSACTIVÉ: Ne plus activer automatiquement l'onglet Outils lors de l'aperçu GLB
+                // pour rester dans l'onglet bibliothèque
+                // console.log('🔧 TabManager: Activation onglet Outils (aperçu GLB)');
+                // this.activateToolsTab();
                 
                 this.previewGLBFromLibrary(glbPath);
             });
@@ -823,12 +829,12 @@ class TabManager {
             }, 150);
         }
 
-        // NOUVEAU: Activer automatiquement l'onglet Outils quand on sélectionne un élément
-        // (placé après les autres traitements pour éviter les conflits)
-        if (window.DEBUG_TAB_MANAGER) {
-            console.log('🔧 TabManager: Activation automatique de l\'onglet Outils');
-        }
-        this.activateToolsTab();
+        // DÉSACTIVÉ: Ne plus activer automatiquement l'onglet Outils quand on sélectionne un élément
+        // pour rester dans l'onglet bibliothèque lors de la sélection
+        // if (window.DEBUG_TAB_MANAGER) {
+        //     console.log('🔧 TabManager: Activation automatique de l\'onglet Outils');
+        // }
+        // this.activateToolsTab();
 
         // console.log(`Élément de bibliothèque sélectionné: ${itemType}`);
     }
@@ -1622,11 +1628,13 @@ class TabManager {
                         window.BrickSelector.setBrick(itemType);
                     }
                     
+                    // DÉSACTIVÉ: Ne plus basculer automatiquement vers l'onglet Assise
+                    // pour rester dans l'onglet bibliothèque lors de la sélection
                     // Basculer automatiquement vers l'onglet Assise seulement si l'utilisateur n'a pas sélectionné biblio manuellement
                     // ET s'il n'est pas sur l'onglet Outils
-                    if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
-                        this.switchMainTab('assise');
-                    }
+                    // if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
+                    //     this.switchMainTab('assise');
+                    // }
                     
                     // NOUVEAU: Déclencher explicitement la mise à jour de l'onglet outils
                     if (window.ToolsTabManager) {
@@ -1642,11 +1650,13 @@ class TabManager {
                 if (window.BlockSelector) {
                     // console.log(`🔄 TabManager: Synchronisation bloc ${itemType} avec BlockSelector`);
                     window.BlockSelector.setBlock(itemType);
+                    // DÉSACTIVÉ: Ne plus basculer automatiquement vers l'onglet Assise
+                    // pour rester dans l'onglet bibliothèque lors de la sélection
                     // Basculer automatiquement vers l'onglet Assise seulement si l'utilisateur n'a pas sélectionné biblio manuellement
                     // ET s'il n'est pas sur l'onglet Outils
-                    if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
-                        this.switchMainTab('assise');
-                    }
+                    // if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
+                    //     this.switchMainTab('assise');
+                    // }
                     
                     // NOUVEAU: Déclencher explicitement la mise à jour de l'onglet outils
                     if (window.ToolsTabManager) {
@@ -1662,11 +1672,13 @@ class TabManager {
                 if (window.InsulationSelector) {
                     // console.log(`🔄 TabManager: Synchronisation isolant ${itemType} avec InsulationSelector`);
                     window.InsulationSelector.setInsulation(itemType);
+                    // DÉSACTIVÉ: Ne plus basculer automatiquement vers l'onglet Assise
+                    // pour rester dans l'onglet bibliothèque lors de la sélection
                     // Basculer automatiquement vers l'onglet Assise seulement si l'utilisateur n'a pas sélectionné biblio manuellement
                     // ET s'il n'est pas sur l'onglet Outils
-                    if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
-                        this.switchMainTab('assise');
-                    }
+                    // if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
+                    //     this.switchMainTab('assise');
+                    // }
                     
                     // NOUVEAU: Déclencher explicitement la mise à jour de l'onglet outils
                     if (window.ToolsTabManager) {
@@ -1691,11 +1703,13 @@ class TabManager {
                             const baseType = itemType.split('_')[0];
                             window.LinteauSelector.selectStandardLinteau(baseType);
                         }
+                        // DÉSACTIVÉ: Ne plus basculer automatiquement vers l'onglet Assise
+                        // pour rester dans l'onglet bibliothèque lors de la sélection
                         // Basculer automatiquement vers l'onglet Assise seulement si l'utilisateur n'a pas sélectionné biblio manuellement
                         // ET s'il n'est pas sur l'onglet Outils
-                        if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
-                            this.switchMainTab('assise');
-                        }
+                        // if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
+                        //     this.switchMainTab('assise');
+                        // }
                         
                         // NOUVEAU: Déclencher explicitement la mise à jour de l'onglet outils
                         if (window.ToolsTabManager) {
@@ -1851,21 +1865,23 @@ class TabManager {
     }
 
     syncTabWithMode(mode) {
-        // Synchroniser l'onglet avec le mode de construction
+        // DÉSACTIVÉ: Synchroniser l'onglet avec le mode de construction
+        // Ne plus faire de basculement automatique pour rester dans l'onglet bibliothèque
         // Seulement si l'utilisateur n'a pas sélectionné biblio manuellement ET s'il n'est pas sur l'onglet Outils
         switch (mode) {
             case 'brick':
             case 'block':
             case 'insulation':
             case 'linteau':
-                if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
-                    // // console.log(`🔄 Basculement automatique vers l'onglet assise pour mode: ${mode}`);
-                    this.switchMainTab('assise');
-                } else if (this.userSelectedBiblioTab) {
-                    // console.log(`🚫 Basculement automatique annulé - utilisateur dans l'onglet biblio pour mode: ${mode}`);
-                } else if (this.currentMainTab === 'outils') {
-                    // console.log(`🚫 Basculement automatique annulé - utilisateur dans l'onglet outils pour mode: ${mode}`);
-                }
+                // DÉSACTIVÉ: Ne plus basculer automatiquement vers l'onglet Assise
+                // if (this.currentMainTab !== 'assise' && this.currentMainTab !== 'outils' && !this.userSelectedBiblioTab) {
+                //     // // console.log(`🔄 Basculement automatique vers l'onglet assise pour mode: ${mode}`);
+                //     this.switchMainTab('assise');
+                // } else if (this.userSelectedBiblioTab) {
+                //     // console.log(`🚫 Basculement automatique annulé - utilisateur dans l'onglet biblio pour mode: ${mode}`);
+                // } else if (this.currentMainTab === 'outils') {
+                //     // console.log(`🚫 Basculement automatique annulé - utilisateur dans l'onglet outils pour mode: ${mode}`);
+                // }
                 break;
         }
         
@@ -4116,7 +4132,12 @@ class TabManager {
                         }
                     }
                 } else {
-                    console.log(`⏳ Aperçu GLB pour ${glbKey} déjà en cours, utilisé fallback`);
+                    // Limiter les logs répétitifs - seulement tous les 10 appels
+                    if (!this.fallbackLogCount) this.fallbackLogCount = 0;
+                    this.fallbackLogCount++;
+                    if (this.fallbackLogCount % 10 === 1) {
+                        console.log(`⏳ Aperçu GLB pour ${glbKey} déjà en cours, utilisé fallback (x${this.fallbackLogCount})`);
+                    }
                     // Utiliser un aperçu fallback immédiat
                     const container = document.getElementById(`preview-${key}`);
                     if (container) {
@@ -5055,11 +5076,12 @@ TabManager.prototype.handleGLBImportWithLength = function(parentItem, lengthValu
         });
     }
     
-    // NOUVEAU: Activer automatiquement l'onglet Outils lors de l'import GLB
-    if (window.DEBUG_TAB_MANAGER) {
-        console.log('🔧 TabManager: Activation onglet Outils (depuis handleGLBImportWithLength)');
-    }
-    this.activateToolsTab();
+    // DÉSACTIVÉ: Activer automatiquement l'onglet Outils lors de l'import GLB
+    // pour rester dans l'onglet bibliothèque
+    // if (window.DEBUG_TAB_MANAGER) {
+    //     console.log('🔧 TabManager: Activation onglet Outils (depuis handleGLBImportWithLength)');
+    // }
+    // this.activateToolsTab();
     
     // Récupérer les informations GLB
     const glbPath = parentItem.getAttribute('data-glb-path') || 
@@ -5193,63 +5215,13 @@ TabManager.prototype.handleGLBImportWithLength = function(parentItem, lengthValu
     });
 }
 
-// Méthode pour activer automatiquement l'onglet Outils
+// Méthode pour activer automatiquement l'onglet Outils - DÉSACTIVÉE (onglet supprimé)
 TabManager.prototype.activateToolsTab = function() {
     if (window.DEBUG_TAB_MANAGER) {
-        console.log('🎯 TabManager: Tentative d\'activation de l\'onglet Outils');
+        console.log('⚠️ TabManager: activateToolsTab appelée mais onglet Outils supprimé - ignoré');
     }
     
-    // Protection contre les appels multiples
-    if (this._activatingToolsTab) {
-        if (window.DEBUG_TAB_MANAGER) {
-            console.log('🛡️ TabManager: Activation déjà en cours, ignoré');
-        }
-        return;
-    }
-    this._activatingToolsTab = true;
-    
-    // Méthode 1: Utiliser switchMainTab avec un délai
-    setTimeout(() => {
-        try {
-            this.switchMainTab('outils');
-            if (window.DEBUG_TAB_MANAGER) {
-                console.log('✅ TabManager: switchMainTab(outils) exécuté');
-            }
-        } catch (error) {
-            if (window.DEBUG_TAB_MANAGER) {
-                console.warn('⚠️ TabManager: Erreur switchMainTab:', error);
-            }
-        }
-        
-        // Méthode 2: Vérifier et simuler un clic si nécessaire
-        setTimeout(() => {
-            const outilsTab = document.querySelector('[data-tab="outils"]');
-            if (outilsTab) {
-                if (!outilsTab.classList.contains('active')) {
-                    console.log('🔧 TabManager: Simulation clic sur onglet Outils');
-                    
-                    // NOUVEAU: Marquer temporairement pour éviter le gestionnaire de clic 
-                    window.skipTabClickHandler = true;
-                    outilsTab.click();
-                    // Nettoyer après un délai
-                    setTimeout(() => {
-                        window.skipTabClickHandler = false;
-                    }, 100);
-                } else {
-                    if (window.DEBUG_TAB_MANAGER) {
-                        console.log('✅ TabManager: Onglet Outils déjà actif');
-                    }
-                }
-            } else {
-                if (window.DEBUG_TAB_MANAGER) {
-                    console.warn('⚠️ TabManager: Onglet Outils non trouvé dans le DOM');
-                }
-            }
-            
-            // Nettoyer le flag de protection
-            this._activatingToolsTab = false;
-        }, 50);
-        
-    }, 50);
+    // Ne rien faire puisque l'onglet Outils a été supprimé
+    return;
 };
 

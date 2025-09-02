@@ -43,7 +43,9 @@ class ToolsTabManager {
         // Vérifier que l'élément DOM existe
         const tabElement = document.getElementById('tab-content-outils');
         if (!tabElement) {
-            console.error('❌ ToolsTabManager: Élément DOM tab-content-outils non trouvé!');
+            console.warn('⚠️ ToolsTabManager: Onglet Outils non disponible (supprimé)');
+            // Désactiver ce gestionnaire puisque l'onglet n'existe plus
+            this.isDisabled = true;
             return;
         }
         
@@ -521,6 +523,11 @@ class ToolsTabManager {
     }
 
     updateActiveElementPreview(forceElement = null, force = false) {
+        // Vérifier si le gestionnaire est désactivé (onglet Outils supprimé)
+        if (this.isDisabled) {
+            return;
+        }
+        
         // Log réduit - seulement si forceElement ou debug activé
         if (forceElement && window.DEBUG_TOOLS_TAB) {
             console.log('🔧 ToolsTabManager: updateActiveElementPreview appelée avec forceElement:', forceElement);
@@ -912,6 +919,11 @@ class ToolsTabManager {
     }
 
     renderElementPreview(element) {
+        // Vérifier si le gestionnaire est désactivé (onglet Outils supprimé)
+        if (this.isDisabled) {
+            return;
+        }
+        
         if (window.DEBUG_TOOLS_TAB) {
             console.log('🎨 ToolsTabManager: Rendu d\'élément forcé:', element);
         }
@@ -922,7 +934,7 @@ class ToolsTabManager {
         const cutButtonsContainer = document.getElementById('toolsCutButtons');
 
         if (!nameElement || !dimensionsElement || !cutButtonsContainer || !canvas) {
-            console.warn('🎨 Éléments DOM manquants pour l\'aperçu 3D');
+            // Ces éléments appartiennent à l'onglet Outils supprimé - ignorer silencieusement
             return;
         }
 

@@ -585,7 +585,18 @@ class ToolsHelpSystem {
                     delay: index * 0.3
                 });
             } else {
-                console.warn(`🔧 Élément non trouvé pour le sélecteur: ${section.selector}`);
+                // Ignorer silencieusement les éléments supprimés avec l'onglet Outils
+                const toolsRelatedSelectors = [
+                    '.reusable-elements-section',
+                    '.tools-active-element', 
+                    '.assise-info-panel',
+                    '.tool-subsection:has(.assise-selector)',
+                    '.joint-height-control'
+                ];
+                
+                if (!toolsRelatedSelectors.includes(section.selector)) {
+                    console.warn(`🔧 Élément non trouvé pour le sélecteur: ${section.selector}`);
+                }
             }
         });
 

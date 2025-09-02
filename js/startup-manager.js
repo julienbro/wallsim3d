@@ -25,6 +25,10 @@ class StartupManager {
         ];
         this.currentStep = 0;
         this.isComplete = false;
+        this.keydownHandler = null;
+        
+        // Stocker une référence globale pour les méthodes statiques
+        window._currentStartupManager = this;
     }
 
     showStartupPopup() {
@@ -85,12 +89,43 @@ class StartupManager {
             this.handleOpenProject();
         });
 
-        // Empêcher la fermeture en cliquant à côté pendant le chargement
+        // Empêcher complètement la fermeture en cliquant à côté de la fenêtre d'accueil
         this.overlay.addEventListener('click', (e) => {
-            if (e.target === this.overlay && this.isComplete) {
-                this.closePopup();
+            // Ne jamais permettre la fermeture en cliquant à l'extérieur
+            // L'utilisateur doit obligatoirement choisir "Nouveau" ou "Ouvrir"
+            if (e.target === this.overlay) {
+                e.preventDefault();
+                e.stopPropagation();
+                // Optionnel : ajouter un effet visuel pour indiquer que le clic est ignoré
+                const popup = document.querySelector('.startup-popup');
+                if (popup) {
+                    popup.style.animation = 'shake 0.5s ease-in-out';
+                    setTimeout(() => {
+                        popup.style.animation = '';
+                    }, 500);
+                }
             }
         });
+
+        // Empêcher la fermeture par les touches du clavier (Escape, etc.)
+        this.keydownHandler = (e) => {
+            // Bloquer toutes les touches qui pourraient fermer la modal ou interférer
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                // Effet visuel pour indiquer que la touche est ignorée
+                const popup = document.querySelector('.startup-popup');
+                if (popup) {
+                    popup.style.animation = 'shake 0.5s ease-in-out';
+                    setTimeout(() => {
+                        popup.style.animation = '';
+                    }, 500);
+                }
+            }
+        };
+
+        // Ajouter l'écouteur d'événements clavier au document
+        document.addEventListener('keydown', this.keydownHandler, true);
     }
 
     startProgressSimulation() {
@@ -400,6 +435,12 @@ class StartupManager {
 
     closePopup() {
         if (this.overlay) {
+            // Supprimer l'écouteur d'événements clavier
+            if (this.keydownHandler) {
+                document.removeEventListener('keydown', this.keydownHandler, true);
+                this.keydownHandler = null;
+            }
+
             // Animation de fermeture
             this.overlay.classList.add('closing');
             
@@ -411,6 +452,9 @@ class StartupManager {
                 // Marquer que le startup est terminé - afficher l'interface principale
                 document.body.classList.add('startup-loaded');
                 
+                // Nettoyer la référence globale
+                window._currentStartupManager = null;
+                
                 // Émettre un événement pour signaler que la popup est fermée
                 window.dispatchEvent(new CustomEvent('startup-popup-closed'));
             }, 500);
@@ -419,6 +463,12 @@ class StartupManager {
 
     // Méthode pour fermer la popup depuis l'extérieur (par exemple après initialisation complète)
     static closeStartupPopup() {
+        // Nettoyer les écouteurs d'événements si une instance existe
+        if (window._currentStartupManager && window._currentStartupManager.keydownHandler) {
+            document.removeEventListener('keydown', window._currentStartupManager.keydownHandler, true);
+            window._currentStartupManager.keydownHandler = null;
+        }
+
         const overlay = document.getElementById('startup-overlay');
         if (overlay) {
             overlay.classList.add('closing');
@@ -429,6 +479,9 @@ class StartupManager {
                 
                 // Marquer que le startup est terminé - afficher l'interface principale
                 document.body.classList.add('startup-loaded');
+                
+                // Nettoyer la référence globale
+                window._currentStartupManager = null;
             }, 500);
         }
     }

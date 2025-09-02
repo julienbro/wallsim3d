@@ -123,6 +123,13 @@ class SceneManager {
             this.controls.panSpeed = 1.0;
             this.controls.keyPanSpeed = 7.0;
             
+            // ✨ NOUVEAU: Configuration du bouton du milieu pour le pannage
+            this.controls.mouseButtons = {
+                LEFT: THREE.MOUSE.ROTATE,
+                MIDDLE: THREE.MOUSE.PAN,  // Bouton du milieu pour déplacer la vue
+                RIGHT: THREE.MOUSE.PAN    // Bouton droit aussi pour le pannage (optionnel)
+            };
+            
             // Variables pour détecter les mouvements d'orbit
             this.isOrbiting = false;
             this.orbitStartTime = 0;
@@ -2876,37 +2883,86 @@ class SceneManager {
     setupBasicControls() {
         // Contrôles basiques sans OrbitControls
         
-        
         // Variables pour le contrôle de la souris
         this.isMouseDown = false;
+        this.isMiddleMouseDown = false;  // ✨ NOUVEAU: Suivi du bouton du milieu
         this.mousePosition = { x: 0, y: 0 };
         this.cameraTarget = new THREE.Vector3(0, 0, 0);
         
         // Event listeners pour les contrôles manuels
         this.renderer.domElement.addEventListener('mousedown', (e) => {
-            this.isMouseDown = true;
-            this.mousePosition.x = e.clientX;
-            this.mousePosition.y = e.clientY;
+            if (e.button === 0) { // Bouton gauche
+                this.isMouseDown = true;
+                this.mousePosition.x = e.clientX;
+                this.mousePosition.y = e.clientY;
+            } else if (e.button === 1) { // ✨ NOUVEAU: Bouton du milieu
+                e.preventDefault(); // Empêcher le comportement par défaut (scroll)
+                this.isMiddleMouseDown = true;
+                this.mousePosition.x = e.clientX;
+                this.mousePosition.y = e.clientY;
+            }
         });
         
-        this.renderer.domElement.addEventListener('mouseup', () => {
-            this.isMouseDown = false;
+        this.renderer.domElement.addEventListener('mouseup', (e) => {
+            if (e.button === 0) { // Bouton gauche
+                this.isMouseDown = false;
+            } else if (e.button === 1) { // ✨ NOUVEAU: Bouton du milieu
+                this.isMiddleMouseDown = false;
+            }
+        });
+        
+        // ✨ NOUVEAU: Empêcher le menu contextuel sur bouton du milieu
+        this.renderer.domElement.addEventListener('contextmenu', (e) => {
+            if (e.button === 1) {
+                e.preventDefault();
+            }
         });
         
         this.renderer.domElement.addEventListener('mousemove', (e) => {
-            if (!this.isMouseDown) return;
-            
-            const deltaX = e.clientX - this.mousePosition.x;
-            const deltaY = e.clientY - this.mousePosition.y;
-            
-            // Rotation basique
-            this.camera.position.x = this.camera.position.x * Math.cos(deltaX * 0.01) - this.camera.position.z * Math.sin(deltaX * 0.01);
-            this.camera.position.z = this.camera.position.x * Math.sin(deltaX * 0.01) + this.camera.position.z * Math.cos(deltaX * 0.01);
-            
-            this.camera.lookAt(this.cameraTarget);
-            
-            this.mousePosition.x = e.clientX;
-            this.mousePosition.y = e.clientY;
+            if (this.isMouseDown && !this.isMiddleMouseDown) {
+                // Rotation avec bouton gauche (comportement existant)
+                const deltaX = e.clientX - this.mousePosition.x;
+                const deltaY = e.clientY - this.mousePosition.y;
+                
+                // Rotation basique
+                this.camera.position.x = this.camera.position.x * Math.cos(deltaX * 0.01) - this.camera.position.z * Math.sin(deltaX * 0.01);
+                this.camera.position.z = this.camera.position.x * Math.sin(deltaX * 0.01) + this.camera.position.z * Math.cos(deltaX * 0.01);
+                
+                this.camera.lookAt(this.cameraTarget);
+                
+                this.mousePosition.x = e.clientX;
+                this.mousePosition.y = e.clientY;
+            } else if (this.isMiddleMouseDown) {
+                // ✨ NOUVEAU: Pannage avec bouton du milieu
+                const deltaX = e.clientX - this.mousePosition.x;
+                const deltaY = e.clientY - this.mousePosition.y;
+                
+                // Calculer les vecteurs de déplacement de la caméra
+                const camera = this.camera;
+                const panSpeed = 0.5; // Sensibilité du pannage
+                
+                // Vecteur droite de la caméra
+                const rightVector = new THREE.Vector3();
+                rightVector.setFromMatrixColumn(camera.matrix, 0);
+                rightVector.normalize();
+                
+                // Vecteur haut de la caméra  
+                const upVector = new THREE.Vector3();
+                upVector.setFromMatrixColumn(camera.matrix, 1);
+                upVector.normalize();
+                
+                // Déplacer la caméra et sa cible
+                const panOffset = new THREE.Vector3();
+                panOffset.addScaledVector(rightVector, -deltaX * panSpeed);
+                panOffset.addScaledVector(upVector, deltaY * panSpeed);
+                
+                camera.position.add(panOffset);
+                this.cameraTarget.add(panOffset);
+                camera.lookAt(this.cameraTarget);
+                
+                this.mousePosition.x = e.clientX;
+                this.mousePosition.y = e.clientY;
+            }
         });
         
         // Zoom avec la molette
