@@ -12,7 +12,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
-    <title>WallSim3D v1.0 - Simulateur de Construction de Murs</title>
+    <title>WallSim3D v1.0.2 - Simulateur de Construction de Murs</title>
     
     <!-- SYSTÈME DE STYLES UNIFIÉ -->
     <!-- 1. Variables CSS globales MODERNES (À CHARGER EN PREMIER) -->
@@ -55,6 +55,9 @@
     
     <!-- 6. CORRECTIF UNIFORMISATION MENU - PRIORITÉ MAXIMALE -->
     <link rel="stylesheet" href="styles/menu-style-fix.css">
+    
+    <!-- 7. CORRECTION FINALE BIBLIOTHÈQUE - PRIORITÉ ABSOLUE -->
+    <link rel="stylesheet" href="styles/library-fix-final.css">
     
     <!-- 7. Validation développement (optionnel) -->
     <!-- <link rel="stylesheet" href="styles/style-validation.css"> -->
@@ -156,7 +159,7 @@
         .toolbar {
             position: fixed;
             left: 10px;
-            top: 50%;
+            top: calc(50% + 70px);
             transform: translateY(-50%);
             width: 60px;
             background: rgba(0, 0, 0, 0.9);
@@ -174,7 +177,7 @@
         .toolbar-labels {
             position: fixed;
             left: 82px; /* Position exacte : 10px (left toolbar) + 60px (width) + 2px (border) + 10px (marge) */
-            top: 50%;
+            top: calc(50% + 70px);
             transform: translateY(-50%);
             z-index: 1500; /* Au-dessus des menus déroulants (z-index: 1001) mais pas trop haut */
             display: flex;
@@ -602,7 +605,7 @@
                 });
             });
             
-            console.log('🎯 Script d\'alignement des menus activé');
+            // console.log('🎯 Script d\'alignement des menus activé');
         });
     </script>
 </head>
@@ -619,7 +622,7 @@
         // window.DEBUG_CONSTRUCTION = true;
         // window.VERBOSE_DPAD_LOGS = true;
         
-        console.log('⚙️ Configuration des logs appliquée - Mode production activé');
+        // console.log('⚙️ Configuration des logs appliquée - Mode production activé');
     </script>
     
     <!-- Barre d'outils -->
@@ -712,7 +715,7 @@
                 <div class="header-left">
                     <h1 class="logo">
                         <span class="logo-text">WallSim3D</span>
-                        <span class="logo-version">v1.0</span>
+                        <span class="logo-version">v1.0.2</span>
                     </h1>
                     
                     <!-- Menu Bar -->
@@ -1021,19 +1024,22 @@
                         <!-- Vue d'ensemble globale des assises -->
                         <div class="tool-section">
                             <h4><i class="fas fa-chart-bar"></i> Vue d'ensemble des Assises</h4>
+                            
+                            <!-- Boutons de gestion des assises -->
+                            <div class="assise-controls">
+                                <div class="button-group">
+                                    <button id="addAssise" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Ajouter Assise</button>
+                                    <button id="removeAssise" class="btn btn-sm btn-warning" disabled=""><i class="fas fa-trash"></i> Supprimer</button>
+                                    <button id="copyAssiseBtn" class="btn btn-sm btn-success"><i class="fas fa-copy"></i> Copier…</button>
+                                </div>
+                            </div>
+                            
                             <div class="assise-global-overview">
-                                <div class="overview-stats">
-                                    <div class="stat-item">
-                                        <span class="stat-label">Total Assises:</span>
-                                        <span class="stat-value" id="totalAssisesCount">0</span>
-                                    </div>
-                                    <div class="stat-item">
-                                        <span class="stat-label">Total Éléments:</span>
-                                        <span class="stat-value" id="totalElementsCount">0</span>
-                                    </div>
-                                    <div class="stat-item">
-                                        <span class="stat-label">Hauteur Totale:</span>
-                                        <span class="stat-value" id="totalHeightValue">0.0 cm</span>
+                                <!-- Info du type courant (vue globale) -->
+                                <div class="current-type-info">
+                                    <div class="type-badge-display">
+                                        <span class="type-badge M65" id="currentTypeBadgeGlobal">M65</span>
+                                        <span class="type-description" id="currentTypeDescriptionGlobal">Briques 6.5cm - Assise 1 active (1 total)</span>
                                     </div>
                                 </div>
                                 
@@ -1041,7 +1047,7 @@
                                 <div class="assise-global-list">
                                     <div class="list-header">
                                         <span class="header-icon"><i class="fas fa-clipboard-list"></i></span>
-                                        <span class="header-title">Assises Remplies</span>
+                                        <span class="header-title">Assises</span>
                                         <button id="toggleGlobalList" class="btn btn-xs btn-secondary">Masquer</button>
                                     </div>
                                     <div class="list-content" id="globalAssiseList">
@@ -1054,39 +1060,47 @@
                         <div class="tool-section">
                             <h4><i class="fas fa-wrench"></i> Gestion des Assises</h4>
                             
-                            <!-- Informations du type actuel -->
-                            <div class="current-type-info">
-                                <div class="type-badge-display">
-                                    <span class="type-badge" id="currentTypeBadge">M65</span>
-                                    <span class="type-description" id="currentTypeDescription">Briques 6.5cm - Assise active</span>
-                                </div>
-                            </div>
-                            
                             <div class="assise-controls">
                                 <div class="control-group">
                                     <label for="jointHeight">Hauteur joint (cm):</label>
                                     <input type="number" id="jointHeight" min="0.1" max="5" step="0.1" value="1.2">
                                 </div>
-                                
-                                <div class="button-group">
-                                    <button id="addAssise" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Ajouter Assise</button>
-                                    <button id="removeAssise" class="btn btn-sm btn-warning"><i class="fas fa-trash"></i> Supprimer</button>
+
+                                <!-- Modal Copier Assise -->
+                                <div id="copyAssiseModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+                                    <div style="background:#fff; border-radius:8px; padding:16px; min-width:320px; max-width:90vw; box-shadow:0 8px 24px rgba(0,0,0,0.2);">
+                                        <h5 style="margin-top:0; margin-bottom:12px;">Copier une assise</h5>
+                                        <div style="margin-bottom:8px; font-size:0.9rem; color:#444;">
+                                            Source: <strong><span id="copyAssiseSourceLabel">-</span></strong>
+                                            <span style="opacity:0.7;">(Type <span id="copyAssiseTypeLabel">-</span>)</span>
+                                        </div>
+                                        <div class="form-group" style="margin-bottom:12px;">
+                                            <label for="copyAssiseDestination">Destination:</label>
+                                            <select id="copyAssiseDestination" class="form-control" style="width:100%;"></select>
+                                        </div>
+                                        <div class="form-group" style="margin-bottom:16px;">
+                                            <label style="cursor:pointer;">
+                                                <input type="checkbox" id="copyIncludeJoints" checked> Inclure les joints
+                                            </label>
+                                        </div>
+                                        <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                            <button id="cancelCopyAssise" class="btn btn-sm btn-secondary">Annuler</button>
+                                            <button id="confirmCopyAssise" class="btn btn-sm btn-success">Copier</button>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <div class="control-group">
-                                    <button id="toggleAssiseGrids" class="btn btn-sm btn-secondary"><i class="fas fa-eye"></i> Grilles</button>
-                                    <button id="toggleAttachmentMarkers" class="btn btn-sm btn-info"><i class="fas fa-map-pin"></i> Marqueurs</button>
-                                </div>
-                                
-                                <div class="info-group">
-                                    <div class="assise-details" id="currentAssiseDetails">
-                                        <span class="detail-label">Assise:</span>
-                                        <span class="detail-value" id="assiseCount">M65: 1 assise</span>
-                                    </div>
-                                    <div class="assise-details" id="activeAssiseInfo">
-                                        <span class="detail-label">État:</span>
-                                        <span class="detail-value">Assise active: vide</span>
-                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="toggleAssiseGrids" checked>
+                                        <span class="slider"></span>
+                                        <span class="toggle-label">Grilles</span>
+                                    </label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="toggleAttachmentMarkers" checked>
+                                        <span class="slider"></span>
+                                        <span class="toggle-label">Marqueurs</span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -1106,61 +1120,12 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Section Aides Visuelles -->
-                        <div class="tool-section">
-                            <h4><i class="fas fa-eye"></i> Aides Visuelles</h4>
-                            
-                            <div class="visual-aids-checkboxes">
-                                <div class="checkbox-group">
-                                    <label class="checkbox-item">
-                                        <input type="checkbox" id="toggleGridsTab" checked="">
-                                        <span class="checkmark"></span>
-                                        <i class="fas fa-th"></i> Grilles
-                                    </label>
-                                </div>
-                                
-                                <div class="checkbox-group">
-                                    <label class="checkbox-item">
-                                        <input type="checkbox" id="toggleMarkersTab" checked="">
-                                        <span class="checkmark"></span>
-                                        <i class="fas fa-map-pin"></i> Points d'Accroche
-                                    </label>
-                                </div>
-                                
-                                <div class="checkbox-group">
-                                    <label class="checkbox-item">
-                                        <input type="checkbox" id="toggleSnapPointTab">
-                                        <span class="checkmark"></span>
-                                        <i class="fas fa-crosshairs"></i> Point de Suivi
-                                    </label>
-                                </div>
-                                
-                                <div class="checkbox-group">
-                                    <label class="checkbox-item">
-                                        <input type="checkbox" id="toggleUsedElementsFrameTab">
-                                        <span class="checkmark"></span>
-                                        <i class="fas fa-border-all"></i> Encadrer Éléments Utilisés
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Contenu onglet Biblio -->
                     <div id="tab-content-biblio" class="tab-content active">
-                        <!-- Indicateur de brique sélectionnée -->
-                        <div class="selected-brick-info" style="display: block;">
-                            <div class="info-header">
-                                <span class="icon"><i class="fas fa-ruler"></i></span>
-                                <span>Brique sélectionnée</span>
-                            </div>
-                            <div id="currentBrickDisplay" class="brick-display">
-                                <div class="brick-name">Brique M65</div>
-                                <div class="brick-dimensions">19×6.5×9 cm</div>
-                                <div class="brick-type">Entière</div>
-                            </div>
-                        </div>
+                        <!-- Indicateur de brique sélectionnée (déplacé en widget flottant) -->
+                        <div class="selected-brick-info placeholder" style="display:none;"></div>
                         
                         <div class="tool-section">
                             <h4>Bibliothèque d'Éléments</h4>
@@ -5286,7 +5251,7 @@ setTimeout(() => {
                 <div class="about-logo">
                     <i class="fas fa-cube"></i>
                 </div>
-                <div class="about-version">Version 1.0</div>
+                <div class="about-version">Version 1.0.2</div>
                 <div class="about-description">
                     Simulateur professionnel de construction murale en 3D
                 </div>

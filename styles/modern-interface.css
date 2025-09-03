@@ -185,7 +185,7 @@ body {
 
 .library-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
     gap: 12px;
     margin-bottom: 20px;
 }
@@ -664,7 +664,7 @@ body {
 .modern-toolbar {
     position: fixed;
     left: 15px;
-    top: 50px;
+    top: 120px;
     width: 60px;
     background: var(--glass-bg);
     backdrop-filter: blur(10px);

@@ -162,10 +162,10 @@ window.checkIcon = () => window.DEBUG_DELETE_ICON.checkIconState();
 window.mouseIcon = () => window.DEBUG_DELETE_ICON.createMouseIcon();
 window.fixedIcon = () => window.DEBUG_DELETE_ICON.createFixedTestIcon();
 
-console.log('🔧 Debug pour icône de suppression chargé');
-console.log('📝 Commandes disponibles:');
-console.log('  - testIcon() : Créer une icône de test');
-console.log('  - forceRepos() : Repositionner l\'icône actuelle');
-console.log('  - checkIcon() : Vérifier l\'état de l\'icône');
-console.log('  - mouseIcon() : Créer une icône qui suit la souris');
-console.log('  - fixedIcon() : Créer une icône fixe de test');
+// console.log('🔧 Debug pour icône de suppression chargé');
+// console.log('📝 Commandes disponibles:');
+// console.log('  - testIcon() : Créer une icône de test');
+// console.log('  - forceRepos() : Repositionner l\'icône actuelle');
+// console.log('  - checkIcon() : Vérifier l\'état de l\'icône');
+// console.log('  - mouseIcon() : Créer une icône qui suit la souris');
+// console.log('  - fixedIcon() : Créer une icône fixe de test');

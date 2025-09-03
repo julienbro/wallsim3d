@@ -407,6 +407,101 @@
     padding: 6px;
 }
 
+/* ===============================================
+   BOUTONS - GESTION DES ASSISES (plus visibles/beaux)
+   =============================================== */
+
+/* Layout du groupe de boutons */
+.assise-controls .button-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 6px 0 8px;
+}
+
+/* Boutons plus confortables dans cette zone */
+.assise-controls .button-group .btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.assise-controls .button-group .btn i {
+    font-size: 12px;
+    margin-right: 6px;
+}
+
+/* Variantes colorées plus marquées */
+.assise-controls .button-group .btn.btn-primary {
+    background: linear-gradient(180deg, var(--accent-color) 0%, var(--accent-active) 100%);
+}
+.assise-controls .button-group .btn.btn-primary:hover {
+    background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent-color) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 122, 204, 0.35);
+}
+.assise-controls .button-group .btn.btn-success {
+    background: linear-gradient(180deg, var(--success-color) 0%, #45a049 100%);
+    color: var(--text-primary);
+}
+.assise-controls .button-group .btn.btn-success:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+}
+.assise-controls .button-group .btn.btn-warning {
+    background: linear-gradient(180deg, var(--warning-color) 0%, #e67e00 100%);
+    color: var(--text-primary);
+}
+.assise-controls .button-group .btn.btn-warning:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+}
+
+/* État disabled mieux visible */
+.assise-controls .button-group .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    filter: grayscale(0.2);
+    box-shadow: none;
+    transform: none;
+}
+
+/* Mettre en valeur le bouton Ajouter Assise */
+.assise-controls .button-group #addAssise {
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #00ff88 0%, #00cc66 100%) !important;
+    border: 1px solid #00ff88 !important;
+    color: #000000 !important;
+    box-shadow: 0 4px 16px rgba(0, 255, 136, 0.6), 0 0 0 2px rgba(0, 255, 136, 0.2) inset;
+}
+
+.assise-controls .button-group #addAssise:hover {
+    transform: translateY(-1px) scale(1.02);
+    background: linear-gradient(180deg, #33ffaa 0%, #00ff88 100%) !important;
+    box-shadow: 0 6px 18px rgba(0, 255, 136, 0.7), 0 0 0 2px rgba(0, 255, 136, 0.3) inset;
+}
+
+.assise-controls .button-group #addAssise:focus-visible {
+    outline: 2px solid #00ff88;
+    outline-offset: 2px;
+}
+
+.assise-controls .button-group #addAssise:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 6px 18px rgba(0, 122, 204, 0.5), 0 0 0 2px rgba(0, 122, 204, 0.2) inset;
+}
+
+.assise-controls .button-group #addAssise:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
 .tools-element-preview {
     width: 240px;
     height: 180px;

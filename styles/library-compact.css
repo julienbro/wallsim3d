@@ -30,11 +30,12 @@
     gap: 0px !important; /* Suppression complète de l'espacement entre les items */
     margin-top: 0px !important; /* Suppression des marges */
     margin-bottom: 0px !important;
-    /* Configuration responsive pour visibilité garantie */
+    /* FORCE 2 colonnes exactement pour défilement vertical */
     display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important; /* Réduction (était 120px) */
-    /* Assurer que les éléments restent entièrement visibles */
-    overflow-x: auto !important;
+    grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
+    /* Défilement vertical, pas horizontal */
+    overflow-x: visible !important;
+    overflow-y: auto !important;
     width: 100% !important;
     box-sizing: border-box !important;
 }
@@ -181,7 +182,7 @@
 /* Très grands écrans (1600px+) - Éléments plus larges */
 @media (min-width: 1600px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important; /* Réduction (était 160px) */
+        grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
     }
     
     .library-item .preview-3d,
@@ -210,7 +211,7 @@
 /* Écrans larges (1200px-1599px) - Taille standard */
 @media (min-width: 1200px) and (max-width: 1599px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important; /* Réduction (était 140px) */
+        grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
     }
     
     .library-item .preview-3d,
@@ -232,7 +233,7 @@
 /* Écrans moyens (900px-1199px) - Éléments plus compacts */
 @media (min-width: 900px) and (max-width: 1199px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important; /* Réduction (était 120px) */
+        grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
     }
     
     .library-item .preview-3d,
@@ -270,7 +271,7 @@
 /* Tablettes (600px-899px) - Plus compact */
 @media (min-width: 600px) and (max-width: 899px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)) !important; /* Réduction (était 100px) */
+        grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
     }
     
     .library-item .preview-3d,
@@ -314,7 +315,7 @@
 
 @media (max-width: 1200px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important; /* Largeur réduite (était 250px) */
+        grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
         gap: 0px !important; /* Suppression complète du gap en responsive */
     }
 }
@@ -331,7 +332,7 @@
     }
     
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(75px, 1fr)) !important; /* Réduction (était 80px) */
+        grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
         gap: 0px !important;
     }
     
@@ -382,7 +383,7 @@
 /* Très petits écrans (479px et moins) - Ultra compact */
 @media (max-width: 479px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(75px, 1fr)) !important;
+        grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
     }
     
     .library-item {

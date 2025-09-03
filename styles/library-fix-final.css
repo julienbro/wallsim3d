@@ -1,0 +1,24 @@
+/* === CORRECTION FINALE BIBLIOTHÈQUE - FORCE 2 COLONNES === */
+
+/* Règle avec priorité maximale pour forcer 2 colonnes */
+html body .library-grid,
+html body .library-grid.force-visible,
+html body div .library-grid,
+html body #library .library-grid,
+html body .tab-content .library-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    overflow-x: visible !important;
+    overflow-y: auto !important;
+    gap: 8px !important;
+    width: 100% !important;
+}
+
+/* Force tous les éléments de la grille à respecter la limite */
+html body .library-grid .library-item,
+html body .library-grid.force-visible .library-item {
+    width: auto !important;
+    min-width: auto !important;
+    max-width: none !important;
+    flex: 1 1 auto !important;
+}

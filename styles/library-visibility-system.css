@@ -11,6 +11,7 @@
     max-width: 100% !important;
     overflow: visible !important;
     box-sizing: border-box !important;
+    max-height: 400px !important; /* Limite la hauteur pour forcer le défilement vertical */
 }
 
 /* Grille adaptative avec visibilité garantie */
@@ -22,24 +23,24 @@
     margin: 0px !important;
     box-sizing: border-box !important;
     
-    /* Système adaptatif : ajuste automatiquement le nombre de colonnes */
-    grid-template-columns: repeat(auto-fit, minmax(min(120px, calc(100vw / 6)), 1fr)) !important;
+    /* Forcer exactement 2 colonnes pour défilement vertical */
+    grid-template-columns: 1fr 1fr !important;
     
-    /* Si pas assez d'espace, permettre le scroll horizontal */
-    overflow-x: auto !important;
-    overflow-y: visible !important;
+    /* Défilement vertical comme les autres catégories */
+    overflow-x: visible !important;
+    overflow-y: auto !important;
 }
 
-/* === BREAKPOINTS POUR VISIBILITÉ OPTIMALE === */
+/* === FORCER 2 COLONNES SUR TOUS LES ÉCRANS === */
 
-/* Très larges écrans - 6+ éléments visibles */
+/* Très larges écrans - FORCE 2 colonnes */
 @media (min-width: 1400px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+        grid-template-columns: 1fr 1fr !important;
     }
     
     .library-item {
-        max-width: 160px !important;
+        max-width: none !important;
         min-height: 140px !important;
     }
     
@@ -50,14 +51,14 @@
     }
 }
 
-/* Écrans larges - 5 éléments visibles */
+/* Écrans larges - FORCE 2 colonnes */
 @media (min-width: 1200px) and (max-width: 1399px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+        grid-template-columns: 1fr 1fr !important;
     }
     
     .library-item {
-        max-width: 140px !important;
+        max-width: none !important;
         min-height: 130px !important;
     }
     
@@ -68,14 +69,14 @@
     }
 }
 
-/* Écrans moyens - 4 éléments visibles */
+/* Écrans moyens - FORCE 2 colonnes */
 @media (min-width: 1000px) and (max-width: 1199px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+        grid-template-columns: 1fr 1fr !important;
     }
     
     .library-item {
-        max-width: 130px !important;
+        max-width: none !important;
         min-height: 120px !important;
     }
     
@@ -86,14 +87,14 @@
     }
 }
 
-/* Écrans moyens-petits - 3 éléments visibles */
+/* Écrans moyens-petits - FORCE 2 colonnes */
 @media (min-width: 800px) and (max-width: 999px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important;
+        grid-template-columns: 1fr 1fr !important;
     }
     
     .library-item {
-        max-width: 120px !important;
+        max-width: none !important;
         min-height: 110px !important;
     }
     
@@ -111,14 +112,14 @@
     }
 }
 
-/* Tablettes - 2-3 éléments visibles */
+/* Tablettes - FORCE 2 colonnes */
 @media (min-width: 600px) and (max-width: 799px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
+        grid-template-columns: 1fr 1fr !important;
     }
     
     .library-item {
-        max-width: 110px !important;
+        max-width: none !important;
         min-height: 100px !important;
     }
     
@@ -137,17 +138,18 @@
     }
 }
 
-/* Mobiles - 2 éléments visibles minimum */
+/* Mobiles - FORCE 2 colonnes */
 @media (max-width: 599px) {
     .library-grid {
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)) !important;
-        /* Sur mobile, autoriser le scroll si nécessaire */
-        overflow-x: auto !important;
+        grid-template-columns: 1fr 1fr !important;
+        /* Sur mobile, garder le scroll vertical */
+        overflow-x: visible !important;
+        overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
     }
     
     .library-item {
-        max-width: 100px !important;
+        max-width: none !important;
         min-height: 90px !important;
         padding: 2px !important;
     }
@@ -214,8 +216,9 @@
 
 /* Classe utilitaire pour forcer la visibilité complète */
 .library-grid.force-visible {
-    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)) !important;
-    overflow-x: auto !important;
+    grid-template-columns: 1fr 1fr !important; /* FORCÉ À 2 COLONNES */
+    overflow-x: visible !important;
+    overflow-y: auto !important;
 }
 
 .library-grid.force-visible .library-item {

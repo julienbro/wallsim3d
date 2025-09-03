@@ -157,6 +157,67 @@ textarea, select {
     color: var(--text-secondary);
 }
 
+/* === TOGGLE SWITCHES STANDARDISÉS === */
+.toggle-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    user-select: none;
+    margin: var(--spacing-xs) 0;
+}
+
+.toggle-switch input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.toggle-switch .slider {
+    position: relative;
+    width: 50px;
+    height: 24px;
+    background: var(--quaternary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    transition: var(--transition-normal);
+    flex-shrink: 0;
+}
+
+.toggle-switch .slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: var(--text-secondary);
+    border-radius: 50%;
+    transition: var(--transition-normal);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch input:checked + .slider {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.toggle-switch input:checked + .slider::before {
+    transform: translateX(26px);
+    background: var(--text-primary);
+}
+
+.toggle-switch:hover .slider {
+    box-shadow: var(--shadow-light);
+}
+
+.toggle-switch .toggle-label {
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+    font-weight: 500;
+}
+
 /* === DIALOGUES STANDARDISÉS === */
 .dialog-overlay {
     position: fixed;
