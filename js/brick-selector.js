@@ -573,8 +573,8 @@ class BrickSelector {
             window.lastCutSelection.baseType === type && // ✅ CORRECTION: Vérifier que le type de base correspond
             (Date.now() - window.lastCutSelection.timestamp) < 5000) { // 5 secondes
             
-            console.log('🛡️ BrickSelector: Préservation de la sélection de coupe récente:', 
-                        window.lastCutSelection.finalType, 'au lieu de', type);
+            // console.log('🛡️ BrickSelector: Préservation de la sélection de coupe récente:', 
+            //             window.lastCutSelection.finalType, 'au lieu de', type);
             
             type = window.lastCutSelection.finalType;
         }

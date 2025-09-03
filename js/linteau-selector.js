@@ -579,7 +579,33 @@ class LinteauSelector {
         // Mettre à jour l'interface
         this.updateConstructionToolsDimensions();
         
+        // Mettre à jour la surbrillance dans la bibliothèque
+        this.updateLibraryHighlight();
+        
         console.log('Linteau défini:', baseType, this.currentLinteau);
+    }
+
+    updateLibraryHighlight() {
+        // Supprimer la surbrillance de tous les éléments de bibliothèque
+        const allLibraryItems = document.querySelectorAll('.library-item');
+        allLibraryItems.forEach(item => {
+            item.classList.remove('active');
+            // Supprimer aussi l'état actif des boutons de coupe
+            const cutButtons = item.querySelectorAll('.cut-btn-mini');
+            cutButtons.forEach(btn => btn.classList.remove('active'));
+        });
+        
+        // Ajouter la surbrillance à l'élément actuel
+        const currentLibraryItem = document.querySelector(`[data-type="${this.currentLinteau}"]`);
+        if (currentLibraryItem) {
+            currentLibraryItem.classList.add('active');
+            
+            // Activer le bouton 1/1 pour les linteaux (généralement pas de coupes)
+            const wholeButton = currentLibraryItem.querySelector('[data-cut="1/1"]');
+            if (wholeButton) {
+                wholeButton.classList.add('active');
+            }
+        }
     }
 }
 

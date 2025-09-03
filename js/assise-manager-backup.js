@@ -1,38 +1,38 @@
-// Gestionnaire des assises (rangàes de briques) - Version Multi-Types
+// Gestionnaire des assises (rang�es de briques) - Version Multi-Types
 class AssiseManager {
     constructor() {
-        // Systàme multi-stack: une stack d'assises par type d'élément
+        // Syst�me multi-stack: une stack d'assises par type d'�l�ment
         this.assisesByType = new Map(); // Map<type, Map<assiseIndex, assise>>
         this.elementsByType = new Map(); // Map<type, Map<assiseIndex, Set<elementId>>>
         this.gridHelpersByType = new Map(); // Map<type, Map<assiseIndex, gridHelper>>
         this.attachmentMarkersByType = new Map(); // Map<type, Map<assiseIndex, markers>>
         
-        // Types d'éléments supportés - incluant les sous-types de briques et blocs
+        // Types d'�l�ments support�s - incluant les sous-types de briques et blocs
         this.supportedTypes = ['brick', 'block', 'insulation', 'custom', 'joint', 'linteau'];
         
-        // Sous-types de briques supportés pour gestion d'assise indépendante
+        // Sous-types de briques support�s pour gestion d'assise ind�pendante
         this.brickSubTypes = ['M50', 'M57', 'M60', 'M65', 'M90'];
         
-        // Sous-types de blocs supportés pour gestion d'assise indépendante
+        // Sous-types de blocs support�s pour gestion d'assise ind�pendante
         this.blockSubTypes = ['HOLLOW', 'CELLULAR', 'ARGEX', 'TERRACOTTA'];
         
-        // Sous-types de linteaux supportés pour gestion d'assise indépendante
+        // Sous-types de linteaux support�s pour gestion d'assise ind�pendante
         this.linteauSubTypes = ['LINTEAU_L120', 'LINTEAU_L140', 'LINTEAU_L160', 'LINTEAU_L180', 'LINTEAU_L200'];
         
-        // Sous-types GLB supportés pour gestion d'assise indépendante
+        // Sous-types GLB support�s pour gestion d'assise ind�pendante
         this.glbSubTypes = ['hourdis_13_60', 'hourdis_16_60'];
         
-        // Extension des types supportés avec les sous-types de briques, blocs, linteaux et GLB
+        // Extension des types support�s avec les sous-types de briques, blocs, linteaux et GLB
         this.allSupportedTypes = [...this.supportedTypes, ...this.brickSubTypes, ...this.blockSubTypes, ...this.linteauSubTypes, ...this.glbSubTypes];
         
-        // àtat actuel
-        this.currentType = 'M65'; // Type d'assise actif (M65 par défaut)
+        // �tat actuel
+        this.currentType = 'M65'; // Type d'assise actif (M65 par d�faut)
         this.currentAssiseByType = new Map(); // Map<type, assiseIndex> - assise active par type
         
         // Garde anti-boucle infinie pour le repositionnement
         this.isRepositioning = false;
         
-        // Hauteur du joint horizontal par type d'assise (par défaut 1.2cm)
+        // Hauteur du joint horizontal par type d'assise (par d�faut 1.2cm)
         this.jointHeightByType = new Map();
         
         // Hauteur du joint par assise individuelle : Map<type, Map<assiseIndex, jointHeight>>
@@ -46,22 +46,22 @@ class AssiseManager {
         }
         
         this.showAssiseGrids = false;
-        this.showAttachmentMarkers = true; // Contràle l'affichage des marqueurs d'accroche
+        this.showAttachmentMarkers = true; // Contr�le l'affichage des marqueurs d'accroche
         this.isInitialized = false;
         
         // Point d'accrochage dynamique qui suit la souris
         this.snapPoint = null; // Point d'accrochage unique
         this.showSnapPoint = true; // Afficher le point d'accrochage
         
-        // Paramàtres visuels
+        // Param�tres visuels
         this.gridColor = 0x3498db; // Couleur de la grille de l'assise
         this.activeGridColor = 0xe74c3c; // Couleur de la grille active
         this.attachmentMarkerColor = 0xf39c12; // Couleur des marqueurs d'accroche (orange)
-        this.attachmentMarkerOpacity = 0.7; // Opacità des marqueurs d'accroche
+        this.attachmentMarkerOpacity = 0.7; // Opacit� des marqueurs d'accroche
         this.gridOpacity = 0.3;
         this.activeGridOpacity = 0.6;
         
-        // Propriàtàs d'animation pour les points d'accroche
+        // Propri�t�s d'animation pour les points d'accroche
         this.animationFrameId = null;
         this.animationRunning = false;
         
@@ -69,26 +69,26 @@ class AssiseManager {
         this.initializeTypeStructures();
     }
 
-    // ? UTILITAIRE: Vàrifier si un type est supporté (incluant les types personnalisàs)
+    // ? UTILITAIRE: V�rifier si un type est support� (incluant les types personnalis�s)
     isSupportedType(type) {
-        // Types de base supportés
+        // Types de base support�s
         if (this.allSupportedTypes.includes(type)) {
             return true;
         }
         
-        // Types GLB spécifiques
+        // Types GLB sp�cifiques
         if (type && type.includes('hourdis')) {
             return true;
         }
         
-        // Types personnalisàs (contiennent _CUSTOM_)
+        // Types personnalis�s (contiennent _CUSTOM_)
         if (type && type.includes('_CUSTOM_')) {
-            // Extraire le type de base et vàrifier s'il est supporté
+            // Extraire le type de base et v�rifier s'il est support�
             const baseType = type.split('_')[0];
             return this.allSupportedTypes.includes(baseType);
         }
         
-        // Types coupàs (contiennent _HALF, _3Q, _1Q)
+        // Types coup�s (contiennent _HALF, _3Q, _1Q)
         if (type && (type.includes('_HALF') || type.includes('_3Q') || type.includes('_1Q'))) {
             const baseType = type.split('_')[0];
             return this.allSupportedTypes.includes(baseType);
@@ -97,7 +97,7 @@ class AssiseManager {
         return false;
     }
 
-    // Initialiser les structures de données pour tous les types supportés
+    // Initialiser les structures de donn�es pour tous les types support�s
     initializeTypeStructures() {
         for (const type of this.allSupportedTypes) {
             this.assisesByType.set(type, new Map());
@@ -108,7 +108,7 @@ class AssiseManager {
         }
     }
 
-    // S'assurer qu'un type est initialisà (pour les briques coupàes)
+    // S'assurer qu'un type est initialis� (pour les briques coup�es)
     ensureTypeInitialized(type) {
         if (!this.assisesByType.has(type)) {
             this.assisesByType.set(type, new Map());
@@ -117,27 +117,27 @@ class AssiseManager {
             this.attachmentMarkersByType.set(type, new Map());
             this.currentAssiseByType.set(type, 0);
             
-            // ? CORRECTION: Utiliser la màthode isSupportedType pour vàrifier
+            // ? CORRECTION: Utiliser la m�thode isSupportedType pour v�rifier
             if (!this.isSupportedType(type)) {
-                // Pour les types personnalisàs, extraire le type de base
+                // Pour les types personnalis�s, extraire le type de base
                 const baseType = type.split('_')[0];
                 if (this.isSupportedType(baseType)) {
-                    // console.log(`🔧 Type personnalisé ${type} accepté (base: ${baseType})`);
+                    console.log(`? Type personnalis� ${type} accept� (base: ${baseType})`);
                 } else {
                     if (window.DEBUG_CONSTRUCTION) {
-                        console.warn(`🔧 Type non supporté: ${type}`);
+                        console.warn(`?? Type non support�: ${type}`);
                     }
                 }
             }
         }
     }
 
-    // Getter pour la hauteur du joint d'un type donné
+    // Getter pour la hauteur du joint d'un type donn�
     getJointHeightForType(type) {
-        return this.jointHeightByType.get(type) || 1.2;
+        return this.jointHeightByType.get(type) ?? 1.2;
     }
 
-    // Setter pour la hauteur du joint d'un type donné
+    // Setter pour la hauteur du joint d'un type donn�
     setJointHeightForType(type, height) {
         const h = Math.max(0.1, height); // Minimum 0.1 cm
         this.jointHeightByType.set(type, h);
@@ -148,7 +148,7 @@ class AssiseManager {
             const newHeight = this.calculateAssiseHeightForType(type, index);
             assise.height = newHeight;
             
-            // Mettre à jour les grilles
+            // Mettre � jour les grilles
             if (assise.gridMesh) {
                 assise.gridMesh.position.y = newHeight;
             }
@@ -156,19 +156,19 @@ class AssiseManager {
                 assise.jointGridMesh.position.y = newHeight + this.getMaxElementHeightInAssiseForType(type, index);
             }
             
-            // Mettre à jour les éléments (repositionner SEULEMENT les blocs et briques, PAS les joints)
+            // Mettre � jour les �l�ments (repositionner SEULEMENT les blocs et briques, PAS les joints)
             for (const elementId of assise.elements) {
                 const element = window.SceneManager.elements.get(elementId);
                 if (element && element.mesh) {
                     // EXCLURE les joints du repositionnement - ils ont leur propre logique
                     if (element.isVerticalJoint || element.isHorizontalJoint) {
-                        // // console.log(`🔧 Joint ${elementId} ignoré lors du repositionnement (a sa propre logique)`);
+                        console.log(`?? Joint ${elementId} ignor� lors du repositionnement (a sa propre logique)`);
                         continue;
                     }
                     
                     // Utiliser updateElementPositionInAssise pour repositionner correctement les blocs/briques
                     this.updateElementPositionInAssise(element.mesh, type, index);
-                    // // console.log(`🔧 Bloc/Brique ${elementId} repositionné sur assise ${index} (${type}) à Y=${element.mesh.position.y}`);
+                    console.log(`?? Bloc/Brique ${elementId} repositionn� sur assise ${index} (${type}) � Y=${element.mesh.position.y}`);
                 }
             }
         }
@@ -188,41 +188,41 @@ class AssiseManager {
             }
         }
         this.updateUIComplete();
-        // console.log(`Hauteur du joint pour le type '${type}' mise à jour: ${h} cm`);
+        console.log(`Hauteur du joint pour le type '${type}' mise � jour: ${h} cm`);
     }
 
-    // Getter pour la hauteur du joint du type courant (compatibilité)
+    // Getter pour la hauteur du joint du type courant (compatibilit�)
     get jointHeight() {
         return this.getJointHeightForType(this.currentType);
     }
 
-    // Setter pour la hauteur du joint du type courant (compatibilité)
+    // Setter pour la hauteur du joint du type courant (compatibilit�)
     set jointHeight(height) {
         this.setJointHeightForType(this.currentType, height);
     }
 
     // === GESTION DES HAUTEURS DE JOINT PAR ASSISE INDIVIDUELLE ===
     
-    // Obtenir la hauteur de joint d'une assise spécifique
+    // Obtenir la hauteur de joint d'une assise sp�cifique
     getJointHeightForAssise(type, assiseIndex) {
         const jointsByType = this.jointHeightByAssise.get(type);
         if (!jointsByType) return this.getJointHeightForType(type);
         
-        // Si hauteur spécifique définie pour cette assise, l'utiliser
+        // Si hauteur sp�cifique d�finie pour cette assise, l'utiliser
         const specificHeight = jointsByType.get(assiseIndex);
         if (specificHeight !== undefined) {
             return specificHeight;
         }
         
-        // Sinon, utiliser la hauteur par défaut du type
+        // Sinon, utiliser la hauteur par d�faut du type
         return this.getJointHeightForType(type);
     }
     
-    // Dàfinir la hauteur de joint d'une assise spécifique
+    // D�finir la hauteur de joint d'une assise sp�cifique
     setJointHeightForAssise(type, assiseIndex, height) {
-        // PROTECTION ANTI-BOUCLE INFINIE: àviter les modifications pendant un repositionnement
+        // PROTECTION ANTI-BOUCLE INFINIE: �viter les modifications pendant un repositionnement
         if (this.isRepositioning) {
-            // // console.log(`🔧 PROTECTION ANTI-BOUCLE: setJointHeightForAssise évitée pendant repositionnement`);
+            console.log(`?? PROTECTION ANTI-BOUCLE: setJointHeightForAssise �vit�e pendant repositionnement`);
             return false;
         }
 
@@ -232,10 +232,10 @@ class AssiseManager {
             this.jointHeightByAssise.set(type, new Map());
         }
         
-        // Vàrifier si la valeur a ràellement changà
+        // V�rifier si la valeur a r�ellement chang�
         const currentHeight = this.jointHeightByAssise.get(type).get(assiseIndex);
         if (currentHeight !== undefined && Math.abs(currentHeight - h) < 0.001) {
-            // // console.log(`🔧 Joint de l'assise ${assiseIndex} (${type}) déjà à ${h} cm, pas de modification`);
+            console.log(`?? Joint de l'assise ${assiseIndex} (${type}) d�j� � ${h} cm, pas de modification`);
             return false;
         }
         
@@ -245,23 +245,23 @@ class AssiseManager {
         // (car changer une assise affecte la position de toutes les suivantes)
         this.recalculateAssiseHeightsForType(type);
         
-        // CORRECTION: Repositionner automatiquement tous les éléments existants de cette assise
+        // CORRECTION: Repositionner automatiquement tous les �l�ments existants de cette assise
         this.repositionElementsInAssise(type, assiseIndex);
         
-        // // console.log(`🔧 Hauteur de joint de l'assise ${assiseIndex} (${type}) définie à ${h} cm`);
+        console.log(`?? Hauteur de joint de l'assise ${assiseIndex} (${type}) d�finie � ${h} cm`);
         this.updateUI();
         
-        // NOUVEAU: Mettre à jour la hauteur du point de suivi après modification des joints
+        // NOUVEAU: Mettre � jour la hauteur du point de suivi apr�s modification des joints
         this.updateSnapPointHeight();
         
         return true;
     }
 
-    // Repositionner automatiquement tous les éléments d'une assise après changement de hauteur de joint
+    // Repositionner automatiquement tous les �l�ments d'une assise apr�s changement de hauteur de joint
     repositionElementsInAssise(type, assiseIndex) {
         // Garde anti-boucle infinie
         if (this.isRepositioning) {
-            // // console.log(`🔧 Repositionnement en cours, évitement de la boucle infinie`);
+            console.log(`?? Repositionnement en cours, �vitement de la boucle infinie`);
             return;
         }
         
@@ -279,7 +279,7 @@ class AssiseManager {
         const newAssiseHeight = this.getAssiseHeightForType(type, assiseIndex);
         let repositionedCount = 0;
 
-        // // console.log(`🔧 REPOSITIONNEMENT automatique assise ${assiseIndex} (${type}) - nouvelle hauteur: ${newAssiseHeight}cm`);
+        console.log(`?? REPOSITIONNEMENT automatique assise ${assiseIndex} (${type}) - nouvelle hauteur: ${newAssiseHeight}cm`);
 
         for (const elementId of assise.elements) {
             const element = window.SceneManager?.elements?.get(elementId);
@@ -290,29 +290,29 @@ class AssiseManager {
                 element.updatePosition(element.position.x, targetCenterY, element.position.z);
                 repositionedCount++;
                 
-                // console.log(`🔧 ${elementId}: ${oldY.toFixed(2)}cm → ${targetCenterY.toFixed(2)}cm`);
+                console.log(`   ?? ${elementId}: ${oldY.toFixed(2)}cm ? ${targetCenterY.toFixed(2)}cm`);
             }
         }
 
         if (repositionedCount > 0) {
-            // console.log(`📊 ${repositionedCount} élément(s) repositionné(s) dans l'assise ${assiseIndex} (${type})`);
+            console.log(`? ${repositionedCount} �l�ment(s) repositionn�(s) dans l'assise ${assiseIndex} (${type})`);
         }
         
-        this.isRepositioning = false; // Dàsactiver la garde
+        this.isRepositioning = false; // D�sactiver la garde
     }
     
-    // Supprimer la hauteur de joint personnalisàe d'une assise (revient au défaut du type)
+    // Supprimer la hauteur de joint personnalis�e d'une assise (revient au d�faut du type)
     resetJointHeightForAssise(type, assiseIndex) {
         const jointsByType = this.jointHeightByAssise.get(type);
         if (jointsByType && jointsByType.has(assiseIndex)) {
             jointsByType.delete(assiseIndex);
             this.recalculateAssiseHeightsForType(type);
-            // // console.log(`🔧 Hauteur de joint de l'assise ${assiseIndex} (${type}) réinitialisée`);
+            console.log(`?? Hauteur de joint de l'assise ${assiseIndex} (${type}) r�initialis�e`);
             this.updateUI();
         }
     }
     
-    // Recalculer toutes les hauteurs d'assises pour un type donné
+    // Recalculer toutes les hauteurs d'assises pour un type donn�
     recalculateAssiseHeightsForType(type) {
         const assisesForType = this.assisesByType.get(type);
         if (!assisesForType) return;
@@ -321,7 +321,7 @@ class AssiseManager {
             const newHeight = this.calculateAssiseHeightForType(type, index);
             assise.height = newHeight;
             
-            // Mettre à jour la position des grilles
+            // Mettre � jour la position des grilles
             if (assise.gridMesh) {
                 assise.gridMesh.position.y = newHeight;
             }
@@ -329,7 +329,7 @@ class AssiseManager {
                 assise.jointGridMesh.position.y = newHeight + this.getMaxElementHeightInAssiseForType(type, index);
             }
             
-            // Mettre à jour la position des éléments de cette assise
+            // Mettre � jour la position des �l�ments de cette assise
             for (const elementId of assise.elements) {
                 const element = this.findElementById(elementId);
                 if (element) {
@@ -338,7 +338,7 @@ class AssiseManager {
             }
         }
         
-        // Mettre à jour le plan de collision si c'est le type actuel
+        // Mettre � jour le plan de collision si c'est le type actuel
         if (type === this.currentType && window.SceneManager && typeof window.SceneManager.updateCollisionPlane === 'function') {
             const currentAssiseIndex = this.currentAssiseByType.get(type) || 0;
             const currentHeight = this.getAssiseHeight(currentAssiseIndex);
@@ -346,32 +346,32 @@ class AssiseManager {
         }
     }
 
-    // Getter pour les assises du type actuel (compatibilité avec l'ancien code)
+    // Getter pour les assises du type actuel (compatibilit� avec l'ancien code)
     get assises() {
         return this.assisesByType.get(this.currentType) || new Map();
     }
 
-    // Getter pour les éléments du type actuel (compatibilité avec l'ancien code)  
+    // Getter pour les �l�ments du type actuel (compatibilit� avec l'ancien code)  
     get elements() {
         return this.elementsByType.get(this.currentType) || new Map();
     }
 
-    // Getter pour les grilles du type actuel (compatibilité avec l'ancien code)
+    // Getter pour les grilles du type actuel (compatibilit� avec l'ancien code)
     get gridHelpers() {
         return this.gridHelpersByType.get(this.currentType) || new Map();
     }
 
-    // Getter pour les marqueurs du type actuel (compatibilité avec l'ancien code)
+    // Getter pour les marqueurs du type actuel (compatibilit� avec l'ancien code)
     get attachmentMarkers() {
         return this.attachmentMarkersByType.get(this.currentType) || new Map();
     }
 
-    // Getter pour l'assise active du type actuel (compatibilité avec l'ancien code)
+    // Getter pour l'assise active du type actuel (compatibilit� avec l'ancien code)
     get currentAssise() {
         return this.currentAssiseByType.get(this.currentType) || 0;
     }
 
-    // Setter pour l'assise active du type actuel (compatibilité avec l'ancien code)
+    // Setter pour l'assise active du type actuel (compatibilit� avec l'ancien code)
     set currentAssise(value) {
         this.currentAssiseByType.set(this.currentType, value);
     }
@@ -379,14 +379,14 @@ class AssiseManager {
     // Changer le type d'assise actif
     setActiveType(type) {
         if (!this.allSupportedTypes.includes(type)) {
-            console.warn(`Type d'assise non supporté: ${type}`);
+            console.warn(`Type d'assise non support�: ${type}`);
             return false;
         }
 
         const previousType = this.currentType;
         this.currentType = type;
 
-        // Masquer les grilles du type pràcàdent
+        // Masquer les grilles du type pr�c�dent
         if (previousType !== type) {
             this.hideGridsForType(previousType);
         }
@@ -394,10 +394,10 @@ class AssiseManager {
         // Afficher les grilles du nouveau type
         this.updateAllGridVisibility();
         
-        // Mettre à jour l'interface
+        // Mettre � jour l'interface
         this.updateUI();
         
-        // console.log(`Type d'assise actif changé de '${previousType}' vers '${type}'`);
+        console.log(`Type d'assise actif chang� de '${previousType}' vers '${type}'`);
         
         // Notifier le changement de type
         document.dispatchEvent(new CustomEvent('assiseTypeChanged', {
@@ -412,12 +412,12 @@ class AssiseManager {
         return true;
     }
 
-    // Màthode pour changer le type d'assise actuel
+    // M�thode pour changer le type d'assise actuel
     setCurrentType(type, skipToolChange = false) {
-        // NOUVEAU: Si l'onglet Outils est en cours de mise à jour, ne pas interfàrer
+        // NOUVEAU: Si l'onglet Outils est en cours de mise � jour, ne pas interf�rer
         if (window.toolsTabUpdating) {
-            // // console.log(`🔧 AssiseManager: Onglet Outils en cours de mise à jour, pas d'interférence avec ${type}`);
-            return true; // Simuler le succàs pour àviter les erreurs
+            console.log(`?? AssiseManager: Onglet Outils en cours de mise � jour, pas d'interf�rence avec ${type}`);
+            return true; // Simuler le succ�s pour �viter les erreurs
         }
         
         // Extraire le type de base si c'est un type de coupe
@@ -432,17 +432,17 @@ class AssiseManager {
             }
         }
         
-        // ? CORRECTION: Utiliser la màthode utilitaire pour vàrifier le support
+        // ? CORRECTION: Utiliser la m�thode utilitaire pour v�rifier le support
         if (!this.isSupportedType(type)) {
-            // console.warn(`Type non supporté: ${type} (base: ${baseType})`);
+            // console.warn(`Type non support�: ${type} (base: ${baseType})`);
             return false;
         }
         
-        // ? CORRECTION: Calculer si c'est un type personnalisà
+        // ? CORRECTION: Calculer si c'est un type personnalis�
         const isCustomType = type && type.includes('_CUSTOM_');
         
         if (this.currentType === baseType || (isCustomType && this.currentType === type)) {
-            return true; // Dàjà le type actuel
+            return true; // D�j� le type actuel
         }
         
         // console.log(`Changement de type d'assise: ${this.currentType} ? ${baseType}`);
@@ -459,21 +459,21 @@ class AssiseManager {
             
             const targetMode = toolModeMap[baseType];
             if (targetMode && window.ConstructionTools.currentMode !== targetMode) {
-                // console.log(`Activation automatique de l'outil: ${targetMode}`);
-                window.ConstructionTools.setMode(targetMode, true); // preserveDimensions = true pour àviter changements non dàsiràs
+                console.log(`Activation automatique de l'outil: ${targetMode}`);
+                window.ConstructionTools.setMode(targetMode, true); // preserveDimensions = true pour �viter changements non d�sir�s
             }
         }
         
-        // Mettre à jour l'interface utilisateur
+        // Mettre � jour l'interface utilisateur
         this.updateUI();
         
-        // Mettre à jour la visibilità des grilles (seul le type actuel est visible)
+        // Mettre � jour la visibilit� des grilles (seul le type actuel est visible)
         this.updateAllGridVisibility();
         
-        // Mettre à jour la hauteur du point d'accrochage
+        // Mettre � jour la hauteur du point d'accrochage
         this.updateSnapPointHeight();
         
-        // émettre un événement de changement de type
+        // �mettre un �v�nement de changement de type
         document.dispatchEvent(new CustomEvent('assiseTypeChanged', {
             detail: { 
                 newType: type,
@@ -484,7 +484,7 @@ class AssiseManager {
         return true;
     }
 
-    // Mettre à jour l'indicateur visuel du type de brique dans l'interface
+    // Mettre � jour l'indicateur visuel du type de brique dans l'interface
     updateBrickTypeIndicator(brickType) {
         const typeIndicator = document.getElementById('brickTypeIndicator');
         const currentTypeInfo = document.getElementById('currentTypeInfo');
@@ -518,7 +518,7 @@ class AssiseManager {
         }
     }
 
-    // Masquer toutes les grilles d'un type donné
+    // Masquer toutes les grilles d'un type donn�
     hideGridsForType(type) {
         const gridHelpers = this.gridHelpersByType.get(type);
         if (gridHelpers) {
@@ -541,32 +541,32 @@ class AssiseManager {
     init() {
         if (this.isInitialized) return;
         
-        // Cràer l'assise par défaut pour chaque type
+        // Cr�er l'assise par d�faut pour chaque type
         for (const type of this.allSupportedTypes) {
             this.createDefaultAssiseForType(type);
         }
         
-        this.createSnapPoint(); // Cràer le point d'accrochage
+        this.createSnapPoint(); // Cr�er le point d'accrochage
         this.setupEventListeners();
-        this.updateUI(); // Mettre à jour l'interface avec les types d'assises
+        this.updateUI(); // Mettre � jour l'interface avec les types d'assises
         this.isInitialized = true;
     }
 
     createDefaultAssiseForType(type) {
-        // Cràer la premiàre assise (assise 0) pour ce type
+        // Cr�er la premi�re assise (assise 0) pour ce type
         this.addAssiseForType(type, 0);
         this.setActiveAssiseForType(type, 0);
     }
 
     createDefaultAssise() {
-        // Màthode de compatibilité - cràe l'assise par défaut pour le type actuel
+        // M�thode de compatibilit� - cr�e l'assise par d�faut pour le type actuel
         this.createDefaultAssiseForType(this.currentType);
     }
 
-    // Ajouter une assise pour un type spécifique
+    // Ajouter une assise pour un type sp�cifique
     addAssiseForType(type, index = null) {
         if (!this.allSupportedTypes.includes(type)) {
-            console.warn(`Type non supporté: ${type}`);
+            console.warn(`Type non support�: ${type}`);
             return null;
         }
 
@@ -581,7 +581,7 @@ class AssiseManager {
         const assise = {
             index: index,
             type: type,
-            height: this.calculateAssiseHeightForType(type, index), // Utiliser le calcul spécifique au type
+            height: this.calculateAssiseHeightForType(type, index), // Utiliser le calcul sp�cifique au type
             elements: new Set(),
             gridMesh: null,
             jointGridMesh: null,
@@ -594,7 +594,7 @@ class AssiseManager {
         
         this.updateUI();
         
-        // émettre un événement pour notifier qu'une assise a àtà ajoutàe
+        // �mettre un �v�nement pour notifier qu'une assise a �t� ajout�e
         document.dispatchEvent(new CustomEvent('assiseElementsChanged', {
             detail: { 
                 action: 'assiseAdded',
@@ -606,15 +606,15 @@ class AssiseManager {
         return assise;
     }
 
-    // Màthode de compatibilité
+    // M�thode de compatibilit�
     addAssise(index = null) {
         return this.addAssiseForType(this.currentType, index);
     }
 
-    // Dàfinir l'assise active pour un type spécifique
+    // D�finir l'assise active pour un type sp�cifique
     setActiveAssiseForType(type, index) {
         if (!this.allSupportedTypes.includes(type)) {
-            console.warn(`Type non supporté: ${type}`);
+            console.warn(`Type non support�: ${type}`);
             return false;
         }
 
@@ -627,22 +627,22 @@ class AssiseManager {
         const previousAssise = this.currentAssiseByType.get(type) || 0;
         this.currentAssiseByType.set(type, index);
 
-        // Si c'est le type actuel, mettre à jour l'affichage
+        // Si c'est le type actuel, mettre � jour l'affichage
         if (type === this.currentType) {
-            // Mettre à jour l'apparence et la visibilità de toutes les grilles
+            // Mettre � jour l'apparence et la visibilit� de toutes les grilles
             this.updateAllGridVisibility();
             
-            // Mettre à jour l'apparence des grilles (couleur et opacità)
+            // Mettre � jour l'apparence des grilles (couleur et opacit�)
             this.updateGridAppearanceForType(type, previousAssise);
             this.updateGridAppearanceForType(type, index);
             
-            // Mettre à jour la position du point d'accrochage
+            // Mettre � jour la position du point d'accrochage
             this.updateSnapPointHeight();
             
-            // Mettre à jour les marqueurs d'accroche
+            // Mettre � jour les marqueurs d'accroche
             this.updateAttachmentMarkers();
             
-            // CORRECTION: Dàplacer l'élément fantàme à la hauteur de l'assise active avec logs dàtaillàs
+            // CORRECTION: D�placer l'�l�ment fant�me � la hauteur de l'assise active avec logs d�taill�s
             if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
                 const assiseHeight = this.getAssiseHeight(index);
                 const ghostHeight = window.ConstructionTools.ghostElement.dimensions.height;
@@ -657,7 +657,7 @@ class AssiseManager {
             
             this.updateUI();
             
-            // Notifier le changement d'assise pour la mise à jour du raycasting
+            // Notifier le changement d'assise pour la mise � jour du raycasting
             document.dispatchEvent(new CustomEvent('assiseChanged', {
                 detail: { 
                     assise: index,
@@ -666,7 +666,7 @@ class AssiseManager {
                 }
             }));
             
-            // Garder la synchronisation directe en fallback (au cas oà l'événement ne fonctionne pas)
+            // Garder la synchronisation directe en fallback (au cas o� l'�v�nement ne fonctionne pas)
             if (window.ToolsTabManager) {
                 window.ToolsTabManager.updateDisplay();
             }
@@ -675,15 +675,15 @@ class AssiseManager {
         return true;
     }
 
-    // Màthode de compatibilité
+    // M�thode de compatibilit�
     setActiveAssise(index) {
         return this.setActiveAssiseForType(this.currentType, index);
     }
 
-    // Supprimer une assise d'un type spécifique
+    // Supprimer une assise d'un type sp�cifique
     removeAssiseForType(type, index) {
         if (!this.allSupportedTypes.includes(type)) {
-            console.warn(`Type non supporté: ${type}`);
+            console.warn(`Type non support�: ${type}`);
             return false;
         }
 
@@ -693,14 +693,14 @@ class AssiseManager {
         if (assisesForType.has(index)) {
             const assise = assisesForType.get(index);
             
-            // Supprimer les éléments de cette assise
+            // Supprimer les �l�ments de cette assise
             const nonJointElementCount = this.getNonJointElementCountForType(type, index);
             if (nonJointElementCount > 0) {
-                if (!confirm(`L'assise ${index + 1} du type '${type}' contient ${nonJointElementCount} élément(s). Voulez-vous vraiment la supprimer ?`)) {
+                if (!confirm(`L'assise ${index + 1} du type '${type}' contient ${nonJointElementCount} �l�ment(s). Voulez-vous vraiment la supprimer ?`)) {
                     return false;
                 }
                 
-                // Supprimer tous les éléments
+                // Supprimer tous les �l�ments
                 for (const elementId of assise.elements) {
                     const element = window.SceneManager.elements.get(elementId);
                     if (element) {
@@ -716,7 +716,7 @@ class AssiseManager {
             assisesForType.delete(index);
             elementsForType.delete(index);
             
-            // Si c'àtait l'assise active, passer à une autre
+            // Si c'�tait l'assise active, passer � une autre
             if (this.currentAssiseByType.get(type) === index) {
                 const availableAssises = Array.from(assisesForType.keys()).sort((a, b) => a - b);
                 this.setActiveAssiseForType(type, availableAssises[0] || 0);
@@ -724,7 +724,7 @@ class AssiseManager {
             
             this.updateUI();
             
-            // émettre un événement pour notifier qu'une assise a àtà supprimàe
+            // �mettre un �v�nement pour notifier qu'une assise a �t� supprim�e
             document.dispatchEvent(new CustomEvent('assiseElementsChanged', {
                 detail: { 
                     action: 'assiseRemoved',
@@ -738,7 +738,7 @@ class AssiseManager {
         return false;
     }
 
-    // Màthode de compatibilité
+    // M�thode de compatibilit�
     removeAssise(index) {
         return this.removeAssiseForType(this.currentType, index);
     }
@@ -750,7 +750,7 @@ class AssiseManager {
             return assisesForCurrentType.get(index).height;
         }
         
-        // Si pas trouvé dans le type actuel, chercher dans tous les types
+        // Si pas trouv� dans le type actuel, chercher dans tous les types
         for (const type of this.supportedTypes) {
             const assisesForType = this.assisesByType.get(type);
             if (assisesForType && assisesForType.has(index)) {
@@ -764,19 +764,19 @@ class AssiseManager {
     getAssiseHeightForType(type, index) {
         let assisesForType = this.assisesByType.get(type);
         
-        // Si le type n'existe pas, essayer avec le type de base (pour les briques coupàes)
+        // Si le type n'existe pas, essayer avec le type de base (pour les briques coup�es)
         if (!assisesForType && type.includes('_')) {
             const baseType = type.split('_')[0];
-            // // console.log(`🔧 AssiseManager: Type ${type} non trouvé, essai avec le type de base: ${baseType}`);
+            console.log(`?? AssiseManager: Type ${type} non trouv�, essai avec le type de base: ${baseType}`);
             assisesForType = this.assisesByType.get(baseType);
             
-            // Si trouvé avec le type de base, utiliser ce type pour le calcul
+            // Si trouv� avec le type de base, utiliser ce type pour le calcul
             if (assisesForType) {
                 type = baseType;
             }
         }
         
-        // Si toujours pas trouvé, initialiser le type
+        // Si toujours pas trouv�, initialiser le type
         if (!assisesForType) {
             this.ensureTypeInitialized(type);
             assisesForType = this.assisesByType.get(type);
@@ -789,26 +789,26 @@ class AssiseManager {
     }
 
     calculateAssiseHeight(index) {
-        // Version de compatibilité - utilise le type actuel
+        // Version de compatibilit� - utilise le type actuel
         return this.calculateAssiseHeightForType(this.currentType, index);
     }
 
     calculateAssiseHeightForType(type, index) {
         if (index === 0) {
-            // 🔧 HOURDIS: L'assise 0 des hourdis commence à Y=0 (pas de joint de base)
+            // ?? HOURDIS: L'assise 0 des hourdis commence � Y=0 (pas de joint de base)
             if (type.includes('hourdis')) {
                 return 0;
             }
             
-            // Assise 0 pour autres types : utilise la hauteur de joint spécifique ou celle par défaut du type
+            // Assise 0 pour autres types : utilise la hauteur de joint sp�cifique ou celle par d�faut du type
             const jointHeight = this.getJointHeightForAssise(type, 0);
             return jointHeight;
         }
         
-        // Pour les assises supàrieures, calculer en accumulant les hauteurs individuelles
+        // Pour les assises sup�rieures, calculer en accumulant les hauteurs individuelles
         let totalHeight = 0;
         
-        // Accumulation depuis l'assise 0 jusqu'à l'assise demandàe
+        // Accumulation depuis l'assise 0 jusqu'� l'assise demand�e
         for (let i = 0; i <= index; i++) {
             const jointHeightForThisAssise = this.getJointHeightForAssise(type, i);
             
@@ -816,19 +816,19 @@ class AssiseManager {
                 // Assise 0 : seulement la hauteur du joint
                 totalHeight = jointHeightForThisAssise;
             } else {
-                // Assises suivantes : hauteur de l'élément + joint suivant
+                // Assises suivantes : hauteur de l'�l�ment + joint suivant
                 const elementHeight = this.getDefaultElementHeight(type);
                 totalHeight += elementHeight + jointHeightForThisAssise;
             }
         }
         
-        // console.log(`🔧 Calcul assise ${index} (type ${type}) avec joints individuels:`);
-        // console.log(`   - Hauteur totale calculàe: ${totalHeight} cm`);
+        // console.log(`?? Calcul assise ${index} (type ${type}) avec joints individuels:`);
+        // console.log(`   - Hauteur totale calcul�e: ${totalHeight} cm`);
         
         return totalHeight;
     }
 
-    // Obtenir la hauteur par défaut d'un élément selon son type
+    // Obtenir la hauteur par d�faut d'un �l�ment selon son type
     getDefaultElementHeight(type) {
         // Pour les briques, essayer d'utiliser le BrickSelector s'il est disponible
         if (type === 'brick' && window.BrickSelector) {
@@ -838,7 +838,7 @@ class AssiseManager {
                     return currentBrick.height;
                 }
             } catch (error) {
-                console.warn('Erreur lors de la ràcupàration de la hauteur de brique depuis BrickSelector:', error);
+                console.warn('Erreur lors de la r�cup�ration de la hauteur de brique depuis BrickSelector:', error);
             }
         }
         
@@ -847,11 +847,11 @@ class AssiseManager {
             try {
                 const currentInsulation = window.InsulationSelector.getCurrentInsulationData();
                 if (currentInsulation && currentInsulation.height) {
-                    // console.log(`🔧 CORRECTION isolant: Hauteur récupérée depuis InsulationSelector: ${currentInsulation.height}cm (au lieu de 20cm par défaut)`);
+                    // console.log(`?? CORRECTION isolant: Hauteur r�cup�r�e depuis InsulationSelector: ${currentInsulation.height}cm (au lieu de 20cm par d�faut)`);
                     return currentInsulation.height;
                 }
             } catch (error) {
-                console.warn('Erreur lors de la ràcupàration de la hauteur d\'isolant depuis InsulationSelector:', error);
+                console.warn('Erreur lors de la r�cup�ration de la hauteur d\'isolant depuis InsulationSelector:', error);
             }
         }
         
@@ -859,23 +859,23 @@ class AssiseManager {
         if ((type === 'linteau' || this.linteauSubTypes.includes(type)) && window.LinteauSelector) {
             try {
                 const currentLinteau = window.LinteauSelector.getCurrentLinteauData();
-                // Logs de debug dàsactivàs pour ràduire le bruit
-                // console.log('🔧 Debug LinteauSelector:', {
+                // Logs de debug d�sactiv�s pour r�duire le bruit
+                // console.log('?? Debug LinteauSelector:', {
                 //     available: !!window.LinteauSelector,
                 //     currentLinteau: currentLinteau,
                 //     type: currentLinteau?.type,
                 //     height: currentLinteau?.height
                 // });
                 if (currentLinteau && currentLinteau.height) {
-                    // console.log(`🔧? Hauteur récupérée du LinteauSelector: ${currentLinteau.height} cm pour ${currentLinteau.type}`);
+                    // console.log(`??? Hauteur r�cup�r�e du LinteauSelector: ${currentLinteau.height} cm pour ${currentLinteau.type}`);
                     return currentLinteau.height;
                 }
             } catch (error) {
-                console.warn('Erreur lors de la ràcupàration de la hauteur de linteau depuis LinteauSelector:', error);
+                console.warn('Erreur lors de la r�cup�ration de la hauteur de linteau depuis LinteauSelector:', error);
             }
         }
         
-        // Pour les sous-types de briques, utiliser les hauteurs spécifiques
+        // Pour les sous-types de briques, utiliser les hauteurs sp�cifiques
         if (this.brickSubTypes.includes(type)) {
             const brickHeights = {
                 'M50': 5,
@@ -884,24 +884,24 @@ class AssiseManager {
                 'M65': 6.5,
                 'M90': 9
             };
-            // console.log(`🔧 Hauteur spécifique pour ${type}: ${brickHeights[type]} cm`);
+            // console.log(`?? Hauteur sp�cifique pour ${type}: ${brickHeights[type]} cm`);
             return brickHeights[type];
         }
         
         const defaultHeights = {
-            'brick': 6.5,      // Hauteur brique M65 (par défaut)
+            'brick': 6.5,      // Hauteur brique M65 (par d�faut)
             'block': 19,       // Hauteur bloc standard  
             'insulation': 20,  // Hauteur isolant standard
-            'custom': 10,      // Hauteur par défaut pour éléments custom
+            'custom': 10,      // Hauteur par d�faut pour �l�ments custom
             'linteau': 19,     // Hauteur linteau standard
             
-            // Sous-types de blocs avec leurs hauteurs spécifiques
+            // Sous-types de blocs avec leurs hauteurs sp�cifiques
             'HOLLOW': 19,      // Blocs creux (B9, B14, B19, B29) - hauteur 19 cm
-            'CELLULAR': 25,    // Bàton cellulaire (BC_*) - hauteur 25 cm
+            'CELLULAR': 25,    // B�ton cellulaire (BC_*) - hauteur 25 cm
             'ARGEX': 19,       // Blocs Argex - hauteur 19 cm
             'TERRACOTTA': 25,  // Terre cuite (TC_*) - hauteur 25 cm
             
-            // Sous-types de linteaux avec leurs hauteurs spécifiques
+            // Sous-types de linteaux avec leurs hauteurs sp�cifiques
             'LINTEAU_L120': 19,    // Linteau L120 - hauteur 19 cm
             'LINTEAU_L140': 19,    // Linteau L140 - hauteur 19 cm
             'LINTEAU_L160': 19,    // Linteau L160 - hauteur 19 cm
@@ -910,20 +910,20 @@ class AssiseManager {
         };
         
         if (defaultHeights[type]) {
-            // console.log(`🔧 Hauteur spécifique pour ${type}: ${defaultHeights[type]} cm`);
+            // console.log(`?? Hauteur sp�cifique pour ${type}: ${defaultHeights[type]} cm`);
             return defaultHeights[type];
         }
         
-        // console.log(`🔧 Hauteur par défaut utilisée: 6.5 cm pour type ${type} (non reconnu)`);
+        // console.log(`?? Hauteur par d�faut utilis�e: 6.5 cm pour type ${type} (non reconnu)`);
         return 6.5;
     }
 
-    // Dàtecter le sous-type de brique à partir de ses dimensions
+    // D�tecter le sous-type de brique � partir de ses dimensions
     detectBrickSubType(element) {
         if (!element || element.type !== 'brick') return null;
         
         const height = element.dimensions.height;
-        const tolerance = 0.1; // Tolàrance pour la comparaison des hauteurs
+        const tolerance = 0.1; // Tol�rance pour la comparaison des hauteurs
         
         // Mapper les hauteurs aux types de briques
         if (Math.abs(height - 5) < tolerance) return 'M50';
@@ -932,7 +932,7 @@ class AssiseManager {
         if (Math.abs(height - 6.5) < tolerance) return 'M65';
         if (Math.abs(height - 9) < tolerance) return 'M90';
         
-        // Si le BrickSelector est disponible, essayer de ràcupàrer le type depuis les dimensions globales
+        // Si le BrickSelector est disponible, essayer de r�cup�rer le type depuis les dimensions globales
         if (window.currentBrickDimensions && window.currentBrickDimensions.type) {
             const brickType = window.currentBrickDimensions.type;
             // Extraire le type de base (enlever les suffixes _3Q, _HALF, etc.)
@@ -942,10 +942,10 @@ class AssiseManager {
             }
         }
         
-        return null; // Type générique brick
+        return null; // Type g�n�rique brick
     }
 
-    // Dàtecter le sous-type de bloc à partir de ses propriétés
+    // D�tecter le sous-type de bloc � partir de ses propri�t�s
     detectBlockSubType(element) {
         if (!element || element.type !== 'block') {
             return null;
@@ -964,7 +964,7 @@ class AssiseManager {
                     const category = currentBlock.category;
                     
                     
-                    // Mapper les catàgories aux types d'assises
+                    // Mapper les cat�gories aux types d'assises
                     switch (category) {
                         case 'hollow':
                         case 'cut': // Les blocs coupés sont des variantes des blocs creux
@@ -980,24 +980,24 @@ class AssiseManager {
                         case 'cellular-assise':
                             return 'CELLULAR';
                         default:
-                            // // console.log(`🔧 Catégorie de bloc inconnue: ${category}, utilisation du type générique 'block'`);
+                            console.log(`?? Cat�gorie de bloc inconnue: ${category}, utilisation du type g�n�rique 'block'`);
                             return null;
                     }
                 } else {
-                    console.log(`🔧 getCurrentBlockData() existe mais pas de propriété 'category'`);
+                    console.log(`?? getCurrentBlockData() existe mais pas de propri�t� 'category'`);
                     console.log(`   - currentBlock:`, currentBlock);
                 }
             } catch (error) {
-                console.warn('Erreur lors de la dàtection du type de bloc:', error);
+                console.warn('Erreur lors de la d�tection du type de bloc:', error);
             }
         } else {
-            // // console.log(`🔧 BlockSelector non disponible`);
+            console.log(`?? BlockSelector non disponible`);
         }
         
-        return null; // Type générique block
+        return null; // Type g�n�rique block
     }
 
-    // Màthode pour basculer automatiquement vers l'assise du type de brique courante
+    // M�thode pour basculer automatiquement vers l'assise du type de brique courante
     switchToBrickAssise() {
         if (window.BrickSelector) {
             try {
@@ -1023,7 +1023,7 @@ class AssiseManager {
             return this.getMaxElementHeightInAssiseForType(this.currentType, assiseIndex);
         }
         
-        // Si pas trouvé dans le type actuel, chercher dans tous les types
+        // Si pas trouv� dans le type actuel, chercher dans tous les types
         for (const type of this.supportedTypes) {
             const assisesForType = this.assisesByType.get(type);
             if (assisesForType.has(assiseIndex)) {
@@ -1044,7 +1044,7 @@ class AssiseManager {
         
         const assise = assisesForType.get(assiseIndex);
         
-        // Si l'assise est vide, utiliser une hauteur standard appropriàe
+        // Si l'assise est vide, utiliser une hauteur standard appropri�e
         if (assise.elements.size === 0) {
             // Utiliser la hauteur standard du type (6.5 cm pour brick M65)
             return this.getDefaultElementHeight(type);
@@ -1062,7 +1062,7 @@ class AssiseManager {
                     continue; // Ignorer les joints debout
                 }
                 
-                // Pour les autres éléments (briques, joints horizontaux), prendre la hauteur maximale
+                // Pour les autres �l�ments (briques, joints horizontaux), prendre la hauteur maximale
                 maxHeight = Math.max(maxHeight, element.dimensions.height);
             }
         }
@@ -1071,32 +1071,32 @@ class AssiseManager {
     }
 
     addElementToAssise(elementId, assiseIndex = null) {
-        // Dàterminer le type de l'élément et le sous-type pour les briques
+        // D�terminer le type de l'�l�ment et le sous-type pour les briques
         const element = window.SceneManager.elements.get(elementId);
-        let elementType = this.currentType; // Par défaut
+        let elementType = this.currentType; // Par d�faut
         
-        // console.log(`🔧 DEBUG addElementToAssise START: elementId=${elementId}, element.type=${element?.type}, currentType=${this.currentType}`);
+        // console.log(`?? DEBUG addElementToAssise START: elementId=${elementId}, element.type=${element?.type}, currentType=${this.currentType}`);
         
         if (element && element.type) {
-            // Pour les joints, utiliser le type de l'assise de référence stockée
+            // Pour les joints, utiliser le type de l'assise de r�f�rence stock�e
             if (element.type === 'joint') {
-                // Priorità 1: Information stockée dans l'élément joint lui-màme
+                // Priorit� 1: Information stock�e dans l'�l�ment joint lui-m�me
                 if (element.referenceAssiseType) {
                     elementType = element.referenceAssiseType;
-                    // console.log(`🔧 Joint placé dans l'assise de référence stockée: ${elementType}`);
+                    // console.log(`?? Joint plac� dans l'assise de r�f�rence stock�e: ${elementType}`);
                 }
-                // Priorità 2: Information stockée dans ConstructionTools
+                // Priorit� 2: Information stock�e dans ConstructionTools
                 else if (window.ConstructionTools && window.ConstructionTools.referenceAssiseType) {
                     elementType = window.ConstructionTools.referenceAssiseType;
-                    // console.log(`🔧 Joint placé dans l'assise de référence ConstructionTools: ${elementType}`);
+                    // console.log(`?? Joint plac� dans l'assise de r�f�rence ConstructionTools: ${elementType}`);
                 } 
                 // Fallback: utiliser le type actuel
                 else {
                     elementType = this.currentType;
-                    // console.log(`🔧 Pas d'assise de référence pour le joint, utilisation du type actuel: ${elementType}`);
+                    // console.log(`?? Pas d'assise de r�f�rence pour le joint, utilisation du type actuel: ${elementType}`);
                 }
             }
-            // Pour les briques, dàtecter le sous-type spécifique
+            // Pour les briques, d�tecter le sous-type sp�cifique
             else if (element.type === 'brick') {
                 const brickSubType = this.detectBrickSubType(element);
                 if (brickSubType) {
@@ -1144,33 +1144,33 @@ class AssiseManager {
                     this.setCurrentType(elementType, true); // skipToolChange = true
                 }
             }
-            // Mapper le type de l'élément vers les types d'assise supportés
+            // Mapper le type de l'�l�ment vers les types d'assise support�s
             else if (this.allSupportedTypes.includes(element.type)) {
                 elementType = element.type;
-                console.log(`🔧 Type supporté directement: ${element.type}`);
+                console.log(`?? Type support� directement: ${element.type}`);
             } else {
                 if (window.DEBUG_CONSTRUCTION) {
-                    console.log(`🔧 Type non supporté: ${element.type}, utilisation du type actuel: ${this.currentType}`);
+                    console.log(`?? Type non support�: ${element.type}, utilisation du type actuel: ${this.currentType}`);
                 }
             }
         } else {
-            console.log(`🔧 élément non trouvé ou sans type, utilisation du type actuel: ${this.currentType}`);
+            console.log(`?? �l�ment non trouv� ou sans type, utilisation du type actuel: ${this.currentType}`);
         }
         
-        // console.log(`🔧 DEBUG addElementToAssise END: elementType final=${elementType}`);
+        // console.log(`?? DEBUG addElementToAssise END: elementType final=${elementType}`);
         
         if (assiseIndex === null) {
             assiseIndex = this.currentAssiseByType.get(elementType);
         }
         
-        // Utiliser la nouvelle màthode multi-type avec le bon type
+        // Utiliser la nouvelle m�thode multi-type avec le bon type
         this.addElementToAssiseForType(elementType, elementId, assiseIndex);
     }
 
-    // Ajouter un élément à une assise d'un type spécifique
+    // Ajouter un �l�ment � une assise d'un type sp�cifique
     addElementToAssiseForType(type, elementId, assiseIndex = null) {
         if (!this.allSupportedTypes.includes(type)) {
-            console.warn(`Type non supporté: ${type}`);
+            console.warn(`Type non support�: ${type}`);
             return false;
         }
         
@@ -1181,7 +1181,7 @@ class AssiseManager {
         const assisesForType = this.assisesByType.get(type);
         const elementsForType = this.elementsByType.get(type);
         
-        // Cràer l'assise si elle n'existe pas
+        // Cr�er l'assise si elle n'existe pas
         if (!assisesForType.has(assiseIndex)) {
             this.addAssiseForType(type, assiseIndex);
         }
@@ -1190,11 +1190,11 @@ class AssiseManager {
         assise.elements.add(elementId);
         elementsForType.get(assiseIndex).add(elementId);
         
-        // Mettre à jour la position Y de l'élément
+        // Mettre � jour la position Y de l'�l�ment
         const element = window.SceneManager.elements.get(elementId);
         if (element) {
-            // DEBUG: Afficher les propriétés de l'élément (dàsactivà pour ràduire les logs)
-            // console.log(`🔧 DEBUG élément ${elementId}:`, {
+            // DEBUG: Afficher les propri�t�s de l'�l�ment (d�sactiv� pour r�duire les logs)
+            // console.log(`?? DEBUG �l�ment ${elementId}:`, {
             //     isVerticalJoint: element.isVerticalJoint,
             //     isHorizontalJoint: element.isHorizontalJoint,
             //     currentY: element.position.y,
@@ -1205,29 +1205,29 @@ class AssiseManager {
             if (element.isVerticalJoint || element.isHorizontalJoint) {
                 // 
                 this.updateUI();
-                // console.log(`élément ${elementId} ajoutà à l'assise ${assiseIndex} du type '${type}' (joint)`);
+                // console.log(`�l�ment ${elementId} ajout� � l'assise ${assiseIndex} du type '${type}' (joint)`);
                 return true;
             }
             
-            // CORRECTION DàFINITIVE: Utiliser la vraie hauteur de l'assise (incluant les joints variables)
+            // CORRECTION D�FINITIVE: Utiliser la vraie hauteur de l'assise (incluant les joints variables)
             const assiseHeight = this.getAssiseHeightForType(type, assiseIndex);
             
-            // 🔧 HOURDIS: Pour les hourdis assise 0, l'objet doit àtre directement à Y=0 (base)
+            // ?? HOURDIS: Pour les hourdis assise 0, l'objet doit �tre directement � Y=0 (base)
             let targetCenterY;
             if (type.includes('hourdis') && assiseIndex === 0) {
-                // Pour hourdis assise 0 : TOUJOURS base à Y=0, donc centre à hauteur/2
+                // Pour hourdis assise 0 : TOUJOURS base � Y=0, donc centre � hauteur/2
                 targetCenterY = element.dimensions.height / 2;
             } else {
                 // Calcul normal pour autres types
                 targetCenterY = assiseHeight + element.dimensions.height / 2;
             }
             
-            // Positionner l'élément - vàrifier si c'est un GLB ou un élément traditionnel
+            // Positionner l'�l�ment - v�rifier si c'est un GLB ou un �l�ment traditionnel
             if (element.updatePosition && typeof element.updatePosition === 'function') {
-                // élément traditionnel (brick, block, etc.)
+                // �l�ment traditionnel (brick, block, etc.)
                 element.updatePosition(element.position.x, targetCenterY, element.position.z);
             } else if (element.position) {
-                // élément GLB - cas spàcial pour les hourdis
+                // �l�ment GLB - cas sp�cial pour les hourdis
                 const isHourdis = element.userData && (
                     (element.userData.glbType && element.userData.glbType.includes('hourdis')) || 
                     (element.userData.type && element.userData.type.includes('hourdis')) ||
@@ -1239,39 +1239,39 @@ class AssiseManager {
                     // HOURDIS ASSISE 0: TOUJOURS forcer la BASE au niveau du sol Y=0
                     element.position.y = 0;
                 } else if (element.userData && element.userData.positionedByConstructionTools) {
-                    // Si c'est un hourdis positionnà par les outils, forcer Y=0
+                    // Si c'est un hourdis positionn� par les outils, forcer Y=0
                     if (isHourdis) {
                         element.position.y = 0;
                     } else {
                         if (window.DEBUG_CONSTRUCTION) {
-                            console.log(`🔧 GLB déjà positionnà par les outils de construction, position Y conservàe: ${element.position.y}`);
+                            console.log(`?? GLB d�j� positionn� par les outils de construction, position Y conserv�e: ${element.position.y}`);
                         }
                     }
                 } else {
-                    // Positionner directement seulement si pas déjà positionnà
+                    // Positionner directement seulement si pas d�j� positionn�
                     element.position.y = targetCenterY;
-                    console.log(`🔧 GLB positionnà directement à Y=${targetCenterY}`);
+                    console.log(`?? GLB positionn� directement � Y=${targetCenterY}`);
                 }
             }
             
-            // Vàrification finale
+            // V�rification finale
             const actualBaseY = targetCenterY - element.dimensions.height / 2;
             
-            // console.log(`élément ${elementId} positionnà sur assise ${assiseIndex} (type: ${type}):`);
+            // console.log(`�l�ment ${elementId} positionn� sur assise ${assiseIndex} (type: ${type}):`);
             // console.log(`  - Assise height: ${assiseHeight} cm`);
             // console.log(`  - Centre Y: ${targetCenterY} cm`);
-            // console.log(`  - Face infàrieure Y: ${actualBaseY} cm`);
+            // console.log(`  - Face inf�rieure Y: ${actualBaseY} cm`);
             // console.log(`  - Hauteur: ${element.dimensions.height} cm`);
             
-            // Vàrification: la face infàrieure doit àtre à la hauteur de l'assise
+            // V�rification: la face inf�rieure doit �tre � la hauteur de l'assise
             if (Math.abs(actualBaseY - assiseHeight) < 0.001) {
-                // console.log(`  ? PARFAIT! Face infàrieure exactement à ${assiseHeight} cm`);
+                // console.log(`  ? PARFAIT! Face inf�rieure exactement � ${assiseHeight} cm`);
             } else {
-                console.error(`  ? ERREUR! Face infàrieure à ${actualBaseY} cm au lieu de ${assiseHeight} cm`);
+                console.error(`  ? ERREUR! Face inf�rieure � ${actualBaseY} cm au lieu de ${assiseHeight} cm`);
             }
             
-            // NOUVELLE FONCTIONNALITà: Mise à jour automatique de la hauteur de joint de l'assise
-            // selon les paramàtres de l'élément placé (pour les blocs cellulaires notamment)
+            // NOUVELLE FONCTIONNALIT�: Mise � jour automatique de la hauteur de joint de l'assise
+            // selon les param�tres de l'�l�ment plac� (pour les blocs cellulaires notamment)
             // PROTECTION ANTI-BOUCLE INFINIE: Ne pas synchroniser pendant un repositionnement
             if (!this.isRepositioning && window.ConstructionTools && (element.type === 'block' || element.material === 'cellular-concrete' || element.material === 'cellular-assise')) {
                 const jointSettings = window.ConstructionTools.getJointSettingsForElement(element);
@@ -1279,36 +1279,36 @@ class AssiseManager {
                     // Convertir mm en cm pour la hauteur de joint horizontal
                     const jointHeightCm = jointSettings.horizontalThickness / 10;
                     
-                    // Vàrifier si la hauteur de joint a ràellement changà pour àviter les mises à jour inutiles
+                    // V�rifier si la hauteur de joint a r�ellement chang� pour �viter les mises � jour inutiles
                     const currentJointHeight = this.getJointHeightForAssise(type, assiseIndex);
                     if (Math.abs(currentJointHeight - jointHeightCm) > 0.001) {
-                        // Mettre à jour la hauteur de joint pour cette assise spécifique
+                        // Mettre � jour la hauteur de joint pour cette assise sp�cifique
                         this.setJointHeightForAssise(type, assiseIndex, jointHeightCm);
                         
-                        console.log(`🔧 SYNCHRONISATION JOINT: Assise ${assiseIndex} (${type}) mise à jour avec joint de ${jointHeightCm}cm (${jointSettings.horizontalThickness}mm) selon élément ${elementId} (${element.material})`);
+                        console.log(`?? SYNCHRONISATION JOINT: Assise ${assiseIndex} (${type}) mise � jour avec joint de ${jointHeightCm}cm (${jointSettings.horizontalThickness}mm) selon �l�ment ${elementId} (${element.material})`);
                     }
                 }
             } else if (this.isRepositioning) {
-                console.log(`🔧 PROTECTION ANTI-BOUCLE: Synchronisation joint évitée pendant repositionnement`);
+                console.log(`?? PROTECTION ANTI-BOUCLE: Synchronisation joint �vit�e pendant repositionnement`);
             }
         }
         
         this.updateUI();
-        // console.log(`élément ${elementId} ajoutà à l'assise ${assiseIndex} du type '${type}'`);
+        // console.log(`�l�ment ${elementId} ajout� � l'assise ${assiseIndex} du type '${type}'`);
 
-        // ACTIVATION AUTOMATIQUE DES GRILLES lors du placement d'un élément
+        // ACTIVATION AUTOMATIQUE DES GRILLES lors du placement d'un �l�ment
         if (!this.showAssiseGrids) {
             this.showAssiseGrids = true;
             this.updateAllGridVisibility();
-            // console.log('🔧 Grilles d\'assises activàes automatiquement lors du placement d\'un élément');
+            // console.log('?? Grilles d\'assises activ�es automatiquement lors du placement d\'un �l�ment');
             
-            // Mettre à jour l'affichage du bouton dans l'onglet outils
+            // Mettre � jour l'affichage du bouton dans l'onglet outils
             if (window.ToolsTabManager) {
-                // Les boutons se mettent à jour automatiquement via les événements
+                // Les boutons se mettent � jour automatiquement via les �v�nements
                             }
         }
 
-        // émettre un événement pour notifier les changements d'éléments
+        // �mettre un �v�nement pour notifier les changements d'�l�ments
         document.dispatchEvent(new CustomEvent('assiseElementsChanged', {
             detail: { 
                 action: 'added',
@@ -1318,16 +1318,16 @@ class AssiseManager {
             }
         }));
 
-        // Mettre à jour la taille des grilles si nàcessaire (nouvelle fonctionnalità)
-        // Attendre un peu pour que l'élément soit bien ajoutà avant de recalculer
+        // Mettre � jour la taille des grilles si n�cessaire (nouvelle fonctionnalit�)
+        // Attendre un peu pour que l'�l�ment soit bien ajout� avant de recalculer
         setTimeout(() => {
             this.updateAllGridSizes();
         }, 100);
 
-        // Mettre à jour les marqueurs d'accroche si nàcessaire
+        // Mettre � jour les marqueurs d'accroche si n�cessaire
         const currentAssiseForType = this.currentAssiseByType.get(type);
         if (currentAssiseForType > assiseIndex) {
-            // Un élément a àtà ajoutà à une assise infàrieure, mettre à jour les marqueurs
+            // Un �l�ment a �t� ajout� � une assise inf�rieure, mettre � jour les marqueurs
             this.updateAttachmentMarkers();
         }
         
@@ -1357,9 +1357,9 @@ class AssiseManager {
         
         if (removedFromAssise !== null) {
             this.updateUI();
-            console.log(`élément ${elementId} retirà de l'assise ${removedFromAssise} (type: ${removedFromType})`);
+            console.log(`�l�ment ${elementId} retir� de l'assise ${removedFromAssise} (type: ${removedFromType})`);
             
-            // émettre un événement pour notifier les changements d'éléments
+            // �mettre un �v�nement pour notifier les changements d'�l�ments
             document.dispatchEvent(new CustomEvent('assiseElementsChanged', {
                 detail: { 
                     action: 'removed',
@@ -1369,16 +1369,16 @@ class AssiseManager {
                 }
             }));
             
-            // Mettre à jour la taille des grilles après suppression (nouvelle fonctionnalità)
-            // Attendre un peu pour que l'élément soit bien supprimà avant de recalculer
+            // Mettre � jour la taille des grilles apr�s suppression (nouvelle fonctionnalit�)
+            // Attendre un peu pour que l'�l�ment soit bien supprim� avant de recalculer
             setTimeout(() => {
                 this.updateAllGridSizes();
             }, 100);
             
-            // Mettre à jour les marqueurs d'accroche si nàcessaire
+            // Mettre � jour les marqueurs d'accroche si n�cessaire
             const currentAssiseForType = this.currentAssiseByType.get(removedFromType);
             if (currentAssiseForType > removedFromAssise) {
-                // Un élément a àtà retirà d'une assise infàrieure, mettre à jour les marqueurs
+                // Un �l�ment a �t� retir� d'une assise inf�rieure, mettre � jour les marqueurs
                 this.updateAttachmentMarkers();
             }
         }
@@ -1386,7 +1386,7 @@ class AssiseManager {
         return removedFromAssise;
     }
 
-    // Nouvelle màthode pour ràcupàrer l'assise d'un élément
+    // Nouvelle m�thode pour r�cup�rer l'assise d'un �l�ment
     getElementAssise(elementId) {
         // Rechercher dans tous les types (incluant les sous-types de briques)
         for (const type of this.allSupportedTypes) {
@@ -1402,7 +1402,7 @@ class AssiseManager {
         return null;
     }
 
-    // Màthode pour ràcupàrer à la fois l'assise et le type d'un élément
+    // M�thode pour r�cup�rer � la fois l'assise et le type d'un �l�ment
     getElementAssiseAndType(elementId) {
         // Rechercher dans tous les types (incluant les sous-types de briques)
         for (const type of this.allSupportedTypes) {
@@ -1418,7 +1418,7 @@ class AssiseManager {
         return null;
     }
 
-    // Compter les éléments non-joints dans une assise d'un type spécifique
+    // Compter les �l�ments non-joints dans une assise d'un type sp�cifique
     getNonJointElementCountForType(type, assiseIndex) {
         const assisesForType = this.assisesByType.get(type);
         if (!assisesForType || !assisesForType.has(assiseIndex)) {
@@ -1438,62 +1438,62 @@ class AssiseManager {
         return count;
     }
 
-    // Compter les éléments non-joints dans une assise du type actuel (compatibilité)
+    // Compter les �l�ments non-joints dans une assise du type actuel (compatibilit�)
     getNonJointElementCount(assiseIndex) {
         return this.getNonJointElementCountForType(this.currentType, assiseIndex);
     }
 
-    // Vàrifier si un élément peut àtre sàlectionnà (pas d'assise infàrieure quand une supàrieure est active)
+    // V�rifier si un �l�ment peut �tre s�lectionn� (pas d'assise inf�rieure quand une sup�rieure est active)
     canSelectElement(elementId, showLog = false) {
-        // Utiliser la màthode robuste qui cherche dans tous les types
+        // Utiliser la m�thode robuste qui cherche dans tous les types
         const elementInfo = this.getElementAssiseAndType(elementId);
         
         if (showLog) {
-            // console.log(`🔧 DEBUG canSelectElement: elementId=${elementId}, elementInfo=${JSON.stringify(elementInfo)}`);
+            // console.log(`?? DEBUG canSelectElement: elementId=${elementId}, elementInfo=${JSON.stringify(elementInfo)}`);
         }
         
         if (!elementInfo) {
-            // if (showLog) console.log(`🔧 DEBUG: élément ${elementId} non dans une assise - autorisà`);
-            return true; // élément non dans une assise = sàlectionnable
+            // if (showLog) console.log(`?? DEBUG: �l�ment ${elementId} non dans une assise - autoris�`);
+            return true; // �l�ment non dans une assise = s�lectionnable
         }
         
         const { assiseIndex: elementAssise, type: elementType } = elementInfo;
         
         if (showLog) {
-            // console.log(`🔧 DEBUG: elementAssise=${elementAssise}, elementType=${elementType}`);
+            // console.log(`?? DEBUG: elementAssise=${elementAssise}, elementType=${elementType}`);
         }
         
-        // Seule l'assise active pour ce type doit àtre accessible
+        // Seule l'assise active pour ce type doit �tre accessible
         const currentAssiseForType = this.currentAssiseByType.get(elementType);
         const canSelect = elementAssise === currentAssiseForType;
         
         if (showLog) {
-            // console.log(`🔧 DEBUG: currentAssiseForType=${currentAssiseForType}, elementAssise=${elementAssise}, canSelect=${canSelect}`);
+            // console.log(`?? DEBUG: currentAssiseForType=${currentAssiseForType}, elementAssise=${elementAssise}, canSelect=${canSelect}`);
         }
         
-        // Log critique seulement si demandà (interactions ràelles, pas vàrifications de routine)
+        // Log critique seulement si demand� (interactions r�elles, pas v�rifications de routine)
         if (!canSelect && showLog) {
-            // console.log(`🔧 BLOCAGE: élément ${elementId} (assise ${elementAssise}, type: ${elementType}) bloquà car assise active = ${currentAssiseForType}`);
+            // console.log(`?? BLOCAGE: �l�ment ${elementId} (assise ${elementAssise}, type: ${elementType}) bloqu� car assise active = ${currentAssiseForType}`);
         }
         
         return canSelect;
     }
 
-    // Calculer la taille dynamique de la grille en fonction des éléments présents dans la scène
+    // Calculer la taille dynamique de la grille en fonction des �l�ments pr�sents dans la sc�ne
     calculateDynamicGridSize() {
         if (!window.SceneManager || window.SceneManager.elements.size === 0) {
-            return 200; // Taille par défaut si pas d'éléments
+            return 200; // Taille par d�faut si pas d'�l�ments
         }
         
         let minX = Infinity, maxX = -Infinity;
         let minZ = Infinity, maxZ = -Infinity;
         
-        // Analyser tous les éléments de la scène pour calculer les limites
+        // Analyser tous les �l�ments de la sc�ne pour calculer les limites
         window.SceneManager.elements.forEach(element => {
             const pos = element.position;
             const dim = element.dimensions;
             
-            // Calculer les limites en tenant compte de la taille des éléments
+            // Calculer les limites en tenant compte de la taille des �l�ments
             const halfLength = dim.length / 2;
             const halfWidth = dim.width / 2;
             
@@ -1503,20 +1503,20 @@ class AssiseManager {
             maxZ = Math.max(maxZ, pos.z + halfWidth);
         });
         
-        // Calculer la taille nàcessaire avec exactement 2m (200cm) de marge de chaque càtà
-        const rangeX = maxX - minX + 400; // +400cm = +200cm de chaque càtà en X
-        const rangeZ = maxZ - minZ + 400; // +400cm = +200cm de chaque càtà en Z
+        // Calculer la taille n�cessaire avec exactement 2m (200cm) de marge de chaque c�t�
+        const rangeX = maxX - minX + 400; // +400cm = +200cm de chaque c�t� en X
+        const rangeZ = maxZ - minZ + 400; // +400cm = +200cm de chaque c�t� en Z
         const maxRange = Math.max(rangeX, rangeZ);
         
-        // Arrondir à la dizaine supàrieure pour une grille propre
+        // Arrondir � la dizaine sup�rieure pour une grille propre
         const finalSize = Math.ceil(maxRange / 10) * 10;
         
-        // Taille minimale de 400cm (pour garantir 2m de marge màme avec de petits éléments)
-        // Taille maximale de 1200cm pour àviter les performances
+        // Taille minimale de 400cm (pour garantir 2m de marge m�me avec de petits �l�ments)
+        // Taille maximale de 1200cm pour �viter les performances
         return Math.min(Math.max(finalSize, 400), 1200);
     }
 
-    // Cràer la grille pour une assise d'un type spécifique
+    // Cr�er la grille pour une assise d'un type sp�cifique
     createAssiseGridForType(type, index) {
         const assisesForType = this.assisesByType.get(type);
         const gridHelpersForType = this.gridHelpersByType.get(type);
@@ -1526,7 +1526,7 @@ class AssiseManager {
         
         const height = assise.height;
         const size = this.calculateDynamicGridSize(); // Taille adaptative
-        const divisions = size; // Garder 1 division par cm pour la pràcision
+        const divisions = size; // Garder 1 division par cm pour la pr�cision
         
         // Grille principale de l'assise
         const gridHelper = new THREE.GridHelper(size, divisions, this.gridColor, this.gridColor);
@@ -1536,7 +1536,7 @@ class AssiseManager {
         // Seule la grille de l'assise active du type actuel est visible
         gridHelper.visible = this.showAssiseGrids && (type === this.currentType) && (index === this.currentAssiseByType.get(type));
         
-        // Grille du joint (plan supàrieur)
+        // Grille du joint (plan sup�rieur)
         const jointHeight = height + this.getMaxElementHeightInAssise(index) + this.getJointHeightForType(type);
         const jointGrid = new THREE.GridHelper(size, divisions, 0x95a5a6, 0x95a5a6);
         jointGrid.position.y = jointHeight;
@@ -1544,23 +1544,23 @@ class AssiseManager {
         jointGrid.material.opacity = 0.2;
         jointGrid.visible = false; // Toujours invisible
         
-        // Ajouter à la scène
+        // Ajouter � la sc�ne
         window.SceneManager.scene.add(gridHelper);
         window.SceneManager.scene.add(jointGrid);
         
-        // Stocker les références
+        // Stocker les r�f�rences
         assise.gridMesh = gridHelper;
         assise.jointGridMesh = jointGrid;
         
         gridHelpersForType.set(index, { main: gridHelper, joint: jointGrid });
     }
 
-    // Màthode de compatibilité
+    // M�thode de compatibilit�
     createAssiseGrid(index) {
         this.createAssiseGridForType(this.currentType, index);
     }
 
-    // Supprimer la grille d'une assise d'un type spécifique
+    // Supprimer la grille d'une assise d'un type sp�cifique
     removeAssiseGridForType(type, index) {
         const gridHelpersForType = this.gridHelpersByType.get(type);
         
@@ -1579,7 +1579,7 @@ class AssiseManager {
         }
     }
 
-    // Màthode de compatibilité
+    // M�thode de compatibilit�
     removeAssiseGrid(index) {
         this.removeAssiseGridForType(this.currentType, index);
     }
@@ -1588,7 +1588,7 @@ class AssiseManager {
     updateAllGridSizes() {
         const newSize = this.calculateDynamicGridSize();
         
-        // Calculer les dàtails pour le log
+        // Calculer les d�tails pour le log
         if (window.SceneManager && window.SceneManager.elements.size > 0) {
             let minX = Infinity, maxX = -Infinity;
             let minZ = Infinity, maxZ = -Infinity;
@@ -1605,12 +1605,12 @@ class AssiseManager {
                 maxZ = Math.max(maxZ, pos.z + halfWidth);
             });
             
-            // console.log(`🔧 Mise à jour des grilles:`);
-            // console.log(`   éléments étendus de X=${minX.toFixed(1)}cm à X=${maxX.toFixed(1)}cm (${(maxX-minX).toFixed(1)}cm)`);
-            // console.log(`   éléments étendus de Z=${minZ.toFixed(1)}cm à Z=${maxZ.toFixed(1)}cm (${(maxZ-minZ).toFixed(1)}cm)`);
-            // console.log(`   Nouvelle taille grille: ${newSize}cm (avec marge de 200cm de chaque càtà)`);
+            // console.log(`?? Mise � jour des grilles:`);
+            // console.log(`   �l�ments �tendus de X=${minX.toFixed(1)}cm � X=${maxX.toFixed(1)}cm (${(maxX-minX).toFixed(1)}cm)`);
+            // console.log(`   �l�ments �tendus de Z=${minZ.toFixed(1)}cm � Z=${maxZ.toFixed(1)}cm (${(maxZ-minZ).toFixed(1)}cm)`);
+            // console.log(`   Nouvelle taille grille: ${newSize}cm (avec marge de 200cm de chaque c�t�)`);
         } else {
-            // console.log(`🔧 Mise à jour des grilles: ${newSize}cm (taille par défaut)`);
+            // console.log(`?? Mise � jour des grilles: ${newSize}cm (taille par d�faut)`);
         }
         
         // Parcourir tous les types et toutes les assises
@@ -1628,7 +1628,7 @@ class AssiseManager {
                 window.SceneManager.scene.remove(grids.main);
                 window.SceneManager.scene.remove(grids.joint);
                 
-                // Cràer les nouvelles grilles avec la bonne taille
+                // Cr�er les nouvelles grilles avec la bonne taille
                 const height = assise.height;
                 const divisions = newSize;
                 
@@ -1647,11 +1647,11 @@ class AssiseManager {
                 jointGrid.material.opacity = 0.2;
                 jointGrid.visible = false;
                 
-                // Ajouter à la scène
+                // Ajouter � la sc�ne
                 window.SceneManager.scene.add(gridHelper);
                 window.SceneManager.scene.add(jointGrid);
                 
-                // Mettre à jour les références
+                // Mettre � jour les r�f�rences
                 assise.gridMesh = gridHelper;
                 assise.jointGridMesh = jointGrid;
                 grids.main = gridHelper;
@@ -1660,7 +1660,7 @@ class AssiseManager {
         }
     }
 
-    // Mettre à jour l'apparence d'une grille pour un type spécifique
+    // Mettre � jour l'apparence d'une grille pour un type sp�cifique
     updateGridAppearanceForType(type, index) {
         const gridHelpersForType = this.gridHelpersByType.get(type);
         
@@ -1669,33 +1669,33 @@ class AssiseManager {
         const grids = gridHelpersForType.get(index);
         const isActive = (index === this.currentAssiseByType.get(type)) && (type === this.currentType);
         
-        // Mettre à jour l'apparence de la grille principale
+        // Mettre � jour l'apparence de la grille principale
         grids.main.material.color.setHex(this.gridColor); // ? TOUJOURS GARDER LA COULEUR BLEUE
         grids.main.material.opacity = isActive ? this.activeGridOpacity : this.gridOpacity;
         // Seule la grille de l'assise active du type actuel est visible
         grids.main.visible = this.showAssiseGrids && isActive;
         
-        // Masquer complàtement le plan supàrieur - seule la grille active doit àtre visible
+        // Masquer compl�tement le plan sup�rieur - seule la grille active doit �tre visible
         grids.joint.visible = false;
     }
 
-    // Màthode de compatibilité
+    // M�thode de compatibilit�
     updateGridAppearance(index) {
         this.updateGridAppearanceForType(this.currentType, index);
     }
 
     setJointHeight(height) {
-        // Utilise la nouvelle màthode qui ne modifie que le type actuel
+        // Utilise la nouvelle m�thode qui ne modifie que le type actuel
         this.setJointHeightForType(this.currentType, height);
         
-        // Forcer la mise à jour de l'interface pour reflàter le changement
+        // Forcer la mise � jour de l'interface pour refl�ter le changement
         this.updateUI();
     }
 
     toggleAssiseGrids() {
         this.showAssiseGrids = !this.showAssiseGrids;
         
-        // Appliquer le changement à tous les types (incluant les sous-types de briques)
+        // Appliquer le changement � tous les types (incluant les sous-types de briques)
         for (const type of this.allSupportedTypes) {
             const gridHelpersForType = this.gridHelpersByType.get(type);
             if (!gridHelpersForType) continue;
@@ -1707,12 +1707,12 @@ class AssiseManager {
                 const isActiveForCurrentType = (type === this.currentType) && (index === currentAssiseForType);
                 grids.main.visible = this.showAssiseGrids && isActiveForCurrentType;
                 
-                // Masquer complàtement tous les plans supàrieurs
+                // Masquer compl�tement tous les plans sup�rieurs
                 grids.joint.visible = false;
             }
         }
         
-        // Mettre à jour la visibilità du point d'accrochage
+        // Mettre � jour la visibilit� du point d'accrochage
         if (this.snapPoint) {
             this.snapPoint.visible = this.showAssiseGrids && this.showSnapPoint;
         }
@@ -1739,7 +1739,7 @@ class AssiseManager {
 
     // Force l'affichage de seulement la grille de l'assise active du type actuel
     showOnlyActiveGrid() {
-        // console.log(`🔧 Force l'affichage de seulement la grille active (Type: ${this.currentType}, Assise: ${this.currentAssiseByType.get(this.currentType)})`);
+        // console.log(`?? Force l'affichage de seulement la grille active (Type: ${this.currentType}, Assise: ${this.currentAssiseByType.get(this.currentType)})`);
         
         // Masquer toutes les grilles
         for (const type of this.allSupportedTypes) {
@@ -1759,37 +1759,37 @@ class AssiseManager {
         if (currentGridHelpers && currentGridHelpers.has(currentAssiseIndex)) {
             const activeGrids = currentGridHelpers.get(currentAssiseIndex);
             activeGrids.main.visible = this.showAssiseGrids;
-            activeGrids.joint.visible = false; // Toujours masquà
-            console.log(`? Grille active affichàe: Type ${this.currentType}, Assise ${currentAssiseIndex}`);
+            activeGrids.joint.visible = false; // Toujours masqu�
+            console.log(`? Grille active affich�e: Type ${this.currentType}, Assise ${currentAssiseIndex}`);
         }
         
-        // Mettre à jour la visibilità du point d'accrochage
+        // Mettre � jour la visibilit� du point d'accrochage
         if (this.snapPoint) {
             this.snapPoint.visible = this.showAssiseGrids && this.showSnapPoint;
         }
     }
 
     setupEventListeners() {
-        // àcouter les changements dans l'interface
+        // �couter les changements dans l'interface
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 this.setupUIEventListeners();
             });
         } else {
     const copyAssiseBtn = document.getElementById('copyAssiseBtn');
-            // Le DOM est déjà chargà, configurer immàdiatement
+            // Le DOM est d�j� charg�, configurer imm�diatement
             this.setupUIEventListeners();
         }
         
-        // àcouter les mouvements de souris pour mettre à jour le point d'accrochage
+        // �couter les mouvements de souris pour mettre � jour le point d'accrochage
         this.setupMouseTracking();
         
-        // Configurer les événements pour les onglets de types
+        // Configurer les �v�nements pour les onglets de types
         this.setupTypeTabEvents();
     }
 
     setupMouseTracking() {
-        // àcouter l'événement personnalisà cursorMove àmis par le scene manager
+        // �couter l'�v�nement personnalis� cursorMove �mis par le scene manager
         document.addEventListener('cursorMove', (event) => {
             if (this.snapPoint && this.showSnapPoint) {
                 const { x, z } = event.detail;
@@ -1799,14 +1799,14 @@ class AssiseManager {
     }
 
     setupUIEventListeners() {
-        // événements pour les contràles d'assise
+        // �v�nements pour les contr�les d'assise
         const assiseSelect = document.getElementById('assiseSelect');
         const jointHeightInput = document.getElementById('jointHeight');
         const addAssiseBtn = document.getElementById('addAssise');
         const removeAssiseBtn = document.getElementById('removeAssise');
         const toggleGridsBtn = document.getElementById('toggleAssiseGrids');
         
-        //         // console.log('Bouton addAssise trouvé:', !!addAssiseBtn);
+        //         // console.log('Bouton addAssise trouv�:', !!addAssiseBtn);
         
         if (assiseSelect) {
             assiseSelect.addEventListener('change', (e) => {
@@ -1821,13 +1821,13 @@ class AssiseManager {
         }
         
         if (addAssiseBtn) {
-            // CORRECTION: Supprimer les anciens listeners pour àviter les doublons
+            // CORRECTION: Supprimer les anciens listeners pour �viter les doublons
             if (this.handleAddAssise) {
                 addAssiseBtn.removeEventListener('click', this.handleAddAssise);
             }
             
             this.handleAddAssise = () => {
-                // console.log('Bouton Ajouter Assise cliquà');
+                // console.log('Bouton Ajouter Assise cliqu�');
                 const assisesForCurrentType = this.assisesByType.get(this.currentType);
                 const newIndex = assisesForCurrentType.size;
                 this.addAssiseForType(this.currentType, newIndex);
@@ -1836,45 +1836,45 @@ class AssiseManager {
             
             addAssiseBtn.addEventListener('click', this.handleAddAssise);
         } else {
-            console.warn('Bouton addAssise non trouvé dans le DOM');
+            console.warn('Bouton addAssise non trouv� dans le DOM');
         }
         
         if (removeAssiseBtn) {
-            // CORRECTION: Supprimer les anciens listeners pour àviter les doublons
+            // CORRECTION: Supprimer les anciens listeners pour �viter les doublons
             if (this.handleRemoveAssise) {
                 removeAssiseBtn.removeEventListener('click', this.handleRemoveAssise);
             }
             
             this.handleRemoveAssise = () => {
-                // console.log('Bouton Supprimer Assise cliquà');
+                // console.log('Bouton Supprimer Assise cliqu�');
                 const assisesForCurrentType = this.assisesByType.get(this.currentType);
                 if (assisesForCurrentType.size > 1) {
                     const currentAssiseForType = this.currentAssiseByType.get(this.currentType);
                     this.removeAssiseForType(this.currentType, currentAssiseForType);
                 } else {
-                    alert('Impossible de supprimer la derniàre assise');
+                    alert('Impossible de supprimer la derni�re assise');
                 }
             };
             
             removeAssiseBtn.addEventListener('click', this.handleRemoveAssise);
         } else {
-            console.warn('Bouton removeAssise non trouvé dans le DOM');
+            console.warn('Bouton removeAssise non trouv� dans le DOM');
         }
         
         if (toggleGridsBtn) {
-            // CORRECTION: Supprimer les anciens listeners pour àviter les doublons
+            // CORRECTION: Supprimer les anciens listeners pour �viter les doublons
             if (this.handleToggleGrids) {
                 toggleGridsBtn.removeEventListener('click', this.handleToggleGrids);
             }
             
             this.handleToggleGrids = () => {
-                // console.log('Bouton Toggle Grilles cliquà');
+                // console.log('Bouton Toggle Grilles cliqu�');
                 this.toggleAssiseGrids();
             };
             
             toggleGridsBtn.addEventListener('click', this.handleToggleGrids);
         } else {
-            console.warn('Bouton toggleAssiseGrids non trouvé dans le DOM');
+            console.warn('Bouton toggleAssiseGrids non trouv� dans le DOM');
         }
 
         // Event listener pour les marqueurs d'accroche
@@ -1886,7 +1886,7 @@ class AssiseManager {
             }
             
             this.handleToggleMarkers = () => {
-                // console.log('Bouton Toggle Marqueurs d\'Accroche cliquà');
+                // console.log('Bouton Toggle Marqueurs d\'Accroche cliqu�');
                 const isEnabled = this.toggleAttachmentMarkers();
                 toggleMarkersBtn.textContent = isEnabled ? 'Masquer Marqueurs' : 'Marqueurs d\'Accroche';
                 toggleMarkersBtn.className = `btn btn-sm ${isEnabled ? 'btn-warning' : 'btn-info'}`;
@@ -1908,18 +1908,18 @@ class AssiseManager {
 
                     // Construire une liste lisible des assises existantes
                     const existing = Array.from(assisesForType.keys()).sort((a,b)=>a-b);
-                    const targetStr = prompt(`Copier l'assise ${sourceIndex + 1} (${type.toUpperCase()}) vers quelle assise ?\n- Entrez un numéro (1, 2, 3, ...)\n- L'assise sera créée si elle n'existe pas\nAssises existantes: ${existing.map(i=>i+1).join(', ')}`, `${sourceIndex + 2}`);
-                    if (targetStr === null) return; // annulé
+                    const targetStr = prompt(`Copier l'assise ${sourceIndex + 1} (${type.toUpperCase()}) vers quelle assise ?\n- Entrez un num e9ro (1, 2, 3, ...)\n- L'assise sera cr e9 e9e si elle n'existe pas\nAssises existantes: ${existing.map(i=>i+1).join(', ')}`, `${sourceIndex + 2}`);
+                    if (targetStr === null) return; // annul e9
                     const targetHuman = parseInt(targetStr, 10);
                     if (isNaN(targetHuman) || targetHuman < 1) {
-                        alert("Numéro d'assise invalide.");
+                        alert("Num e9ro d'assise invalide.");
                         return;
                     }
                     const targetIndex = targetHuman - 1;
                     const result = this.copyAssiseTo(type, sourceIndex, targetIndex, { includeJoints: true });
                     if (result?.copiedCount >= 0) {
                         this.setActiveAssiseForType(type, targetIndex);
-                        alert(`Copié ${result.copiedCount} élément(s) de l'assise ${sourceIndex + 1} vers ${targetHuman}.`);
+                        alert(`Copi e9 ${result.copiedCount}  e9l e9ment(s) de l'assise ${sourceIndex + 1} vers ${targetHuman}.`);
                     }
                 } catch (e) {
                     console.error('Erreur copie assise:', e);
@@ -1928,28 +1928,28 @@ class AssiseManager {
             };
             copyAssiseBtn.addEventListener('click', this.handleCopyAssise);
         }
-            // Mettre à jour le texte initial du bouton
+            // Mettre � jour le texte initial du bouton
             toggleMarkersBtn.textContent = this.showAttachmentMarkers ? 'Masquer Marqueurs' : 'Marqueurs d\'Accroche';
             toggleMarkersBtn.className = `btn btn-sm ${this.showAttachmentMarkers ? 'btn-warning' : 'btn-info'}`;
         } else {
-            console.warn('Bouton toggleAttachmentMarkers non trouvé dans le DOM');
+            console.warn('Bouton toggleAttachmentMarkers non trouv� dans le DOM');
         }
         
-        // Configurer les événements pour la vue d'ensemble globale
+        // Configurer les �v�nements pour la vue d'ensemble globale
         this.setupGlobalOverviewEvents();
         
-        // Mettre à jour l'interface maintenant que les éléments DOM sont disponibles
+        // Mettre � jour l'interface maintenant que les �l�ments DOM sont disponibles
         this.updateUI();
-        // console.log('? setupUIEventListeners terminà, updateUI() appelà');
+        // console.log('? setupUIEventListeners termin�, updateUI() appel�');
     }
 
     // Copier tout le contenu d'une assise vers une autre (m eame type)
     // options: { includeJoints: boolean }
     copyAssiseTo(type, sourceIndex, targetIndex, options = {}) {
-        const includeJoints = options.includeJoints === true; // par défaut on copie aussi les joints horizontaux/verticaux
+        const includeJoints = options.includeJoints === true; // par d e9faut on copie aussi les joints horizontaux/verticaux
 
         if (!this.allSupportedTypes.includes(type)) {
-            console.warn(`Type non supporté pour copie: ${type}`);
+            console.warn(`Type non support e9 pour copie: ${type}`);
             return null;
         }
 
@@ -1973,25 +1973,25 @@ class AssiseManager {
         const sourceAssise = assisesForType.get(sourceIndex);
         let copiedCount = 0;
 
-        // Pour stabilité: prendre un snapshot des IDs
+        // Pour stabilit e9: prendre un snapshot des IDs
         const elementIds = Array.from(sourceAssise.elements);
         for (const elementId of elementIds) {
             const original = window.SceneManager?.elements?.get(elementId);
             if (!original) continue;
 
-            // Filtre joints si nécessaire
+            // Filtre joints si n e9cessaire
             if (!includeJoints && (original.isVerticalJoint || original.isHorizontalJoint || original.type === 'joint')) {
                 continue;
             }
 
-            // Créer une nouvelle instance WallElement avec les m eames propriétés
+            // Cr e9er une nouvelle instance WallElement avec les m eames propri e9t e9s
             let newElement;
             try {
                 newElement = new WallElement({
                     type: original.type,
                     material: original.material,
                     x: original.position.x,
-                    y: original.position.y, // sera réajusté par addElementToAssiseForType
+                    y: original.position.y, // sera r e9ajust e9 par addElementToAssiseForType
                     z: original.position.z,
                     length: original.dimensions.length,
                     width: original.dimensions.width,
@@ -2001,7 +2001,7 @@ class AssiseManager {
                     brickType: original.brickType
                 });
             } catch (e) {
-                console.warn('Impossible de cloner un élément, skip', original, e);
+                console.warn('Impossible de cloner un  e9l e9ment, skip', original, e);
                 continue;
             }
 
@@ -2043,12 +2043,12 @@ class AssiseManager {
     }
 
     reinitializeUIEventListeners() {
-        // CORRECTION: Màthode pour ràinitialiser les événements UI sans duplication
+        // CORRECTION: M�thode pour r�initialiser les �v�nements UI sans duplication
         //         this.setupUIEventListeners();
     }
 
     updateUI() {
-        // Mettre à jour le sàlecteur d'assise (pour le type actuel)
+        // Mettre � jour le s�lecteur d'assise (pour le type actuel)
         const assiseSelect = document.getElementById('assiseSelect');
         if (assiseSelect) {
             assiseSelect.innerHTML = '';
@@ -2069,27 +2069,27 @@ class AssiseManager {
             }
         }
 
-        // Mettre à jour les onglets de types d'assises
+        // Mettre � jour les onglets de types d'assises
         this.updateTypeTabsUI();
         
-        // Mettre à jour l'affichage du joint
+        // Mettre � jour l'affichage du joint
         const jointHeightInput = document.getElementById('jointHeight');
         if (jointHeightInput) {
             jointHeightInput.value = this.jointHeight;
         }
         
-        // Mettre à jour les statistiques (pour le type actuel)
+        // Mettre � jour les statistiques (pour le type actuel)
         const assiseCountSpan = document.getElementById('assiseCount');
         if (assiseCountSpan) {
             const assisesForCurrentType = this.assisesByType.get(this.currentType);
             const elementsForCurrentType = this.elementsByType.get(this.currentType);
             
-            // Vàrifier que les collections existent
+            // V�rifier que les collections existent
             if (!assisesForCurrentType || !elementsForCurrentType) {
-                return; // Sortir silencieusement si les types ne sont pas initialisàs
+                return; // Sortir silencieusement si les types ne sont pas initialis�s
             }
             
-            // Compter les éléments par assise pour le type actuel (sans les joints)
+            // Compter les �l�ments par assise pour le type actuel (sans les joints)
             let totalElements = 0;
             let filledAssises = 0;
             
@@ -2101,11 +2101,11 @@ class AssiseManager {
                 }
             }
             
-            const detailText = totalElements > 0 ? ` (${totalElements} éléments, ${filledAssises} actives)` : ' (vides)';
+            const detailText = totalElements > 0 ? ` (${totalElements} �l�ments, ${filledAssises} actives)` : ' (vides)';
             assiseCountSpan.textContent = `${this.currentType.toUpperCase()}: ${assisesForCurrentType.size} assises${detailText}`;
         }
         
-        // Mettre à jour l'àtat des boutons
+        // Mettre � jour l'�tat des boutons
         const removeAssiseBtn = document.getElementById('removeAssise');
         if (removeAssiseBtn) {
             const assisesForCurrentType = this.assisesByType.get(this.currentType);
@@ -2117,7 +2117,7 @@ class AssiseManager {
             toggleGridsBtn.textContent = this.showAssiseGrids ? 'Masquer Grilles' : 'Afficher Grilles';
         }
         
-        // Mettre à jour les informations sur l'assise active
+        // Mettre � jour les informations sur l'assise active
         const activeAssiseInfo = document.getElementById('activeAssiseInfo');
         if (activeAssiseInfo) {
             const currentAssiseForType = this.currentAssiseByType.get(this.currentType);
@@ -2126,25 +2126,25 @@ class AssiseManager {
             activeAssiseInfo.querySelector('.detail-value').textContent = `${typeLabel} active: ${description}`;
         }
 
-        // Mettre à jour la vue d'ensemble globale
+        // Mettre � jour la vue d'ensemble globale
         this.updateGlobalOverview();
 
-        // Mettre à jour les informations du type actuel
+        // Mettre � jour les informations du type actuel
         this.updateCurrentTypeInfo();
         
-        // NOUVEAU: Mettre à jour la hauteur du point de suivi après toute modification
+        // NOUVEAU: Mettre � jour la hauteur du point de suivi apr�s toute modification
         this.updateSnapPointHeight();
     }
 
-    // === NOUVELLES MÉTHODES POUR LA VUE D'ENSEMBLE GLOBALE ===
+    // === NOUVELLES M�THODES POUR LA VUE D'ENSEMBLE GLOBALE ===
 
-    // Mettre à jour la vue d'ensemble globale
+    // Mettre � jour la vue d'ensemble globale
     updateGlobalOverview() {
         this.updateOverviewStats();
         this.updateGlobalAssiseList();
     }
 
-    // Mettre à jour les statistiques globales
+    // Mettre � jour les statistiques globales
     updateOverviewStats() {
         let totalAssises = 0;
         let totalElements = 0;
@@ -2164,7 +2164,7 @@ class AssiseManager {
             }
         }
 
-        // Mettre à jour l'affichage
+        // Mettre � jour l'affichage
         const totalAssisesCount = document.getElementById('totalAssisesCount');
         if (totalAssisesCount) {
             totalAssisesCount.textContent = totalAssises;
@@ -2181,7 +2181,7 @@ class AssiseManager {
         }
     }
 
-    // Mettre à jour la liste globale des assises
+    // Mettre � jour la liste globale des assises
     updateGlobalAssiseList() {
         const globalAssiseList = document.getElementById('globalAssiseList');
         if (!globalAssiseList) return;
@@ -2222,7 +2222,7 @@ class AssiseManager {
             return a.index - b.index;
         });
 
-        // Gànàrer le HTML
+        // G�n�rer le HTML
         globalAssiseList.innerHTML = '';
 
         if (allAssises.length === 0) {
@@ -2266,9 +2266,9 @@ class AssiseManager {
 
     // Naviguer vers une assise spécifique
     navigateToAssise(type, index) {
-        // console.log(`🔧 Navigation vers l'assise ${index + 1} du type ${type}`);
+        // console.log(`?? Navigation vers l'assise ${index + 1} du type ${type}`);
         
-        // Changer le type actuel si nàcessaire
+        // Changer le type actuel si n�cessaire
         if (type !== this.currentType) {
             this.setCurrentType(type);
         }
@@ -2286,14 +2286,14 @@ class AssiseManager {
         // Changer l'assise active pour ce type
         this.setActiveAssiseForType(type, index);
         
-        // Mettre à jour l'interface
+        // Mettre � jour l'interface
         this.updateUI();
         
         // Optionnel: centrer la vue sur cette assise
         this.focusOnAssise(type, index);
     }
 
-    // Centrer la vue sur une assise spécifique (optionnel)
+    // Centrer la vue sur une assise sp�cifique (optionnel)
     focusOnAssise(type, index) {
         const assisesForType = this.assisesByType.get(type);
         const assise = assisesForType.get(index);
@@ -2303,14 +2303,14 @@ class AssiseManager {
             const camera = window.SceneManager.camera;
             const controls = window.SceneManager.controls;
             
-            // Animer la camàra vers l'assise
+            // Animer la cam�ra vers l'assise
             const targetPosition = {
                 x: position.x,
                 y: position.y + 50,
                 z: position.z + 30
             };
             
-            // Simple transition - peut àtre amàlioràe avec une animation fluide
+            // Simple transition - peut �tre am�lior�e avec une animation fluide
             camera.position.set(targetPosition.x, targetPosition.y, targetPosition.z);
             camera.lookAt(position.x, position.y, position.z);
             controls.target.set(position.x, position.y, position.z);
@@ -2318,7 +2318,7 @@ class AssiseManager {
         }
     }
 
-    // Mettre à jour les informations du type actuel
+    // Mettre � jour les informations du type actuel
     updateCurrentTypeInfo() {
         const currentTypeBadge = document.getElementById('currentTypeBadge');
         const currentTypeDescription = document.getElementById('currentTypeDescription');
@@ -2356,7 +2356,7 @@ class AssiseManager {
         }
     }
 
-    // Configurer les événements pour la vue d'ensemble globale
+    // Configurer les �v�nements pour la vue d'ensemble globale
     setupGlobalOverviewEvents() {
         // Toggle pour masquer/afficher la liste globale
         const toggleGlobalList = document.getElementById('toggleGlobalList');
@@ -2372,16 +2372,16 @@ class AssiseManager {
         }
     }
 
-    // Mise à jour de la màthode updateUI principale
+    // Mise � jour de la m�thode updateUI principale
     updateUIComplete() {
         this.updateUI();
         this.updateGlobalOverview();
         this.updateCurrentTypeInfo();
     }
 
-    // Mettre à jour l'interface des onglets de types
+    // Mettre � jour l'interface des onglets de types
     updateTypeTabsUI() {
-        // Mettre à jour les onglets si ils existent
+        // Mettre � jour les onglets si ils existent
         document.querySelectorAll('.type-tab').forEach(tab => {
             tab.classList.remove('active');
             if (tab.dataset.type === this.currentType) {
@@ -2389,7 +2389,7 @@ class AssiseManager {
             }
         });
 
-        // Mettre à jour les compteurs par type
+        // Mettre � jour les compteurs par type
         for (const type of this.supportedTypes) {
             const tab = document.querySelector(`.type-tab[data-type="${type}"]`);
             if (tab) {
@@ -2401,13 +2401,13 @@ class AssiseManager {
             }
         }
         
-        // Configurer les événements des onglets si pas encore fait
+        // Configurer les �v�nements des onglets si pas encore fait
         this.setupTypeTabEvents();
     }
 
-    // Configurer les événements pour les onglets de types
+    // Configurer les �v�nements pour les onglets de types
     setupTypeTabEvents() {
-        // àviter de cràer des listeners multiples
+        // �viter de cr�er des listeners multiples
         if (this.typeTabEventsSetup) return;
         this.typeTabEventsSetup = true;
         
@@ -2421,7 +2421,7 @@ class AssiseManager {
         });
     }
 
-    // Màthodes pour la sauvegarde/chargement - Version Multi-Types
+    // M�thodes pour la sauvegarde/chargement - Version Multi-Types
     exportData() {
         const data = {
             assisesByType: {},
@@ -2445,7 +2445,7 @@ class AssiseManager {
     }
 
     importData(data) {
-        // Nettoyer l'àtat actuel
+        // Nettoyer l'�tat actuel
         this.clear();
         
         // Restaurer les hauteurs de joint par type
@@ -2455,7 +2455,7 @@ class AssiseManager {
                 this.jointHeightByType.set(type, height);
             }
         } else {
-            // Ancienne structure: hauteur globale - appliquer à tous les types
+            // Ancienne structure: hauteur globale - appliquer � tous les types
             const globalHeight = data.jointHeight || 1.2;
             for (const type of this.allSupportedTypes) {
                 this.jointHeightByType.set(type, globalHeight);
@@ -2494,13 +2494,13 @@ class AssiseManager {
         const currentAssiseIndex = this.currentAssiseByType.get(this.currentType) || 0;
         this.setActiveAssiseForType(this.currentType, currentAssiseIndex);
         
-        // Recràer le point d'accrochage si nàcessaire
+        // Recr�er le point d'accrochage si n�cessaire
         if (!this.snapPoint) {
             this.createSnapPoint();
         }
         
         this.updateUI();
-        console.log('Donnàes d\'assise multi-types importàes');
+        console.log('Donn�es d\'assise multi-types import�es');
     }
 
     clear() {
@@ -2530,25 +2530,25 @@ class AssiseManager {
             this.gridHelpersByType.get(type).clear();
         }
         
-        // Ràinitialiser les assises courantes
+        // R�initialiser les assises courantes
         for (const type of this.allSupportedTypes) {
             this.currentAssiseByType.set(type, 0);
         }
         
-        // Recràer les assises par défaut pour tous les types et le point d'accrochage
+        // Recr�er les assises par d�faut pour tous les types et le point d'accrochage
         this.createDefaultAssises();
         this.createSnapPoint();
         
-        console.log('Assises multi-types réinitialisées avec sous-types de briques');
+        console.log('Assises multi-types r�initialis�es avec sous-types de briques');
     }
 
-    // Alias pour clartà dans les tests
+    // Alias pour clart� dans les tests
     clearAllAssises() {
         this.clear();
     }
 
     updateAllGridVisibility() {
-        // Mettre à jour la visibilità pour tous les types (incluant les sous-types de briques)
+        // Mettre � jour la visibilit� pour tous les types (incluant les sous-types de briques)
         for (const type of this.allSupportedTypes) {
             const gridHelpersForType = this.gridHelpersByType.get(type);
             if (!gridHelpersForType) continue;
@@ -2560,12 +2560,12 @@ class AssiseManager {
                 const isActiveForCurrentType = (type === this.currentType) && (index === currentAssiseForType);
                 grids.main.visible = this.showAssiseGrids && isActiveForCurrentType;
                 
-                // Masquer complàtement tous les plans supàrieurs
+                // Masquer compl�tement tous les plans sup�rieurs
                 grids.joint.visible = false;
             }
         }
         
-        // Mettre à jour la visibilità du point d'accrochage
+        // Mettre � jour la visibilit� du point d'accrochage
         if (this.snapPoint) {
             this.snapPoint.visible = this.showAssiseGrids && this.showSnapPoint;
         }
@@ -2573,17 +2573,17 @@ class AssiseManager {
 
     createSnapPoint() {
         // SUPPRESSION DU POINT D'ACCROCHAGE VISIBLE SUR LA BRIQUE FANTOME
-        // Point d'accrochage dàsactivà pour àviter la confusion visuelle
+        // Point d'accrochage d�sactiv� pour �viter la confusion visuelle
         if (this.snapPoint) {
             // Supprimer l'ancien point d'accrochage s'il existe
             window.SceneManager.scene.remove(this.snapPoint);
             this.snapPoint = null;
         }
         
-        // Point d'accrochage dàsactivà - plus de cràation de sphàre orange
+        // Point d'accrochage d�sactiv� - plus de cr�ation de sph�re orange
         return;
         
-        // Cràer une petite sphàre orange pour le point d'accrochage
+        // Cr�er une petite sph�re orange pour le point d'accrochage
         const geometry = new THREE.SphereGeometry(0.3, 8, 6);
         const material = new THREE.MeshBasicMaterial({ 
             color: 0xff6600, // Orange
@@ -2594,17 +2594,17 @@ class AssiseManager {
         this.snapPoint = new THREE.Mesh(geometry, material);
         this.snapPoint.visible = this.showSnapPoint;
         
-        // IDENTIFICATION POUR EXPORT PDF : Marquer le point d'accrochage unique comme élément à masquer
+        // IDENTIFICATION POUR EXPORT PDF : Marquer le point d'accrochage unique comme �l�ment � masquer
         this.snapPoint.userData.isAssiseProjectionMarker = true;
         this.snapPoint.userData.assiseProjectionType = 'dynamic_snap_point';
         this.snapPoint.userData.isDynamicSnapPoint = true;
         this.snapPoint.userData.currentType = this.currentType;
         this.snapPoint.name = `AssiseProjection_DynamicSnapPoint_${this.currentType}`;
         
-        // Positionner le point d'accrochage à la hauteur de l'assise active
+        // Positionner le point d'accrochage � la hauteur de l'assise active
         this.updateSnapPointHeight();
         
-        // Ajouter à la scène
+        // Ajouter � la sc�ne
         window.SceneManager.scene.add(this.snapPoint);
         
         return this.snapPoint;
@@ -2622,23 +2622,23 @@ class AssiseManager {
         this.snapPoint.position.z = snappedZ;
     }
 
-    // Fonction publique pour calculer les coordonnées d'accrochage à la grille d'assise
+    // Fonction publique pour calculer les coordonn�es d'accrochage � la grille d'assise
     snapToAssiseGrid(x, z) {
-        // Vàrifier si nous avons une grille active pour le type actuel
+        // V�rifier si nous avons une grille active pour le type actuel
         const currentAssiseIndex = this.currentAssiseByType.get(this.currentType);
         const gridHelpersForType = this.gridHelpersByType.get(this.currentType);
         
         if (gridHelpersForType && gridHelpersForType.has(currentAssiseIndex)) {
             const grids = gridHelpersForType.get(currentAssiseIndex);
             if (grids && grids.main) {
-                // Utiliser la grille ràelle de l'AssiseManager pour l'accrochage
+                // Utiliser la grille r�elle de l'AssiseManager pour l'accrochage
                 // GridHelper de Three.js utilise size et divisions
-                // La grille va de -size/2 à +size/2 avec 'divisions' lignes
+                // La grille va de -size/2 � +size/2 avec 'divisions' lignes
                 const gridSize = this.calculateDynamicGridSize();
                 const divisions = gridSize;
                 const gridSpacing = gridSize / divisions; // Espacement entre les lignes = 1cm
                 
-                // Accrochage basà sur l'espacement ràel de la grille
+                // Accrochage bas� sur l'espacement r�el de la grille
                 const snappedX = Math.round(x / gridSpacing) * gridSpacing;
                 const snappedZ = Math.round(z / gridSpacing) * gridSpacing;
                 
@@ -2646,7 +2646,7 @@ class AssiseManager {
             }
         }
         
-        // Fallback : accrochage générique 1cm x 1cm si pas de grille disponible
+        // Fallback : accrochage g�n�rique 1cm x 1cm si pas de grille disponible
         const fallbackGridSize = 1; // 1cm
         const snappedX = Math.round(x / fallbackGridSize) * fallbackGridSize;
         const snappedZ = Math.round(z / fallbackGridSize) * fallbackGridSize;
@@ -2667,11 +2667,11 @@ class AssiseManager {
         const assisesForType = this.assisesByType.get(this.currentType);
         const assise = assisesForType.get(currentAssiseForType);
         if (assise) {
-            // Positionner làgàrement au-dessus de la grille de l'assise
+            // Positionner l�g�rement au-dessus de la grille de l'assise
             this.snapPoint.position.y = assise.height + 0.5;
         }
         
-        // Forcer la mise à jour des marqueurs d'accroche pour qu'ils suivent la nouvelle hauteur
+        // Forcer la mise � jour des marqueurs d'accroche pour qu'ils suivent la nouvelle hauteur
         this.updateAttachmentMarkers();
     }
 
@@ -2682,7 +2682,7 @@ class AssiseManager {
         }
     }
 
-    // Cràer les marqueurs d'accroche pour les éléments des assises infàrieures
+    // Cr�er les marqueurs d'accroche pour les �l�ments des assises inf�rieures
     createAttachmentMarkers(activeAssiseIndex = null) {
         // Nettoyer les marqueurs existants
         this.clearAttachmentMarkers();
@@ -2691,11 +2691,11 @@ class AssiseManager {
             activeAssiseIndex = this.currentAssiseByType.get(this.currentType);
         }
         
-        // Cràer des marqueurs pour les éléments de l'assise immàdiatement infàrieure uniquement
+        // Cr�er des marqueurs pour les �l�ments de l'assise imm�diatement inf�rieure uniquement
         const elementsForType = this.elementsByType.get(this.currentType);
         const previousAssiseIndex = activeAssiseIndex - 1;
         
-        // Ne montrer que les points de l'assise directement en dessous (pas toutes les assises infàrieures)
+        // Ne montrer que les points de l'assise directement en dessous (pas toutes les assises inf�rieures)
         if (previousAssiseIndex >= 0) {
             const elementsInPreviousAssise = elementsForType.get(previousAssiseIndex);
             if (elementsInPreviousAssise) {
@@ -2708,26 +2708,26 @@ class AssiseManager {
             }
         }
         
-        // 🔧 NOUVEAUTà: Ajouter des marqueurs pour les joints verticaux des assises infàrieures
+        // ?? NOUVEAUT�: Ajouter des marqueurs pour les joints verticaux des assises inf�rieures
         this.createJointAttachmentMarkers(activeAssiseIndex);
     }
 
-    // Cràer des marqueurs d'accroche pour les joints verticaux de l'assise immàdiatement infàrieure
+    // Cr�er des marqueurs d'accroche pour les joints verticaux de l'assise imm�diatement inf�rieure
     createJointAttachmentMarkers(activeAssiseIndex) {
         if (!window.SceneManager || !window.SceneManager.elements) return;
         
-        // Collecter les joints verticaux de l'assise immàdiatement infàrieure uniquement
+        // Collecter les joints verticaux de l'assise imm�diatement inf�rieure uniquement
         const verticalJoints = [];
         const previousAssiseIndex = activeAssiseIndex - 1;
         
         // Ne traiter que l'assise directement en dessous
         if (previousAssiseIndex >= 0) {
-            // Parcourir tous les éléments pour trouver les joints verticaux
+            // Parcourir tous les �l�ments pour trouver les joints verticaux
             for (const [elementId, element] of window.SceneManager.elements.entries()) {
                 if (element.isVerticalJoint && element.type === 'joint') {
                     const jointAssiseInfo = this.getElementAssiseAndType(elementId);
                     
-                    // Vàrifier si le joint est dans l'assise immàdiatement infàrieure du type actuel
+                    // V�rifier si le joint est dans l'assise imm�diatement inf�rieure du type actuel
                     if (jointAssiseInfo && 
                         jointAssiseInfo.type === this.currentType && 
                         jointAssiseInfo.assiseIndex === previousAssiseIndex) {
@@ -2741,24 +2741,24 @@ class AssiseManager {
             }
         }
         
-        // console.log(`🔧 Joints verticaux trouvés pour marqueurs (assise ${previousAssiseIndex} uniquement): ${verticalJoints.length}`);
+        // console.log(`?? Joints verticaux trouv�s pour marqueurs (assise ${previousAssiseIndex} uniquement): ${verticalJoints.length}`);
         
-        // Collecter les positions des briques existantes pour àviter les conflits
+        // Collecter les positions des briques existantes pour �viter les conflits
         const existingBrickPositions = this.getExistingBrickPositionsInPreviousAssise(activeAssiseIndex);
         
-        // Cràer des marqueurs pour chaque joint vertical
+        // Cr�er des marqueurs pour chaque joint vertical
         verticalJoints.forEach(jointInfo => {
             this.createJointMarkerForElement(jointInfo.element, activeAssiseIndex, existingBrickPositions);
         });
     }
 
-    // Obtenir les positions des briques existantes dans l'assise immàdiatement infàrieure
+    // Obtenir les positions des briques existantes dans l'assise imm�diatement inf�rieure
     getExistingBrickPositionsInPreviousAssise(activeAssiseIndex) {
         const positions = [];
         const elementsForType = this.elementsByType.get(this.currentType);
         const previousAssiseIndex = activeAssiseIndex - 1;
         
-        // Ne traiter que l'assise immàdiatement infàrieure
+        // Ne traiter que l'assise imm�diatement inf�rieure
         if (previousAssiseIndex >= 0) {
             const elementsInPreviousAssise = elementsForType.get(previousAssiseIndex);
             if (elementsInPreviousAssise) {
@@ -2778,8 +2778,8 @@ class AssiseManager {
         return positions;
     }
 
-    // ANCIENNE MàTHODE - Conservàe pour compatibilité si utilisée ailleurs
-    // Obtenir les positions des briques existantes dans les assises infàrieures
+    // ANCIENNE M�THODE - Conserv�e pour compatibilit� si utilis�e ailleurs
+    // Obtenir les positions des briques existantes dans les assises inf�rieures
     getExistingBrickPositionsInAssises(maxAssiseIndex) {
         const positions = [];
         const elementsForType = this.elementsByType.get(this.currentType);
@@ -2806,7 +2806,7 @@ class AssiseManager {
         return positions;
     }
 
-    // Cràer un marqueur d'accroche pour un joint vertical
+    // Cr�er un marqueur d'accroche pour un joint vertical
     createJointMarkerForElement(joint, targetAssiseIndex, existingBrickPositions) {
         const currentAssiseForType = this.currentAssiseByType.get(this.currentType);
         const assisesForType = this.assisesByType.get(this.currentType);
@@ -2816,25 +2816,25 @@ class AssiseManager {
         // Calculer la position du marqueur sur la grille de l'assise active
         const markerY = assise.height;
         
-        // Position du joint projetàe sur l'assise supàrieure
+        // Position du joint projet�e sur l'assise sup�rieure
         const jointX = joint.position.x;
         const jointZ = joint.position.z;
         
-        // Vàrifier s'il y a déjà une brique à cette position (àviter les conflits)
+        // V�rifier s'il y a d�j� une brique � cette position (�viter les conflits)
         const hasConflict = existingBrickPositions.some(brickPos => {
             const distance = Math.sqrt(
                 Math.pow(brickPos.x - jointX, 2) + 
                 Math.pow(brickPos.z - jointZ, 2)
             );
-            return distance < 5; // Seuil de 5cm pour àviter les conflits
+            return distance < 5; // Seuil de 5cm pour �viter les conflits
         });
         
         if (hasConflict) {
-            // console.log(`🔧 Joint vertical ${joint.id} ignoré - conflit avec brique existante`);
+            // console.log(`?? Joint vertical ${joint.id} ignor� - conflit avec brique existante`);
             return;
         }
         
-        // Cràer un marqueur linàaire pour le joint vertical
+        // Cr�er un marqueur lin�aire pour le joint vertical
         const jointMarkerGeometry = new THREE.PlaneGeometry(joint.dimensions.width, 1); // 1cm de large
         const jointMarkerMaterial = new THREE.MeshBasicMaterial({
             color: 0x8e44ad, // Violet pour distinguer des briques
@@ -2847,9 +2847,9 @@ class AssiseManager {
         const jointMarker = new THREE.Mesh(jointMarkerGeometry, jointMarkerMaterial);
         jointMarker.position.set(jointX, markerY + 0.05, jointZ);
         jointMarker.rotation.x = -Math.PI / 2; // Horizontal
-        jointMarker.rotation.z = joint.rotation; // Màme rotation que le joint
+        jointMarker.rotation.z = joint.rotation; // M�me rotation que le joint
         
-        // Cràer les contours du joint
+        // Cr�er les contours du joint
         const jointEdges = new THREE.EdgesGeometry(jointMarkerGeometry);
         const jointLineMaterial = new THREE.LineBasicMaterial({ 
             color: 0x8e44ad,
@@ -2859,15 +2859,15 @@ class AssiseManager {
         jointWireframe.position.copy(jointMarker.position);
         jointWireframe.rotation.copy(jointMarker.rotation);
         
-        // Cràer un groupe pour le marqueur de joint
+        // Cr�er un groupe pour le marqueur de joint
         const jointMarkerGroup = new THREE.Group();
         jointMarkerGroup.add(jointMarker);
         jointMarkerGroup.add(jointWireframe);
         
-        // Ajouter des points d'accroche spécifiques pour le joint
+        // Ajouter des points d'accroche sp�cifiques pour le joint
         this.addJointAttachmentPoints(joint, jointMarkerGroup, markerY, jointX, jointZ);
         
-        // Ajouter à la scène et au tracking
+        // Ajouter � la sc�ne et au tracking
         window.SceneManager.scene.add(jointMarkerGroup);
         
         const activeAssiseForType = this.currentAssiseByType.get(this.currentType);
@@ -2881,16 +2881,16 @@ class AssiseManager {
             isJoint: true
         });
         
-        // console.log(`🔧 Marqueur de joint vertical cr\ pour ${joint.id} à (${jointX}, ${jointZ})`);
+        // console.log(`?? Marqueur de joint vertical cr�� pour ${joint.id} � (${jointX}, ${jointZ})`);
     }
 
-    // Ajouter des points d'accroche spécifiques pour les joints verticaux
+    // Ajouter des points d'accroche sp�cifiques pour les joints verticaux
     addJointAttachmentPoints(joint, parentGroup, markerY, markerX, markerZ) {
         const halfWidth = joint.dimensions.width / 2;
         
-        // Points d'accroche pour joint vertical : extràmitàs + centre
+        // Points d'accroche pour joint vertical : extr�mit�s + centre
         const jointAttachmentPoints = [
-            { x: 0, z: -halfWidth, type: 'joint-start', description: 'Dàbut du joint' },
+            { x: 0, z: -halfWidth, type: 'joint-start', description: 'D�but du joint' },
             { x: 0, z: 0, type: 'joint-center', description: 'Centre du joint' },
             { x: 0, z: halfWidth, type: 'joint-end', description: 'Fin du joint' }
         ];
@@ -2917,7 +2917,7 @@ class AssiseManager {
                 markerZ + rotatedZ
             );
             
-            // Màtadonnées pour l'animation et l'interaction
+            // M�tadonn�es pour l'animation et l'interaction
             pointMesh.userData = {
                 type: point.type,
                 description: point.description,
@@ -2928,12 +2928,12 @@ class AssiseManager {
                 originalScale: { x: 1, y: 1, z: 1 },
                 isHovered: false,
                 pulsePhase: Math.random() * Math.PI * 2,
-                // IDENTIFICATION COMPLàTE POUR EXPORT PDF : Points de joints verticaux
+                // IDENTIFICATION COMPL�TE POUR EXPORT PDF : Points de joints verticaux
                 isAssiseProjectionMarker: true,
                 assiseProjectionType: 'joint_snap_point',
                 sourceElementId: joint.id,
                 targetAssise: this.currentAssiseByType.get(this.currentType),
-                // NOUVELLES IDENTIFICATIONS SPàCIFIQUES POUR JOINTS
+                // NOUVELLES IDENTIFICATIONS SP�CIFIQUES POUR JOINTS
                 isProjectedAttachmentPoint: true,
                 projectionSource: 'lower_assise_joint',
                 markerCategory: 'joint_attachment_point',
@@ -2961,12 +2961,12 @@ class AssiseManager {
                 isHalo: true,
                 parentPoint: pointMesh,
                 originalOpacity: 0.15,
-                // IDENTIFICATION COMPLàTE POUR EXPORT PDF : Halo de points de joints
+                // IDENTIFICATION COMPL�TE POUR EXPORT PDF : Halo de points de joints
                 isAssiseProjectionMarker: true,
                 assiseProjectionType: 'joint_snap_halo',
                 sourceElementId: joint.id,
                 targetAssise: this.currentAssiseByType.get(this.currentType),
-                // NOUVELLES IDENTIFICATIONS SPàCIFIQUES POUR HALO DE JOINT
+                // NOUVELLES IDENTIFICATIONS SP�CIFIQUES POUR HALO DE JOINT
                 isProjectedAttachmentPoint: true,
                 projectionSource: 'lower_assise_joint',
                 markerCategory: 'joint_attachment_halo',
@@ -2988,17 +2988,17 @@ class AssiseManager {
             parentGroup.add(pointMesh);
         });
         
-        // console.log(`🔧 Points d'accroche de joint cr\s pour ${joint.id}: ${jointAttachmentPoints.length} points`);
+        // console.log(`?? Points d'accroche de joint cr��s pour ${joint.id}: ${jointAttachmentPoints.length} points`);
     }
 
-    // Dàtecter si un élément est un bloc creux
+    // D�tecter si un �l�ment est un bloc creux
     isHollowBlock(element) {
-        // Vàrifier d'abord si l'élément a un ID contenant B suivi d'un chiffre (B9, B14, B19, B29)
+        // V�rifier d'abord si l'�l�ment a un ID contenant B suivi d'un chiffre (B9, B14, B19, B29)
         if (element.id && /^B\d+/.test(element.id)) {
             return true;
         }
         
-        // Vàrifier les dimensions caractàristiques des blocs creux (39cm ou dàrivàs)
+        // V�rifier les dimensions caract�ristiques des blocs creux (39cm ou d�riv�s)
         const length = element.dimensions.length;
         const height = element.dimensions.height;
         
@@ -3008,7 +3008,7 @@ class AssiseManager {
             return true;
         }
         
-        // Vàrifier via les types de blocs si disponibles
+        // V�rifier via les types de blocs si disponibles
         if (window.BlockSelector && window.BlockSelector.blockTypes) {
             for (const [blockId, blockInfo] of Object.entries(window.BlockSelector.blockTypes)) {
                 if (blockInfo.category === 'hollow' || blockInfo.category === 'cut') {
@@ -3024,9 +3024,9 @@ class AssiseManager {
         return false;
     }
 
-    // Dàtecter le type de coupe d'un élément
+    // D�tecter le type de coupe d'un �l�ment
     getElementCutType(element) {
-        // Vàrifier d'abord si l'ID contient des suffixes de coupe
+        // V�rifier d'abord si l'ID contient des suffixes de coupe
         if (element.id) {
             if (element.id.includes('_3Q')) {
                 return '3/4';
@@ -3037,7 +3037,7 @@ class AssiseManager {
             }
         }
         
-        // Dàtecter par les dimensions pour les blocs creux
+        // D�tecter par les dimensions pour les blocs creux
         if (this.isHollowBlock(element)) {
             const length = element.dimensions.length;
             switch (length) {
@@ -3050,15 +3050,15 @@ class AssiseManager {
                 case 9:
                     return '1/4';
                 default:
-                    return '1/1'; // Par défaut
+                    return '1/1'; // Par d�faut
             }
         }
         
-        // Pour les briques, dàtecter par dimensions
+        // Pour les briques, d�tecter par dimensions
         if (element.dimensions.height === 6.5 || element.dimensions.height === 9) { // Hauteurs typiques de briques
             const length = element.dimensions.length;
             if (length === 19) {
-                return '1/1'; // Brique entiàre
+                return '1/1'; // Brique enti�re
             } else if (length === 14) {
                 return '3/4';
             } else if (length === 9) {
@@ -3068,10 +3068,10 @@ class AssiseManager {
             }
         }
         
-        return '1/1'; // Par défaut pour éléments non reconnus
+        return '1/1'; // Par d�faut pour �l�ments non reconnus
     }
 
-    // Cràer un marqueur d'accroche pour un élément spécifique
+    // Cr�er un marqueur d'accroche pour un �l�ment sp�cifique
     createMarkerForElement(element, targetAssiseHeight) {
         const currentAssiseForType = this.currentAssiseByType.get(this.currentType);
         const assisesForType = this.assisesByType.get(this.currentType);
@@ -3081,14 +3081,14 @@ class AssiseManager {
         // Calculer la position du marqueur sur la grille de l'assise active
         const markerY = assise.height;
         
-        // Cràer le contour de la brique projetà sur l'assise active
+        // Cr�er le contour de la brique projet� sur l'assise active
         const outlineGeometry = new THREE.RingGeometry(
-            0, // rayon intàrieur
-            Math.max(element.dimensions.length, element.dimensions.width) / 2, // rayon extàrieur
-            4 // segments (pour faire un carrà)
+            0, // rayon int�rieur
+            Math.max(element.dimensions.length, element.dimensions.width) / 2, // rayon ext�rieur
+            4 // segments (pour faire un carr�)
         );
         
-        // Cràer aussi un marqueur rectangulaire plus pràcis
+        // Cr�er aussi un marqueur rectangulaire plus pr�cis
         const markerGeometry = new THREE.PlaneGeometry(
             element.dimensions.length,
             element.dimensions.width
@@ -3102,35 +3102,35 @@ class AssiseManager {
             depthWrite: false
         });
         
-        // Calculer le dàcalage pour positionner le marqueur correctement
-        // Dàcaler d'une demi-longueur en X et d'une demi-largeur en Z (vers l'arriàre)
+        // Calculer le d�calage pour positionner le marqueur correctement
+        // D�caler d'une demi-longueur en X et d'une demi-largeur en Z (vers l'arri�re)
         const offsetX = element.dimensions.length / 2;
-        const offsetZ = -element.dimensions.width / 2; // CORRECTION: dàcalage nàgatif en Z
+        const offsetZ = -element.dimensions.width / 2; // CORRECTION: d�calage n�gatif en Z
         
-        // Appliquer la rotation de l'élément au dàcalage
+        // Appliquer la rotation de l'�l�ment au d�calage
         const cos = Math.cos(element.rotation);
         const sin = Math.sin(element.rotation);
         const rotatedOffsetX = offsetX * cos - offsetZ * sin;
         const rotatedOffsetZ = offsetX * sin + offsetZ * cos;
         
-        // Position finale du marqueur (dàcalàe)
+        // Position finale du marqueur (d�cal�e)
         const markerX = element.position.x + rotatedOffsetX;
         const markerZ = element.position.z + rotatedOffsetZ;
         
-        // Cràer le marqueur principal (rectangle)
+        // Cr�er le marqueur principal (rectangle)
         const marker = new THREE.Mesh(markerGeometry, markerMaterial);
         marker.position.set(markerX, markerY + 0.1, markerZ);
         marker.rotation.x = -Math.PI / 2; // Horizontal
-        marker.rotation.z = element.rotation; // Màme rotation que la brique
+        marker.rotation.z = element.rotation; // M�me rotation que la brique
         
-        // IDENTIFICATION POUR EXPORT PDF : Marquer ce mesh comme marqueur d'assise à masquer
+        // IDENTIFICATION POUR EXPORT PDF : Marquer ce mesh comme marqueur d'assise � masquer
         marker.userData.isAssiseProjectionMarker = true;
         marker.userData.assiseProjectionType = 'attachment_marker';
         marker.userData.sourceElementId = element.id;
         marker.userData.targetAssise = this.currentAssiseByType.get(this.currentType);
         marker.name = `AssiseProjection_AttachmentMarker_${element.id}`;
         
-        // Cràer les contours (bordures)
+        // Cr�er les contours (bordures)
         const edges = new THREE.EdgesGeometry(markerGeometry);
         const lineMaterial = new THREE.LineBasicMaterial({ 
             color: this.attachmentMarkerColor,
@@ -3140,14 +3140,14 @@ class AssiseManager {
         wireframe.position.copy(marker.position);
         wireframe.rotation.copy(marker.rotation);
         
-        // IDENTIFICATION POUR EXPORT PDF : Marquer les contours comme éléments à masquer
+        // IDENTIFICATION POUR EXPORT PDF : Marquer les contours comme �l�ments � masquer
         wireframe.userData.isAssiseProjectionMarker = true;
         wireframe.userData.assiseProjectionType = 'attachment_border';
         wireframe.userData.sourceElementId = element.id;
         wireframe.userData.targetAssise = this.currentAssiseByType.get(this.currentType);
         wireframe.name = `AssiseProjection_AttachmentBorder_${element.id}`;
         
-        // Cràer un groupe pour le marqueur complet
+        // Cr�er un groupe pour le marqueur complet
         const markerGroup = new THREE.Group();
         markerGroup.add(marker);
         markerGroup.add(wireframe);
@@ -3162,7 +3162,7 @@ class AssiseManager {
         // Ajouter des points d'accroche (coins et centre)
         this.addAttachmentPoints(element, markerGroup, markerY, markerX, markerZ);
         
-        // Ajouter à la scène et au tracking
+        // Ajouter � la sc�ne et au tracking
         window.SceneManager.scene.add(markerGroup);
         
         if (!this.attachmentMarkers.has(this.currentAssise)) {
@@ -3175,44 +3175,44 @@ class AssiseManager {
         });
     }
 
-    // Ajouter des points d'accroche spécifiques (coins et centre)
+    // Ajouter des points d'accroche sp�cifiques (coins et centre)
     addAttachmentPoints(element, parentGroup, markerY, markerX, markerZ) {
         const halfLength = element.dimensions.length / 2;
         const halfWidth = element.dimensions.width / 2;
         
-        // Points d'accroche : 4 coins + centre + points spàciaux selon le type d'élément
+        // Points d'accroche : 4 coins + centre + points sp�ciaux selon le type d'�l�ment
         const attachmentPoints = [
-            { x: -halfLength, z: -halfWidth, type: 'corner' }, // Coin arriàre-gauche
-            { x: halfLength, z: -halfWidth, type: 'corner' },  // Coin arriàre-droit
+            { x: -halfLength, z: -halfWidth, type: 'corner' }, // Coin arri�re-gauche
+            { x: halfLength, z: -halfWidth, type: 'corner' },  // Coin arri�re-droit
             { x: halfLength, z: halfWidth, type: 'corner' },   // Coin avant-droit
             { x: -halfLength, z: halfWidth, type: 'corner' },  // Coin avant-gauche
             { x: 0, z: 0, type: 'center' }                    // Centre du marqueur
         ];
         
-        // Dàtecter le type d'élément pour appliquer les bons points d'accrochage
+        // D�tecter le type d'�l�ment pour appliquer les bons points d'accrochage
         const isHollowBlock = this.isHollowBlock(element);
         const cutType = this.getElementCutType(element);
         
-        // console.log(`🔧 Points d'accroche pour ${element.id}: isHollowBlock=${isHollowBlock}, cutType=${cutType}, length=${element.dimensions.length}cm`);
+        // console.log(`?? Points d'accroche pour ${element.id}: isHollowBlock=${isHollowBlock}, cutType=${cutType}, length=${element.dimensions.length}cm`);
         
-        // Coin arriàre-gauche et avant-gauche
+        // Coin arri�re-gauche et avant-gauche
         const leftBackCornerX = -halfLength;
         const leftBackCornerZ = -halfWidth;
         const leftFrontCornerX = -halfLength;
         const leftFrontCornerZ = halfWidth;
         
-        // LOGIQUE SPàCIFIQUE SELON LE TYPE D'àLàMENT
+        // LOGIQUE SP�CIFIQUE SELON LE TYPE D'�L�MENT
         if (isHollowBlock) {
             // === BLOCS CREUX ===
             if (cutType === '1/1' && element.dimensions.length === 39) {
-                // Bloc creux entier 1/1 (39cm) : points à 9, 10, 19, 20, 29 et 30cm
+                // Bloc creux entier 1/1 (39cm) : points � 9, 10, 19, 20, 29 et 30cm
                 attachmentPoints.push(
-                    { x: leftBackCornerX + 9, z: leftBackCornerZ, type: 'snap-9cm-back', description: '9cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 10, z: leftBackCornerZ, type: 'snap-10cm-back', description: '10cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 19, z: leftBackCornerZ, type: 'snap-19cm-back', description: '19cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 20, z: leftBackCornerZ, type: 'snap-20cm-back', description: '20cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 29, z: leftBackCornerZ, type: 'snap-29cm-back', description: '29cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 30, z: leftBackCornerZ, type: 'snap-30cm-back', description: '30cm du coin arriàre-gauche' }
+                    { x: leftBackCornerX + 9, z: leftBackCornerZ, type: 'snap-9cm-back', description: '9cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 10, z: leftBackCornerZ, type: 'snap-10cm-back', description: '10cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 19, z: leftBackCornerZ, type: 'snap-19cm-back', description: '19cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 20, z: leftBackCornerZ, type: 'snap-20cm-back', description: '20cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 29, z: leftBackCornerZ, type: 'snap-29cm-back', description: '29cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 30, z: leftBackCornerZ, type: 'snap-30cm-back', description: '30cm du coin arri�re-gauche' }
                 );
                 
                 attachmentPoints.push(
@@ -3223,14 +3223,14 @@ class AssiseManager {
                     { x: leftFrontCornerX + 29, z: leftFrontCornerZ, type: 'snap-29cm-front', description: '29cm du coin avant-gauche' },
                     { x: leftFrontCornerX + 30, z: leftFrontCornerZ, type: 'snap-30cm-front', description: '30cm du coin avant-gauche' }
                 );
-                console.log(`🔧? Bloc creux entier 1/1: Ajout des points à 9, 10, 19, 20, 29 et 30cm`);
+                console.log(`??? Bloc creux entier 1/1: Ajout des points � 9, 10, 19, 20, 29 et 30cm`);
             } else if (cutType === '3/4' && element.dimensions.length === 29) {
-                // Bloc creux 3/4 (29cm) : points à 9, 10, 19 et 20cm
+                // Bloc creux 3/4 (29cm) : points � 9, 10, 19 et 20cm
                 attachmentPoints.push(
-                    { x: leftBackCornerX + 9, z: leftBackCornerZ, type: 'snap-9cm-back', description: '9cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 10, z: leftBackCornerZ, type: 'snap-10cm-back', description: '10cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 19, z: leftBackCornerZ, type: 'snap-19cm-back', description: '19cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 20, z: leftBackCornerZ, type: 'snap-20cm-back', description: '20cm du coin arriàre-gauche' }
+                    { x: leftBackCornerX + 9, z: leftBackCornerZ, type: 'snap-9cm-back', description: '9cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 10, z: leftBackCornerZ, type: 'snap-10cm-back', description: '10cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 19, z: leftBackCornerZ, type: 'snap-19cm-back', description: '19cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 20, z: leftBackCornerZ, type: 'snap-20cm-back', description: '20cm du coin arri�re-gauche' }
                 );
                 
                 attachmentPoints.push(
@@ -3241,69 +3241,69 @@ class AssiseManager {
                 );
                 // console.log(`🏗️ Bloc creux 3/4: Ajout des points à 9, 10, 19 et 20cm`);
             } else if (cutType === '1/4' && element.dimensions.length === 9) {
-                // Bloc creux 1/4 (9cm) : pas de points intermàdiaires
-                console.log(`🔧? Bloc creux 1/4: Aucun point intermàdiaire ajoutà`);
+                // Bloc creux 1/4 (9cm) : pas de points interm�diaires
+                console.log(`??? Bloc creux 1/4: Aucun point interm�diaire ajout�`);
             } else if (cutType === '1/2' && element.dimensions.length === 19) {
-                // Bloc creux 1/2 (19cm) : points à 9 et 10cm
+                // Bloc creux 1/2 (19cm) : points � 9 et 10cm
                 attachmentPoints.push(
-                    { x: leftBackCornerX + 9, z: leftBackCornerZ, type: 'snap-9cm-back', description: '9cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 10, z: leftBackCornerZ, type: 'snap-10cm-back', description: '10cm du coin arriàre-gauche' }
+                    { x: leftBackCornerX + 9, z: leftBackCornerZ, type: 'snap-9cm-back', description: '9cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 10, z: leftBackCornerZ, type: 'snap-10cm-back', description: '10cm du coin arri�re-gauche' }
                 );
                 
                 attachmentPoints.push(
                     { x: leftFrontCornerX + 9, z: leftFrontCornerZ, type: 'snap-9cm-front', description: '9cm du coin avant-gauche' },
                     { x: leftFrontCornerX + 10, z: leftFrontCornerZ, type: 'snap-10cm-front', description: '10cm du coin avant-gauche' }
                 );
-                console.log(`🔧? Bloc creux 1/2: Ajout des points à 9 et 10cm`);
+                console.log(`??? Bloc creux 1/2: Ajout des points � 9 et 10cm`);
             }
         } else {
-            // === BRIQUES ET AUTRES àLàMENTS ===
+            // === BRIQUES ET AUTRES �L�MENTS ===
             // Garder l'ancienne logique pour les briques (9cm et 10cm)
             if (element.dimensions.length > 10) { // Au moins 10cm de longueur
                 attachmentPoints.push(
-                    { x: leftBackCornerX + 9, z: leftBackCornerZ, type: 'snap-9cm-back', description: '9cm du coin arriàre-gauche' },
-                    { x: leftBackCornerX + 10, z: leftBackCornerZ, type: 'snap-10cm-back', description: '10cm du coin arriàre-gauche' }
+                    { x: leftBackCornerX + 9, z: leftBackCornerZ, type: 'snap-9cm-back', description: '9cm du coin arri�re-gauche' },
+                    { x: leftBackCornerX + 10, z: leftBackCornerZ, type: 'snap-10cm-back', description: '10cm du coin arri�re-gauche' }
                 );
                 
                 attachmentPoints.push(
                     { x: leftFrontCornerX + 9, z: leftFrontCornerZ, type: 'snap-9cm-front', description: '9cm du coin avant-gauche' },
                     { x: leftFrontCornerX + 10, z: leftFrontCornerZ, type: 'snap-10cm-front', description: '10cm du coin avant-gauche' }
                 );
-                // console.log(`🔧 Brique: Ajout des points à 9 et 10cm`);
+                // console.log(`?? Brique: Ajout des points � 9 et 10cm`);
             }
         }
         
         attachmentPoints.forEach(point => {
             const pointGeometry = new THREE.SphereGeometry(0.5, 8, 6);
             
-            // Couleurs spàciales pour les diffàrents types de points d'accroche
-            let pointColor = this.attachmentMarkerColor; // Orange par défaut
+            // Couleurs sp�ciales pour les diff�rents types de points d'accroche
+            let pointColor = this.attachmentMarkerColor; // Orange par d�faut
             if (point.type === 'center') {
                 pointColor = 0xe74c3c; // Rouge pour le centre
             } else if (point.type === 'snap-9cm-back') {
-                pointColor = 0x00ff00; // Vert pour 9cm arriàre
+                pointColor = 0x00ff00; // Vert pour 9cm arri�re
             } else if (point.type === 'snap-10cm-back') {
-                pointColor = 0x0000ff; // Bleu pour 10cm arriàre
+                pointColor = 0x0000ff; // Bleu pour 10cm arri�re
             } else if (point.type === 'snap-9cm-front') {
                 pointColor = 0x00ffff; // Cyan pour 9cm avant
             } else if (point.type === 'snap-10cm-front') {
                 pointColor = 0xff00ff; // Magenta pour 10cm avant
             } else if (point.type === 'snap-19cm-back') {
-                pointColor = 0x9ACD32; // Vert olive pour 19cm arriàre
+                pointColor = 0x9ACD32; // Vert olive pour 19cm arri�re
             } else if (point.type === 'snap-20cm-back') {
-                pointColor = 0x228B22; // Vert foràt pour 20cm arriàre
+                pointColor = 0x228B22; // Vert for�t pour 20cm arri�re
             } else if (point.type === 'snap-29cm-back') {
-                pointColor = 0x4169E1; // Bleu royal pour 29cm arriàre
+                pointColor = 0x4169E1; // Bleu royal pour 29cm arri�re
             } else if (point.type === 'snap-30cm-back') {
-                pointColor = 0x191970; // Bleu nuit pour 30cm arriàre
+                pointColor = 0x191970; // Bleu nuit pour 30cm arri�re
             } else if (point.type === 'snap-19cm-front') {
                 pointColor = 0xFFD700; // Or pour 19cm avant
             } else if (point.type === 'snap-20cm-front') {
-                pointColor = 0xFFA500; // Orange foncà pour 20cm avant
+                pointColor = 0xFFA500; // Orange fonc� pour 20cm avant
             } else if (point.type === 'snap-29cm-front') {
                 pointColor = 0xFF1493; // Rose profond pour 29cm avant
             } else if (point.type === 'snap-30cm-front') {
-                pointColor = 0x8B0000; // Rouge foncà pour 30cm avant
+                pointColor = 0x8B0000; // Rouge fonc� pour 30cm avant
             }
             
             const pointMaterial = new THREE.MeshBasicMaterial({
@@ -3314,7 +3314,7 @@ class AssiseManager {
             
             const pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
             
-            // Position relative au marqueur dàcalà, avec rotation
+            // Position relative au marqueur d�cal�, avec rotation
             const cos = Math.cos(element.rotation);
             const sin = Math.sin(element.rotation);
             const rotatedX = point.x * cos - point.z * sin;
@@ -3326,7 +3326,7 @@ class AssiseManager {
                 markerZ + rotatedZ
             );
             
-            // Ajouter des màtadonnées pour identifier le type de point
+            // Ajouter des m�tadonn�es pour identifier le type de point
             pointMesh.userData = {
                 type: point.type,
                 description: point.description || point.type,
@@ -3335,13 +3335,13 @@ class AssiseManager {
                 originalOpacity: 0.8,
                 originalScale: { x: 1, y: 1, z: 1 },
                 isHovered: false,
-                pulsePhase: Math.random() * Math.PI * 2, // Phase alàatoire pour la pulsation
-                // IDENTIFICATION COMPLàTE POUR EXPORT PDF : Marquer comme point d'accrochage à masquer
+                pulsePhase: Math.random() * Math.PI * 2, // Phase al�atoire pour la pulsation
+                // IDENTIFICATION COMPL�TE POUR EXPORT PDF : Marquer comme point d'accrochage � masquer
                 isAssiseProjectionMarker: true,
                 assiseProjectionType: 'snap_point',
                 sourceElementId: element.id,
                 targetAssise: this.currentAssiseByType.get(this.currentType),
-                // NOUVELLES IDENTIFICATIONS SPàCIFIQUES
+                // NOUVELLES IDENTIFICATIONS SP�CIFIQUES
                 isProjectedAttachmentPoint: true,
                 projectionSource: 'lower_assise_element',
                 markerCategory: 'attachment_point',
@@ -3354,7 +3354,7 @@ class AssiseManager {
             // IDENTIFICATION POUR EXPORT PDF : Nom unique pour faciliter le debug et le masquage
             pointMesh.name = `AssiseProjection_AttachmentPoint_${element.id}_${point.type}_Assise${this.currentAssiseByType.get(this.currentType)}`;
             
-            // Cràer un effet de halo pour les points spàciaux
+            // Cr�er un effet de halo pour les points sp�ciaux
             if (point.type.startsWith('snap-') || point.type === 'center') {
                 const haloGeometry = new THREE.SphereGeometry(0.8, 8, 6);
                 const haloMaterial = new THREE.MeshBasicMaterial({
@@ -3369,12 +3369,12 @@ class AssiseManager {
                     isHalo: true,
                     parentPoint: pointMesh,
                     originalOpacity: 0.2,
-                    // IDENTIFICATION COMPLàTE POUR EXPORT PDF : Marquer le halo comme élément à masquer
+                    // IDENTIFICATION COMPL�TE POUR EXPORT PDF : Marquer le halo comme �l�ment � masquer
                     isAssiseProjectionMarker: true,
                     assiseProjectionType: 'snap_halo',
                     sourceElementId: element.id,
                     targetAssise: this.currentAssiseByType.get(this.currentType),
-                    // NOUVELLES IDENTIFICATIONS SPàCIFIQUES POUR HALO
+                    // NOUVELLES IDENTIFICATIONS SP�CIFIQUES POUR HALO
                     isProjectedAttachmentPoint: true,
                     projectionSource: 'lower_assise_element',
                     markerCategory: 'attachment_halo',
@@ -3396,7 +3396,7 @@ class AssiseManager {
             parentGroup.add(pointMesh);
         });
         
-        // console.log(`🔧 Points d'accroche cr\s pour ${element.id}: ${attachmentPoints.length} points (points spàciaux selon le type d'élément)`);
+        // console.log(`?? Points d'accroche cr��s pour ${element.id}: ${attachmentPoints.length} points (points sp�ciaux selon le type d'�l�ment)`);
     }
 
     // Animation des points d'accroche avec effet de pulsation
@@ -3418,7 +3418,7 @@ class AssiseManager {
                             const hoverScale = 1.5 + Math.sin(time * 2 + child.userData.pulsePhase) * 0.3;
                             child.scale.setScalar(hoverScale);
                             
-                            // Changement d'opacità pour l'effet de clignotement
+                            // Changement d'opacit� pour l'effet de clignotement
                             const blinkOpacity = 0.6 + Math.sin(time * 4 + child.userData.pulsePhase) * 0.4;
                             child.material.opacity = blinkOpacity;
                             
@@ -3450,9 +3450,9 @@ class AssiseManager {
         this.animationFrameId = requestAnimationFrame(() => this.animateAttachmentPoints());
     }
 
-    // Dàtecter le survol des points d'accroche
+    // D�tecter le survol des points d'accroche
     handleAttachmentPointHover(intersectedObject) {
-        // Ràinitialiser tous les points (enlever le hover)
+        // R�initialiser tous les points (enlever le hover)
         this.attachmentMarkers.forEach((markers, assiseIndex) => {
             markers.forEach(markerInfo => {
                 markerInfo.group.traverse(child => {
@@ -3463,13 +3463,13 @@ class AssiseManager {
             });
         });
         
-        // Activer le hover sur le point survolà
+        // Activer le hover sur le point survol�
         if (intersectedObject && intersectedObject.userData && intersectedObject.userData.type) {
             intersectedObject.userData.isHovered = true;
             
             // Afficher une info-bulle ou un log avec la description du point
             if (intersectedObject.userData.description) {
-                // console.log(`🔧 Point d'accroche survolà: ${intersectedObject.userData.description}`);
+                // console.log(`?? Point d'accroche survol�: ${intersectedObject.userData.description}`);
             }
             
             return intersectedObject.userData;
@@ -3478,28 +3478,28 @@ class AssiseManager {
         return null;
     }
 
-    // Dàmarrer l'animation des points d'accroche
+    // D�marrer l'animation des points d'accroche
     startAttachmentPointAnimation() {
         if (!this.animationRunning) {
             this.animationRunning = true;
             this.animateAttachmentPoints();
-            // console.log('🔧 Animation des points d\'accroche dàmarràe');
+            // console.log('?? Animation des points d\'accroche d�marr�e');
         }
     }
 
-    // Arràter l'animation des points d'accroche
+    // Arr�ter l'animation des points d'accroche
     stopAttachmentPointAnimation() {
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
         this.animationRunning = false;
-        // console.log('🔧 Animation des points d\'accroche arràtàe');
+        // console.log('?? Animation des points d\'accroche arr�t�e');
     }
 
     // Nettoyer tous les marqueurs d'accroche
     clearAttachmentMarkers() {
-        // Arràter l'animation avant de nettoyer
+        // Arr�ter l'animation avant de nettoyer
         this.stopAttachmentPointAnimation();
         
         this.attachmentMarkers.forEach((markers, assiseIndex) => {
@@ -3515,12 +3515,12 @@ class AssiseManager {
         this.attachmentMarkers.clear();
     }
 
-    // Mettre à jour les marqueurs d'accroche quand l'assise active change
+    // Mettre � jour les marqueurs d'accroche quand l'assise active change
     updateAttachmentMarkers() {
         const currentAssiseForType = this.currentAssiseByType.get(this.currentType);
         if (this.showAttachmentMarkers && currentAssiseForType > 0) {
             this.createAttachmentMarkers(currentAssiseForType);
-            // Dàmarrer l'animation des points d'accroche
+            // D�marrer l'animation des points d'accroche
             this.startAttachmentPointAnimation();
         } else {
             this.clearAttachmentMarkers();
@@ -3538,11 +3538,11 @@ class AssiseManager {
             this.stopAttachmentPointAnimation();
         }
         
-        // console.log(`Marqueurs d'accroche: ${this.showAttachmentMarkers ? 'ACTIVàS' : 'DàSACTIVàS'}`);
+        // console.log(`Marqueurs d'accroche: ${this.showAttachmentMarkers ? 'ACTIV�S' : 'D�SACTIV�S'}`);
         return this.showAttachmentMarkers;
     }
 
-    // Màthode pour dàterminer le type d'assise en fonction de son contenu (ancienne version pour compatibilité)
+    // M�thode pour d�terminer le type d'assise en fonction de son contenu (ancienne version pour compatibilit�)
     getAssiseTypeLabel(assiseIndex) {
         // Trouver dans quel type cette assise existe
         for (const type of this.supportedTypes) {
@@ -3554,11 +3554,11 @@ class AssiseManager {
         return 'Assise (inconnue)';
     }
 
-    // Nouvelle màthode pour obtenir le label d'une assise d'un type spécifique
+    // Nouvelle m�thode pour obtenir le label d'une assise d'un type sp�cifique
     getAssiseTypeLabelForType(type, assiseIndex) {
         const assisesForType = this.assisesByType.get(type);
         if (!assisesForType.has(assiseIndex)) {
-            return `Assise ${type} (vide)`; // Valeur par défaut plus claire
+            return `Assise ${type} (vide)`; // Valeur par d�faut plus claire
         }
         
         const assise = assisesForType.get(assiseIndex);
@@ -3566,18 +3566,18 @@ class AssiseManager {
             return `Assise ${type} (vide)`; // Assise vide avec indication claire
         }
         
-        // Pour le nouveau systàme, le type est déjà dàterminà par la catàgorie
+        // Pour le nouveau syst�me, le type est d�j� d�termin� par la cat�gorie
         const typeLabels = {
             'brick': 'Assise Briques',
             'block': 'Assise Blocs', 
             'insulation': 'Assise Isolant',
-            'custom': 'Assise Personnalisàe'
+            'custom': 'Assise Personnalis�e'
         };
         
         return typeLabels[type] || `Assise ${type}`;
     }
 
-    // Màthode pour obtenir des statistiques dàtaillàes sur une assise (ancienne version pour compatibilité)
+    // M�thode pour obtenir des statistiques d�taill�es sur une assise (ancienne version pour compatibilit�)
     getAssiseStatistics(assiseIndex) {
         // Trouver dans quel type cette assise existe
         for (const type of this.supportedTypes) {
@@ -3589,7 +3589,7 @@ class AssiseManager {
         return null;
     }
 
-    // Màthode pour obtenir une description textuelle d'une assise (ancienne version pour compatibilité)
+    // M�thode pour obtenir une description textuelle d'une assise (ancienne version pour compatibilit�)
     getAssiseDescription(assiseIndex) {
         // Trouver dans quel type cette assise existe
         for (const type of this.supportedTypes) {
@@ -3601,7 +3601,7 @@ class AssiseManager {
         return 'Assise inconnue';
     }
 
-    // Nouvelle màthode pour obtenir une description d'une assise d'un type spécifique
+    // Nouvelle m�thode pour obtenir une description d'une assise d'un type sp�cifique
     getAssiseDescriptionForType(type, assiseIndex) {
         const stats = this.getAssiseStatisticsForType(type, assiseIndex);
         if (!stats || stats.totalElements === 0) {
@@ -3612,13 +3612,13 @@ class AssiseManager {
             'brick': 'briques',
             'block': 'blocs',
             'insulation': 'isolant',
-            'custom': 'éléments custom'
+            'custom': '�l�ments custom'
         };
         
-        return `${stats.totalElements} ${typeLabels[type] || 'éléments'}`;
+        return `${stats.totalElements} ${typeLabels[type] || '�l�ments'}`;
     }
 
-    // Nouvelle màthode pour obtenir des statistiques dàtaillàes sur une assise d'un type spécifique
+    // Nouvelle m�thode pour obtenir des statistiques d�taill�es sur une assise d'un type sp�cifique
     getAssiseStatisticsForType(type, assiseIndex) {
         const assisesForType = this.assisesByType.get(type);
         if (!assisesForType.has(assiseIndex)) {
@@ -3636,10 +3636,10 @@ class AssiseManager {
         for (const elementId of assise.elements) {
             const element = window.SceneManager.elements.get(elementId);
             if (element) {
-                // Compter les matàriaux
+                // Compter les mat�riaux
                 stats.materials[element.material] = (stats.materials[element.material] || 0) + 1;
                 
-                // Calculer les dimensions totales si les màthodes existent
+                // Calculer les dimensions totales si les m�thodes existent
                 if (element.getVolume) {
                     stats.dimensions.totalVolume += element.getVolume();
                 }
@@ -3652,7 +3652,7 @@ class AssiseManager {
         return stats;
     }
 
-    // Trouve l'assise dans laquelle se trouve un élément donné
+    // Trouve l'assise dans laquelle se trouve un �l�ment donn�
     findElementAssise(elementId, type = 'brick') {
         const assises = this.assisesByType.get(type);
         if (!assises) return null;
@@ -3664,10 +3664,10 @@ class AssiseManager {
             }
         }
         
-        return null; // élément non trouvé dans les assises
+        return null; // �l�ment non trouv� dans les assises
     }
 
-    // Version amàlioràe qui retourne les informations complàtes d'assise pour un élément
+    // Version am�lior�e qui retourne les informations compl�tes d'assise pour un �l�ment
     findElementAssiseComplete(elementId) {
         // Chercher dans tous les types d'assise
         for (const [assiseType, assises] of this.assisesByType.entries()) {
@@ -3683,17 +3683,17 @@ class AssiseManager {
             }
         }
         
-        return null; // élément non trouvé dans les assises
+        return null; // �l�ment non trouv� dans les assises
     }
 
-    // Mettre à jour les joints existants lors du changement de hauteur du joint horizontal
+    // Mettre � jour les joints existants lors du changement de hauteur du joint horizontal
     updateVerticalJoints() {
         if (!window.SceneManager || !window.SceneManager.elements) return;
         
-        console.log('🔧 Mise à jour des joints existants...');
+        console.log('?? Mise � jour des joints existants...');
         let updatedCount = 0;
         
-        // Parcourir tous les éléments de la scène
+        // Parcourir tous les �l�ments de la sc�ne
         for (const [elementId, element] of window.SceneManager.elements.entries()) {
             // Traiter les joints debout (largeur = 1cm et marquage isVerticalJoint)
             if (element.isVerticalJoint && element.dimensions.width === 1) {
@@ -3701,7 +3701,7 @@ class AssiseManager {
                 let jointAssiseType = null;
                 let elementAssiseIndex = null;
                 
-                // Rechercher dans tous les types d'assises pour trouver oà est ce joint
+                // Rechercher dans tous les types d'assises pour trouver o� est ce joint
                 for (const [type, assises] of this.assisesByType.entries()) {
                     for (const [index, assise] of assises.entries()) {
                         if (assise && assise.elements.has(elementId)) {
@@ -3713,25 +3713,25 @@ class AssiseManager {
                     if (jointAssiseType) break;
                 }
                 
-                // Si le joint n'est associà à aucune assise spécifique, ne pas le modifier
+                // Si le joint n'est associ� � aucune assise sp�cifique, ne pas le modifier
                 if (!jointAssiseType) {
-                    console.log(`🔧 Joint ${elementId}: aucune assise associàe, non modifià`);
+                    console.log(`?? Joint ${elementId}: aucune assise associ�e, non modifi�`);
                     continue;
                 }
                 
-                // Utiliser la hauteur de joint spécifique à ce type d'assise
+                // Utiliser la hauteur de joint sp�cifique � ce type d'assise
                 const typeJointHeight = this.getJointHeightForType(jointAssiseType);
                 
-                // CORRECTION CRITIQUE: Utiliser la hauteur de brique stockée DANS le joint
-                // Si pas de hauteur stockée, dàduire de la hauteur actuelle du joint
+                // CORRECTION CRITIQUE: Utiliser la hauteur de brique stock�e DANS le joint
+                // Si pas de hauteur stock�e, d�duire de la hauteur actuelle du joint
                 let originalBrickHeight = element.originalBrickHeight;
                 
                 if (!originalBrickHeight) {
-                    // Dàduire la hauteur de brique d'origine depuis la hauteur actuelle du joint
+                    // D�duire la hauteur de brique d'origine depuis la hauteur actuelle du joint
                     // Hauteur joint = hauteur brique + hauteur joint horizontal
                     originalBrickHeight = element.dimensions.height - typeJointHeight;
                     
-                    // Valider et corriger si nàcessaire (plage àtendue pour blocs)
+                    // Valider et corriger si n�cessaire (plage �tendue pour blocs)
                     if (originalBrickHeight < 4 || originalBrickHeight > 30) {
                         // Hauteur aberrante, utiliser les valeurs connues selon le type
                         if (jointAssiseType === 'M90') {
@@ -3753,21 +3753,21 @@ class AssiseManager {
                         } else if (jointAssiseType === 'TERRACOTTA') {
                             originalBrickHeight = 25;
                         } else {
-                            originalBrickHeight = 6.5; // Dàfaut
+                            originalBrickHeight = 6.5; // D�faut
                         }
                     }
                     
                     // Stocker pour les prochaines fois
                     element.originalBrickHeight = originalBrickHeight;
-                    console.log(`🔧 Joint ${elementId}: hauteur brique dàduite = ${originalBrickHeight} cm (depuis hauteur joint ${element.dimensions.height} cm)`);
+                    console.log(`?? Joint ${elementId}: hauteur brique d�duite = ${originalBrickHeight} cm (depuis hauteur joint ${element.dimensions.height} cm)`);
                 } else {
-                    console.log(`🔧 Joint ${elementId}: hauteur brique stockée = ${originalBrickHeight} cm`);
+                    console.log(`?? Joint ${elementId}: hauteur brique stock�e = ${originalBrickHeight} cm`);
                 }
                 
-                // Calculer la nouvelle hauteur du joint basàe sur la brique D'ORIGINE et le joint spécifique au type
+                // Calculer la nouvelle hauteur du joint bas�e sur la brique D'ORIGINE et le joint sp�cifique au type
                 const newJointHeight = originalBrickHeight + typeJointHeight;
                 
-                // Mettre à jour les dimensions
+                // Mettre � jour les dimensions
                 element.updateDimensions(
                     element.dimensions.length,  // Garder longueur (9cm)
                     element.dimensions.width,   // Garder largeur (1cm) 
@@ -3775,16 +3775,16 @@ class AssiseManager {
                 );
                 
                 // Recalculer la position Y en respectant l'assise d'origine
-                // CORRECTION: La face supàrieure du joint doit àtre alignàe avec la face supàrieure de la brique
+                // CORRECTION: La face sup�rieure du joint doit �tre align�e avec la face sup�rieure de la brique
                 let newPositionY;
                 if (elementAssiseIndex !== null && elementAssiseIndex >= 0) {
-                    // Calculer la hauteur de la face supàrieure de la brique dans cette assise et ce type
+                    // Calculer la hauteur de la face sup�rieure de la brique dans cette assise et ce type
                     const assiseHeight = this.calculateAssiseHeightForType(jointAssiseType, elementAssiseIndex);
                     const brickTopY = assiseHeight + originalBrickHeight;
-                    // Positionner le joint pour que sa face supàrieure soit au màme niveau
+                    // Positionner le joint pour que sa face sup�rieure soit au m�me niveau
                     newPositionY = brickTopY - newJointHeight / 2;
                 } else {
-                    // Fallback : rester au sol si assise non trouvée
+                    // Fallback : rester au sol si assise non trouv�e
                     newPositionY = newJointHeight / 2;
                 }
                 
@@ -3795,7 +3795,7 @@ class AssiseManager {
                 );
                 
                 updatedCount++;
-                console.log(`🔧 Joint debout ${elementId} mis à jour: ${element.dimensions.length}à${element.dimensions.width}à${newJointHeight} cm (assise ${jointAssiseType}:${elementAssiseIndex}) - Brique d'origine: ${originalBrickHeight} cm`);
+                console.log(`?? Joint debout ${elementId} mis � jour: ${element.dimensions.length}�${element.dimensions.width}�${newJointHeight} cm (assise ${jointAssiseType}:${elementAssiseIndex}) - Brique d'origine: ${originalBrickHeight} cm`);
             }
             // Traiter les joints horizontaux (marquage isHorizontalJoint)
             else if (element.isHorizontalJoint) {
@@ -3803,7 +3803,7 @@ class AssiseManager {
                 let jointAssiseType = null;
                 let elementAssiseIndex = null;
                 
-                // Rechercher dans tous les types d'assises pour trouver oà est ce joint
+                // Rechercher dans tous les types d'assises pour trouver o� est ce joint
                 for (const [type, assises] of this.assisesByType.entries()) {
                     for (const [index, assise] of assises.entries()) {
                         if (assise && assise.elements.has(elementId)) {
@@ -3815,38 +3815,38 @@ class AssiseManager {
                     if (jointAssiseType) break;
                 }
                 
-                // Si le joint n'est associà à aucune assise spécifique, ne pas le modifier
+                // Si le joint n'est associ� � aucune assise sp�cifique, ne pas le modifier
                 if (!jointAssiseType) {
-                    console.log(`🔧 Joint horizontal ${elementId}: aucune assise associàe, non modifià`);
+                    console.log(`?? Joint horizontal ${elementId}: aucune assise associ�e, non modifi�`);
                     continue;
                 }
                 
-                // Pour le joint horizontal, seule l'àpaisseur (hauteur) change - utiliser le joint spécifique au type
+                // Pour le joint horizontal, seule l'�paisseur (hauteur) change - utiliser le joint sp�cifique au type
                 const newJointHeight = this.getJointHeightForType(jointAssiseType);
                 
-                // Mettre à jour les dimensions
+                // Mettre � jour les dimensions
                 element.updateDimensions(
                     element.dimensions.length,  // Garder longueur originale
                     element.dimensions.width,   // Garder largeur originale
-                    newJointHeight              // Nouvelle hauteur (àpaisseur du joint)
+                    newJointHeight              // Nouvelle hauteur (�paisseur du joint)
                 );
                 
                 // CORRECTION: Recalculer la position Y en fonction de l'assise
                 let newPositionY;
                 if (elementAssiseIndex === 0) {
-                    // Pour l'assise 0, le joint horizontal va de Y=0 à Y=jointHeight
-                    // Son centre doit donc àtre à jointHeight/2
+                    // Pour l'assise 0, le joint horizontal va de Y=0 � Y=jointHeight
+                    // Son centre doit donc �tre � jointHeight/2
                     newPositionY = newJointHeight / 2;
-                    console.log(`🔧 Joint horizontal assise 0: centre à Y=${newPositionY} cm (joint de 0 à ${newJointHeight} cm)`);
+                    console.log(`?? Joint horizontal assise 0: centre � Y=${newPositionY} cm (joint de 0 � ${newJointHeight} cm)`);
                 } else if (elementAssiseIndex !== null && elementAssiseIndex > 0) {
                     // Pour les autres assises, calculer la position relative
                     const assiseHeight = this.calculateAssiseHeightForType(jointAssiseType, elementAssiseIndex);
                     newPositionY = assiseHeight - newJointHeight / 2;
-                    console.log(`🔧 Joint horizontal assise ${elementAssiseIndex}: centre à Y=${newPositionY} cm`);
+                    console.log(`?? Joint horizontal assise ${elementAssiseIndex}: centre � Y=${newPositionY} cm`);
                 } else {
-                    // Fallback : rester au sol si assise non trouvée
+                    // Fallback : rester au sol si assise non trouv�e
                     newPositionY = newJointHeight / 2;
-                    console.log(`🔧 Joint horizontal fallback: centre à Y=${newPositionY} cm`);
+                    console.log(`?? Joint horizontal fallback: centre � Y=${newPositionY} cm`);
                 }
                 
                 element.updatePosition(
@@ -3856,23 +3856,23 @@ class AssiseManager {
                 );
                 
                 updatedCount++;
-                console.log(`🔧 Joint horizontal ${elementId} mis à jour: ${element.dimensions.length}à${element.dimensions.width}à${newJointHeight} cm (assise ${jointAssiseType}:${elementAssiseIndex})`);
+                console.log(`?? Joint horizontal ${elementId} mis � jour: ${element.dimensions.length}�${element.dimensions.width}�${newJointHeight} cm (assise ${jointAssiseType}:${elementAssiseIndex})`);
             }
         }
         
         if (updatedCount > 0) {
-            console.log(`🔧 ${updatedCount} joints mis à jour`);
+            console.log(`?? ${updatedCount} joints mis � jour`);
         }
     }
     
-    // Mettre à jour seulement les joints d'un type d'assise spécifique
+    // Mettre � jour seulement les joints d'un type d'assise sp�cifique
     updateVerticalJointsForType(targetType) {
         if (!window.SceneManager || !window.SceneManager.elements) return;
         
-        // console.log(`🔧 Mise à jour des joints pour le type ${targetType} uniquement...`);
+        console.log(`?? Mise � jour des joints pour le type ${targetType} uniquement...`);
         let updatedCount = 0;
         
-        // Parcourir tous les éléments de la scène
+        // Parcourir tous les �l�ments de la sc�ne
         for (const [elementId, element] of window.SceneManager.elements.entries()) {
             // Traiter les joints debout (largeur = 1cm et marquage isVerticalJoint)
             if (element.isVerticalJoint && element.dimensions.width === 1) {
@@ -3880,7 +3880,7 @@ class AssiseManager {
                 let jointAssiseType = null;
                 let elementAssiseIndex = null;
                 
-                // Rechercher dans tous les types d'assises pour trouver oà est ce joint
+                // Rechercher dans tous les types d'assises pour trouver o� est ce joint
                 for (const [type, assises] of this.assisesByType.entries()) {
                     for (const [index, assise] of assises.entries()) {
                         if (assise && assise.elements.has(elementId)) {
@@ -3892,22 +3892,22 @@ class AssiseManager {
                     if (jointAssiseType) break;
                 }
                 
-                // Ne mettre à jour que les joints du type cible
+                // Ne mettre � jour que les joints du type cible
                 if (jointAssiseType !== targetType) {
                     continue;
                 }
                 
-                // Utiliser la hauteur de joint spécifique à ce type d'assise
+                // Utiliser la hauteur de joint sp�cifique � ce type d'assise
                 const typeJointHeight = this.getJointHeightForType(jointAssiseType);
                 
-                // Utiliser la hauteur de brique stockée DANS le joint
+                // Utiliser la hauteur de brique stock�e DANS le joint
                 let originalBrickHeight = element.originalBrickHeight;
                 
                 if (!originalBrickHeight) {
-                    // Dàduire la hauteur de brique d'origine
+                    // D�duire la hauteur de brique d'origine
                     originalBrickHeight = element.dimensions.height - typeJointHeight;
                     
-                    // Valider et corriger si nàcessaire (plage àtendue pour blocs)
+                    // Valider et corriger si n�cessaire (plage �tendue pour blocs)
                     if (originalBrickHeight < 4 || originalBrickHeight > 30) {
                         // Hauteur aberrante, utiliser les valeurs connues selon le type
                         if (jointAssiseType === 'M90') {
@@ -3929,7 +3929,7 @@ class AssiseManager {
                         } else if (jointAssiseType === 'TERRACOTTA') {
                             originalBrickHeight = 25;
                         } else {
-                            originalBrickHeight = 6.5; // Dàfaut
+                            originalBrickHeight = 6.5; // D�faut
                         }
                     }
                     
@@ -3940,7 +3940,7 @@ class AssiseManager {
                 // Calculer la nouvelle hauteur du joint
                 const newJointHeight = originalBrickHeight + typeJointHeight;
                 
-                // Mettre à jour les dimensions
+                // Mettre � jour les dimensions
                 element.updateDimensions(
                     element.dimensions.length,
                     element.dimensions.width,
@@ -3950,17 +3950,17 @@ class AssiseManager {
                 // Recalculer la position Y - CORRECTIF: Ancrer le joint au sommet du bloc
                 let newPositionY;
                 if (elementAssiseIndex !== null && elementAssiseIndex >= 0) {
-                    // Trouver le bloc de référence pour ce joint vertical
+                    // Trouver le bloc de r�f�rence pour ce joint vertical
                     const assiseHeight = this.calculateAssiseHeightForType(jointAssiseType, elementAssiseIndex);
                     
-                    // CORRECTION: Pour les joints verticaux, utiliser la hauteur ràelle du bloc de référence
-                    // Au lieu de utiliser originalBrickHeight (qui est la hauteur stockée lors de la cràation),
-                    // utiliser la hauteur ràelle du bloc dans cette assise
+                    // CORRECTION: Pour les joints verticaux, utiliser la hauteur r�elle du bloc de r�f�rence
+                    // Au lieu de utiliser originalBrickHeight (qui est la hauteur stock�e lors de la cr�ation),
+                    // utiliser la hauteur r�elle du bloc dans cette assise
                     const elementsInAssise = this.elementsByType.get(jointAssiseType)?.get(elementAssiseIndex);
                     let blockTopY = assiseHeight + originalBrickHeight; // Fallback
                     
                     if (elementsInAssise) {
-                        // Chercher un bloc de référence à proximità du joint
+                        // Chercher un bloc de r�f�rence � proximit� du joint
                         const jointX = element.position.x;
                         const jointZ = element.position.z;
                         let closestBlock = null;
@@ -3980,23 +3980,23 @@ class AssiseManager {
                             }
                         }
                         
-                        if (closestBlock && minDistance < 50) { // 50cm de tolàrance
+                        if (closestBlock && minDistance < 50) { // 50cm de tol�rance
                             // CORRECTION IMPORTANTE: Utiliser la position ORIGINALE du bloc
-                            // Le bloc lui-màme peut avoir àtà repositionné par les changements de joint horizontal
+                            // Le bloc lui-m�me peut avoir �t� repositionn� par les changements de joint horizontal
                             // Donc on utilise la position de base de l'assise + hauteur originale du bloc
                             const originalBlockTop = assiseHeight + closestBlock.dimensions.height;
                             blockTopY = originalBlockTop;
-                            // console.log(`🔧 Joint ancrà au bloc ${closestBlock.id} (sommet ORIGINAL: ${blockTopY} cm)`);
+                            console.log(`?? Joint ancr� au bloc ${closestBlock.id} (sommet ORIGINAL: ${blockTopY} cm)`);
                         }
                     }
                     
                     // Centre du joint = sommet du bloc - hauteur_joint/2 pour ancrer par le haut
                     // CORRECTION: Pour garder le sommet du joint fixe au sommet du bloc
-                    // Le sommet du joint doit rester à blockTopY
+                    // Le sommet du joint doit rester � blockTopY
                     // Donc le centre = sommet - hauteur/2
                     newPositionY = blockTopY - newJointHeight / 2;
-                    // console.log(`🔧 Joint repositionné: sommet bloc ${blockTopY} cm, hauteur joint ${newJointHeight} cm, nouveau centre Y: ${newPositionY} cm`);
-                    // console.log(`🔧 Vàrification: sommet joint = ${newPositionY + newJointHeight/2} cm (doit = ${blockTopY} cm)`);
+                    console.log(`?? Joint repositionn�: sommet bloc ${blockTopY} cm, hauteur joint ${newJointHeight} cm, nouveau centre Y: ${newPositionY} cm`);
+                    console.log(`?? V�rification: sommet joint = ${newPositionY + newJointHeight/2} cm (doit = ${blockTopY} cm)`);
                 } else {
                     newPositionY = newJointHeight / 2;
                 }
@@ -4008,7 +4008,7 @@ class AssiseManager {
                 );
                 
                 updatedCount++;
-                // console.log(`🔧 Joint debout ${elementId} (${targetType}) mis à jour: ${element.dimensions.length}×${element.dimensions.width}×${newJointHeight} cm`);
+                console.log(`?? Joint debout ${elementId} (${targetType}) mis � jour: ${element.dimensions.length}�${element.dimensions.width}�${newJointHeight} cm`);
             }
             // Traiter les joints horizontaux
             else if (element.isHorizontalJoint) {
@@ -4027,15 +4027,15 @@ class AssiseManager {
                     if (jointAssiseType) break;
                 }
                 
-                // Ne mettre à jour que les joints du type cible
+                // Ne mettre � jour que les joints du type cible
                 if (jointAssiseType !== targetType) {
                     continue;
                 }
                 
-                // CORRECTION: Pour le joint horizontal, utiliser la hauteur spécifique de l'assise
+                // CORRECTION: Pour le joint horizontal, utiliser la hauteur sp�cifique de l'assise
                 const newJointHeight = this.getJointHeightForAssise(jointAssiseType, elementAssiseIndex);
                 
-                // Mettre à jour les dimensions
+                // Mettre � jour les dimensions
                 element.updateDimensions(
                     element.dimensions.length,
                     element.dimensions.width,
@@ -4058,18 +4058,18 @@ class AssiseManager {
                 );
                 
                 updatedCount++;
-                // console.log(`🔧 Joint horizontal ${elementId} (${targetType}) mis à jour: ${element.dimensions.length}×${element.dimensions.width}×${newJointHeight} cm`);
+                console.log(`?? Joint horizontal ${elementId} (${targetType}) mis � jour: ${element.dimensions.length}�${element.dimensions.width}�${newJointHeight} cm`);
             }
         }
         
         if (updatedCount > 0) {
-            // console.log(`🔧 ${updatedCount} joints ${targetType} mis à jour`);
+            console.log(`?? ${updatedCount} joints ${targetType} mis � jour`);
         }
     }
     
-    // === MÉTHODES UTILITAIRES ===
+    // === M�THODES UTILITAIRES ===
     
-    // Trouver un élément par son ID dans la scène
+    // Trouver un �l�ment par son ID dans la sc�ne
     findElementById(elementId) {
         if (window.SceneManager && window.SceneManager.scene) {
             return window.SceneManager.scene.getObjectByProperty('userData.id', elementId);
@@ -4077,16 +4077,16 @@ class AssiseManager {
         return null;
     }
     
-    // Mettre à jour la position d'un élément dans son assise
+    // Mettre � jour la position d'un �l�ment dans son assise
     updateElementPositionInAssise(elementOrMesh, type, assiseIndex) {
         if (!elementOrMesh) return;
         
         const assiseHeight = this.calculateAssiseHeightForType(type, assiseIndex);
         let elementHeight, mesh, elementId;
         
-        // Dàtecter si c'est un élément SceneManager ou un mesh THREE.js
+        // D�tecter si c'est un �l�ment SceneManager ou un mesh THREE.js
         if (elementOrMesh.mesh && elementOrMesh.dimensions) {
-            // C'est un élément SceneManager
+            // C'est un �l�ment SceneManager
             mesh = elementOrMesh.mesh;
             elementHeight = elementOrMesh.dimensions.height;
             elementId = elementOrMesh.id || 'unknown';
@@ -4098,50 +4098,50 @@ class AssiseManager {
                           elementOrMesh.scale?.y || 1;
             elementId = elementOrMesh.userData.id || 'unknown';
         } else {
-            console.warn('🔧 updateElementPositionInAssise: objet non reconnu', elementOrMesh);
+            console.warn('?? updateElementPositionInAssise: objet non reconnu', elementOrMesh);
             return;
         }
         
-        // CORRECTION DàFINITIVE: Pour l'assise 0, la face infàrieure DOIT àtre à l'àpaisseur du joint
+        // CORRECTION D�FINITIVE: Pour l'assise 0, la face inf�rieure DOIT �tre � l'�paisseur du joint
         let centerY;
         if (assiseIndex === 0) {
-            // Pour l'assise 0, la face infàrieure doit àtre à l'àpaisseur du joint (assiseHeight)
-            // Donc le centre doit àtre à assiseHeight + hauteur/2
+            // Pour l'assise 0, la face inf�rieure doit �tre � l'�paisseur du joint (assiseHeight)
+            // Donc le centre doit �tre � assiseHeight + hauteur/2
             centerY = assiseHeight + elementHeight / 2;
         } else {
-            // Pour les autres assises, utilise la hauteur calculàe + hauteur/2
+            // Pour les autres assises, utilise la hauteur calcul�e + hauteur/2
             centerY = assiseHeight + elementHeight / 2;
         }
         
-        // Positionner l'élément (mesh.position.y repràsente le centre)
+        // Positionner l'�l�ment (mesh.position.y repr�sente le centre)
         mesh.position.y = centerY;
         
-        // Vàrification finale
+        // V�rification finale
         const actualBaseY = centerY - elementHeight / 2;
         
-        console.log(`🔧 élément ${elementId} repositionné sur assise ${assiseIndex} (${type}):`);
+        console.log(`?? �l�ment ${elementId} repositionn� sur assise ${assiseIndex} (${type}):`);
         console.log(`   - Assise height: ${assiseHeight} cm`);
         console.log(`   - Centre Y: ${centerY} cm`);
-        console.log(`   - Face infàrieure Y: ${actualBaseY} cm`);
+        console.log(`   - Face inf�rieure Y: ${actualBaseY} cm`);
         console.log(`   - Hauteur: ${elementHeight} cm`);
         
-        // Vàrification spàciale pour assise 0
+        // V�rification sp�ciale pour assise 0
         if (assiseIndex === 0) {
             if (Math.abs(actualBaseY - assiseHeight) < 0.001) {
-                console.log(`   ? PARFAIT! Face infàrieure exactement à ${assiseHeight} cm`);
+                console.log(`   ? PARFAIT! Face inf�rieure exactement � ${assiseHeight} cm`);
             } else {
-                console.error(`   ? ERREUR! Face infàrieure à ${actualBaseY} cm au lieu de ${assiseHeight} cm`);
+                console.error(`   ? ERREUR! Face inf�rieure � ${actualBaseY} cm au lieu de ${assiseHeight} cm`);
             }
         }
     }
 }
 
-// Instance globale - S'assurer qu'elle est disponible immàdiatement
+// Instance globale - S'assurer qu'elle est disponible imm�diatement
 if (typeof window !== 'undefined') {
     window.AssiseManager = new AssiseManager();
-    // console.log('? AssiseManager global cr\ avec màthodes:', 
+    // console.log('? AssiseManager global cr�� avec m�thodes:', 
     //     typeof window.AssiseManager.getAssiseTypeLabel === 'function');
 } else {
-    console.warn('🔧 Window non disponible pour AssiseManager');
+    console.warn('?? Window non disponible pour AssiseManager');
 }
 

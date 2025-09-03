@@ -245,10 +245,10 @@ class TabManager {
         // Écouter les changements de sélection de briques pour mettre à jour l'onglet Outils
         document.addEventListener('brickSelectionChanged', (e) => {
             const { brickType, brickData } = e.detail;
-            console.log('🔧 TabManager: Événement brickSelectionChanged reçu');
-            console.log('🔧 TabManager: brickType:', brickType);
-            console.log('🔧 TabManager: brickData:', brickData);
-            console.log('🔧 TabManager: currentMainTab:', this.currentMainTab);
+            // console.log('🔧 TabManager: Événement brickSelectionChanged reçu');
+            // console.log('🔧 TabManager: brickType:', brickType);
+            // console.log('🔧 TabManager: brickData:', brickData);
+            // console.log('🔧 TabManager: currentMainTab:', this.currentMainTab);
             
             // Si c'est un élément GLB, mettre à jour l'élément actif dans l'onglet Outils
             if (brickData && brickData.category === 'glb') {
@@ -1039,7 +1039,7 @@ class TabManager {
             baseType: baseType,
             timestamp: Date.now()
         };
-        console.log('💾 TabManager: Sélection de coupe mémorisée:', window.lastCutSelection);
+        // console.log('💾 TabManager: Sélection de coupe mémorisée:', window.lastCutSelection);
         
         this.selectLibraryItem(finalType, parentItem);
 
@@ -1624,7 +1624,7 @@ class TabManager {
                         }, 150);
                     } else {
                         // Brique normale
-                        console.log(`�🔄 TabManager: Synchronisation brique normale ${itemType} avec BrickSelector`);
+                        // console.log(`🔄 TabManager: Synchronisation brique normale ${itemType} avec BrickSelector`);
                         window.BrickSelector.setBrick(itemType);
                     }
                     

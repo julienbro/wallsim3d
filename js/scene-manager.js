@@ -1764,7 +1764,7 @@ class SceneManager {
             // ✅ CORRECTION: Ne PAS ajuster les dimensions - BrickSelector a déjà les bonnes dimensions
             // Les types comme M65_HALF ont déjà les bonnes dimensions dans BrickSelector
             if (window.DEBUG_CONSTRUCTION) {
-                console.log(`🔧 SceneManager: Dimensions brique depuis BrickSelector: ${length}x${width}x${height}cm (type: ${currentBrick.type})`);
+                // console.log(`🔧 SceneManager: Dimensions brique depuis BrickSelector: ${length}×${width}×${height}cm (type: ${currentBrick.type})`);
             }
         } else if (type === 'block' && window.BlockSelector) {
             // Pour les blocs, utiliser BlockSelector
@@ -2144,7 +2144,7 @@ class SceneManager {
                 }
             });
             document.dispatchEvent(sceneChangeEvent);
-            console.log('📤 Événement sceneChanged émis pour suppression d\'élément:', elementId);
+            // console.log('📤 Événement sceneChanged émis pour suppression d\'élément:', elementId);
         }
     }
 

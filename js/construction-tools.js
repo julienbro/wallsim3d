@@ -384,9 +384,9 @@ class ConstructionTools {
             // Les types comme M65_HALF ont déjà les bonnes dimensions dans BrickSelector
             
             if (window.DEBUG_CONSTRUCTION) {
-                console.log('🧱 Fantôme: Données BrickSelector:', currentBrick);
-                console.log('🧱 Fantôme: Type actuel:', currentBrick.type || 'unknown');
-                console.log('🧱 Fantôme: Dimensions extraites:', {length, width, height});
+                // console.log('🧱 Fantôme: Données BrickSelector:', currentBrick);
+                // console.log('🧱 Fantôme: Type actuel:', currentBrick.type || 'unknown');
+                // console.log('🧱 Fantôme: Dimensions extraites:', {length, width, height});
             }
         } else if (this.currentMode === 'block' && window.BlockSelector) {
             // Pour les blocs, utiliser BlockSelector
@@ -461,7 +461,7 @@ class ConstructionTools {
             const currentBrick = window.BrickSelector.getCurrentBrick();
             elementTypeForMode = currentBrick ? currentBrick.type : 'M65';
             if (window.DEBUG_CONSTRUCTION) {
-                console.log('🔧 Fantôme: Type brique depuis BrickSelector =', elementTypeForMode);
+                // console.log('🔧 Fantôme: Type brique depuis BrickSelector =', elementTypeForMode);
             }
         } else {
             // Pour les autres modes, utiliser la fonction standard
@@ -472,7 +472,7 @@ class ConstructionTools {
         }
         
         if (window.DEBUG_CONSTRUCTION) {
-            console.log('🔧 Fantôme: currentMode =', this.currentMode);
+            // console.log('🔧 Fantôme: currentMode =', this.currentMode);
         }
         
         // ✅ CORRECTION: Utiliser le bon type selon le mode
@@ -490,7 +490,7 @@ class ConstructionTools {
             wallElementOptions.type = 'brick';
             wallElementOptions.brickType = elementTypeForMode;
             if (window.DEBUG_CONSTRUCTION) {
-                console.log('🧱 Fantôme: Options pour brique:', wallElementOptions);
+                // console.log('🧱 Fantôme: Options pour brique:', wallElementOptions);
             }
         } else if (this.currentMode === 'block') {
             wallElementOptions.type = 'block';
@@ -802,7 +802,7 @@ class ConstructionTools {
                 
                 // ✅ CORRECTION: Ne PAS appliquer de coupe - BrickSelector a déjà les bonnes dimensions
                 // Les types comme M65_HALF ont déjà les bonnes dimensions dans BrickSelector
-                console.log(`🔧 Mise à jour fantôme: Dimensions depuis BrickSelector: ${length}x${width}x${height} (type: ${currentBrick.type})`);
+                // console.log(`🔧 Mise à jour fantôme: Dimensions depuis BrickSelector: ${length}×${width}×${height} (type: ${currentBrick.type})`);
             } else if (this.currentMode === 'block' && window.BlockSelector) {
                 // Pour les blocs, utiliser BlockSelector
                 const currentBlock = window.BlockSelector.getCurrentBlockData();
@@ -6961,7 +6961,7 @@ class ConstructionTools {
             transition: all 0.3s ease !important;
         `;
         
-        console.log('🗑️ Icône créée avec position forcée visible');
+        // console.log('🗑️ Icône créée avec position forcée visible');
         
         // Ajouter l'événement de clic
         deleteIcon.addEventListener('click', (e) => {
@@ -6979,7 +6979,7 @@ class ConstructionTools {
         this.currentDeleteIcon = deleteIcon;
         this.currentDeleteIconElement = element;
         
-        console.log('🗑️ Icône ajoutée au DOM, maintenant visible');
+        // console.log('🗑️ Icône ajoutée au DOM, maintenant visible');
         
         // Calculer la vraie position après un court délai et animer vers elle
         setTimeout(() => {
@@ -6987,7 +6987,7 @@ class ConstructionTools {
             this.setupCameraTracking(element);
         }, 500);
         
-        console.log('🗑️ Icône de suppression affichée pour:', element.id);
+        // console.log('🗑️ Icône de suppression affichée pour:', element.id);
     }
     
     /**
@@ -7001,9 +7001,20 @@ class ConstructionTools {
         const vector = new THREE.Vector3();
         element.mesh.getWorldPosition(vector);
         
-        // Ajouter un offset pour positionner l'icône au-dessus et à droite de la brique
-        const offsetY = Math.max(element.dimensions.height / 2 + 10, 15); // Au moins 15cm au-dessus
-        const offsetX = Math.max(element.dimensions.length / 3, 8); // Décalage vers la droite
+        // Calculer la distance de la caméra à la brique pour ajuster l'offset selon le zoom
+        const cameraPosition = window.SceneManager.camera.position;
+        const distanceToCamera = cameraPosition.distanceTo(vector);
+        
+        // Facteur d'éloignement basé sur la distance (plus on dézoom, plus l'icône s'éloigne)
+        const zoomFactor = Math.max(1, distanceToCamera / 200); // Facteur qui augmente avec la distance
+        
+        // Ajouter un offset pour positionner l'icône au-dessus et à droite de la brique (adaptatif au zoom)
+        const baseOffsetY = Math.max(element.dimensions.height / 2 + 30, 35);
+        const baseOffsetX = Math.max(element.dimensions.length / 2 + 20, 25);
+        
+        // Appliquer le facteur de zoom pour éloigner l'icône quand on dézoom
+        const offsetY = baseOffsetY * zoomFactor;
+        const offsetX = baseOffsetX * zoomFactor;
         
         vector.y += offsetY;
         vector.x += offsetX;
@@ -7039,8 +7050,8 @@ class ConstructionTools {
         this.currentDeleteIcon.style.visibility = 'visible';
         this.currentDeleteIcon.style.opacity = '1';
         
-        // Forcer un rafraîchissement du rendu
-        this.currentDeleteIcon.offsetHeight;
+        // Utiliser requestAnimationFrame au lieu de forcer un reflow
+        // this.currentDeleteIcon.offsetHeight; // ❌ Force un reflow coûteux
         
         // Debug pour comprendre le positionnement (désactivé pour réduire les logs)
         if (window.DEBUG_CONSTRUCTION && false) {
@@ -7095,10 +7106,10 @@ class ConstructionTools {
         this.currentDeleteIcon.style.left = `${clampedX}px`;
         this.currentDeleteIcon.style.top = `${clampedY}px`;
         
-        console.log('🗑️ Animation vers position:', {
-            target: {x: clampedX, y: clampedY},
-            element: element.id
-        });
+        // console.log('🗑️ Animation vers position:', {
+        //     target: {x: clampedX, y: clampedY},
+        //     element: element.id
+        // });
     }
     
     /**
@@ -7129,7 +7140,7 @@ class ConstructionTools {
             this.cameraUpdateListener = updatePosition;
         }
         
-        console.log('🗑️ Suivi de caméra configuré pour:', element.id);
+        // console.log('🗑️ Suivi de caméra configuré pour:', element.id);
     }
     
     /**
@@ -7160,7 +7171,7 @@ class ConstructionTools {
             return;
         }
         
-        console.log('🗑️ Suppression de la brique et de ses joints liés:', element.id);
+        // console.log('🗑️ Suppression de la brique et de ses joints liés:', element.id);
         
         // Vérifier les permissions de suppression
         if (window.AssiseManager && !window.AssiseManager.canSelectElement(element.id, true)) {
@@ -7182,7 +7193,7 @@ class ConstructionTools {
                 // Supprimer le joint des managers
                 const jointId = joint.userData.elementId || joint.userData.id || joint.name;
                 this.removeElementFromManagers(joint, jointId);
-                console.log('🔗 Joint associé supprimé:', jointId);
+                // console.log('🔗 Joint associé supprimé:', jointId);
             });
             
             // Supprimer l'élément principal
@@ -7205,7 +7216,7 @@ class ConstructionTools {
                 : `🗑️ Brique supprimée`;
             this.showNotification(message, 'success');
             
-            console.log(`✅ Suppression terminée: 1 brique + ${jointCount} joints`);
+            // console.log(`✅ Suppression terminée: 1 brique + ${jointCount} joints`);
             
         } catch (error) {
             console.error('❌ Erreur lors de la suppression:', error);
@@ -7247,7 +7258,7 @@ class ConstructionTools {
             });
         }
         
-        console.log(`🔗 ${joints.length} joints trouvés pour l'élément ${element.id}`);
+        // console.log(`🔗 ${joints.length} joints trouvés pour l'élément ${element.id}`);
         return joints;
     }
     

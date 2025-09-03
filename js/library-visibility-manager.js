@@ -116,9 +116,9 @@ class LibraryVisibilityManager {
         // Trouver la configuration appropriée
         const config = configs.find(c => containerWidth >= c.minWidth) || configs[configs.length - 1];
         
-        // Calculer le nombre de colonnes possibles
+        // Calculer le nombre de colonnes possibles - FORCÉ À 2 COLONNES
         const maxColumns = Math.floor(containerWidth / config.itemWidth);
-        const actualColumns = Math.min(maxColumns, itemCount);
+        const actualColumns = 2; // FORCÉ À 2 COLONNES au lieu de Math.min(maxColumns, itemCount)
         
         return {
             ...config,
@@ -128,9 +128,9 @@ class LibraryVisibilityManager {
     }
     
     applyLayoutConfig(grid, config) {
-        // Appliquer la grille CSS
+        // Appliquer la grille CSS - FORCÉ À 2 COLONNES
         grid.style.setProperty('grid-template-columns', 
-            `repeat(${config.columns}, 1fr)`, 'important');
+            '1fr 1fr', 'important'); // FORCÉ À 2 COLONNES AU LIEU DE repeat(${config.columns}, 1fr)
         
         // Appliquer les tailles aux éléments
         const items = grid.querySelectorAll('.library-item');
@@ -146,32 +146,32 @@ class LibraryVisibilityManager {
             preview.style.setProperty('height', `${config.previewSize.h}px`, 'important');
         });
         
-        console.log(`📏 Bibliothèque ajustée: ${config.columns} colonnes, éléments ${config.itemWidth}x${config.itemHeight}px`);
+        // console.log(`📏 Bibliothèque ajustée: ${config.columns} colonnes, éléments ${config.itemWidth}x${config.itemHeight}px`);
     }
     
     ensureFullVisibility(grid, items) {
-        // Vérifier si le dernier élément est entièrement visible
+        // Vérifier si il y a plus de 2 éléments (donc plus d'1 ligne avec 2 colonnes fixes)
         if (items.length === 0) return;
         
-        const lastItem = items[items.length - 1];
         const gridRect = grid.getBoundingClientRect();
-        const itemRect = lastItem.getBoundingClientRect();
         
-        // Si l'élément dépasse à droite
-        if (itemRect.right > gridRect.right) {
-            console.log('⚠️ Éléments non entièrement visibles, ajustement...');
+        // Avec 2 colonnes fixes, activer le scroll vertical si plus de 2 éléments
+        if (items.length > 2) {
+            // console.log('⚠️ Plus de 2 éléments, activation du scroll vertical...');
             
-            // Réduire la taille ou activer le scroll
+            // Activer le scroll VERTICAL pour les grilles avec plus de 2 éléments
             grid.classList.add('force-visible');
-            grid.style.setProperty('overflow-x', 'auto', 'important');
+            grid.style.setProperty('overflow-x', 'visible', 'important'); // VISIBLE horizontalement
+            grid.style.setProperty('overflow-y', 'auto', 'important'); // SCROLL vertical
             grid.style.setProperty('-webkit-overflow-scrolling', 'touch', 'important');
             
             // Indicateur de débordement
             grid.classList.add('has-overflow');
         } else {
-            // Tous les éléments sont visibles
+            // 2 éléments ou moins, pas de scroll nécessaire
             grid.classList.remove('force-visible', 'has-overflow');
             grid.style.removeProperty('overflow-x');
+            grid.style.removeProperty('overflow-y'); // Suppression de l'overflow-y aussi
         }
     }
     

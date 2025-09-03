@@ -11,7 +11,7 @@ class GLBDpadController {
         this.heightStep = 1; // 1 unité = 1cm pour les boutons Y également
         this.dpadSize = 60; // Taille ultra-réduite du D-pad en pixels
         this.trackingInterval = null; // Pour le suivi continu de l'objet
-        this.useInitialPosition = false; // Flag pour maintenir la position initiale - CHANGÉ à false
+        this.useInitialPosition = true; // Flag pour maintenir la position initiale - CHANGÉ à true (position fixe)
         
         this.setupDpadHTML();
         this.bindEvents();
@@ -689,7 +689,7 @@ class GLBDpadController {
         // Forcer la position initiale avec les styles de base
         this.dpadContainer.style.cssText = `
             position: fixed !important;
-            bottom: 20px !important;
+            bottom: 70px !important;
             left: 50% !important;
             transform: translateX(-50%) !important;
             width: 60px !important;
@@ -711,7 +711,7 @@ class GLBDpadController {
         `;
         
         if (window.DEBUG_CONSTRUCTION) {
-            console.log('🎮 D-pad remis en position initiale (centré en bas)');
+            // console.log('🎮 D-pad remis en position initiale (centré en bas)');
         }
     }
 
@@ -742,16 +742,16 @@ class GLBDpadController {
         // Définir l'élément actif
         this.activeGLBElement = glbElement;
         
-        // Désactiver la position initiale pour utiliser le suivi
-        this.useInitialPosition = false;
+        // TOUJOURS utiliser la position fixe, même pour les briques placées
+        this.useInitialPosition = true;
         
-        // Positionner immédiatement
-        this.positionNearObject();
+        // Utiliser la position fixe en bas au centre
+        this.resetToInitialPosition();
         
-        // Démarrer le suivi continu
-        this.startObjectTracking();
+        // Ne plus démarrer le suivi continu
+        // this.startObjectTracking(); // DÉSACTIVÉ
         
-        // D-pad positionné au bord de la brique placée
+        // D-pad maintenant en position fixe
     }
 
     /**
@@ -762,16 +762,13 @@ class GLBDpadController {
             this.isVisible = true;
             this.dpadContainer.classList.add('visible');
             
-            // Positionner près de l'objet qui vient d'être placé
+            // TOUJOURS utiliser la position fixe, plus de positionnement dynamique
             setTimeout(() => {
-                if (this.activeGLBElement) {
-                    this.positionNearObject();
-                    // Démarrer le suivi continu
-                    this.startObjectTracking();
-                } else {
-                    // Fallback vers position initiale si pas d'objet
-                    this.resetToInitialPosition();
-                }
+                // Forcer la position fixe en bas au centre
+                this.resetToInitialPosition();
+                
+                // Ne plus démarrer le suivi continu
+                // this.startObjectTracking(); // DÉSACTIVÉ
                 
                 // Forcer aussi l'opacité sur tous les boutons avec design cohérent
                 const buttons = this.dpadContainer.querySelectorAll('button');
@@ -827,7 +824,7 @@ class GLBDpadController {
             } else {
                 heightControls.style.display = 'none';
                 if (window.DEBUG_CONSTRUCTION) {
-                    console.log('❌ Curseurs Y désactivés');
+                    // console.log('❌ Curseurs Y désactivés');
                 }
             }
         }
@@ -936,10 +933,10 @@ class GLBDpadController {
         // Mettre à jour l'affichage de la position
         this.updatePositionDisplay();
         
-        // Mettre à jour la position du D-pad près de l'objet SEULEMENT si pas en position initiale
-        if (!this.useInitialPosition) {
-            this.positionNearObject();
-        }
+        // NE PLUS mettre à jour la position du D-pad - il reste fixe
+        // if (!this.useInitialPosition) {
+        //     this.positionNearObject();
+        // }
 
         // Émettre un événement de changement pour les autres systèmes
         // Mais indiquer que c'est un déplacement manuel du D-pad

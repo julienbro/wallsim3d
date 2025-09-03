@@ -43,7 +43,7 @@ class ToolsTabManager {
         // Vérifier que l'élément DOM existe
         const tabElement = document.getElementById('tab-content-outils');
         if (!tabElement) {
-            console.warn('⚠️ ToolsTabManager: Onglet Outils non disponible (supprimé)');
+            // console.warn('⚠️ ToolsTabManager: Onglet Outils non disponible (supprimé)');
             // Désactiver ce gestionnaire puisque l'onglet n'existe plus
             this.isDisabled = true;
             return;

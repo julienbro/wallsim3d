@@ -595,7 +595,7 @@ class ToolsHelpSystem {
                 ];
                 
                 if (!toolsRelatedSelectors.includes(section.selector)) {
-                    console.warn(`🔧 Élément non trouvé pour le sélecteur: ${section.selector}`);
+                    // console.warn(`🔧 Élément non trouvé pour le sélecteur: ${section.selector}`);
                 }
             }
         });

@@ -866,6 +866,9 @@ class InsulationSelector {
         // Enfin mettre à jour l'affichage
         this.updateCurrentInsulationDisplay();
         
+        // Mettre à jour la surbrillance dans la bibliothèque
+        this.updateLibraryHighlight();
+        
         // NOUVEAU: Déclencher un événement pour la synchronisation avec le menu flottant
         document.dispatchEvent(new CustomEvent('insulationSelectionChanged', {
             detail: {
@@ -1088,6 +1091,29 @@ class InsulationSelector {
             const width = widthInput.value || '0';
             const height = heightInput.value || '0';
             preview.textContent = `${length}×${width}×${height} cm`;
+        }
+    }
+
+    updateLibraryHighlight() {
+        // Supprimer la surbrillance de tous les éléments de bibliothèque
+        const allLibraryItems = document.querySelectorAll('.library-item');
+        allLibraryItems.forEach(item => {
+            item.classList.remove('active');
+            // Supprimer aussi l'état actif des boutons de coupe
+            const cutButtons = item.querySelectorAll('.cut-btn-mini');
+            cutButtons.forEach(btn => btn.classList.remove('active'));
+        });
+        
+        // Ajouter la surbrillance à l'élément actuel
+        const currentLibraryItem = document.querySelector(`[data-type="${this.currentInsulation}"]`);
+        if (currentLibraryItem) {
+            currentLibraryItem.classList.add('active');
+            
+            // Activer le bouton 1/1 pour l'isolation (généralement pas de coupes)
+            const wholeButton = currentLibraryItem.querySelector('[data-cut="1/1"]');
+            if (wholeButton) {
+                wholeButton.classList.add('active');
+            }
         }
     }
 }

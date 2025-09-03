@@ -406,6 +406,9 @@ class BlockSelector {
         // Enfin mettre à jour l'affichage
         this.updateCurrentBlockDisplay();
         
+        // Mettre à jour la surbrillance dans la bibliothèque
+        this.updateLibraryHighlight();
+        
         // NOUVEAU: Déclencher un événement pour la synchronisation avec le menu flottant
         document.dispatchEvent(new CustomEvent('blockSelectionChanged', {
             detail: {
@@ -521,6 +524,46 @@ class BlockSelector {
                 document.body.removeChild(notification);
             }, 300);
         }, 2000);
+    }
+
+    updateLibraryHighlight() {
+        // Supprimer la surbrillance de tous les éléments de bibliothèque
+        const allLibraryItems = document.querySelectorAll('.library-item');
+        allLibraryItems.forEach(item => {
+            item.classList.remove('active');
+            // Supprimer aussi l'état actif des boutons de coupe
+            const cutButtons = item.querySelectorAll('.cut-btn-mini');
+            cutButtons.forEach(btn => btn.classList.remove('active'));
+        });
+        
+        // Obtenir le type de base pour les blocs coupés
+        let displayType = this.currentBlock;
+        const blockInfo = this.blockTypes[this.currentBlock];
+        
+        // Si c'est un bloc coupé, utiliser le type de base pour la surbrillance
+        if (blockInfo && blockInfo.baseBlock) {
+            displayType = blockInfo.baseBlock;
+        }
+        
+        // Ajouter la surbrillance à l'élément actuel
+        const currentLibraryItem = document.querySelector(`[data-type="${displayType}"]`);
+        if (currentLibraryItem) {
+            currentLibraryItem.classList.add('active');
+            
+            // Si c'est un bloc entier, activer le bouton 1/1
+            if (blockInfo && blockInfo.category !== 'cut') {
+                const wholeButton = currentLibraryItem.querySelector('[data-cut="1/1"]');
+                if (wholeButton) {
+                    wholeButton.classList.add('active');
+                }
+            } else if (blockInfo && blockInfo.cutType) {
+                // Si c'est un bloc coupé, activer le bouton correspondant
+                const cutButton = currentLibraryItem.querySelector(`[data-cut="${blockInfo.cutType}"]`);
+                if (cutButton) {
+                    cutButton.classList.add('active');
+                }
+            }
+        }
     }
 }
 
