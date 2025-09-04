@@ -22,3 +22,81 @@ html body .library-grid.force-visible .library-item {
     max-width: none !important;
     flex: 1 1 auto !important;
 }
+
+/* === CORRECTION SPÉCIFIQUE: ONGLET ISOLANTS QUI SE SUPERPOSE AUX TITRES === */
+/* Supprime la hauteur max imposée aux sections et évite tout chevauchement */
+#subtab-isolants .library-section {
+    max-height: none !important;   /* Ne pas couper la section */
+    overflow: visible !important;  /* Laisse le contenu s'étendre normalement */
+    position: relative !important; /* Contexte propre pour le contenu */
+}
+
+/* Assure un espacement suffisant sous le titre de section */
+#subtab-isolants .library-section h5 {
+    margin-bottom: 10px !important;
+    z-index: 1 !important;         /* Le titre reste au-dessus si nécessaire */
+    position: relative !important;
+}
+
+/* La grille ne doit pas remonter sous le titre */
+#subtab-isolants .library-grid {
+    margin-top: 6px !important;
+    position: relative !important;
+    z-index: 0 !important;
+}
+
+/* Assurer la visibilité de l'encart d'info sélectionnée dans Biblio */
+#tab-content-biblio .selected-brick-info {
+    position: sticky; /* reste visible en haut de la zone biblio lors du scroll */
+    top: 0;
+    z-index: 5;       /* au-dessus des grilles */
+}
+
+/* Cas similaires potentiels: linteaux et planchers peuvent hériter de la correction d'empilement */
+#subtab-linteaux .library-section,
+#subtab-planchers .library-section {
+    overflow: visible !important;
+}
+
+/* === UNIFORMISATION: APERÇUS 3D DE LA BIBLIOTHÈQUE (toutes catégories) === */
+/* Donne la même grandeur que les autres catégories (aperçu confortable) */
+html body #tab-content-biblio .library-item .item-preview,
+html body #tab-content-biblio .library-item .item-preview-3d {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 180px !important; /* fenêtre d'aperçu plus grande */
+    margin: 0 auto 12px !important;
+    overflow: hidden !important;
+    border: none !important;            /* enlever le cadre du conteneur */
+    border-bottom: none !important;
+    box-shadow: none !important;
+}
+
+/* Les canvases remplissent la fenêtre d'aperçu */
+html body #tab-content-biblio .library-item .preview-3d,
+html body #tab-content-biblio .library-item .preview-3d-static {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    object-fit: contain !important;
+    border-radius: 6px !important;
+    border: none !important;            /* enlever le cadre du canvas */
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Neutraliser le hover qui recolorie le cadre */
+html body #tab-content-biblio .library-item:hover .preview-3d,
+html body #tab-content-biblio .library-item:hover .preview-3d-static {
+    border-color: transparent !important;
+}
+
+/* Petits écrans: réduire un peu la hauteur mais garder lisible */
+@media (max-width: 599px) {
+    html body #tab-content-biblio .library-item .item-preview,
+    html body #tab-content-biblio .library-item .item-preview-3d {
+        height: 120px !important;
+    }
+}

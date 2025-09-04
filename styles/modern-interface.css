@@ -1049,6 +1049,20 @@ body {
     border-color: var(--accent-color);
 }
 
+/* Quand la carte d'info est dans un groupe de type zoom-controls, on enlève son fond/bord pour garder le look du groupe */
+.selection-info-group .selected-brick-info {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin-top: 0; /* Réduit l'espace au-dessus dans le groupe */
+}
+
+/* Supprimer la marge par défaut du titre pour compacter la carte */
+.selection-info-group .selected-brick-info .info-header h4 {
+    margin: 0;
+    line-height: 1.2;
+}
+
 /* Boutons de grille */
 .grid-btn {
     padding: 6px 10px;

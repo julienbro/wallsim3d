@@ -867,6 +867,11 @@
                         <button class="grid-btn" id="toggleGrid">Grille</button>
                         <button class="grid-btn" id="toggleAxes">Axes</button>
                     </div>
+
+                    <!-- Infos élément sélectionné avec le même style que zoom-controls -->
+                    <div class="zoom-controls selection-info-group">
+                        <div id="viewportSelectionInfo" class="selected-brick-info" style="display:none;"></div>
+                    </div>
                 </div>
                 
                 <!-- Indicateurs d'édition -->
@@ -981,7 +986,7 @@
                     </div>
 
                     <!-- Contenu onglet Assise -->
-                    <div id="tab-content-assise" class="tab-content">>
+                    <div id="tab-content-assise" class="tab-content">
                         <!-- Indicateur de bloc sélectionné -->
                         <div class="selected-block-info" style="display: none;">
                             <div class="info-header">
@@ -4503,6 +4508,8 @@
     <script src="js/help-patch.js"></script>
     <script src="js/help-window-manager.js"></script>
     <script src="js/library-help-system.js"></script>
+    <script src="js/assise-help-system.js"></script>
+    <script src="js/mode-operatoire-help-system.js"></script>
     <script src="js/tools-help-system.js"></script>
     <script src="js/toolbar-help-system.js"></script>
     <script src="js/materials.js"></script>
