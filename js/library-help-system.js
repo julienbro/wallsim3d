@@ -96,16 +96,39 @@ class LibraryHelpSystem {
     }
 
     setupEventListeners() {
-        // Écouter les clics sur l'onglet Biblio
+    // Écouter les clics sur l'onglet Biblio
         const biblioTab = document.querySelector('[data-tab="biblio"]');
         if (biblioTab) {
             biblioTab.addEventListener('click', (e) => {
-                // Délai pour laisser l'onglet s'ouvrir
-                setTimeout(() => {
-                    this.showLibraryHelp();
-                }, 300);
+                // Attendre que l'onglet devienne réellement actif
+                this.waitUntilBiblioActive(1500).then(() => this.showLibraryHelp());
             });
         }
+
+    // Afficher automatiquement l'aide de l'onglet Biblio quand l'accueil se ferme
+    window.addEventListener('startup-popup-closed', () => {
+            // S'assurer que l'onglet Biblio est actif, sinon l'activer
+            const activeMainTab = document.querySelector('.main-tab.active,[data-tab].active');
+            const isBiblioActive = !!(activeMainTab && (
+                activeMainTab.getAttribute('data-tab') === 'biblio' ||
+                (activeMainTab.getAttribute('data-tab-name') || '').includes('biblio')
+            ));
+
+            // Si TabManager existe et que l'onglet actif n'est pas Biblio, basculer dessus
+            if (!isBiblioActive) {
+                if (window.TabManager && typeof window.TabManager.switchMainTab === 'function') {
+                    try { window.TabManager.switchMainTab('biblio'); } catch (_) { /* no-op */ }
+                } else {
+                    const biblioBtn = document.querySelector('[data-tab="biblio"], [data-tab-name="biblio"]');
+                    if (biblioBtn) biblioBtn.click();
+                }
+            }
+
+        // Afficher l'aide contextuelle après activation effective de Biblio
+            this.waitUntilBiblioActive(1500).then(() => {
+                if (!this.isVisible) this.showLibraryHelp();
+            });
+        });
 
         // Écouter l'événement elementPlaced pour masquer l'aide quand une brique est posée
         document.addEventListener('elementPlaced', (event) => {
@@ -125,6 +148,19 @@ class LibraryHelpSystem {
             if (e.key === 'Escape' && this.isVisible) {
                 this.hideHelp();
             }
+        });
+    }
+
+    // Attendre activation effective de l'onglet Biblio
+    waitUntilBiblioActive(maxWaitMs = 1200) {
+        return new Promise((resolve) => {
+            const start = Date.now();
+            const check = () => {
+                if (this.isBiblioTabActive()) return resolve(true);
+                if (Date.now() - start >= maxWaitMs) return resolve(false);
+                setTimeout(check, 50);
+            };
+            check();
         });
     }
 
@@ -233,7 +269,7 @@ class LibraryHelpSystem {
             return;
         }
         
-        // Afficher uniquement l'aide contextuelle (bulles d'aide) sans la fenêtre de guide
+    // Afficher uniquement l'aide contextuelle (cadres) sans la fenêtre de guide ni texte
         this.showContextualHelpOnly();
     }
     
@@ -243,10 +279,11 @@ class LibraryHelpSystem {
     showContextualHelpOnly() {
         // Affichage cadres colorés bibliothèque uniquement
         
-        // Marquer comme visible pour éviter les appels multiples
-        this.isVisible = true;
+    // Marquer comme visible pour éviter les appels multiples
+    this.isVisible = true;
+    this._shownAt = Date.now();
         
-        // Créer uniquement les cadres colorés visuels (pas de fenêtre de guide)
+    // Créer uniquement les cadres colorés visuels (pas de fenêtre de guide ni bulles)
         this.createVisualHighlights();
         
         // Auto-masquer après quelques secondes
@@ -256,10 +293,16 @@ class LibraryHelpSystem {
         
         // Vérification périodique que l'onglet biblio est toujours actif
         this.checkActiveTabInterval = setInterval(() => {
-            if (this.isVisible && !this.isBiblioTabActive()) {
-                this.hideHelp();
+            if (!this.isVisible) return;
+            // Petite période de grâce après l'affichage
+            if (Date.now() - (this._shownAt || 0) < 600) return;
+            if (!this.isBiblioTabActive()) {
+                // Debounce: revalider après 250ms avant de fermer
+                setTimeout(() => {
+                    if (this.isVisible && !this.isBiblioTabActive()) this.hideHelp();
+                }, 250);
             }
-        }, 1000); // Vérifier chaque seconde
+        }, 500); // Vérifier plus fréquemment avec debounce
     }
     
     /**
@@ -310,107 +353,16 @@ class LibraryHelpSystem {
      */
     createLightHighlights() {
         // Nettoyer les anciens surlignages
+        // Désactivé: plus de bulles/explications pour Biblio
         this.removeVisualHighlights();
-        
-        // Créer un container pour les surlignages légers
-        this.highlightsContainer = document.createElement('div');
-        this.highlightsContainer.id = 'library-contextual-highlights';
-        this.highlightsContainer.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 9999;
-        `;
-        document.body.appendChild(this.highlightsContainer);
-        
-        // Surligner l'onglet bibliothèque avec une bulle d'aide légère
-        const biblioTab = document.querySelector('[data-tab="biblio"], [data-tab="bibliotheque"]');
-        if (biblioTab) {
-            this.createLightTooltip(biblioTab, 'Bibliothèque d\'éléments', 'Parcourez et sélectionnez des éléments');
-        }
-        
-        // Surligner les sous-onglets si visibles
-        const subTabs = document.querySelectorAll('.library-sub-tab, .biblio-sub-tab');
-        subTabs.forEach((tab, index) => {
-            if (tab.offsetParent !== null) { // Visible
-                const text = tab.textContent.trim();
-                setTimeout(() => {
-                    this.createLightTooltip(tab, text, `Catégorie: ${text}`);
-                }, index * 500); // Décalage temporel
-            }
-        });
     }
     
     /**
      * Créer une bulle d'aide légère
      */
     createLightTooltip(element, title, description) {
-        const rect = element.getBoundingClientRect();
-        const tooltip = document.createElement('div');
-        tooltip.className = 'light-help-tooltip';
-        tooltip.style.cssText = `
-            position: fixed;
-            left: ${rect.left + rect.width + 10}px;
-            top: ${rect.top}px;
-            background: rgba(52, 144, 220, 0.9);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            z-index: 10001;
-            pointer-events: none;
-            animation: fadeInTooltip 0.3s ease-in;
-        `;
-        tooltip.innerHTML = `<strong>${title}</strong><br>${description}`;
-        
-        // Ajouter l'animation CSS si elle n'existe pas
-        if (!document.querySelector('#light-tooltip-styles')) {
-            const styles = document.createElement('style');
-            styles.id = 'light-tooltip-styles';
-            styles.textContent = `
-                @keyframes fadeInTooltip {
-                    from { opacity: 0; transform: translateY(-10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-            `;
-            document.head.appendChild(styles);
-        }
-        
-        this.highlightsContainer.appendChild(tooltip);
-        
-        // Créer un indicateur visuel léger sur l'élément
-        const indicator = document.createElement('div');
-        indicator.style.cssText = `
-            position: fixed;
-            left: ${rect.left - 2}px;
-            top: ${rect.top - 2}px;
-            width: ${rect.width + 4}px;
-            height: ${rect.height + 4}px;
-            border: 2px solid #3490dc;
-            border-radius: 4px;
-            pointer-events: none;
-            animation: pulseIndicator 2s infinite;
-        `;
-        
-        // Ajouter l'animation de pulsation
-        if (!document.querySelector('#pulse-animation-styles')) {
-            const pulseStyles = document.createElement('style');
-            pulseStyles.id = 'pulse-animation-styles';
-            pulseStyles.textContent = `
-                @keyframes pulseIndicator {
-                    0% { opacity: 0.7; transform: scale(1); }
-                    50% { opacity: 1; transform: scale(1.02); }
-                    100% { opacity: 0.7; transform: scale(1); }
-                }
-            `;
-            document.head.appendChild(pulseStyles);
-        }
-        
-        this.highlightsContainer.appendChild(indicator);
+        // Désactivé: pas d'infobulles
+        return;
     }
     
     /**
@@ -473,6 +425,8 @@ class LibraryHelpSystem {
                 el.remove();
             });
         });
+    // Supprimer les labels de biblio
+    document.querySelectorAll('.biblio-help-label').forEach(el => el.remove());
         
         // Supprimer les écouteurs de scroll
         if (this.hideOnScrollHandler) {
@@ -544,6 +498,8 @@ class LibraryHelpSystem {
     createVisualHighlights() {
         // Supprimer les anciens surlignages
         this.removeVisualHighlights();
+    this.highlightCount = 0;
+    this._highlightRetryCount = 0;
         
         // Créer le conteneur de surlignages
         this.highlightsContainer = document.createElement('div');
@@ -559,8 +515,9 @@ class LibraryHelpSystem {
         `;
         document.body.appendChild(this.highlightsContainer);
 
-        // Ajouter un écouteur de scroll global pour cacher les cadres (comme dans tools-help-system)
+        // Ajouter un écouteur de scroll global pour cacher les cadres (grâce initiale)
         this.hideOnScrollHandler = () => {
+            if (Date.now() - (this._shownAt || 0) < 600) return;
             this.hideHelp();
         };
         
@@ -580,25 +537,36 @@ class LibraryHelpSystem {
         requestAnimationFrame(() => {
             this.createCategoryHighlights();
             this.createCutLengthHighlights();
+            // Si rien surligné, retenter rapidement (DOM pas encore prêt)
+            if (this.highlightCount === 0 && this._highlightRetryCount < 2) {
+                this._highlightRetryCount++;
+                setTimeout(() => {
+                    if (!this.isVisible) return;
+                    this.highlightsContainer.innerHTML = '';
+                    this.highlightCount = 0;
+                    this.createCategoryHighlights();
+                    this.createCutLengthHighlights();
+                }, 200);
+            }
         });
     }
 
     createCategoryHighlights() {
         // Surligner les 7 onglets de catégories (Briques, Blocs, Isolants, Linteaux, Outils, Planchers, Poutres)
         const categoryTabs = [
-            { selector: '[data-subtab="briques"]', label: '1️⃣ Briques', color: '#e53935' },
-            { selector: '[data-subtab="blocs"]', label: '2️⃣ Blocs', color: '#1e88e5' },
-            { selector: '[data-subtab="isolants"]', label: '3️⃣ Isolants', color: '#43a047' },
-            { selector: '[data-subtab="linteaux"]', label: '4️⃣ Linteaux', color: '#fb8c00' },
-            { selector: '[data-subtab="outils"]', label: '5️⃣ Outils', color: '#9c27b0' },
-            { selector: '[data-subtab="planchers"]', label: '6️⃣ Planchers', color: '#795548' },
-            { selector: '[data-subtab="poutres"]', label: '7️⃣ Poutres', color: '#607d8b' }
+            { selector: '[data-subtab="briques"]', color: '#e53935' },
+            { selector: '[data-subtab="blocs"]', color: '#1e88e5' },
+            { selector: '[data-subtab="isolants"]', color: '#43a047' },
+            { selector: '[data-subtab="linteaux"]', color: '#fb8c00' },
+            { selector: '[data-subtab="outils"]', color: '#9c27b0' },
+            { selector: '[data-subtab="planchers"]', color: '#795548' },
+            { selector: '[data-subtab="poutres"]', color: '#607d8b' }
         ];
 
         // Détecter quels onglets sont sur la deuxième ligne
         const firstElementRect = document.querySelector('[data-subtab="briques"]')?.getBoundingClientRect();
         
-        categoryTabs.forEach((tab, index) => {
+    categoryTabs.forEach((tab, index) => {
             const element = document.querySelector(tab.selector);
             if (element && firstElementRect) {
                 const elementRect = element.getBoundingClientRect();
@@ -606,7 +574,8 @@ class LibraryHelpSystem {
                 const isSecondRow = elementRect.top > firstElementRect.top + 20;
                 
                 this.createHighlightBox(element, {
-                    label: tab.label,
+            // Afficher un libellé simple sur le premier élément
+            label: index === 0 ? 'Catégories' : '',
                     color: tab.color,
                     position: isSecondRow ? 'bottom' : 'top',
                     delay: isSecondRow ? index * 0.2 + 0.5 : index * 0.2  // Délai supplémentaire pour la 2e ligne
@@ -617,10 +586,10 @@ class LibraryHelpSystem {
 
     createCutLengthHighlights() {
         // Surligner la zone des longueurs de coupe - cibler directement le conteneur cut-buttons
-        const cutLengthContainer = document.querySelector('.cut-buttons');
-        if (cutLengthContainer) {
+    const cutLengthContainer = document.querySelector('.cut-buttons');
+    if (cutLengthContainer) {
             this.createHighlightBox(cutLengthContainer, {
-                label: '✂️ Longueurs de coupes',
+        label: 'Coupes',
                 color: '#7b1fa2',
                 position: 'bottom',
                 delay: 0.8
@@ -629,10 +598,10 @@ class LibraryHelpSystem {
         }
 
         // Fallback : chercher les autres conteneurs possibles
-        const altContainer = document.querySelector('.cut-length-buttons, .length-selector, [class*="length"], [class*="coupe"]');
-        if (altContainer) {
+    const altContainer = document.querySelector('.cut-length-buttons, .length-selector, [class*="length"], [class*="coupe"]');
+    if (altContainer) {
             this.createHighlightBox(altContainer, {
-                label: '✂️ Longueurs de coupes',
+        label: 'Coupes',
                 color: '#7b1fa2',
                 position: 'bottom',
                 delay: 0.8
@@ -673,7 +642,7 @@ class LibraryHelpSystem {
                 };
                 
                 this.createHighlightBox(virtualContainer, {
-                    label: '✂️ Longueurs de coupes',
+                    label: 'Coupes',
                     color: '#7b1fa2',
                     position: 'bottom',
                     delay: 0.8
@@ -721,19 +690,22 @@ class LibraryHelpSystem {
             pointer-events: none;
         `;
 
-        // Ajouter le label si fourni
+        // Ajouter le label si fourni (positionné à gauche de la barre latérale droite)
         if (label) {
             const labelElement = document.createElement('div');
-            const labelOffset = position === 'top' ? 'bottom: 100%; margin-bottom: 12px;' : 'top: 100%; margin-top: 12px;';
+            const sidebar = document.querySelector('aside.sidebar');
+            const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
+            const labelLeft = (sidebarRect ? sidebarRect.left : rect.left) - 12; // 12px à gauche
+            const labelTop = rect.top + rect.height / 2;
             labelElement.style.cssText = `
-                position: absolute;
-                ${labelOffset}
-                left: 50%;
-                transform: translateX(-50%);
+                position: fixed;
+                left: ${labelLeft}px;
+                top: ${labelTop}px;
+                transform: translate(-100%, -50%);
                 background: linear-gradient(135deg, ${color}, ${color}dd);
                 color: white;
-                padding: 8px 16px;
-                border-radius: 20px;
+                padding: 6px 12px;
+                border-radius: 14px;
                 font-size: 12px;
                 font-weight: 700;
                 white-space: nowrap;
@@ -741,12 +713,15 @@ class LibraryHelpSystem {
                 border: 2px solid rgba(255, 255, 255, 0.3);
                 backdrop-filter: blur(10px);
                 z-index: 10000;
+                pointer-events: none;
             `;
             labelElement.textContent = label;
-            highlight.appendChild(labelElement);
+            labelElement.className = 'biblio-help-label';
+            this.highlightsContainer.appendChild(labelElement);
         }
 
-        this.highlightsContainer.appendChild(highlight);
+    this.highlightsContainer.appendChild(highlight);
+    this.highlightCount = (this.highlightCount || 0) + 1;
 
         // Animer l'apparition avec délai
         setTimeout(() => {

@@ -250,6 +250,9 @@ class TabManager {
             // console.log('🔧 TabManager: brickData:', brickData);
             // console.log('🔧 TabManager: currentMainTab:', this.currentMainTab);
             
+            // Mettre à jour les informations de l'élément sélectionné
+            this.updateSelectedElementInfo(brickType, brickData);
+            
             // Si c'est un élément GLB, mettre à jour l'élément actif dans l'onglet Outils
             if (brickData && brickData.category === 'glb') {
                 console.log('🔧 TabManager: Élément GLB sélectionné, mise à jour de l\'onglet Outils');
@@ -286,6 +289,114 @@ class TabManager {
             }
         });
         
+        // Écouter les changements de sélection de blocs
+        document.addEventListener('blockSelectionChanged', (e) => {
+            console.log('🔧 TabManager: Événement blockSelectionChanged reçu:', e.detail);
+            const { newType, blockData } = e.detail;
+            this.updateSelectedElementInfo(newType, blockData);
+        });
+        
+        // Écouter les changements de sélection d'isolants
+        document.addEventListener('insulationSelectionChanged', (e) => {
+            console.log('🔧 TabManager: Événement insulationSelectionChanged reçu:', e.detail);
+            const { newType, insulationData } = e.detail;
+            this.updateSelectedElementInfo(newType, insulationData);
+        });
+        
+        // Écouter les changements de sélection de linteaux
+        document.addEventListener('linteauSelectionChanged', (e) => {
+            console.log('🔧 TabManager: Événement linteauSelectionChanged reçu:', e.detail);
+            const { newType, linteauData } = e.detail;
+            this.updateSelectedElementInfo(newType, linteauData);
+        });
+        
+        // Écouter les sélections d'éléments de bibliothèque
+        document.addEventListener('libraryItemSelected', (e) => {
+            console.log('🔧 TabManager: Événement libraryItemSelected reçu:', e.detail);
+            const { itemType, itemElement, subTab } = e.detail;
+            
+            // Créer un objet de données pour l'élément de bibliothèque
+            let libraryItemData = {
+                name: itemType || 'Élément de bibliothèque',
+                category: subTab || 'bibliotheque'
+            };
+            
+            // Essayer de récupérer plus d'informations depuis l'élément DOM
+            if (itemElement) {
+                const nameElement = itemElement.querySelector('.library-item-name');
+                const descElement = itemElement.querySelector('.library-item-desc');
+                
+                if (nameElement) {
+                    libraryItemData.name = nameElement.textContent.trim();
+                }
+                if (descElement) {
+                    libraryItemData.description = descElement.textContent.trim();
+                }
+                
+                // Récupérer les données depuis les attributs data-*
+                if (itemElement.dataset) {
+                    if (itemElement.dataset.dimensions) {
+                        try {
+                            libraryItemData.dimensions = JSON.parse(itemElement.dataset.dimensions);
+                        } catch (e) {
+                            // Ignorer si les dimensions ne sont pas au format JSON
+                        }
+                    }
+                    if (itemElement.dataset.description) {
+                        libraryItemData.description = itemElement.dataset.description;
+                    }
+                }
+            }
+            
+            this.updateSelectedElementInfo(itemType, libraryItemData);
+        });
+        
+        // Écouter aussi les clics directs sur les éléments d'isolants
+        document.addEventListener('click', (e) => {
+            const insulationBtn = e.target.closest('.insulation-btn');
+            if (insulationBtn && window.InsulationSelector) {
+                setTimeout(() => {
+                    // Attendre que la sélection soit faite
+                    const currentInsulation = window.InsulationSelector.selectedType;
+                    const insulationData = window.InsulationSelector.insulationTypes && 
+                                          window.InsulationSelector.insulationTypes[currentInsulation];
+                    
+                    if (currentInsulation && insulationData) {
+                        console.log('🔧 TabManager: Sélection directe d\'isolant détectée:', currentInsulation);
+                        this.updateSelectedElementInfo(currentInsulation, insulationData);
+                    }
+                }, 100);
+            }
+            
+            // Écouter aussi les clics directs sur les éléments de blocs
+            const blockBtn = e.target.closest('.size-btn[data-type]');
+            if (blockBtn && blockBtn.dataset.type && window.BlockSelector) {
+                setTimeout(() => {
+                    const currentBlock = window.BlockSelector.currentBlock;
+                    const blockData = window.BlockSelector.blockTypes && 
+                                     window.BlockSelector.blockTypes[currentBlock];
+                    
+                    if (currentBlock && blockData) {
+                        console.log('🔧 TabManager: Sélection directe de bloc détectée:', currentBlock);
+                        this.updateSelectedElementInfo(currentBlock, blockData);
+                    }
+                }, 100);
+            }
+            
+            // Écouter aussi les clics directs sur les éléments de linteaux
+            const linteauBtn = e.target.closest('.linteau-btn');
+            if (linteauBtn && window.LinteauSelector) {
+                setTimeout(() => {
+                    const currentLinteau = window.LinteauSelector.currentLinteau;
+                    
+                    if (currentLinteau) {
+                        console.log('🔧 TabManager: Sélection directe de linteau détectée:', currentLinteau);
+                        this.updateSelectedElementInfo(currentLinteau.type || currentLinteau, currentLinteau);
+                    }
+                }, 100);
+            }
+        });
+        
         // DÉSACTIVÉ: Écouter l'événement de sélection d'élément de bibliothèque 
         // pour rester dans l'onglet bibliothèque lors de la sélection
         // document.addEventListener('libraryItemSelected', (e) => {
@@ -300,6 +411,9 @@ class TabManager {
         // Force l'affichage de l'onglet Biblio au démarrage
         setTimeout(() => {
             this.switchMainTab('biblio');
+            
+            // Initialiser les informations d'élément si un est déjà sélectionné
+            this.initializeSelectedElementInfo();
         }, 100);
         
     }
@@ -1228,6 +1342,14 @@ class TabManager {
     openCustomCutModal(baseType, buttonElement) {
         // Obtenir les dimensions de base pour l'affichage
         const baseDimensions = this.calculateCutDimensions(baseType, '1/1');
+        const isInsulation = baseType.startsWith('PUR') || baseType.startsWith('LAINEROCHE') || baseType.startsWith('XPS') || baseType.startsWith('PSE') || baseType.startsWith('FB') || baseType.startsWith('LV');
+        const isBlock = (
+            baseType.startsWith('B') ||
+            baseType.startsWith('BC') ||
+            baseType.startsWith('BCA') ||
+            baseType.startsWith('TC') ||
+            baseType.startsWith('ARGEX')
+        );
         
         // Créer le modal de coupe personnalisée
         const modal = document.createElement('div');
@@ -1253,9 +1375,23 @@ class TabManager {
                                    step="0.1">
                             <span class="unit">cm</span>
                         </div>
+                        ${ (isInsulation || isBlock) ? `
+                        <div class="input-group">
+                            <label for="customCutHeight">Hauteur personnalisée (cm) :</label>
+                            <input type="number" id="customCutHeight"
+                                   min="1" max="${baseDimensions.height}"
+                                   value="${Math.round(baseDimensions.height * 0.85)}"
+                                   step="0.1">
+                            <span class="unit">cm</span>
+                        </div>` : ''}
                         <div class="input-note">
-                            <p>Largeur et hauteur restent inchangées : ${baseDimensions.width}×${baseDimensions.height} cm</p>
-                            <p>Longueur max : ${baseDimensions.length} cm</p>
+                            ${ (isInsulation || isBlock) ? `
+                                <p>Largeur (épaisseur) inchangée : ${baseDimensions.width} cm</p>
+                                <p>Longueur max : ${baseDimensions.length} cm — Hauteur max : ${baseDimensions.height} cm</p>
+                            ` : `
+                                <p>Largeur et hauteur restent inchangées : ${baseDimensions.width}×${baseDimensions.height} cm</p>
+                                <p>Longueur max : ${baseDimensions.length} cm</p>
+                            `}
                         </div>
                     </div>
                 </div>
@@ -1287,6 +1423,8 @@ class TabManager {
     applyCustomCut(baseType, modal) {
         const lengthInput = modal.querySelector('#customCutLength');
         const customLength = parseFloat(lengthInput.value);
+        const heightInput = modal.querySelector('#customCutHeight');
+        const customHeight = heightInput ? parseFloat(heightInput.value) : null;
         const buttonElement = modal.buttonElement;
         
         // Validation
@@ -1295,21 +1433,30 @@ class TabManager {
             alert(`La longueur doit être comprise entre 0.1 et ${baseDimensions.length} cm.`);
             return;
         }
+    if (heightInput) {
+            if (customHeight <= 0 || customHeight > baseDimensions.height) {
+                alert(`La hauteur doit être comprise entre 0.1 et ${baseDimensions.height} cm.`);
+                return;
+            }
+        }
         
-        // Créer un suffixe personnalisé avec la longueur
-        const customSuffix = `_CUSTOM_${customLength.toString().replace('.', '_')}`;
-        const finalType = baseType + customSuffix;
+    // Créer un suffixe personnalisé avec la longueur et, si présent, la hauteur
+    const lengthStr = customLength.toString().replace('.', '_');
+    const heightStr = heightInput ? customHeight.toString().replace('.', '_') : null;
+    const customSuffix = `_CUSTOM_${lengthStr}` + (heightStr ? `_H_${heightStr}` : '');
+    const finalType = baseType + customSuffix;
         
         // console.log(`🎯 Coupe personnalisée appliquée : ${baseType} → ${finalType} (${customLength}cm)`);
         
         // Créer les dimensions personnalisées
-        const customDimensions = {
+    const customDimensions = {
             length: customLength,
             width: baseDimensions.width,
-            height: baseDimensions.height,
+            height: heightInput ? customHeight : baseDimensions.height,
             name: `${baseDimensions.name} (${customLength}cm)`,
             cutType: 'P',
-            customLength: customLength
+            customLength: customLength,
+            ...(heightInput ? { customHeight: customHeight } : {})
         };
         
         // Synchroniser avec les sélecteurs
@@ -1336,7 +1483,7 @@ class TabManager {
         } else if (baseType.startsWith('BC') || baseType.startsWith('BCA') || baseType.startsWith('TC') || baseType.startsWith('ARGEX')) {
             targetSubTab = 'blocs';
             targetMode = 'block';
-        } else if (baseType.startsWith('PUR') || baseType.startsWith('LAINEROCHE')) {
+    } else if (baseType.startsWith('PUR') || baseType.startsWith('LAINEROCHE') || baseType.startsWith('XPS') || baseType.startsWith('PSE')) {
             targetSubTab = 'isolants';
             targetMode = 'insulation';
         } else if (baseType.startsWith('L') && ['L120', 'L140', 'L160', 'L180', 'L200'].includes(baseType)) {
@@ -1379,10 +1526,9 @@ class TabManager {
             }
         } else if (targetSubTab === 'isolants' && window.InsulationSelector) {
             if (cutType === 'P') {
-                // Pour l'isolant, on pourrait gérer la coupe personnalisée si nécessaire
-                if (window.DEBUG_MODE) console.log(`🟡 Coupe personnalisée isolant: ${baseType}`);
-                // Pas de modale spéciale pour les isolants pour le moment
-                window.InsulationSelector.setInsulation(baseType);
+                // Coupe personnalisée pour isolant: appliquer dimensions (L + H personnalisées)
+                if (window.DEBUG_MODE) console.log(`🟡 Coupe personnalisée isolant: ${baseType} →`, cutDimensions);
+                window.InsulationSelector.setInsulation(baseType, cutDimensions);
                 this.updateDisplayedDimensions('insulation', cutDimensions);
             } else {
                 if (window.DEBUG_MODE) console.log(`🟡 Sélection de l'isolant: ${finalType}`);
@@ -3648,9 +3794,12 @@ class TabManager {
                 } else if (jointType === 'right' && window.ConstructionTools) {
                     window.ConstructionTools.createSpecificVerticalJoint(this.currentSelectedElement, 'right');
                     modifiedCount++;
-                } else if (jointType === 'horizontal' && window.SceneManager) {
+                } else if (jointType === 'horizontal' && window.SceneManager && this.currentSelectedElement.type !== 'insulation') {
+                    // 🔧 ISOLANTS: Ne pas créer de joints horizontaux pour les isolants
                     window.SceneManager.createAutomaticHorizontalJoint(this.currentSelectedElement);
                     modifiedCount++;
+                } else if (jointType === 'horizontal' && this.currentSelectedElement.type === 'insulation') {
+                    console.log('🔧 Isolant détecté - pas de joint horizontal créé via TabManager');
                 }
             } else if (existingJoint) {
                 // Modifier la visibilité du joint existant
@@ -5223,5 +5372,293 @@ TabManager.prototype.activateToolsTab = function() {
     
     // Ne rien faire puisque l'onglet Outils a été supprimé
     return;
+};
+
+// Méthode pour mettre à jour les informations de l'élément sélectionné
+TabManager.prototype.updateSelectedElementInfo = function(elementType, elementData) {
+    const brickInfoDiv = document.querySelector('.selected-brick-info');
+    if (!brickInfoDiv) {
+        console.warn('Div .selected-brick-info non trouvé');
+        return;
+    }
+
+    if (!elementData || !elementType) {
+        // Si pas de données ou pas de type, vider le div et le masquer
+        brickInfoDiv.innerHTML = '';
+        brickInfoDiv.style.display = 'none';
+        return;
+    }
+
+    // Afficher le div et mettre à jour son contenu
+    brickInfoDiv.style.display = 'block';
+    brickInfoDiv.classList.remove('placeholder');
+    brickInfoDiv.classList.add('visible');
+    
+    // Déterminer le type d'élément pour l'icône et le titre
+    let iconClass = 'fas fa-cube';
+    let elementTypeLabel = 'Élément';
+    
+    // Convertir en string au cas où et vérifier que ce n'est pas vide
+    const safeElementType = String(elementType || '');
+    
+    if (safeElementType.includes('M50') || safeElementType.includes('M57') || safeElementType.includes('M60') || 
+        safeElementType.includes('M65') || safeElementType.includes('M90') || safeElementType.includes('brick')) {
+        iconClass = 'fas fa-cube';
+        elementTypeLabel = 'Brique';
+    } else if (safeElementType.includes('block') || safeElementType.includes('BLOC')) {
+        iconClass = 'fas fa-th-large';
+        elementTypeLabel = 'Bloc';
+    } else if (
+        safeElementType.includes('insulation') || safeElementType.includes('ISOLATION') ||
+        safeElementType.startsWith('PUR') || safeElementType.startsWith('LAINEROCHE') ||
+        safeElementType.startsWith('XPS') || safeElementType.startsWith('PSE') ||
+        safeElementType.startsWith('FB') || safeElementType.startsWith('LV')
+    ) {
+        iconClass = 'fas fa-layer-group';
+        elementTypeLabel = 'Isolant';
+    } else if (
+        safeElementType.includes('linteau') || safeElementType.includes('LINTEAU') ||
+        /^L\d+/.test(safeElementType)
+    ) {
+        iconClass = 'fas fa-minus';
+        elementTypeLabel = 'Linteau';
+    } else if (safeElementType.includes('hourdis') || safeElementType.includes('HOURDIS')) {
+        iconClass = 'fas fa-th';
+        elementTypeLabel = 'Hourdis';
+    } else if (safeElementType.includes('poutrelle') || safeElementType.includes('POUTRELLE')) {
+        iconClass = 'fas fa-grip-lines';
+        elementTypeLabel = 'Poutrelle';
+    } else if (safeElementType.includes('entrevous') || safeElementType.includes('ENTREVOUS')) {
+        iconClass = 'fas fa-border-all';
+        elementTypeLabel = 'Entrevous';
+    } else if (safeElementType.includes('chainage') || safeElementType.includes('CHAINAGE')) {
+        iconClass = 'fas fa-link';
+        elementTypeLabel = 'Chaînage';
+    } else if (safeElementType.includes('raidisseur') || safeElementType.includes('RAIDISSEUR')) {
+        iconClass = 'fas fa-compress-arrows-alt';
+        elementTypeLabel = 'Raidisseur';
+    } else if (safeElementType.includes('plancher') || safeElementType.includes('PLANCHER')) {
+        iconClass = 'fas fa-layer-group';
+        elementTypeLabel = 'Plancher';
+    } else if (elementData && elementData.category) {
+        // Utiliser la catégorie pour déterminer le type
+        switch (elementData.category) {
+            case 'hourdis':
+                iconClass = 'fas fa-th';
+                elementTypeLabel = 'Hourdis';
+                break;
+            case 'poutrelles':
+                iconClass = 'fas fa-grip-lines';
+                elementTypeLabel = 'Poutrelle';
+                break;
+            case 'entrevous':
+                iconClass = 'fas fa-border-all';
+                elementTypeLabel = 'Entrevous';
+                break;
+            case 'chainages':
+                iconClass = 'fas fa-link';
+                elementTypeLabel = 'Chaînage';
+                break;
+            case 'raidisseurs':
+                iconClass = 'fas fa-compress-arrows-alt';
+                elementTypeLabel = 'Raidisseur';
+                break;
+            case 'planchers':
+                iconClass = 'fas fa-layer-group';
+                elementTypeLabel = 'Plancher';
+                break;
+            default:
+                iconClass = 'fas fa-cube';
+                elementTypeLabel = 'Élément';
+        }
+    }
+    
+    // Créer le contenu HTML avec les informations de l'élément
+    const displayName = elementData.name || String(elementType) || 'Non défini';
+
+    let infoHtml = `
+        <div class="info-header">
+            <h4><i class="${iconClass}"></i> ${elementTypeLabel} Sélectionné</h4>
+        </div>
+        <div class="info-content">
+            <div class="info-row">
+                <span class="info-label">Nom:</span>
+                <span class="info-value">${displayName}</span>
+            </div>
+    `;
+
+    // Ajouter les dimensions si disponibles
+    if (elementData.dimensions) {
+        infoHtml += `
+            <div class="info-row">
+                <span class="info-label">Dimensions:</span>
+                <span class="info-value">${elementData.dimensions.length}×${elementData.dimensions.height}×${elementData.dimensions.width} cm</span>
+            </div>
+        `;
+    } else if (typeof elementData.length !== 'undefined' && typeof elementData.width !== 'undefined' && typeof elementData.height !== 'undefined') {
+        // Fallback: nombreuses sources utilisent length/width/height à la racine
+        infoHtml += `
+            <div class="info-row">
+                <span class="info-label">Dimensions:</span>
+                <span class="info-value">${elementData.length}×${elementData.height}×${elementData.width} cm</span>
+            </div>
+        `;
+    }
+
+    // Ajouter la description si disponible
+    if (elementData.description) {
+        infoHtml += `
+            <div class="info-row">
+                <span class="info-label">Description:</span>
+                <span class="info-value">${elementData.description}</span>
+            </div>
+        `;
+    }
+
+    // Ajouter des informations spécifiques selon le type
+    if (safeElementType.includes('CHANT')) {
+        infoHtml += `
+            <div class="info-row">
+                <span class="info-label">Position:</span>
+                <span class="info-value">Sur chant</span>
+            </div>
+        `;
+    }
+
+    // Informations de taille pour les briques
+    if (elementTypeLabel === 'Brique') {
+        if (safeElementType.includes('HALF')) {
+            infoHtml += `
+                <div class="info-row">
+                    <span class="info-label">Taille:</span>
+                    <span class="info-value">Demi-brique</span>
+                </div>
+            `;
+        } else if (safeElementType.includes('3Q')) {
+            infoHtml += `
+                <div class="info-row">
+                    <span class="info-label">Taille:</span>
+                    <span class="info-value">3/4 de brique</span>
+                </div>
+            `;
+        } else if (!safeElementType.includes('HALF') && !safeElementType.includes('3Q')) {
+            infoHtml += `
+                <div class="info-row">
+                    <span class="info-label">Taille:</span>
+                    <span class="info-value">Brique entière</span>
+                </div>
+            `;
+        }
+    }
+
+    infoHtml += `
+        </div>
+    `;
+
+    brickInfoDiv.innerHTML = infoHtml;
+    
+    console.log('📋 Informations de l\'élément sélectionné mises à jour:', safeElementType);
+};
+
+// Méthode pour initialiser les informations d'élément au chargement
+TabManager.prototype.initializeSelectedElementInfo = function() {
+    // Vérifier s'il y a une brique déjà sélectionnée dans BrickSelector
+    if (window.BrickSelector && window.BrickSelector.currentBrick) {
+        const currentBrick = window.BrickSelector.currentBrick;
+        const brickData = window.BrickSelector.brickTypes && window.BrickSelector.brickTypes[currentBrick];
+        
+        if (brickData) {
+            this.updateSelectedElementInfo(currentBrick, brickData);
+            console.log('📋 Informations de brique initialisées au chargement:', currentBrick);
+            return;
+        }
+    }
+    
+    // Vérifier s'il y a un bloc sélectionné
+    if (window.BlockSelector && window.BlockSelector.currentBlock) {
+        const currentBlock = window.BlockSelector.currentBlock;
+        const blockData = window.BlockSelector.blockTypes && window.BlockSelector.blockTypes[currentBlock];
+        
+        if (blockData) {
+            this.updateSelectedElementInfo(currentBlock, blockData);
+            console.log('📋 Informations de bloc initialisées au chargement:', currentBlock);
+            return;
+        }
+    }
+    
+    // Vérifier s'il y a un isolant sélectionné
+    if (window.InsulationSelector && window.InsulationSelector.selectedType) {
+        const currentInsulation = window.InsulationSelector.selectedType;
+        const insulationData = window.InsulationSelector.insulationTypes && window.InsulationSelector.insulationTypes[currentInsulation];
+        
+        if (insulationData) {
+            this.updateSelectedElementInfo(currentInsulation, insulationData);
+            console.log('📋 Informations d\'isolant initialisées au chargement:', currentInsulation);
+            return;
+        }
+    }
+    
+    // Vérifier s'il y a un isolant sélectionné via currentInsulation aussi
+    if (window.InsulationSelector && window.InsulationSelector.currentInsulation) {
+        const currentInsulation = window.InsulationSelector.currentInsulation;
+        const insulationData = window.InsulationSelector.insulationTypes && window.InsulationSelector.insulationTypes[currentInsulation];
+        
+        if (insulationData) {
+            this.updateSelectedElementInfo(currentInsulation, insulationData);
+            console.log('📋 Informations d\'isolant (currentInsulation) initialisées au chargement:', currentInsulation);
+            return;
+        }
+    }
+    
+    // Vérifier s'il y a un linteau sélectionné
+    if (window.LinteauSelector && window.LinteauSelector.currentLinteau) {
+        const currentLinteau = window.LinteauSelector.currentLinteau;
+        const linteauData = window.LinteauSelector.linteauTypes && window.LinteauSelector.linteauTypes[currentLinteau];
+        
+        if (linteauData) {
+            this.updateSelectedElementInfo(currentLinteau, linteauData);
+            console.log('📋 Informations de linteau initialisées au chargement:', currentLinteau);
+            return;
+        }
+    }
+    
+    // Vérifier s'il y a un élément de bibliothèque sélectionné
+    if (this.selectedLibraryItem) {
+        const selectedElement = document.querySelector('.library-item.selected');
+        let libraryItemData = {
+            name: this.selectedLibraryItem || 'Élément de bibliothèque',
+            category: this.currentSubTab || 'bibliotheque'
+        };
+        
+        if (selectedElement) {
+            const nameElement = selectedElement.querySelector('.library-item-name');
+            const descElement = selectedElement.querySelector('.library-item-desc');
+            
+            if (nameElement) {
+                libraryItemData.name = nameElement.textContent.trim();
+            }
+            if (descElement) {
+                libraryItemData.description = descElement.textContent.trim();
+            }
+        }
+        
+        this.updateSelectedElementInfo(this.selectedLibraryItem, libraryItemData);
+        console.log('📋 Informations d\'élément de bibliothèque initialisées au chargement:', this.selectedLibraryItem);
+        return;
+    }
+    
+    // Vérifier s'il y a un linteau sélectionné
+    if (window.LinteauSelector && window.LinteauSelector.currentLinteau) {
+        const currentLinteau = window.LinteauSelector.currentLinteau;
+        const linteauData = window.LinteauSelector.linteauTypes && window.LinteauSelector.linteauTypes[currentLinteau];
+        
+        if (linteauData) {
+            this.updateSelectedElementInfo(currentLinteau, linteauData);
+            console.log('📋 Informations de linteau initialisées au chargement:', currentLinteau);
+            return;
+        }
+    }
+    
+    console.log('📋 Aucun élément sélectionné trouvé à l\'initialisation');
 };
 

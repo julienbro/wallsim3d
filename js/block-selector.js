@@ -329,11 +329,55 @@ class BlockSelector {
     setBlock(type, customDimensions = null) {
         // ✅ CORRECTION: Créer le type s'il n'existe pas (cas des coupes personnalisées)
         if (!this.blockTypes[type]) {
-            const baseType = type.split('_')[0]; // Extraire le type de base (ex: B20 de B20_CUSTOM_16)
+            // Extraire le type de base de manière robuste
+            let baseType = type;
+            const customIdx = baseType.indexOf('_CUSTOM_');
+            if (customIdx !== -1) {
+                baseType = baseType.substring(0, customIdx);
+            } else {
+                // Retirer les suffixes de coupe connus (_HALF, _3Q, _1Q) s'ils existent
+                const cutSuffixMatch = baseType.match(/_(HALF|3Q|1Q)$/);
+                if (cutSuffixMatch) {
+                    baseType = baseType.substring(0, baseType.lastIndexOf('_'));
+                }
+            }
+
+            // Fallback: tenter en retirant la dernière section après « _ »
+            if (!this.blockTypes[baseType]) {
+                const lastUnderscore = type.lastIndexOf('_');
+                if (lastUnderscore > -1) {
+                    const candidate = type.substring(0, lastUnderscore);
+                    if (this.blockTypes[candidate]) {
+                        baseType = candidate;
+                    }
+                }
+            }
+
             if (this.blockTypes[baseType]) {
-                // Créer le type personnalisé basé sur le type de base
-                this.blockTypes[type] = { ...this.blockTypes[baseType] };
-                console.log(`🆕 Type de bloc personnalisé créé: ${type} basé sur ${baseType}`);
+                const baseBlock = this.blockTypes[baseType];
+
+                // Déterminer le type de coupe et ajuster la longueur si nécessaire
+                let cutTypeLabel = null;
+                let length = baseBlock.length;
+                if (/_(HALF|3Q|1Q)$/.test(type)) {
+                    const code = type.match(/_(HALF|3Q|1Q)$/)[1];
+                    const factorMap = { HALF: 0.5, '3Q': 0.75, '1Q': 0.25 };
+                    const labelMap = { HALF: '1/2', '3Q': '3/4', '1Q': '1/4' };
+                    cutTypeLabel = labelMap[code];
+                    const factor = factorMap[code] || 1;
+                    length = Math.round(baseBlock.length * factor * 100) / 100; // arrondi 2 décimales si besoin
+                }
+
+                // Créer une entrée dérivée pour cette coupe
+                this.blockTypes[type] = {
+                    ...baseBlock,
+                    length,
+                    name: cutTypeLabel ? `${baseBlock.name} ${cutTypeLabel}` : baseBlock.name,
+                    category: 'cut',
+                    baseBlock: baseType,
+                    cutType: cutTypeLabel || baseBlock.cutType
+                };
+                console.log(`🆕 Type dérivé (coupe) créé: ${type} basé sur ${baseType}`);
             } else {
                 console.warn(`❌ Type de base introuvable pour: ${type}`);
                 return;

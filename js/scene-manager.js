@@ -771,6 +771,52 @@ class SceneManager {
                             const suggestionType = ghost.mesh.userData.suggestionType;
                             // console.log('🔧 DEBUG: suggestionType =', suggestionType);
                             
+                            // NOUVELLE FONCTIONNALITÉ: Vérifier si c'est une suggestion de continuité
+                            const isContinuitySuggestion = suggestionType === 'continuation';
+                            
+                            if (isContinuitySuggestion) {
+                                // Pour les suggestions de continuité, afficher le tooltip de quantité
+                                const rect = window.SceneManager.renderer.domElement.getBoundingClientRect();
+                                const clientX = event.clientX;
+                                const clientY = event.clientY;
+                                
+                                console.log('🧱 Clic sur suggestion de continuité - Affichage du tooltip de quantité');
+                                
+                                if (window.ConstructionTools && window.ConstructionTools.showQuantityTooltip) {
+                                    const suggestionData = {
+                                        position: { x: ghost.position.x, z: ghost.position.z },
+                                        rotation: ghost.rotation,
+                                        type: suggestionType,
+                                        letter: ghost.mesh.userData.letter,
+                                        referenceBrick: globalCapturedReferenceElement
+                                    };
+                                    
+                                    window.ConstructionTools.showQuantityTooltip(clientX, clientY, (quantity) => {
+                                        // Callback quand l'utilisateur confirme la quantité
+                                        if (quantity === 1) {
+                                            // Placement simple pour 1 élément - logique existante
+                                            if (this.animateSuggestionPlacement) {
+                                                this.animateSuggestionPlacement(ghost, () => {
+                                                    const placedElement = this.placeElementAt(ghost.position.x, ghost.position.z, ghost.rotation);
+                                                    this.handlePostPlacementLogic(placedElement, suggestionType, ghost, globalCapturedReferenceElement);
+                                                });
+                                            } else {
+                                                const placedElement = this.placeElementAt(ghost.position.x, ghost.position.z, ghost.rotation);
+                                                this.handlePostPlacementLogic(placedElement, suggestionType, ghost, globalCapturedReferenceElement);
+                                            }
+                                        } else {
+                                            // Placement multiple
+                                            if (window.ConstructionTools && window.ConstructionTools.placeSuggestionWithQuantity) {
+                                                window.ConstructionTools.placeSuggestionWithQuantity(suggestionData, quantity);
+                                            } else {
+                                                console.warn('⚠️ Méthode de placement multiple non disponible');
+                                            }
+                                        }
+                                    });
+                                }
+                                return; // Sortir après avoir affiché le tooltip
+                            }
+                            
                             const isPerpendicularSuggestion = suggestionType === 'perpendiculaire-frontale-droite' || 
                                                              suggestionType === 'perpendiculaire-frontale-gauche' ||
                                                              suggestionType === 'perpendiculaire-dorsale-droite' ||
@@ -1955,7 +2001,7 @@ class SceneManager {
         }
         
         // NOUVELLE FONCTIONNALITÉ : Joint horizontal automatique pour chaque élément de construction posé
-        if (!element.isVerticalJoint && !element.isHorizontalJoint && (element.type === 'brick' || element.type === 'block' || element.type === 'insulation')) {
+        if (!element.isVerticalJoint && !element.isHorizontalJoint && (element.type === 'brick' || element.type === 'block') && element.type !== 'insulation') {
             // console.log('🔧 Activation automatique du joint horizontal pour:', element.type, element.id);
             this.createAutomaticHorizontalJoint(element);
         }
@@ -1967,7 +2013,8 @@ class SceneManager {
         
         // NOUVELLE FONCTIONNALITÉ: Ajouter automatiquement des joints si activé
         if (window.ConstructionTools && 
-            (element.type === 'brick' || element.type === 'block' || element.type === 'insulation') &&
+            (element.type === 'brick' || element.type === 'block') &&
+            element.type !== 'insulation' &&
             !element.isVerticalJoint && 
             !element.isHorizontalJoint) {
             
@@ -4129,6 +4176,12 @@ class SceneManager {
             return;
         }
 
+        // 🔧 ISOLANTS: Ne pas créer de joints horizontaux pour les isolants
+        if (referenceElement.type === 'insulation') {
+            console.log('🔧 Isolant détecté - pas de joint horizontal créé pour:', referenceElement.id);
+            return;
+        }
+
         // NOUVEAU: Vérifier si c'est une brique sur chant - pas de joint horizontal pour ce type
         if (this.isBrickOnChant(referenceElement)) {
             console.log('🧱 Brique sur chant détectée - pas de joint horizontal créé pour:', referenceElement.id);
@@ -4167,6 +4220,10 @@ class SceneManager {
                 // Pour les briques coupées, utiliser le type de base
                 if (elementType && elementType.includes('_')) {
                     assiseType = elementType.split('_')[0];
+                }
+                // Normaliser les types d'isolants spécifiques (PUR5, XPS30, etc.) vers 'insulation'
+                if (referenceElement.type === 'insulation' || (typeof assiseType === 'string' && ['PUR','LAINEROCHE','XPS','PSE','FB','LV'].some(p => assiseType.toUpperCase().startsWith(p)))) {
+                    assiseType = 'insulation';
                 }
                 
                 // DEBUG: Afficher les informations de déduction du type
@@ -4241,6 +4298,10 @@ class SceneManager {
                 // Pour les briques coupées, utiliser le type de base
                 if (elementType && elementType.includes('_')) {
                     assiseType = elementType.split('_')[0];
+                }
+                // Normaliser pour isolants
+                if (referenceElement.type === 'insulation' || (typeof assiseType === 'string' && ['PUR','LAINEROCHE','XPS','PSE','FB','LV'].some(p => assiseType.toUpperCase().startsWith(p)))) {
+                    assiseType = 'insulation';
                 }
             }
             
@@ -4581,6 +4642,82 @@ class SceneManager {
 
         // Par défaut, considérer comme brique
         return 'brick';
+    }
+
+    /**
+     * Gère la logique post-placement pour les suggestions (joints automatiques, etc.)
+     * @param {WallElement} placedElement - L'élément qui vient d'être placé
+     * @param {string} suggestionType - Le type de suggestion
+     * @param {Object} ghost - L'objet ghost de la suggestion
+     * @param {WallElement} capturedReferenceElement - L'élément de référence capturé
+     */
+    handlePostPlacementLogic(placedElement, suggestionType, ghost, capturedReferenceElement) {
+        // Créer automatiquement le joint de boutisse pour les suggestions perpendiculaires, d'angle ET de continuité
+        const isPerpendicularSuggestion = suggestionType === 'perpendiculaire-frontale-droite' || 
+                                         suggestionType === 'perpendiculaire-frontale-gauche' ||
+                                         suggestionType === 'perpendiculaire-dorsale-droite' ||
+                                         suggestionType === 'perpendiculaire-dorsale-gauche';
+        
+        const isAngleSuggestion = suggestionType === 'angle-panneresse-droite' || 
+                                suggestionType === 'angle-panneresse-gauche' ||
+                                suggestionType === 'angle-panneresse-droite-arriere' ||
+                                suggestionType === 'angle-panneresse-gauche-arriere' ||
+                                suggestionType === 'angle-boutisse-droite' ||
+                                suggestionType === 'angle-boutisse-gauche' ||
+                                suggestionType === 'angle-boutisse-droite-avant' ||
+                                suggestionType === 'angle-boutisse-gauche-avant' ||
+                                suggestionType === 'angle-boutisse-droite-arriere' ||
+                                suggestionType === 'angle-boutisse-gauche-arriere';
+        
+        // Conditions pour créer un joint vertical automatique
+        const shouldCreateVerticalJoint = (isPerpendicularSuggestion || isAngleSuggestion || suggestionType.includes('continuity')) 
+            && placedElement && window.ConstructionTools;
+        
+        if (shouldCreateVerticalJoint) {
+            // console.log('🔧 DEBUG: Création automatique de joint pour', suggestionType);
+            // Passer aussi la brique de référence pour déterminer le bon côté
+            this.createAutomaticJointForPerpendicular(placedElement, suggestionType, capturedReferenceElement);
+        } else {
+            // console.log('⚠️ DEBUG: Conditions non remplies pour création automatique de joint de boutisse');
+        }
+        
+        // DEBUG: Afficher la lettre pour les suggestions de continuation
+        if (suggestionType === 'continuation') {
+            // console.log('🔧 DEBUG: Suggestion de continuation, lettre =', ghost.mesh.userData.letter || 'non définie');
+        }
+        
+        // NOUVELLE FONCTIONNALITÉ : Joint horizontal automatique pour chaque brique posée
+        // console.log('🔧 Création automatique du joint horizontal pour chaque brique posée');
+        this.createAutomaticHorizontalJoint(placedElement || this.getLastPlacedElement());
+        
+        // LOGIQUE UNIVERSELLE DE JOINTS VERTICAUX AUTOMATIQUES
+        if (suggestionType === 'continuation' && ghost.mesh.userData.letter) {
+            const position = ghost.mesh.userData.letter;
+            // console.log('🔧 LOGIQUE UNIVERSELLE: Position détectée =', position);
+            
+            // Déterminer le côté du joint selon la position
+            const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
+            
+            if (isLeftSide) {
+                // Utiliser la brique nouvellement placée
+                this.createAutomaticLeftVerticalJoint(placedElement || this.getLastPlacedElement());
+            } else {
+                // Utiliser la brique nouvellement placée
+                this.createAutomaticRightVerticalJoint(placedElement || this.getLastPlacedElement());
+            }
+        }
+        
+        // Logique spécifique selon les positions...
+        // (Toute la logique existante pour les positions M, N, O, P, Q, R, etc.)
+        
+        // Désactiver les suggestions APRÈS avoir créé les joints
+        if (window.ConstructionTools.deactivateSuggestions) {
+            window.ConstructionTools.deactivateSuggestions();
+        }
+        
+        // 🔧 NETTOYAGE: Réinitialiser la référence après usage
+        this.lastReferenceBrick = null;
+        // console.log('🔧 NETTOYAGE: lastReferenceBrick réinitialisée');
     }
 }
 

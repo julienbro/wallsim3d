@@ -110,6 +110,20 @@ class UIController {
             this.handleResize();
         });
 
+        // Affichage infos de l'élément sélectionné dans viewport-controls
+        const selectionInfoEl = document.getElementById('viewportSelectionInfo');
+        if (selectionInfoEl) {
+            document.addEventListener('elementSelected', (e) => {
+                const { element, properties, toolType } = e.detail || {};
+                this.renderViewportSelectionCard(selectionInfoEl, element, properties, toolType);
+            });
+
+            document.addEventListener('elementDeselected', () => {
+                selectionInfoEl.innerHTML = '';
+                selectionInfoEl.style.display = 'none';
+            });
+        }
+
         // Événements personnalisés pour les suggestions
         document.addEventListener('suggestionsActivated', (e) => {
             this.showSuggestionFeedback(e.detail.element);
@@ -146,6 +160,77 @@ class UIController {
                 }
             });
         }
+    }
+
+    // Construit une chaîne courte et lisible avec les infos utiles
+    renderViewportSelectionCard(container, element, properties = {}, toolType) {
+        if (!element) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+
+        // Déterminer type/icone/label comme dans TabManager
+        const safeType = String(toolType || element.type || properties.type || 'Élément');
+        let iconClass = 'fas fa-cube';
+        let label = 'Élément';
+        if (/M50|M57|M60|M65|M90|brick/i.test(safeType)) { iconClass = 'fas fa-cube'; label = 'Brique'; }
+        else if (/block|BLOC/i.test(safeType)) { iconClass = 'fas fa-th-large'; label = 'Bloc'; }
+        else if (/insulation|ISOLATION|PUR|LAINEROCHE|XPS|PSE|FB|LV/i.test(safeType)) { iconClass = 'fas fa-layer-group'; label = 'Isolant'; }
+        else if (/linteau|LINTEAU|^L\d+/.test(safeType)) { iconClass = 'fas fa-minus'; label = 'Linteau'; }
+
+        // Nom d’affichage
+        const displayName = properties.name || element.brickType || element.blockType || safeType;
+
+        // Dimensions
+        const d = element.dimensions || properties.dimensions || element;
+        const hasDims = typeof d?.length !== 'undefined' && typeof d?.width !== 'undefined' && typeof d?.height !== 'undefined';
+        const L = hasDims ? Math.round(d.length) : null;
+        const H = hasDims ? Math.round(d.height) : null;
+        const W = hasDims ? Math.round(d.width) : null;
+
+        // Taille (entière/1/2/3/4) via element.cut s’il existe
+        const cut = element.cut || properties.cut;
+        let taille = '';
+        if (cut === '1/2') taille = 'Demi-brique';
+        else if (cut === '3/4' || /3Q/.test(safeType)) taille = '3/4 de brique';
+        else if (cut === '1/4' || /1Q/.test(safeType)) taille = 'Quart de brique';
+        else if (label === 'Brique') taille = 'Brique entière';
+
+        // Construire le HTML
+        let html = `
+            <div class="info-header">
+                <h4><i class="${iconClass}"></i> ${label} Sélectionné</h4>
+            </div>
+            <div class="info-content">
+                <div class="info-row">
+                    <span class="info-label">Nom:</span>
+                    <span class="info-value">${displayName}</span>
+                </div>
+        `;
+
+        if (hasDims) {
+            html += `
+                <div class="info-row">
+                    <span class="info-label">Dimensions:</span>
+                    <span class="info-value">${L}×${H}×${W} cm</span>
+                </div>
+            `;
+        }
+
+        if (taille) {
+            html += `
+                <div class="info-row">
+                    <span class="info-label">Taille:</span>
+                    <span class="info-value">${taille}</span>
+                </div>
+            `;
+        }
+
+        html += `</div>`;
+
+        container.innerHTML = html;
+        container.style.display = 'block';
     }
 
     setupTooltips() {

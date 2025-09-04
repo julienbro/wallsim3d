@@ -4,6 +4,9 @@ class InsulationSelector {
         this.currentInsulation = 'PUR5'; // Par défaut
         this.selectedType = 'PUR5'; // Ajouter cette ligne
         this.isCustomDimensions = false; // Nouveau: suivre si c'est des dimensions personnalisées
+    // NOUVEAU: stocker une coupe personnalisée (longueur/hauteur) appliquée via TabManager
+    this.currentCustomCutDimensions = null; // { length, height } si présent
+    this.customCutBaseType = null; // pour savoir à quel type de base s'applique la coupe
         this.insulationTypes = {
             // Isolants PUR avec dimensions personnalisables
             'PUR5': { 
@@ -811,7 +814,7 @@ class InsulationSelector {
         this.hideModal();
     }
 
-    setInsulation(type) {
+    setInsulation(type, customCutDimensions = null) {
         // Extraire le type de base et le suffixe de coupe s'il y en a un
         let baseType = type;
         let cutSuffix = '';
@@ -832,11 +835,30 @@ class InsulationSelector {
         // Stocker le type de base (pour compatibilité avec le reste du système)
         this.currentInsulation = baseType;
         
-        // Stocker aussi le type complet avec coupe pour les systèmes qui en ont besoin
-        this.currentInsulationWithCut = type;
+        // Gérer la coupe personnalisée si fournie par TabManager (P)
+        if (customCutDimensions && typeof customCutDimensions === 'object') {
+            // Mémoriser les dims personnalisées (longueur + hauteur)
+            this.currentCustomCutDimensions = {
+                length: Number(customCutDimensions.length) || undefined,
+                height: Number(customCutDimensions.height ?? customCutDimensions.customHeight) || undefined
+            };
+            this.customCutBaseType = baseType;
+            // Encoder un suffixe générique CUSTOM pour conserver la compatibilité
+            this.currentInsulationWithCut = `${baseType}_CUSTOM`;
+        } else {
+            this.currentCustomCutDimensions = null;
+            this.customCutBaseType = null;
+            // Stocker aussi le type complet avec coupe pour les systèmes qui en ont besoin
+            this.currentInsulationWithCut = type;
+        }
         
         // Mettre à jour les dimensions AVANT tout changement de mode (utiliser le type de base)
         this.updateInsulationDimensions(baseType);
+        
+        // Synchroniser le type d'assise avec le mode isolant (même si on est déjà en mode insulation)
+        if (window.AssiseManager && window.AssiseManager.currentType !== 'insulation') {
+            window.AssiseManager.setCurrentType('insulation', true);
+        }
         
         // Changer de mode seulement si nécessaire, en préservant les dimensions
         if (window.ConstructionTools && window.ConstructionTools.currentMode !== 'insulation') {
@@ -870,10 +892,14 @@ class InsulationSelector {
         this.updateLibraryHighlight();
         
         // NOUVEAU: Déclencher un événement pour la synchronisation avec le menu flottant
+        // Inclure les dimensions effectives (avec coupe si présente)
+        const effective = this.getCurrentInsulationWithCutObject() || this.insulationTypes[baseType];
         document.dispatchEvent(new CustomEvent('insulationSelectionChanged', {
             detail: {
-                newType: type,
-                insulationData: this.insulationTypes[type]
+                newType: this.currentInsulationWithCut || baseType,
+                insulationData: effective,
+                baseType,
+                customCut: this.currentCustomCutDimensions || null
             }
         }));
         
@@ -926,7 +952,8 @@ class InsulationSelector {
             name: effectiveInsulation.name,
             material: effectiveInsulation.materialType || 'insulation',
             insulationType: type, // Ajouter le type d'isolant pour la détection du matériau
-            baseType: effectiveInsulation.baseType // Type de base (PUR ou LAINEROCHE)
+            baseType: effectiveInsulation.baseType, // Type de base (PUR ou LAINEROCHE)
+            isCustom: !!this.currentCustomCutDimensions
         };
         
         // Forcer la mise à jour de l'élément fantôme si ConstructionTools est disponible
@@ -937,7 +964,8 @@ class InsulationSelector {
     }
 
     updateCurrentInsulationDisplay() {
-        const insulation = this.insulationTypes[this.currentInsulation];
+    const base = this.insulationTypes[this.currentInsulation];
+    const insulation = this.getCurrentInsulationWithCutObject() || base;
         if (!insulation) return;
         
         // Mettre à jour l'affichage de l'isolant sélectionné dans la modale
@@ -1007,7 +1035,23 @@ class InsulationSelector {
             return null;
         }
         
-        // Si pas de coupe, retourner l'objet isolant normal
+        // Cas 1: coupe personnalisée injectée par TabManager
+        if (this.currentCustomCutDimensions && this.customCutBaseType === this.currentInsulation) {
+            const cutInsulation = { ...baseInsulation };
+            if (this.currentCustomCutDimensions.length) {
+                cutInsulation.length = Math.round(this.currentCustomCutDimensions.length);
+            }
+            if (this.currentCustomCutDimensions.height) {
+                cutInsulation.height = Math.round(this.currentCustomCutDimensions.height);
+            }
+            // Nom indicatif
+            cutInsulation.name = `${baseInsulation.name} (${cutInsulation.length}×${cutInsulation.width}×${cutInsulation.height} cm)`;
+            // Debug
+            console.log('🔧 getCurrentInsulationWithCutObject: utilisation dims personnalisées', this.currentCustomCutDimensions);
+            return cutInsulation;
+        }
+        
+        // Si pas de coupe (suffixe), retourner l'objet isolant normal
         if (!this.currentInsulationWithCut || !this.currentInsulationWithCut.includes('_')) {
             return baseInsulation;
         }
@@ -1019,19 +1063,37 @@ class InsulationSelector {
         const parts = this.currentInsulationWithCut.split('_');
         const suffix = parts[1];
         
-        let ratio = 1.0;
-        let customLength = null;
+    let ratio = 1.0;
+    let customLength = null;
+    let customHeight = null;
         
-        // Vérifier si c'est une coupe personnalisée
-        if (suffix === 'CUSTOM' && parts.length >= 3) {
-            // Format: PUR15_CUSTOM_30_5 pour 30.5cm
-            const lengthParts = parts.slice(2);
+    // Vérifier si c'est une coupe personnalisée encodée dans le type
+    if (suffix === 'CUSTOM' && parts.length >= 3) {
+            // Formats supportés:
+            //  - PUR15_CUSTOM_30_5 → longueur 30.5 cm
+            //  - PUR15_CUSTOM_30_5_H_10 → longueur 30.5 cm, hauteur 10 cm
+            //  - PUR15_CUSTOM_30_H_12_5 → longueur 30 cm, hauteur 12.5 cm
+            // On parse jusqu'à éventuellement trouver un marqueur 'H'
+            const afterCustom = parts.slice(2);
+            const hIndex = afterCustom.indexOf('H');
+            let lengthParts;
+            if (hIndex !== -1) {
+                lengthParts = afterCustom.slice(0, hIndex);
+                const heightParts = afterCustom.slice(hIndex + 1);
+                if (heightParts.length === 2) {
+                    customHeight = parseFloat(heightParts[0] + '.' + heightParts[1]);
+                } else if (heightParts.length === 1) {
+                    customHeight = parseFloat(heightParts[0]);
+                }
+            } else {
+                lengthParts = afterCustom;
+            }
             if (lengthParts.length === 2) {
                 customLength = parseFloat(lengthParts[0] + '.' + lengthParts[1]);
             } else if (lengthParts.length === 1) {
                 customLength = parseFloat(lengthParts[0]);
             }
-            console.log('🔧 Coupe personnalisée détectée:', customLength, 'cm');
+            console.log('🔧 Coupe personnalisée détectée:', { customLength, customHeight });
         } else {
             // Ratios prédéfinis
             const ratios = {
@@ -1048,6 +1110,10 @@ class InsulationSelector {
             cutInsulation.length = Math.round(customLength);
         } else {
             cutInsulation.length = Math.round(baseInsulation.length * ratio);
+        }
+        // Appliquer hauteur personnalisée si fournie
+        if (customHeight !== null) {
+            cutInsulation.height = Math.round(customHeight);
         }
         
         console.log('🔧 getCurrentInsulationWithCutObject: dimensions calculées:', 

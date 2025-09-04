@@ -134,6 +134,11 @@ class AssiseManager {
 
     // Getter pour la hauteur du joint d'un type donné
     getJointHeightForType(type) {
+        // 🔧 ISOLANTS: Toujours retourner 0 pour les isolants (pas de joints horizontaux)
+        if (type === 'insulation') {
+            return 0;
+        }
+        
         return this.jointHeightByType.get(type) || 1.2;
     }
 
@@ -205,6 +210,11 @@ class AssiseManager {
     
     // Obtenir la hauteur de joint d'une assise spécifique
     getJointHeightForAssise(type, assiseIndex) {
+        // 🔧 ISOLANTS: Toujours retourner 0 pour les isolants (pas de joints horizontaux)
+        if (type === 'insulation') {
+            return 0;
+        }
+        
         const jointsByType = this.jointHeightByAssise.get(type);
         if (!jointsByType) return this.getJointHeightForType(type);
         
@@ -431,9 +441,19 @@ class AssiseManager {
                 }
             }
         }
+
+        // Normalisation des types d'isolants (PUR5, XPS30, etc.) vers le type générique 'insulation'
+        if (typeof baseType === 'string') {
+            const insulationPrefixes = ['PUR', 'LAINEROCHE', 'XPS', 'PSE', 'FB', 'LV'];
+            const upper = baseType.toUpperCase();
+            if (insulationPrefixes.some(p => upper.startsWith(p))) {
+                baseType = 'insulation';
+            }
+        }
         
         // ? CORRECTION: Utiliser la màthode utilitaire pour vàrifier le support
-        if (!this.isSupportedType(type)) {
+    // Vérifier le support sur le type normalisé (baseType)
+    if (!this.isSupportedType(baseType)) {
             // console.warn(`Type non supporté: ${type} (base: ${baseType})`);
             return false;
         }
@@ -441,12 +461,12 @@ class AssiseManager {
         // ? CORRECTION: Calculer si c'est un type personnalisà
         const isCustomType = type && type.includes('_CUSTOM_');
         
-        if (this.currentType === baseType || (isCustomType && this.currentType === type)) {
+    if (this.currentType === baseType || (isCustomType && this.currentType === type)) {
             return true; // Dàjà le type actuel
         }
         
         // console.log(`Changement de type d'assise: ${this.currentType} ? ${baseType}`);
-        this.currentType = baseType;
+    this.currentType = baseType;
         
         // Activer automatiquement l'outil de construction correspondant pour les types principaux
         if (!skipToolChange && !this.brickSubTypes.includes(baseType) && !this.linteauSubTypes.includes(baseType) && baseType !== 'custom' && window.ConstructionTools) {
@@ -476,8 +496,8 @@ class AssiseManager {
         // émettre un événement de changement de type
         document.dispatchEvent(new CustomEvent('assiseTypeChanged', {
             detail: { 
-                newType: type,
-                currentAssise: this.currentAssiseByType.get(type)
+                newType: baseType,
+                currentAssise: this.currentAssiseByType.get(baseType)
             }
         }));
         
@@ -800,6 +820,11 @@ class AssiseManager {
                 return 0;
             }
             
+            // 🔧 ISOLANTS: L'assise 0 des isolants commence à Y=0 (pas de joint horizontal)
+            if (type === 'insulation') {
+                return 0;
+            }
+            
             // Assise 0 pour autres types : utilise la hauteur de joint spécifique ou celle par défaut du type
             const jointHeight = this.getJointHeightForAssise(type, 0);
             return jointHeight;
@@ -813,12 +838,18 @@ class AssiseManager {
             const jointHeightForThisAssise = this.getJointHeightForAssise(type, i);
             
             if (i === 0) {
-                // Assise 0 : seulement la hauteur du joint
+                // Assise 0 : seulement la hauteur du joint (déjà 0 pour isolants)
                 totalHeight = jointHeightForThisAssise;
             } else {
                 // Assises suivantes : hauteur de l'élément + joint suivant
                 const elementHeight = this.getDefaultElementHeight(type);
-                totalHeight += elementHeight + jointHeightForThisAssise;
+                
+                // 🔧 ISOLANTS: Pas de joints horizontaux entre les assises d'isolants
+                if (type === 'insulation') {
+                    totalHeight += elementHeight; // Pas de joint horizontal pour les isolants
+                } else {
+                    totalHeight += elementHeight + jointHeightForThisAssise;
+                }
             }
         }
         

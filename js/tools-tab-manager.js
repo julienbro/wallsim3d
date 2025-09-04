@@ -633,13 +633,21 @@ class ToolsTabManager {
         // 3. Fallback: vérifier via AssiseManager
         if (!activeMode || activeMode === 'brique') {
             if (window.AssiseManager && window.AssiseManager.currentType) {
-                const typeToMode = {
-                    'M65': 'brique',
-                    'M100': 'bloc', 
-                    'isolant': 'isolant',
-                    'linteau': 'linteau'
-                };
-                activeMode = typeToMode[window.AssiseManager.currentType] || 'brique';
+                const ct = window.AssiseManager.currentType;
+                let mapped = 'brique';
+                if (typeof ct === 'string') {
+                    const upper = ct.toUpperCase();
+                    if (upper === 'INSULATION') {
+                        mapped = 'isolant';
+                    } else if (upper === 'LINTEAU') {
+                        mapped = 'linteau';
+                    } else if (upper === 'BRICK' || upper.startsWith('M')) {
+                        mapped = 'brique';
+                    } else if (upper === 'BLOCK' || ['HOLLOW','CELLULAR','ARGEX','TERRACOTTA'].some(t => upper === t)) {
+                        mapped = 'bloc';
+                    }
+                }
+                activeMode = mapped;
             }
         }
         
@@ -2928,6 +2936,21 @@ class ToolsTabManager {
 
     addAssise() {
         if (window.AssiseManager) {
+            // Synchroniser le type d'assise avec le mode actif de ConstructionTools si disponible
+            try {
+                if (window.ConstructionTools && typeof window.ConstructionTools.getElementTypeForMode === 'function') {
+                    const mode = window.ConstructionTools.currentMode;
+                    let targetType = window.ConstructionTools.getElementTypeForMode(mode);
+                    // Normaliser les types d'isolants (PUR5, XPS30, etc.) vers 'insulation'
+                    if (mode === 'insulation' || (typeof targetType === 'string' && ['PUR','LAINEROCHE','XPS','PSE','FB','LV'].some(p => targetType.toUpperCase().startsWith(p)))) {
+                        targetType = 'insulation';
+                    }
+                    if (targetType && window.AssiseManager.currentType !== targetType) {
+                        window.AssiseManager.setCurrentType(targetType, true);
+                    }
+                }
+            } catch (_) { /* no-op */ }
+
             // console.log('🔧 Ajout d\'assise demandé...');
             const newAssise = window.AssiseManager.addAssise();
             
@@ -2940,6 +2963,13 @@ class ToolsTabManager {
                 // Force la mise à jour avec un délai
                 setTimeout(() => {
                     this.updateDisplay();
+                    if (window.ConstructionTools && typeof window.ConstructionTools.updateGhostElement === 'function') {
+                        window.ConstructionTools.updateGhostElement();
+                        // Seconde mise à jour différée pour gérer les latences de layout
+                        setTimeout(() => {
+                            window.ConstructionTools.updateGhostElement();
+                        }, 150);
+                    }
                     // console.log('🔧 Affichage mis à jour après ajout assise');
                 }, 100);
                 

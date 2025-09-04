@@ -45,10 +45,13 @@ class LibraryPreview3D {
             alpha: true,
             preserveDrawingBuffer: true
         });
-        this.renderer.setSize(320, 240); // Taille augmentée pour des aperçus plus nets (160x120 * 2)
+    this.renderer.setSize(320, 240); // Taille augmentée pour des aperçus plus nets (160x120 * 2)
         this.renderer.setClearColor(0x000000, 0);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Mettre à jour l'aspect caméra pour remplir au mieux le cadre de rendu
+    this.camera.aspect = this.renderer.domElement.width / this.renderer.domElement.height;
+    this.camera.updateProjectionMatrix();
         
         // Configuration de l'éclairage
         this.setupLighting();
@@ -427,15 +430,34 @@ class LibraryPreview3D {
     }
 
     adjustCameraForObject(mesh) {
-        // Calculer la bounding box
+        // Calcul de la boîte englobante et de son centre
         const box = new THREE.Box3().setFromObject(mesh);
         const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        
-        // Ajuster la position de la caméra
-        const distance = maxDim * 2.5;
-        this.camera.position.set(distance * 0.8, distance * 0.6, distance);
-        this.camera.lookAt(0, 0, 0);
+        const center = box.getCenter(new THREE.Vector3());
+
+        // Adapter l'aspect si le renderer a changé
+        const aspect = this.renderer.domElement.width / this.renderer.domElement.height;
+        this.camera.aspect = aspect;
+        this.camera.updateProjectionMatrix();
+
+        // Calculer la distance requise pour que l'objet remplisse bien le cadre
+        const fov = this.camera.fov * (Math.PI / 180);
+        const fitHeightDistance = (size.y / 2) / Math.tan(fov / 2);
+        const fitWidthDistance = ((size.x / 2) / Math.tan(fov / 2)) / aspect;
+        // Choisir la plus grande pour s'assurer que tout rentre
+        let distance = Math.max(fitHeightDistance, fitWidthDistance);
+        // Marge légère pour éviter le clipping tout en remplissant plus l'aperçu
+        const fitOffset = 1.05; // plus proche que l'ancien 2.5×, objet visuellement plus grand
+        distance *= fitOffset;
+
+        // Positionner la caméra (diagonale pour une perspective agréable)
+        this.camera.position.set(center.x + distance * 0.8, center.y + distance * 0.6, center.z + distance);
+        this.camera.lookAt(center);
+
+        // Ajuster les plans near/far pour éviter les problèmes de clipping
+        this.camera.near = Math.max(0.1, distance / 100);
+        this.camera.far = distance * 100;
+        this.camera.updateProjectionMatrix();
     }
 
     applyStaticPreviews() {
@@ -466,6 +488,9 @@ class LibraryPreview3D {
                 this.createPreviewElement(item, type);
             }
         });
+
+    // Normaliser les tailles pour éviter les styles inline réducteurs
+    this.normalizePreviewCanvasSizing();
     }
 
     applyPreviewToCanvas(canvas, type, cut = '1/1') {
@@ -496,9 +521,7 @@ class LibraryPreview3D {
             
             const img = document.createElement('img');
             img.className = 'preview-3d-static';
-            img.style.width = '160px';
-            img.style.height = '120px';
-            img.style.objectFit = 'contain';
+            // Laisser le CSS gérer la taille (100% du conteneur)
             img.style.transition = 'transform 0.3s ease';
             
             const cacheKey = `${type}_1/1`;
@@ -523,6 +546,29 @@ class LibraryPreview3D {
         } else {
             console.warn(`⚠️ Aucune icône trouvée pour ${type}`);
         }
+    }
+
+    // Supprime/neutralise les styles inline qui forcent 70x50 et empêchent l'uniformisation
+    normalizePreviewCanvasSizing() {
+        const selectors = '#tab-content-biblio .library-item .preview-3d, #tab-content-biblio .library-item .preview-3d-static';
+        document.querySelectorAll(selectors).forEach(el => {
+            // Retirer width/height inline si présents
+            if (el.style && (el.style.width || el.style.height)) {
+                // Certains éléments ont width:70px; height:50px avec !important → retirer d'abord
+                el.style.removeProperty('width');
+                el.style.removeProperty('height');
+            }
+            // S'assurer qu'aucun attribut style global ne garde ces valeurs
+            const raw = el.getAttribute('style') || '';
+            if (/width:\s*70px/i.test(raw) || /height:\s*50px/i.test(raw)) {
+                // Réécrire le style sans ces propriétés
+                const cleaned = raw
+                    .replace(/width:\s*70px\s*!important;?/ig, '')
+                    .replace(/height:\s*50px\s*!important;?/ig, '')
+                    .trim();
+                if (cleaned) el.setAttribute('style', cleaned); else el.removeAttribute('style');
+            }
+        });
     }
 
     bindEvents() {
