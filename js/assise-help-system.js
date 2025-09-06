@@ -312,9 +312,7 @@ class AssiseHelpSystem {
         const list = document.querySelector('.assise-global-list');
         
         if (list) {
-            console.log('🎯 DEBUG: Élément .assise-global-list trouvé:', list);
-            console.log('🎯 DEBUG: Rect de l\'élément:', list.getBoundingClientRect());
-            console.log('🎯 DEBUG: Classes de l\'élément:', list.className);
+            // DEBUG supprimé
             
             // Cibler directement sans ajustements pour un centrage naturel
             this.createHighlightBox(list, { 
@@ -324,7 +322,7 @@ class AssiseHelpSystem {
                 delay: 1.45
             });
         } else {
-            console.log('❌ DEBUG: Élément .assise-global-list non trouvé');
+            // DEBUG supprimé
         }
     }
 }

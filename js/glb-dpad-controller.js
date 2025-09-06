@@ -785,8 +785,8 @@ class GLBDpadController {
     needsYControls(element) {
         if (!element) return false;
         
-        // Tous les éléments GLB nécessitent les contrôles Y
-        if (this.isGLBElement(element)) {
+    // GLB et poutres (beam) nécessitent les contrôles Y
+    if (this.isGLBElement(element) || element.type === 'beam') {
             return true;
         }
         
@@ -870,7 +870,8 @@ class GLBDpadController {
         
         const newPosition = { x: currentPos.x, y: currentPos.y, z: currentPos.z };
         
-        const isGLB = this.isGLBElement(this.activeGLBElement);
+    const isGLB = this.isGLBElement(this.activeGLBElement);
+    const isBeam = this.activeGLBElement.type === 'beam';
 
         // Appliquer le mouvement selon la direction
         switch (direction) {
@@ -878,11 +879,11 @@ class GLBDpadController {
                 newPosition.x += movement;
                 break;
             case 'y':
-                // Pour les formes basiques, ignorer le mouvement Y (système d'assises)
-                if (isGLB) {
+                // Autoriser le mouvement vertical pour GLB ET poutres
+                if (isGLB || isBeam) {
                     newPosition.y += movement;
                 } else {
-                    return; // Ne pas déplacer si c'est une forme basique
+                    return; // autres formes: ignorer
                 }
                 break;
             case 'z':
@@ -891,13 +892,13 @@ class GLBDpadController {
         }
 
         // Mettre à jour la position selon le type d'élément
-        if (isGLB) {
-            // Pour les objets GLB: mise à jour directe du mesh 3D
+    if (isGLB || isBeam) {
+            // Pour les objets GLB et poutres: mise à jour du mesh 3D
             if (this.activeGLBElement.mesh && this.activeGLBElement.mesh.position) {
                 this.activeGLBElement.mesh.position.set(newPosition.x, newPosition.y, newPosition.z);
-            } 
-            // Fallback pour GLB: position standard
-            else if (this.activeGLBElement.position) {
+            }
+            // Toujours synchroniser l'objet logique (important pour les poutres)
+            if (this.activeGLBElement.position) {
                 this.activeGLBElement.position.x = newPosition.x;
                 this.activeGLBElement.position.y = newPosition.y;
                 this.activeGLBElement.position.z = newPosition.z;

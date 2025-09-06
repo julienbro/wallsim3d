@@ -234,12 +234,12 @@ window.addEventListener('load', () => {
         
         // Aide simplifiée si le système principal ne marche pas
         function showSimpleHelp(toolId) {
-            console.log('🔧 SHOW-SIMPLE-HELP appelé pour:', toolId);
+            // console.log('🔧 SHOW-SIMPLE-HELP appelé pour:', toolId); // désactivé
             
             // Vérifier si l'utilisateur a choisi de ne plus afficher cette aide
             const hideKey = `hideToolHelp_${toolId}`;
             if (localStorage.getItem(hideKey) === 'true') {
-                console.log('🚫 Aide masquée par l\'utilisateur pour:', toolId);
+                // console.log('🚫 Aide masquée par l\'utilisateur pour:', toolId); // désactivé
                 return;
             }
             
@@ -315,14 +315,14 @@ window.addEventListener('load', () => {
             };
             
             const helpInfo = helpTexts[toolId];
-            console.log('🔍 Recherche aide pour', toolId, ':', helpInfo ? 'TROUVÉ' : 'NON TROUVÉ');
+            // console.log('🔍 Recherche aide pour', toolId, ':', helpInfo ? 'TROUVÉ' : 'NON TROUVÉ'); // désactivé
             if (!helpInfo) {
-                console.error('❌ Aucun texte d\'aide trouvé pour:', toolId);
-                console.log('📝 Textes disponibles:', Object.keys(helpTexts));
+                // console.error('❌ Aucun texte d\'aide trouvé pour:', toolId);
+                // console.log('📝 Textes disponibles:', Object.keys(helpTexts));
                 return;
             }
             
-            console.log('✅ Création de la fenêtre d\'aide pour:', toolId);
+            // console.log('✅ Création de la fenêtre d\'aide pour:', toolId); // désactivé
             // Créer une fenêtre d'aide temporaire
             const helpWindow = document.createElement('div');
             helpWindow.innerHTML = `
@@ -444,15 +444,14 @@ window.addEventListener('load', () => {
             helpWindow.addEventListener('mouseenter', () => {
                 isMouseOver = true;
                 if (autoCloseTimer) {
-                    clearTimeout(autoCloseTimer);
-                    console.log('🖱️ Souris sur l\'aide - fermeture annulée');
+                    clearTimeout(autoCloseTimer); // log désactivé
                 }
             });
             
             // Détecter quand la souris sort de l'aide
             helpWindow.addEventListener('mouseleave', () => {
                 isMouseOver = false;
-                console.log('🖱️ Souris sortie de l\'aide - redémarrage du timer');
+                // console.log('🖱️ Souris sortie de l\'aide - redémarrage du timer'); // désactivé
                 startAutoCloseTimer();
             });
             
@@ -461,7 +460,7 @@ window.addEventListener('load', () => {
                 autoCloseTimer = setTimeout(() => {
                     if (helpWindow.parentElement && !isMouseOver) {
                         helpWindow.remove();
-                        console.log('⏰ Fermeture automatique de l\'aide (souris absente)');
+                        // console.log('⏰ Fermeture automatique de l\'aide (souris absente)'); // désactivé
                     }
                 }, 8000);
             }
@@ -505,7 +504,7 @@ window.addEventListener('load', () => {
                             if (element.classList.contains('active')) {
                                 // Seulement si ce n'est pas un changement récent
                                 if (!window.helpPatchLastTool || Date.now() - window.helpPatchLastTime > 1000) {
-                                    console.log(`🔥 PATCH: Nouvelle activation détectée pour ${targetTool}`);
+                                    // console.log(`🔥 PATCH: Nouvelle activation détectée pour ${targetTool}`); // désactivé
                                     setTimeout(() => showToolHelp(targetTool), 200);
                                 }
                             }
@@ -520,7 +519,7 @@ window.addEventListener('load', () => {
                 
                 // 3. Événement de mousedown pour capture précoce
                 element.addEventListener('mousedown', () => {
-                    console.log(`🖱️ PATCH: MouseDown sur ${targetTool}`);
+                    // console.log(`🖱️ PATCH: MouseDown sur ${targetTool}`); // désactivé
                     setTimeout(() => {
                         if (element.classList.contains('active')) {
                             showToolHelp(targetTool);

@@ -259,6 +259,19 @@ class MaterialLibrary {
                 description: 'Un gris clair, lumineux et légèrement brossé.',
                 rgb: '(192, 197, 199)'
             },
+            // Acier standard (gris moyen) pour poutres – demandé comme "Axier"
+            'axier': {
+                name: 'Acier',
+                color: 0x7E8487, // Gris moyen neutre
+                roughness: 0.45, // un peu plus rugueux que l'inox poli
+                metalness: 0.85,
+                density: 7850,
+                thermalConductivity: 50,
+                price: 1.10,
+                section: 'metaux',
+                description: 'Acier structurel gris moyen (profilés standards).',
+                rgb: '(126, 132, 135)'
+            },
             'aluminium': {
                 name: 'Aluminium Anodisé',
                 color: 0xA4A8AB,

@@ -8,7 +8,7 @@ class AssiseManager {
         this.attachmentMarkersByType = new Map(); // Map<type, Map<assiseIndex, markers>>
         
         // Types d'éléments supportés - incluant les sous-types de briques et blocs
-        this.supportedTypes = ['brick', 'block', 'insulation', 'custom', 'joint', 'linteau'];
+    this.supportedTypes = ['brick', 'block', 'insulation', 'custom', 'joint', 'linteau', 'beam']; // ajout beam
         
         // Sous-types de briques supportés pour gestion d'assise indépendante
         this.brickSubTypes = ['M50', 'M57', 'M60', 'M65', 'M90'];
@@ -40,7 +40,7 @@ class AssiseManager {
         
         for (const type of this.allSupportedTypes) {
             // CORRECTION: Les isolants et hourdis n'ont pas de joints horizontaux
-            const defaultJointHeight = (type === 'insulation' || type.includes('hourdis')) ? 0 : 1.2;
+            const defaultJointHeight = (type === 'insulation' || type.includes('hourdis') || type === 'beam') ? 0 : 1.2; // beam sans joint horizontal
             this.jointHeightByType.set(type, defaultJointHeight);
             this.jointHeightByAssise.set(type, new Map());
         }
@@ -135,7 +135,7 @@ class AssiseManager {
     // Getter pour la hauteur du joint d'un type donné
     getJointHeightForType(type) {
         // 🔧 ISOLANTS: Toujours retourner 0 pour les isolants (pas de joints horizontaux)
-        if (type === 'insulation') {
+    if (type === 'insulation' || type === 'beam') {
             return 0;
         }
         
@@ -144,6 +144,10 @@ class AssiseManager {
 
     // Setter pour la hauteur du joint d'un type donné
     setJointHeightForType(type, height) {
+        if (type === 'beam') {
+            // Joint toujours 0 pour les poutres
+            return false;
+        }
         const h = Math.max(0.1, height); // Minimum 0.1 cm
         this.jointHeightByType.set(type, h);
 
@@ -861,6 +865,22 @@ class AssiseManager {
 
     // Obtenir la hauteur par défaut d'un élément selon son type
     getDefaultElementHeight(type) {
+        // Poutres: utiliser BeamProfiles si possible
+        if (type === 'beam' && window.BeamProfiles && window.ConstructionTools) {
+            try {
+                const beamType = window.ConstructionTools.currentBeamType || 'IPE80';
+                if (window.BeamProfiles.getProfile) {
+                    const p = window.BeamProfiles.getProfile(beamType);
+                    if (p && typeof p.h === 'number') {
+                        const mmToCm = (mm) => Math.round((mm / 10) * 100) / 100;
+                        return mmToCm(p.h);
+                    }
+                }
+            } catch(e) {
+                console.warn('Fallback hauteur poutre (10cm) – erreur profil:', e);
+            }
+            return 10; // fallback si profil indisponible
+        }
         // Pour les briques, essayer d'utiliser le BrickSelector s'il est disponible
         if (type === 'brick' && window.BrickSelector) {
             try {
@@ -1086,16 +1106,10 @@ class AssiseManager {
         
         for (const elementId of assise.elements) {
             const element = window.SceneManager.elements.get(elementId);
-            if (element) {
-                // IMPORTANT : Exclure les joints debout du calcul de hauteur d'assise
-                // Les joints debout ne doivent pas influencer la hauteur de l'assise suivante
-                if (element.isVerticalJoint) {
-                    continue; // Ignorer les joints debout
-                }
-                
-                // Pour les autres éléments (briques, joints horizontaux), prendre la hauteur maximale
-                maxHeight = Math.max(maxHeight, element.dimensions.height);
-            }
+            if (!element) continue;
+            if (element.isVerticalJoint) continue; // ignorer joints debout
+            if (element.type === 'beam') continue; // ignorer poutres pour ne pas décaler les assises suivantes
+            maxHeight = Math.max(maxHeight, element.dimensions.height);
         }
         
         return maxHeight;
@@ -1104,6 +1118,7 @@ class AssiseManager {
     addElementToAssise(elementId, assiseIndex = null) {
         // Dàterminer le type de l'élément et le sous-type pour les briques
         const element = window.SceneManager.elements.get(elementId);
+    // Poutres désormais gérées (assise dédiée 'beam')
         let elementType = this.currentType; // Par défaut
         
         // console.log(`🔧 DEBUG addElementToAssise START: elementId=${elementId}, element.type=${element?.type}, currentType=${this.currentType}`);
@@ -1178,7 +1193,7 @@ class AssiseManager {
             // Mapper le type de l'élément vers les types d'assise supportés
             else if (this.allSupportedTypes.includes(element.type)) {
                 elementType = element.type;
-                console.log(`🔧 Type supporté directement: ${element.type}`);
+                // console.log(`🔧 Type supporté directement: ${element.type}`); // désactivé
             } else {
                 if (window.DEBUG_CONSTRUCTION) {
                     console.log(`🔧 Type non supporté: ${element.type}, utilisation du type actuel: ${this.currentType}`);
@@ -1204,6 +1219,7 @@ class AssiseManager {
             console.warn(`Type non supporté: ${type}`);
             return false;
         }
+    // Poutres acceptées
         
         if (assiseIndex === null) {
             assiseIndex = this.currentAssiseByType.get(type);
@@ -1224,6 +1240,11 @@ class AssiseManager {
         // Mettre à jour la position Y de l'élément
         const element = window.SceneManager.elements.get(elementId);
         if (element) {
+            const isBeam = element.type === 'beam';
+            // Assigner un nom d'assise lisible si absent
+            if (!element.assiseName) {
+                element.assiseName = `${type}-A${assiseIndex}`;
+            }
             // DEBUG: Afficher les propriétés de l'élément (dàsactivà pour ràduire les logs)
             // console.log(`🔧 DEBUG élément ${elementId}:`, {
             //     isVerticalJoint: element.isVerticalJoint,
@@ -1237,6 +1258,12 @@ class AssiseManager {
                 // 
                 this.updateUI();
                 // console.log(`élément ${elementId} ajoutà à l'assise ${assiseIndex} du type '${type}' (joint)`);
+                return true;
+            }
+            // Ne pas repositionner les poutres automatiquement pour préserver leur altitude libre
+            if (isBeam) {
+                // Mise à jour ciblée : éviter reposition mais rafraîchir liste globale
+                this.updateGlobalAssiseList();
                 return true;
             }
             
@@ -2107,6 +2134,13 @@ class AssiseManager {
         const jointHeightInput = document.getElementById('jointHeight');
         if (jointHeightInput) {
             jointHeightInput.value = this.jointHeight;
+            if (this.currentType === 'beam') {
+                jointHeightInput.disabled = true;
+                jointHeightInput.title = 'Pas de joint pour les poutres';
+            } else {
+                jointHeightInput.disabled = false;
+                jointHeightInput.title = '';
+            }
         }
         
         // Mettre à jour les statistiques (pour le type actuel)
@@ -2133,7 +2167,8 @@ class AssiseManager {
             }
             
             const detailText = totalElements > 0 ? ` (${totalElements} éléments, ${filledAssises} actives)` : ' (vides)';
-            assiseCountSpan.textContent = `${this.currentType.toUpperCase()}: ${assisesForCurrentType.size} assises${detailText}`;
+            const label = (this.currentType === 'beam') ? 'POUTRE' : this.currentType.toUpperCase();
+            assiseCountSpan.textContent = `${label}: ${assisesForCurrentType.size} assises${detailText}`;
         }
         
         // Mettre à jour l'àtat des boutons
@@ -2157,8 +2192,11 @@ class AssiseManager {
             activeAssiseInfo.querySelector('.detail-value').textContent = `${typeLabel} active: ${description}`;
         }
 
-        // Mettre à jour la vue d'ensemble globale
-        this.updateGlobalOverview();
+    // Mettre à jour la vue d'ensemble globale
+    this.updateGlobalOverview();
+
+    // Rafraîchir la liste globale (inclure immédiatement les nouvelles assises, ex: beam)
+    this.updateGlobalAssiseList();
 
         // Mettre à jour les informations du type actuel
         this.updateCurrentTypeInfo();
@@ -2274,9 +2312,10 @@ class AssiseManager {
                 '<span class="assise-flag empty">VIDE</span>'
             );
 
+            const typeLabel = (type === 'beam') ? 'POUTRE' : type.toUpperCase();
             item.innerHTML = `
                 <div class="assise-item-info">
-                    <span class="assise-type-badge ${type}">${type.toUpperCase()}</span>
+                    <span class="assise-type-badge ${type}">${typeLabel}</span>
                     <div class="assise-item-details">
                         <div>Assise ${index + 1}</div>
                         <div>${elementCount} &eacute;l&eacute;ment${elementCount !== 1 ? 's' : ''}</div>
@@ -2358,11 +2397,11 @@ class AssiseManager {
         const currentTypeDescriptionGlobal = document.getElementById('currentTypeDescriptionGlobal');
         
         if (currentTypeBadge) {
-            currentTypeBadge.textContent = this.currentType.toUpperCase();
+            currentTypeBadge.textContent = (this.currentType === 'beam') ? 'POUTRE' : this.currentType.toUpperCase();
             currentTypeBadge.className = `type-badge ${this.currentType}`;
         }
         if (currentTypeBadgeGlobal) {
-            currentTypeBadgeGlobal.textContent = this.currentType.toUpperCase();
+            currentTypeBadgeGlobal.textContent = (this.currentType === 'beam') ? 'POUTRE' : this.currentType.toUpperCase();
             currentTypeBadgeGlobal.className = `type-badge ${this.currentType}`;
         }
         

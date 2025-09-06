@@ -84,6 +84,20 @@ class LibraryPreview3D {
     }
 
     createBrickGeometry(type, cut = '1/1') {
+        // Beam profiles procedural path
+        if (window.BeamProfiles && window.BeamProfiles.isBeamType(type)) {
+            const group = window.BeamProfiles.createBeamGroup(type, 10 /* dm */);
+            if (group) {
+                // Désactiver les ombres spécifiquement pour l'aperçu des poutres
+                group.traverse(obj => {
+                    if (obj.isMesh) {
+                        obj.castShadow = false;
+                        obj.receiveShadow = false;
+                    }
+                });
+                return group;
+            }
+        }
         const brickConfigs = {
             // Briques (dimensions en dm : longueur x épaisseur x hauteur)
             'M50': { size: [1.9, 0.5, 0.9], color: 0xcc6633 },
@@ -293,7 +307,7 @@ class LibraryPreview3D {
             material.depthTest = true;
         }
 
-        const mesh = new THREE.Mesh(geometry, material);
+    const mesh = new THREE.Mesh(geometry, material);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
 
@@ -349,7 +363,7 @@ class LibraryPreview3D {
     generateStaticPreviews() {
         // console.log('📸 Génération des aperçus statiques...');
         
-        const itemTypes = [
+    const itemTypes = [
             // Briques 
             'M50', 'M57', 'M60', 'M65', 'M90', 'M50_CHANT', 'M50_CHANT',
             // Blocs creux
@@ -378,7 +392,9 @@ class LibraryPreview3D {
             // Laine de Roche Moderne - Acoustique
             'LRM50', 'LRM60', 'LRM80', 'LRM100', 'LRM120', 'LRM140', 'LRM160', 'LRM180', 'LRM200',
             // Linteaux
-            'L120', 'L140', 'L160', 'L180'
+            'L120', 'L140', 'L160', 'L180',
+            // Poutres acier (procédural)
+            ...(window.BeamProfiles ? window.BeamProfiles.listAllTypes() : [])
         ];
 
         itemTypes.forEach(type => {

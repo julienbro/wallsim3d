@@ -22,6 +22,9 @@ class WallElement {
             height: options.height || 5   // cm
         };
         
+    // Nouveau: nom d'assise (ex: "M65 Assise 2" ou "M65 #2") si fourni
+    this.assiseName = options.assiseName || null;
+        
         if (window.DEBUG_WALL_ELEMENT) {
             console.log('🏗️ WallElement: Dimensions AVANT ajustement:', this.dimensions);
         }
@@ -37,6 +40,9 @@ class WallElement {
         this.rotation = options.rotation || 0; // rotation en Y (radians)
         this.mesh = null;
         this.selected = false;
+    // Spécifiques poutres
+    this.beamType = options.beamType || null;
+    this.beamLengthCm = options.beamLengthCm || null;
         
         // Stocker les informations sur le type de bloc/brique pour déterminer le matériau
         this.blockType = options.blockType || null;
@@ -49,7 +55,7 @@ class WallElement {
         // Déterminer la coupe à partir du blockType
         this.cut = this.extractCutFromBlockType(this.blockType) || '1/1';
         
-        this.createMesh();
+    this.createMesh();
     }
 
     // Méthode pour extraire la coupe à partir du blockType
@@ -132,12 +138,81 @@ class WallElement {
             console.log('🔨 WallElement: createMesh() - Dimensions utilisées:', this.dimensions);
         }
         
-        // Conversion cm vers unités Three.js (1 unité = 1cm)
-        const geometry = new THREE.BoxGeometry(
-            this.dimensions.length,
-            this.dimensions.height,
-            this.dimensions.width
-        );
+        let geometry;
+        let customGroup = null;
+        // Si c'est une poutre, créer une géométrie extrudée à partir du profil
+        if (this.type === 'beam' && window.BeamProfiles && window.BeamProfiles.getProfile) {
+            const beamType = this.beamType || 'IPE80';
+            const p = window.BeamProfiles.getProfile(beamType);
+            const lengthCm = this.beamLengthCm || this.dimensions.length;
+            if (p) {
+                const mmToCm = (mm) => mm / 10;
+                const H = mmToCm(p.h);
+                const B = mmToCm(p.b);
+                const hasThickness = (p.tw && p.tf) || p.t; // L utilise p.t
+                const TW = p.tw ? mmToCm(p.tw) : (p.t ? mmToCm(p.t) : 1);
+                const TF = p.tf ? mmToCm(p.tf) : (p.t ? mmToCm(p.t) : 1);
+                const T = p.t ? mmToCm(p.t) : null; // épaisseur cornière
+                const R = p.r ? mmToCm(p.r) : 0;
+                const halfH = H / 2;
+                const halfB = B / 2;
+                const halfTW = TW / 2;
+
+                let shape;
+                if (beamType.startsWith('UPN')) {
+                    const xWebInner = halfB - TW;
+                    shape = new THREE.Shape();
+                    shape.moveTo(-halfB,  halfH);
+                    shape.lineTo( halfB,  halfH);
+                    shape.lineTo( halfB, -halfH);
+                    shape.lineTo(-halfB, -halfH);
+                    shape.lineTo(-halfB, -halfH + TF);
+                    shape.lineTo(xWebInner, -halfH + TF);
+                    shape.lineTo(xWebInner,  halfH - TF);
+                    shape.lineTo(-halfB,  halfH - TF);
+                    shape.lineTo(-halfB,  halfH);
+                    shape.closePath();
+                } else if (beamType.startsWith('L') && T) {
+                        // Forme en L orientée: aile horizontale en bas (face au sol)
+                        shape = new THREE.Shape();
+                        shape.moveTo(-halfB, -halfH);        // bas gauche
+                        shape.lineTo( halfB, -halfH);        // bas droite (extrémité aile)
+                        shape.lineTo( halfB, -halfH + T);    // monter épaisseur aile
+                        shape.lineTo(-halfB + T, -halfH + T);// aller vers intérieur
+                        shape.lineTo(-halfB + T,  halfH);    // monter jambe verticale intérieure
+                        shape.lineTo(-halfB,  halfH);        // haut gauche
+                        shape.lineTo(-halfB, -halfH);        // retour origine
+                        shape.closePath();
+                } else {
+                    shape = new THREE.Shape();
+                    shape.moveTo(-halfB,  halfH);
+                    shape.lineTo( halfB,  halfH);
+                    shape.lineTo( halfB,  halfH - TF);
+                    if (R > 0) { shape.lineTo( halfTW + R, halfH - TF); shape.quadraticCurveTo( halfTW, halfH - TF,  halfTW, halfH - TF - R); } else { shape.lineTo( halfTW, halfH - TF); }
+                    if (R > 0) { shape.lineTo( halfTW, -halfH + TF + R); shape.quadraticCurveTo( halfTW, -halfH + TF,  halfTW + R, -halfH + TF); } else { shape.lineTo( halfTW, -halfH + TF); }
+                    shape.lineTo( halfB, -halfH + TF);
+                    shape.lineTo( halfB, -halfH);
+                    shape.lineTo(-halfB, -halfH);
+                    shape.lineTo(-halfB, -halfH + TF);
+                    if (R > 0) { shape.lineTo(-halfTW - R, -halfH + TF); shape.quadraticCurveTo(-halfTW, -halfH + TF, -halfTW, -halfH + TF + R); } else { shape.lineTo(-halfTW, -halfH + TF); }
+                    if (R > 0) { shape.lineTo(-halfTW,  halfH - TF - R); shape.quadraticCurveTo(-halfTW,  halfH - TF, -halfTW - R,  halfH - TF); } else { shape.lineTo(-halfTW,  halfH - TF); }
+                    shape.lineTo(-halfB,  halfH - TF);
+                    shape.lineTo(-halfB,  halfH);
+                    shape.closePath();
+                }
+
+                geometry = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: Math.max(1, lengthCm), bevelEnabled: false });
+            }
+        }
+
+        // Fallback box si pas une poutre ou si profil indisponible
+        if (!geometry) {
+            geometry = new THREE.BoxGeometry(
+                this.dimensions.length,
+                this.dimensions.height,
+                this.dimensions.width
+            );
+        }
         
         if (window.DEBUG_WALL_ELEMENT) {
             console.log('🔨 WallElement: Géométrie créée avec:', {
@@ -196,6 +271,11 @@ class WallElement {
         }
         
         this.mesh = new THREE.Mesh(geometry, material);
+
+        // Si poutre: orienter la longueur selon X (ExtrudeGeometry extrude en +Z), donc rotation Y = PI/2
+        if (this.type === 'beam') {
+            this.mesh.rotation.y = Math.PI / 2;
+        }
         
         // Positionner la brique avec le curseur au coin inférieur gauche
         this.updateMeshPosition();
@@ -232,6 +312,34 @@ class WallElement {
         });
         this.edgesMesh = new THREE.LineSegments(edges, lineMaterial);
         this.mesh.add(this.edgesMesh);
+
+        // Afficher le nom d'assise (mini label) si disponible
+    if (false && this.assiseName && this.type !== 'beam') {
+            if (this.assiseLabel) {
+                this.mesh.remove(this.assiseLabel);
+                if (this.assiseLabel.material) this.assiseLabel.material.dispose();
+                if (this.assiseLabel.geometry) this.assiseLabel.geometry.dispose();
+            }
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256; canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.fillRect(0,0,256,64);
+                ctx.fillStyle = '#000';
+                ctx.font = '28px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.assiseName, 128, 32);
+                const texture = new THREE.CanvasTexture(canvas);
+                const mat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+                const sprite = new THREE.Sprite(mat);
+                sprite.scale.set(10, 2.5, 1); // taille raisonnable
+                sprite.position.set(0, this.dimensions.height + 1, 0); // au-dessus
+                this.assiseLabel = sprite;
+                this.mesh.add(sprite);
+            } catch(e) { /* ignore */ }
+        }
     }
 
     updatePosition(x, y, z) {
@@ -250,11 +358,84 @@ class WallElement {
         // Recréer la géométrie
         if (this.mesh) {
             this.mesh.geometry.dispose();
-            this.mesh.geometry = new THREE.BoxGeometry(
-                this.dimensions.length,
-                this.dimensions.height,
-                this.dimensions.width
-            );
+            if (this.type === 'beam' && window.BeamProfiles && window.BeamProfiles.getProfile) {
+                const beamType = this.beamType || 'IPE80';
+                const p = window.BeamProfiles.getProfile(beamType);
+                // IMPORTANT: pour les poutres, la longueur passée en paramètre doit être l'autorité
+                // afin que le fantôme reflète immédiatement le clic 100/200/300/400/P.
+                // On synchronise aussi this.beamLengthCm pour la sérialisation et les futures reconstructions.
+                const lengthCm = length; // utiliser la longueur demandée
+                this.beamLengthCm = lengthCm;
+                if (p) {
+                    const mmToCm = (mm) => mm / 10;
+                    const H = mmToCm(p.h);
+                    const B = mmToCm(p.b);
+                    const TW = mmToCm(p.tw);
+                    const TF = mmToCm(p.tf);
+                    const R = p.r ? mmToCm(p.r) : 0;
+                    const halfH = H / 2;
+                    const halfB = B / 2;
+                    const halfTW = TW / 2;
+                    const shape = new THREE.Shape();
+                    if (beamType.startsWith('UPN')) {
+                        const xWebOuter = -halfB + TW;
+                        shape.moveTo( halfB,  halfH);
+                        shape.lineTo(xWebOuter,  halfH);
+                        if (R > 0) { shape.lineTo(xWebOuter,  halfH - TF - R); shape.quadraticCurveTo(xWebOuter, halfH - TF, xWebOuter + R, halfH - TF); } else { shape.lineTo(xWebOuter,  halfH - TF); }
+                        shape.lineTo( halfB,  halfH - TF);
+                        shape.lineTo( halfB, -halfH + TF);
+                        if (R > 0) { shape.lineTo(xWebOuter + R, -halfH + TF); shape.quadraticCurveTo(xWebOuter, -halfH + TF, xWebOuter, -halfH + TF + R); } else { shape.lineTo(xWebOuter, -halfH + TF); }
+                        shape.lineTo(xWebOuter, -halfH);
+                        shape.lineTo( halfB, -halfH);
+                        shape.closePath();
+                    } else if (beamType.startsWith('L') && T) {
+                        // Forme en L (cornière) plein (union de deux rectangles)
+                        shape.moveTo(-halfB,  halfH);
+                        shape.lineTo( halfB,  halfH);
+                        shape.lineTo( halfB,  halfH - T);
+                        shape.lineTo(-halfB + T, halfH - T);
+                        shape.lineTo(-halfB + T, -halfH);
+                        shape.lineTo(-halfB, -halfH);
+                        shape.closePath();
+                    } else {
+                        shape.moveTo(-halfB,  halfH);
+                        shape.lineTo( halfB,  halfH);
+                        shape.lineTo( halfB,  halfH - TF);
+                        if (R > 0) { shape.lineTo( halfTW + R, halfH - TF); shape.quadraticCurveTo( halfTW, halfH - TF,  halfTW, halfH - TF - R); } else { shape.lineTo( halfTW, halfH - TF); }
+                        if (R > 0) { shape.lineTo( halfTW, -halfH + TF + R); shape.quadraticCurveTo( halfTW, -halfH + TF,  halfTW + R, -halfH + TF); } else { shape.lineTo( halfTW, -halfH + TF); }
+                        shape.lineTo( halfB, -halfH + TF);
+                        shape.lineTo( halfB, -halfH);
+                        shape.lineTo(-halfB, -halfH);
+                        shape.lineTo(-halfB, -halfH + TF);
+                        if (R > 0) { shape.lineTo(-halfTW - R, -halfH + TF); shape.quadraticCurveTo(-halfTW, -halfH + TF, -halfTW, -halfH + TF + R); } else { shape.lineTo(-halfTW, -halfH + TF); }
+                        if (R > 0) { shape.lineTo(-halfTW,  halfH - TF - R); shape.quadraticCurveTo(-halfTW,  halfH - TF, -halfTW - R,  halfH - TF); } else { shape.lineTo(-halfTW,  halfH - TF); }
+                        shape.lineTo(-halfB,  halfH - TF);
+                        shape.lineTo(-halfB,  halfH);
+                        shape.closePath();
+                    }
+                    this.mesh.geometry = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: Math.max(1, lengthCm), bevelEnabled: false });
+                    // Déplacer la géométrie pour que le coin inférieur "début" (x=min, y=min, longueur début) soit le pivot (0,0,0)
+                    // Avant rotation: shape centré sur (0,0), extrudé de z=0 à z=length.
+                    // Coin voulu avant rotation: (x = -B/2, y = -H/2, z = 0)
+                    // Translation nécessaire: (+B/2, +H/2, 0)
+                    this.mesh.geometry.translate(B/2, H/2, 0);
+                    // Appliquer la rotation pour aligner la longueur sur X
+                    this.mesh.rotation.y = Math.PI / 2;
+                    // Edges seront recréés par createEdges()
+                } else {
+                    this.mesh.geometry = new THREE.BoxGeometry(
+                        this.dimensions.length,
+                        this.dimensions.height,
+                        this.dimensions.width
+                    );
+                }
+            } else {
+                this.mesh.geometry = new THREE.BoxGeometry(
+                    this.dimensions.length,
+                    this.dimensions.height,
+                    this.dimensions.width
+                );
+            }
             this.updatePosition(this.position.x, this.position.y, this.position.z);
             this.createEdges();
         }
@@ -661,6 +842,9 @@ class WallElement {
             position: this.position,
             dimensions: this.dimensions,
             rotation: this.rotation,
+            beamType: this.beamType || undefined,
+            beamLengthCm: this.beamLengthCm || undefined,
+            assiseName: this.assiseName || undefined,
             isVerticalJoint: this.isVerticalJoint,
             isHorizontalJoint: this.isHorizontalJoint
         };
@@ -677,7 +861,10 @@ class WallElement {
             length: data.dimensions.length,
             width: data.dimensions.width,
             height: data.dimensions.height,
-            rotation: data.rotation
+            rotation: data.rotation,
+            beamType: data.beamType,
+            beamLengthCm: data.beamLengthCm
+            ,assiseName: data.assiseName
         });
         
         // Restaurer les propriétés de joint
@@ -694,26 +881,48 @@ class WallElement {
         // Le curseur doit être au coin inférieur gauche AVANT de la brique
         // En mode normal (0°): coin inférieur gauche avant = (-length/2, 0, +width/2) 
         // En mode 90°: le bon coin devient celui qui était à droite avant
+    // IMPORTANT: Pour les poutres, la géométrie est tournée de +90° (PI/2) autour de Y
+    // afin d'aligner la longueur sur X. Il faut donc utiliser cette rotation finale
+    // pour calculer l'offset du centre, sinon le point d'accroche sera décalé.
+    const finalRotationY = (this.type === 'beam') ? (this.rotation + Math.PI / 2) : this.rotation;
+    const cos = Math.cos(finalRotationY);
+    const sin = Math.sin(finalRotationY);
         
-        const cos = Math.cos(this.rotation);
-        const sin = Math.sin(this.rotation);
-        
-        // Offset du centre par rapport au coin inférieur gauche AVANT
-        let offsetX = this.dimensions.length / 2;  // vers la droite
-        let offsetZ = -this.dimensions.width / 2;  // vers l'avant (face visible)
-        
-        // Appliquer la rotation à l'offset
-        const rotatedOffsetX = offsetX * cos - offsetZ * sin;
-        const rotatedOffsetZ = offsetX * sin + offsetZ * cos;
-        
-        // Positionner le mesh (centre de la brique)
-        this.mesh.position.set(
-            this.position.x + rotatedOffsetX,
-            this.position.y,  // CORRECTION: utiliser directement this.position.y (qui est déjà le centre)
-            this.position.z + rotatedOffsetZ
-        );
-        
-        this.mesh.rotation.y = this.rotation;
+        if (this.type === 'beam') {
+            // Pour les poutres: pivot déjà placé au coin début inférieur (après translation géométrie).
+            // Donc position.x / y / z = coin voulu.
+            this.mesh.rotation.y = finalRotationY;
+            // Calculer le coin min réel après rotation pour aligner précisément le pivot
+            if (!this.mesh.geometry.boundingBox) {
+                this.mesh.geometry.computeBoundingBox();
+            }
+            const bb = this.mesh.geometry.boundingBox;
+            // bb min/max sont dans l'espace local (après rotation appliquée via matrix lors du rendu, donc on corrige en positionnant)
+            // On veut que le coin min (x,y,z) corresponde exactement à this.position
+            // Actuellement, le mesh est centré/pivot sur (0,0,0) ou déjà translaté; on applique un offset par rapport à bb.min
+            const offsetX = -bb.min.x;
+            const offsetY = -bb.min.y;
+            const offsetZ = -bb.min.z;
+            this.mesh.position.set(
+                this.position.x + offsetX,
+                this.position.y + offsetY,
+                this.position.z + offsetZ
+            );
+        } else {
+            // Offset du centre par rapport au coin inférieur gauche AVANT
+            let offsetX = this.dimensions.length / 2;  // vers la droite
+            let offsetZ = -this.dimensions.width / 2;  // vers l'avant (face visible)
+            // Appliquer la rotation à l'offset
+            const rotatedOffsetX = offsetX * cos - offsetZ * sin;
+            const rotatedOffsetZ = offsetX * sin + offsetZ * cos;
+            // Positionner le mesh (centre)
+            this.mesh.position.set(
+                this.position.x + rotatedOffsetX,
+                this.position.y,
+                this.position.z + rotatedOffsetZ
+            );
+            this.mesh.rotation.y = finalRotationY;
+        }
     }
 
     dispose() {

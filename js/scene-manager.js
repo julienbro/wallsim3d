@@ -38,6 +38,27 @@ class SceneManager {
         
         // 🔧 STOCKAGE: Brique de référence pour joints automatiques
         this.lastReferenceBrick = null;
+
+        // Outil de maintenance: flag pour éviter double normalisation
+        this._beamNormalizationRun = false;
+    }
+
+    // Normaliser toutes les poutres: base exactement à Y=0 (après pivot coin min)
+    normalizeAllBeamsToGround() {
+        if (this._beamNormalizationRun) return; // éviter exécutions répétées coûteuses
+        let count = 0;
+        for (const element of this.elements.values()) {
+            if (element.type === 'beam') {
+                if (Math.abs(element.position.y) > 0.01) {
+                    element.updatePosition(element.position.x, 0, element.position.z);
+                    count++;
+                }
+            }
+        }
+        this._beamNormalizationRun = true;
+        if (count > 0) {
+            console.log(`🔧 NORMALISATION POUTRES: ${count} poutre(s) réalignée(s) au sol.`);
+        }
     }
 
     // Méthode utilitaire pour mettre à jour les éléments DOM en toute sécurité
@@ -771,52 +792,6 @@ class SceneManager {
                             const suggestionType = ghost.mesh.userData.suggestionType;
                             // console.log('🔧 DEBUG: suggestionType =', suggestionType);
                             
-                            // NOUVELLE FONCTIONNALITÉ: Vérifier si c'est une suggestion de continuité
-                            const isContinuitySuggestion = suggestionType === 'continuation';
-                            
-                            if (isContinuitySuggestion) {
-                                // Pour les suggestions de continuité, afficher le tooltip de quantité
-                                const rect = window.SceneManager.renderer.domElement.getBoundingClientRect();
-                                const clientX = event.clientX;
-                                const clientY = event.clientY;
-                                
-                                console.log('🧱 Clic sur suggestion de continuité - Affichage du tooltip de quantité');
-                                
-                                if (window.ConstructionTools && window.ConstructionTools.showQuantityTooltip) {
-                                    const suggestionData = {
-                                        position: { x: ghost.position.x, z: ghost.position.z },
-                                        rotation: ghost.rotation,
-                                        type: suggestionType,
-                                        letter: ghost.mesh.userData.letter,
-                                        referenceBrick: globalCapturedReferenceElement
-                                    };
-                                    
-                                    window.ConstructionTools.showQuantityTooltip(clientX, clientY, (quantity) => {
-                                        // Callback quand l'utilisateur confirme la quantité
-                                        if (quantity === 1) {
-                                            // Placement simple pour 1 élément - logique existante
-                                            if (this.animateSuggestionPlacement) {
-                                                this.animateSuggestionPlacement(ghost, () => {
-                                                    const placedElement = this.placeElementAt(ghost.position.x, ghost.position.z, ghost.rotation);
-                                                    this.handlePostPlacementLogic(placedElement, suggestionType, ghost, globalCapturedReferenceElement);
-                                                });
-                                            } else {
-                                                const placedElement = this.placeElementAt(ghost.position.x, ghost.position.z, ghost.rotation);
-                                                this.handlePostPlacementLogic(placedElement, suggestionType, ghost, globalCapturedReferenceElement);
-                                            }
-                                        } else {
-                                            // Placement multiple
-                                            if (window.ConstructionTools && window.ConstructionTools.placeSuggestionWithQuantity) {
-                                                window.ConstructionTools.placeSuggestionWithQuantity(suggestionData, quantity);
-                                            } else {
-                                                console.warn('⚠️ Méthode de placement multiple non disponible');
-                                            }
-                                        }
-                                    });
-                                }
-                                return; // Sortir après avoir affiché le tooltip
-                            }
-                            
                             const isPerpendicularSuggestion = suggestionType === 'perpendiculaire-frontale-droite' || 
                                                              suggestionType === 'perpendiculaire-frontale-gauche' ||
                                                              suggestionType === 'perpendiculaire-dorsale-droite' ||
@@ -1253,11 +1228,14 @@ class SceneManager {
                        mesh.userData.element && 
                        mesh.userData.element.id &&
                        !mesh.userData.isJoint && // Exclure les joints explicitement
-                       (mesh.userData.element.type === 'brick' || 
+                       (
+                        mesh.userData.element.type === 'brick' || 
                         mesh.userData.element.type === 'block' || 
                         mesh.userData.element.type === 'insulation' ||
+                        mesh.userData.element.type === 'beam' || // 🆕 autoriser la sélection des poutres
                         mesh.userData.element.type === 'glb' ||
-                        mesh.userData.element.isGLBModel);
+                        mesh.userData.element.isGLBModel
+                       );
             };
             
             // Filtrer plus strictement les meshes valides
@@ -1327,11 +1305,14 @@ class SceneManager {
                        intersect.object.userData.element.id &&
                        !intersect.object.userData.element.isVerticalJoint &&
                        !intersect.object.userData.element.isHorizontalJoint &&
-                       (intersect.object.userData.element.type === 'brick' || 
+                       (
+                        intersect.object.userData.element.type === 'brick' || 
                         intersect.object.userData.element.type === 'block' || 
                         intersect.object.userData.element.type === 'insulation' ||
+                        intersect.object.userData.element.type === 'beam' || // 🆕 poutres sélectionnables
                         intersect.object.userData.element.type === 'glb' ||
-                        intersect.object.userData.element.isGLBModel);
+                        intersect.object.userData.element.isGLBModel
+                       );
             });
             
             
@@ -1468,7 +1449,7 @@ class SceneManager {
                 
                 if (element && element.id) {
                     // Éléments de construction (briques, blocs, etc.)
-                    if (element.type && ['brick', 'block', 'insulation', 'linteau'].includes(element.type)) {
+                    if (element.type && ['brick', 'block', 'insulation', 'linteau', 'beam'].includes(element.type)) { // 🆕 ajouter beam
                         canSelect = !window.AssiseManager || window.AssiseManager.canSelectElement(element.id, true);
                     }
                     // Modèles GLB importés - toujours sélectionnables
@@ -1496,8 +1477,8 @@ class SceneManager {
                         
                         // Ne pas créer de suggestions pour les modèles GLB et éléments de construction
                         if (window.ConstructionTools && window.ConstructionTools.clearSuggestions && 
-                            (['brick', 'block', 'insulation', 'linteau'].includes(element.type) || 
-                             element.type === 'glb' || element.isGLBModel)) {
+                            (['brick', 'block', 'insulation', 'linteau', 'beam'].includes(element.type) || 
+                             element.type === 'glb' || element.isGLBModel)) { // 🆕 beam inclus
                             window.ConstructionTools.clearSuggestions();
                         }
                     } else if (['measurement', 'annotation', 'textleader'].includes(element.type) || 
@@ -1512,7 +1493,7 @@ class SceneManager {
                         }
                     } else if (window.ConstructionTools) {
                         // Mode pose de briques : proposer les briques adjacentes (éléments de construction uniquement)
-                        if (forceSelection && (element.type === 'brick' || element.type === 'block' || element.type === 'insulation')) {
+                        if (forceSelection && (element.type === 'brick' || element.type === 'block' || element.type === 'insulation' || element.type === 'beam')) { // 🆕 beam pour ctrl+clic
                             // Ctrl+clic → mode joints uniquement
                             // console.log('🔧 Ctrl+clic détecté - Activation du mode joint pour élément:', element.id);
                             
@@ -1701,24 +1682,8 @@ class SceneManager {
     }
 
     onRightClick(event) {
-        // Menu contextuel ou suppression
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-        const elementMeshes = Array.from(this.elements.values()).map(el => el.mesh);
-        const intersects = this.raycaster.intersectObjects(elementMeshes);
-
-        if (intersects.length > 0) {
-            const element = intersects[0].object.userData.element;
-            
-            // PROTECTION: Empêcher la suppression des briques par clic droit
-            // Le clic droit est réservé uniquement à la rotation de la brique fantôme
-            if (element.type === 'brick') {
-                // console.log('🧱 Clic droit sur brique ignoré - utilisez l\'outil de suppression pour supprimer les briques');
-                return; // Ne pas supprimer les briques
-            }
-            
-            // Pour les autres types d'éléments (blocs, isolants, etc.), permettre la suppression
-            this.removeElement(element.id);
-        }
+    // Désactivé: le clic droit ne supprime plus d'élément (utiliser bouton dédié)
+    return;
     }
 
     // Méthode pour ajuster les dimensions selon le type de coupe
@@ -1827,6 +1792,22 @@ class SceneManager {
                 height = adjustedDimensions.height;
             }
             // // console.log(`🔧 Dimensions bloc: ${length}x${width}x${height}cm`);
+        } else if (type === 'beam' && window.BeamProfiles && window.ConstructionTools) {
+            // Poutres acier procédurales: dimensions depuis le profil sélectionné
+            const beamType = window.ConstructionTools.currentBeamType || 'IPE80';
+            const p = window.BeamProfiles.getProfile ? window.BeamProfiles.getProfile(beamType) : null;
+            const mmToCm = (mm) => Math.round((mm / 10) * 100) / 100; // 2 décimales
+            const defaultLen = window.ConstructionTools.currentBeamLengthCm || 100;
+            if (p) {
+                length = defaultLen;
+                width = mmToCm(p.b);
+                height = mmToCm(p.h);
+            } else {
+                // Fallback valeurs raisonnables
+                length = defaultLen;
+                width = 10;
+                height = 10;
+            }
         } else {
             // Pour les isolants ou si les sélecteurs ne sont pas disponibles, utiliser les champs HTML
             length = parseInt(document.getElementById('elementLength').value);
@@ -1890,12 +1871,27 @@ class SceneManager {
             length,
             width,
             height,
-            rotation
+            rotation,
+            // Options spécifiques poutres
+            ...(type === 'beam' && window.ConstructionTools ? {
+                beamType: window.ConstructionTools.currentBeamType || 'IPE80',
+                beamLengthCm: window.ConstructionTools.currentBeamLengthCm || length
+            } : {})
+            ,assiseName: (function(){
+                // Ne pas générer de nom d'assise pour les poutres
+                if (type === 'beam') return null;
+                if (window.AssiseManager) {
+                    const currentType = window.AssiseManager.currentType;
+                    const idx = window.AssiseManager.currentAssiseByType.get(currentType) || 0;
+                    return `${currentType}-A${idx}`;
+                }
+                return null;
+            })()
         });
 
         // CORRECTION SPÉCIALE: Forcer l'opacité complète pour les isolants placés
         if (element.type === 'insulation' && element.mesh && element.mesh.material) {
-            console.log('🔧 CORRECTION SPÉCIALE: Restauration opacité isolant placé');
+            // console.log('🔧 CORRECTION SPÉCIALE: Restauration opacité isolant placé'); // désactivé
             element.mesh.material.transparent = false;
             element.mesh.material.opacity = 1.0;
             element.mesh.material.alphaTest = 0;
@@ -1953,7 +1949,7 @@ class SceneManager {
         
         // CORRECTION AUTOMATIQUE: Appliquer la correction automatique des isolants après ajout à la scène
         if (element.type === 'insulation') {
-            console.log('🔧 Application automatique de fixTransparentInsulation après placement');
+            // console.log('🔧 Application automatique de fixTransparentInsulation après placement'); // désactivé
             // Utiliser setTimeout pour laisser le temps au rendu de se faire
             setTimeout(() => {
                 if (window.fixTransparentInsulation) {
@@ -1995,9 +1991,21 @@ class SceneManager {
             console.warn('⚠️ LayerManager non disponible dans SceneManager.addElement');
         }
         
-        // Ajouter automatiquement l'élément à l'assise active
+        // Ajouter automatiquement l'élément à l'assise active (inclut maintenant les poutres)
         if (window.AssiseManager) {
+            const beforeY = element.position.y;
             window.AssiseManager.addElementToAssise(element.id);
+            if (element.type === 'beam') {
+                // Protection: AssiseManager ne devrait pas déplacer la poutre, mais si c'est le cas on restaure.
+                if (Math.abs(element.position.y - beforeY) > 0.01) {
+                    console.log(`🔧 CORRECTION POUTRE: restauration Y base=0 (avant=${beforeY} aprèsAssise=${element.position.y})`);
+                    element.updatePosition(element.position.x, 0, element.position.z);
+                } else if (Math.abs(element.position.y) > 0.01) {
+                    // Même si pas modifié mais pas à 0 (cas héritage fantôme), on force 0
+                    // console.log(`🔧 NORMALISATION POUTRE: forçage Y=0 (actuel=${element.position.y})`); // désactivé
+                    element.updatePosition(element.position.x, 0, element.position.z);
+                }
+            }
         }
         
         // NOUVELLE FONCTIONNALITÉ : Joint horizontal automatique pour chaque élément de construction posé
@@ -4642,82 +4650,6 @@ class SceneManager {
 
         // Par défaut, considérer comme brique
         return 'brick';
-    }
-
-    /**
-     * Gère la logique post-placement pour les suggestions (joints automatiques, etc.)
-     * @param {WallElement} placedElement - L'élément qui vient d'être placé
-     * @param {string} suggestionType - Le type de suggestion
-     * @param {Object} ghost - L'objet ghost de la suggestion
-     * @param {WallElement} capturedReferenceElement - L'élément de référence capturé
-     */
-    handlePostPlacementLogic(placedElement, suggestionType, ghost, capturedReferenceElement) {
-        // Créer automatiquement le joint de boutisse pour les suggestions perpendiculaires, d'angle ET de continuité
-        const isPerpendicularSuggestion = suggestionType === 'perpendiculaire-frontale-droite' || 
-                                         suggestionType === 'perpendiculaire-frontale-gauche' ||
-                                         suggestionType === 'perpendiculaire-dorsale-droite' ||
-                                         suggestionType === 'perpendiculaire-dorsale-gauche';
-        
-        const isAngleSuggestion = suggestionType === 'angle-panneresse-droite' || 
-                                suggestionType === 'angle-panneresse-gauche' ||
-                                suggestionType === 'angle-panneresse-droite-arriere' ||
-                                suggestionType === 'angle-panneresse-gauche-arriere' ||
-                                suggestionType === 'angle-boutisse-droite' ||
-                                suggestionType === 'angle-boutisse-gauche' ||
-                                suggestionType === 'angle-boutisse-droite-avant' ||
-                                suggestionType === 'angle-boutisse-gauche-avant' ||
-                                suggestionType === 'angle-boutisse-droite-arriere' ||
-                                suggestionType === 'angle-boutisse-gauche-arriere';
-        
-        // Conditions pour créer un joint vertical automatique
-        const shouldCreateVerticalJoint = (isPerpendicularSuggestion || isAngleSuggestion || suggestionType.includes('continuity')) 
-            && placedElement && window.ConstructionTools;
-        
-        if (shouldCreateVerticalJoint) {
-            // console.log('🔧 DEBUG: Création automatique de joint pour', suggestionType);
-            // Passer aussi la brique de référence pour déterminer le bon côté
-            this.createAutomaticJointForPerpendicular(placedElement, suggestionType, capturedReferenceElement);
-        } else {
-            // console.log('⚠️ DEBUG: Conditions non remplies pour création automatique de joint de boutisse');
-        }
-        
-        // DEBUG: Afficher la lettre pour les suggestions de continuation
-        if (suggestionType === 'continuation') {
-            // console.log('🔧 DEBUG: Suggestion de continuation, lettre =', ghost.mesh.userData.letter || 'non définie');
-        }
-        
-        // NOUVELLE FONCTIONNALITÉ : Joint horizontal automatique pour chaque brique posée
-        // console.log('🔧 Création automatique du joint horizontal pour chaque brique posée');
-        this.createAutomaticHorizontalJoint(placedElement || this.getLastPlacedElement());
-        
-        // LOGIQUE UNIVERSELLE DE JOINTS VERTICAUX AUTOMATIQUES
-        if (suggestionType === 'continuation' && ghost.mesh.userData.letter) {
-            const position = ghost.mesh.userData.letter;
-            // console.log('🔧 LOGIQUE UNIVERSELLE: Position détectée =', position);
-            
-            // Déterminer le côté du joint selon la position
-            const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
-            
-            if (isLeftSide) {
-                // Utiliser la brique nouvellement placée
-                this.createAutomaticLeftVerticalJoint(placedElement || this.getLastPlacedElement());
-            } else {
-                // Utiliser la brique nouvellement placée
-                this.createAutomaticRightVerticalJoint(placedElement || this.getLastPlacedElement());
-            }
-        }
-        
-        // Logique spécifique selon les positions...
-        // (Toute la logique existante pour les positions M, N, O, P, Q, R, etc.)
-        
-        // Désactiver les suggestions APRÈS avoir créé les joints
-        if (window.ConstructionTools.deactivateSuggestions) {
-            window.ConstructionTools.deactivateSuggestions();
-        }
-        
-        // 🔧 NETTOYAGE: Réinitialiser la référence après usage
-        this.lastReferenceBrick = null;
-        // console.log('🔧 NETTOYAGE: lastReferenceBrick réinitialisée');
     }
 }
 

@@ -48,7 +48,7 @@ class StartupManager {
             <div class="startup-popup">
                 <div class="startup-content">
                     <img src="media/accueil.png" alt="WallSim3D" class="startup-logo" />
-                    <div class="app-version">v1.0.2</div>
+                    <div class="app-version">v1.0.3</div>
                     
                     <div class="progress-container">
                         <div class="progress-bar">

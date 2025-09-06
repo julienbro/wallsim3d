@@ -213,10 +213,6 @@ class ConstructionTools {
         // 🆕 NOUVEAU: Système de blocage des suggestions après désactivation par interface
         this.suggestionsDisabledByInterface = false; // Flag pour bloquer la réapparition automatique
         
-        // Système de tooltip pour le nombre d'éléments
-        this.quantityTooltip = null;
-        this.isShowingQuantityTooltip = false;
-        
         // Système de rotation manuelle
         this.hasManualRotation = false; // Tracker si une rotation manuelle a été effectuée
         this.manualRotation = 0; // Valeur de rotation manuelle
@@ -427,7 +423,7 @@ class ConstructionTools {
                     length = Math.round(length * ratio);
                 }
             }
-        } else if (this.currentMode === 'linteau' && window.LinteauSelector) {
+    } else if (this.currentMode === 'linteau' && window.LinteauSelector) {
             // Pour les linteaux, utiliser LinteauSelector avec détection de coupe
             const currentLinteau = window.LinteauSelector.getCurrentLinteauData();
             length = currentLinteau.length;
@@ -443,6 +439,15 @@ class ConstructionTools {
                     length = Math.round(length * ratio);
                 }
             }
+        } else if (this.currentMode === 'beam' && window.BeamProfiles) {
+            // Poutres acier procédurales (pivot coin inférieur début)
+            const lengthCmExact = Math.max(1, Math.round(this.currentBeamLengthCm || 100));
+            const p = window.BeamProfiles.getProfile ? window.BeamProfiles.getProfile(this.currentBeamType || 'IPE80') : null;
+            const hCm = p ? (p.h / 10) : 8;
+            const bCm = p ? (p.b / 10) : 5;
+            length = lengthCmExact; // le long de X
+            width = Math.max(3, Math.round(bCm));
+            height = Math.max(3, Math.round(hCm));
         } else {
             // Pour les autres cas ou si les sélecteurs ne sont pas disponibles, utiliser les champs HTML
             length = parseInt(document.getElementById('elementLength').value);
@@ -517,6 +522,13 @@ class ConstructionTools {
             if (window.DEBUG_CONSTRUCTION) {
                 console.log('🏗️ Fantôme: Options pour linteau:', wallElementOptions);
             }
+        } else if (this.currentMode === 'beam') {
+            wallElementOptions.type = 'beam';
+            wallElementOptions.beamType = this.currentBeamType || 'IPE80';
+            wallElementOptions.beamLengthCm = this.currentBeamLengthCm || Math.max(100, wallElementOptions.length);
+            if (window.DEBUG_CONSTRUCTION) {
+                console.log('🏗️ Fantôme: Options pour poutre:', wallElementOptions);
+            }
         } else {
             // Fallback pour les autres modes
             wallElementOptions.type = elementTypeForMode;
@@ -527,6 +539,11 @@ class ConstructionTools {
         }
 
         this.ghostElement = new WallElement(wallElementOptions);
+        if (this.currentMode === 'beam') {
+            // Pour la poutre: position.y doit être la base. Créer initialement à y=0 base.
+            this.ghostElement.position.y = 0;
+            this.ghostElement.updateMeshPosition();
+        }
         
         if (window.DEBUG_CONSTRUCTION) {
             console.log('👻 Fantôme créé - Dimensions mesh:', {
@@ -546,6 +563,18 @@ class ConstructionTools {
         
         // Ajouter un effet de brillance
         this.ghostElement.mesh.material.emissive.setHex(0x222222);
+
+        // Si des sous-maillages existent (ex: poutre visuelle), appliquer aussi la transparence
+        if (this.ghostElement.mesh && this.ghostElement.mesh.children && this.ghostElement.mesh.children.length) {
+            this.ghostElement.mesh.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    child.material = child.material.clone();
+                    child.material.transparent = true;
+                    child.material.opacity = 0.3;
+                    if (child.material.emissive) child.material.emissive.setHex(0x222222);
+                }
+            });
+        }
         
         // Masquer par défaut - ne pas afficher si on est en mode suggestions
         this.ghostElement.mesh.visible = this.showGhost && !this.activeBrickForSuggestions;
@@ -845,6 +874,14 @@ class ConstructionTools {
                         length = Math.round(length * ratio);
                     }
                 }
+            } else if (this.currentMode === 'beam' && window.BeamProfiles) {
+                const lengthCmExact = Math.max(1, Math.round(this.currentBeamLengthCm || 100));
+                const p = window.BeamProfiles.getProfile ? window.BeamProfiles.getProfile(this.currentBeamType || 'IPE80') : null;
+                const hCm = p ? (p.h / 10) : 8;
+                const bCm = p ? (p.b / 10) : 5;
+                length = lengthCmExact;
+                width = Math.max(3, Math.round(bCm));
+                height = Math.max(3, Math.round(hCm));
             } else {
                 // Pour linteaux, ou si les sélecteurs ne sont pas disponibles, utiliser les champs HTML
                 length = parseInt(document.getElementById('elementLength').value);
@@ -1023,6 +1060,16 @@ class ConstructionTools {
             }
             
             // NOUVEAU: Calculer la hauteur d'assise pour éléments classiques (briques, blocs, isolants)
+            // POUTRES: pas d'empilement -> base au sol (Y = 0) car pivot = coin inférieur
+            if (this.currentMode === 'beam' && this.ghostElement && this.ghostElement.dimensions) {
+                const targetY = 0; // base exactement au sol
+                const tolerance = 0.05;
+                if (!this.ghostElement.position || Math.abs(this.ghostElement.position.y - targetY) > tolerance) {
+                    this.ghostElement.updatePosition(this.ghostElement.position.x, targetY, this.ghostElement.position.z);
+                    // console.log(`🔧 GHOST HEIGHT UPDATE (beam base=0): y=${targetY}cm`); // log désactivé
+                }
+                return; // ignorer logique d'assise empilée
+            }
             if (window.AssiseManager && window.AssiseManager.currentType) {
                 const elementType = this.getElementTypeForMode(this.currentMode);
                 let assiseType = elementType;
@@ -1046,7 +1093,7 @@ class ConstructionTools {
                     return; // Pas besoin de mise à jour si la position est déjà correcte
                 }
                 
-                console.log(`🔧 GHOST HEIGHT UPDATE: mode=${this.currentMode}, assiseType=${assiseType}, assiseIndex=${currentAssiseForType}, assiseHeight=${assiseHeight}cm, newY=${newY}cm`);
+                // console.log(`🔧 GHOST HEIGHT UPDATE: mode=${this.currentMode}, assiseType=${assiseType}, assiseIndex=${currentAssiseForType}, assiseHeight=${assiseHeight}cm, newY=${newY}cm`); // log désactivé
                 
                 this.ghostElement.updatePosition(this.ghostElement.position.x, newY, this.ghostElement.position.z);
             }
@@ -1582,6 +1629,17 @@ class ConstructionTools {
                 width = parseInt(document.getElementById('elementWidth').value);
                 height = parseInt(document.getElementById('elementHeight').value);
             }
+        } else if (this.currentMode === 'beam' && window.BeamProfiles) {
+            const p = window.BeamProfiles.getProfile ? window.BeamProfiles.getProfile(this.currentBeamType || 'IPE80') : null;
+            const defaultLen = this.currentBeamLengthCm || parseInt(document.getElementById('elementLength').value) || 100;
+            length = defaultLen;
+            if (p) {
+                width = Math.round((p.b / 10));
+                height = Math.round((p.h / 10));
+            } else {
+                width = parseInt(document.getElementById('elementWidth').value);
+                height = parseInt(document.getElementById('elementHeight').value);
+            }
         } else {
             // Pour les blocs et isolants, ou si les sélecteurs ne sont pas disponibles, utiliser les champs HTML
             length = parseInt(document.getElementById('elementLength').value);
@@ -1601,7 +1659,11 @@ class ConstructionTools {
             z: 0,
             length,
             width,
-            height
+            height,
+            ...(this.currentMode === 'beam' ? {
+                beamType: this.currentBeamType || 'IPE80',
+                beamLengthCm: this.currentBeamLengthCm || length
+            } : {})
         });
 
         // Rendre l'élément semi-transparent
@@ -3102,6 +3164,16 @@ class ConstructionTools {
             length = currentBrick.length;
             width = currentBrick.width;
             height = currentBrick.height;
+        } else if (this.currentMode === 'beam' && window.BeamProfiles) {
+            const p = window.BeamProfiles.getProfile ? window.BeamProfiles.getProfile(this.currentBeamType || 'IPE80') : null;
+            length = this.currentBeamLengthCm || parseInt(document.getElementById('elementLength').value) || 100;
+            if (p) {
+                width = Math.round((p.b / 10));
+                height = Math.round((p.h / 10));
+            } else {
+                width = parseInt(document.getElementById('elementWidth').value);
+                height = parseInt(document.getElementById('elementHeight').value);
+            }
         } else {
             // Pour les blocs et isolants, ou si BrickSelector n'est pas disponible, utiliser les champs HTML
             length = parseInt(document.getElementById('elementLength').value);
@@ -3118,7 +3190,11 @@ class ConstructionTools {
             length: length,
             width: width,
             height: height,
-            rotation: rotation
+            rotation: rotation,
+            ...(this.currentMode === 'beam' ? {
+                beamType: this.currentBeamType || 'IPE80',
+                beamLengthCm: length
+            } : {})
         });
         
         // Style visuel de suggestion
@@ -3884,6 +3960,7 @@ class ConstructionTools {
             'block': 'block', 
             'insulation': 'insulation',
             'linteau': 'linteau',
+            'beam': 'beam',
             'custom': 'custom'
         };
         
@@ -3897,7 +3974,8 @@ class ConstructionTools {
                     'briques': 'brick',
                     'blocs': 'block',
                     'isolants': 'insulation',
-                    'linteaux': 'linteau'
+                    'linteaux': 'linteau',
+                    'poutres': 'beam'
                 };
                 type = subtabToTypeMap[window.TabManager.currentSubTab] || 'brick';
             } else {
@@ -3981,7 +4059,7 @@ class ConstructionTools {
                     type = window.TabManager.selectedLibraryItem;
                     // Log seulement si le type a changé pour éviter le spam
                     if (!this._lastLoggedTabManagerType || this._lastLoggedTabManagerType !== type) {
-                        console.log('🔧 Type isolant récupéré depuis TabManager:', type);
+                        // console.log('🔧 Type isolant récupéré depuis TabManager:', type); // désactivé
                         this._lastLoggedTabManagerType = type;
                     }
                 }
@@ -4043,6 +4121,15 @@ class ConstructionTools {
             } catch (error) {
                 console.warn('Erreur lors de la détection du type de linteau pour le fantôme:', error);
             }
+        }
+
+        // Pour les poutres, retourner le profil sélectionné si disponible
+        if (type === 'beam') {
+            // Priorité à la sélection du TabManager si c'est un type BeamProfiles
+            if (window.TabManager && window.TabManager.selectedLibraryItem && window.BeamProfiles && window.BeamProfiles.isBeamType(window.TabManager.selectedLibraryItem)) {
+                return 'beam'; // le WallElement utilisera beamType des options
+            }
+            return 'beam';
         }
         
         // S'assurer que la valeur retournée est toujours une chaîne
@@ -4136,6 +4223,9 @@ class ConstructionTools {
                 return window.currentInsulationDimensions.material;
             }
             return 'insulation'; // PUR par défaut
+        } else if (this.currentMode === 'beam') {
+            // Matériau par défaut pour poutres acier (acier standard, pas inox)
+            return 'axier';
         }
         
         // Défaut pour les cas non prévus → brique rouge classique
@@ -7422,285 +7512,6 @@ class ConstructionTools {
                 }
             }, 300);
         }, 3000);
-    }
-
-    /**
-     * Affiche un tooltip pour demander le nombre d'éléments à insérer
-     * @param {number} x - Position X du curseur
-     * @param {number} y - Position Y du curseur
-     * @param {Function} callback - Fonction à appeler avec la quantité
-     */
-    showQuantityTooltip(x, y, callback) {
-        if (this.isShowingQuantityTooltip) {
-            return; // Déjà en train d'afficher un tooltip
-        }
-        
-        this.isShowingQuantityTooltip = true;
-        
-        // Créer le container du tooltip
-        this.quantityTooltip = document.createElement('div');
-        this.quantityTooltip.className = 'quantity-tooltip';
-        this.quantityTooltip.style.cssText = `
-            position: fixed;
-            left: ${x + 10}px;
-            top: ${y - 50}px;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            z-index: 10000;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-            border: 1px solid #444;
-        `;
-        
-        // Créer le contenu
-        const content = document.createElement('div');
-        content.innerHTML = `
-            <div style="margin-bottom: 10px; font-weight: bold;">Nombre d'éléments à insérer :</div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <input type="number" id="quantityInput" min="1" max="50" value="1" 
-                       style="width: 60px; padding: 5px; border: 1px solid #666; border-radius: 3px; 
-                              background: #333; color: white; text-align: center;">
-                <button id="confirmQuantity" style="padding: 5px 10px; background: #007bff; 
-                        color: white; border: none; border-radius: 3px; cursor: pointer;">OK</button>
-                <button id="cancelQuantity" style="padding: 5px 10px; background: #666; 
-                        color: white; border: none; border-radius: 3px; cursor: pointer;">Annuler</button>
-            </div>
-        `;
-        
-        this.quantityTooltip.appendChild(content);
-        document.body.appendChild(this.quantityTooltip);
-        
-        // Focus sur l'input
-        const input = document.getElementById('quantityInput');
-        input.focus();
-        input.select();
-        
-        // Gestionnaires d'événements
-        const handleConfirm = () => {
-            const quantity = parseInt(input.value) || 1;
-            if (quantity >= 1 && quantity <= 50) {
-                this.hideQuantityTooltip();
-                callback(quantity);
-            } else {
-                input.style.borderColor = 'red';
-                setTimeout(() => { input.style.borderColor = '#666'; }, 1000);
-            }
-        };
-        
-        const handleCancel = () => {
-            this.hideQuantityTooltip();
-        };
-        
-        // Événements boutons
-        document.getElementById('confirmQuantity').addEventListener('click', handleConfirm);
-        document.getElementById('cancelQuantity').addEventListener('click', handleCancel);
-        
-        // Événement clavier
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleConfirm();
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                handleCancel();
-            }
-        });
-        
-        // Fermer si on clique en dehors
-        this.currentClickOutsideHandler = (e) => {
-            if (this.quantityTooltip && !this.quantityTooltip.contains(e.target)) {
-                handleCancel();
-            }
-        };
-        
-        setTimeout(() => {
-            document.addEventListener('click', this.currentClickOutsideHandler);
-        }, 100);
-    }
-
-    /**
-     * Cache le tooltip de quantité
-     */
-    hideQuantityTooltip() {
-        if (this.quantityTooltip) {
-            this.quantityTooltip.remove();
-            this.quantityTooltip = null;
-        }
-        
-        // Supprimer l'event listener s'il existe
-        if (this.currentClickOutsideHandler) {
-            document.removeEventListener('click', this.currentClickOutsideHandler);
-            this.currentClickOutsideHandler = null;
-        }
-        
-        this.isShowingQuantityTooltip = false;
-    }    /**
-     * Place plusieurs éléments adjacents à partir d'une suggestion
-     * @param {Object} suggestion - L'objet suggestion contenant position, rotation, etc.
-     * @param {number} quantity - Nombre d'éléments à placer
-     */
-    placeSuggestionWithQuantity(suggestion, quantity) {
-        if (!suggestion || !quantity || quantity < 1) {
-            return;
-        }
-        
-        // Déterminer l'espacement selon le type d'élément actuel et l'orientation
-        let spacing = 20; // Espacement par défaut en centimètres
-        let brickDimensions = null;
-        
-        if (this.currentMode === 'brick' && window.BrickSelector) {
-            const currentBrick = window.BrickSelector.getCurrentBrick();
-            brickDimensions = currentBrick;
-            console.log(`🧱 Dimensions brique actuelle: ${currentBrick.length}cm x ${currentBrick.width}cm x ${currentBrick.height}cm`);
-        } else if (this.previewElement) {
-            brickDimensions = this.previewElement.dimensions;
-            console.log(`🧱 Dimensions depuis previewElement: ${this.previewElement.dimensions.length}cm x ${this.previewElement.dimensions.width}cm`);
-        }
-        
-        if (brickDimensions) {
-            // L'espacement est toujours basé sur la LONGUEUR de la brique, peu importe l'orientation
-            // Même en boutisse (90°), les briques sont espacées de leur longueur + 1cm de joint
-            spacing = brickDimensions.length + 1; // Toujours longueur + 1cm de joint
-            
-            const rotation = suggestion.rotation || 0;
-            const rotationDegrees = (rotation * 180 / Math.PI).toFixed(1);
-            
-            console.log(`🧱 Espacement standardisé: ${brickDimensions.length}cm + 1cm joint = ${spacing}cm (rotation: ${rotationDegrees}°)`);
-        }
-        
-        // Dans ce projet, 1 unité Three.js = 1 cm, donc pas de conversion nécessaire
-        const spacingThreeJS = spacing;
-        
-        // Déterminer la direction de placement selon l'orientation et le côté de la suggestion
-        const rotation = suggestion.rotation || 0;
-        const cos = Math.cos(rotation);
-        const sin = Math.sin(rotation);
-        
-        // Détecter le côté de la suggestion (A = droite, B = gauche)
-        // IMPORTANT: Les suggestions sont déjà positionnées par rapport à la brique de référence
-        // A est à droite de la référence, B est à gauche de la référence
-        // Quand on clique sur A, on veut continuer vers la droite (+)
-        // Quand on clique sur B, on veut continuer vers la gauche (-)
-        const isLeftSide = suggestion.letter && suggestion.letter.includes('B');
-        const direction = isLeftSide ? -1 : 1; // -1 pour gauche (B), +1 pour droite (A)
-        
-        // Vecteur de direction pour le placement en ligne
-        const directionX = cos * direction; // Direction selon l'orientation et le côté
-        const directionZ = sin * direction;
-        
-        console.log(`🧱 Suggestion ${suggestion.letter}: placement du côté ${isLeftSide ? 'GAUCHE' : 'DROIT'} (direction: ${direction})`);
-        console.log(`🧱 Position de départ: x=${suggestion.position.x}, z=${suggestion.position.z}`);
-        console.log(`🧱 Rotation: ${(rotation * 180 / Math.PI).toFixed(1)}°, cos=${cos.toFixed(3)}, sin=${sin.toFixed(3)}`);
-        console.log(`🧱 Vecteur direction: directionX=${directionX.toFixed(3)}, directionZ=${directionZ.toFixed(3)}`);
-        
-        // Placer les éléments en ligne avec création automatique des joints verticaux gauches
-        for (let i = 0; i < quantity; i++) {
-            const offsetX = i * spacingThreeJS * directionX;
-            const offsetZ = i * spacingThreeJS * directionZ;
-            const finalX = suggestion.position.x + offsetX;
-            const finalZ = suggestion.position.z + offsetZ;
-            
-            console.log(`🧱 Brique ${i + 1}: offset=(${offsetX.toFixed(1)}, ${offsetZ.toFixed(1)}), position finale=(${finalX.toFixed(1)}, ${finalZ.toFixed(1)})`);
-            
-            // Utiliser setTimeout pour espacer légèrement les placements
-            setTimeout(() => {
-                if (window.SceneManager && window.SceneManager.placeElementAt) {
-                    const placedElement = window.SceneManager.placeElementAt(finalX, finalZ, suggestion.rotation);
-                    
-                    // Créer automatiquement le joint vertical gauche pour chaque brique placée
-                    // EXCEPTION: Pour le côté gauche, ne pas créer le joint sur la dernière brique (la plus à l'extérieur)
-                    const shouldCreateJoint = isLeftSide ? (i < quantity - 1) : true;
-                    
-                    if (placedElement && window.SceneManager && shouldCreateJoint) {
-                        setTimeout(() => {
-                            console.log(`🔧 Création du joint vertical gauche pour la brique ${i + 1}/${quantity}`);
-                            // Pour le placement multiple, on force la création des joints sans vérification d'adjacence
-                            if (window.ConstructionTools && window.ConstructionTools.createSpecificVerticalJoint) {
-                                // Créer directement le joint vertical gauche
-                                window.ConstructionTools.createSpecificVerticalJoint(placedElement, 'left');
-                                console.log(`✅ Joint vertical gauche forcé pour la brique ${i + 1}`);
-                            } else {
-                                // Fallback vers la méthode normale
-                                window.SceneManager.createAutomaticLeftVerticalJoint(placedElement);
-                            }
-                        }, 50); // Petit délai pour s'assurer que la brique est bien en place
-                    } else if (!shouldCreateJoint) {
-                        console.log(`⏭️ Joint vertical gauche ignoré pour la dernière brique côté gauche ${i + 1}/${quantity}`);
-                    }
-                }
-            }, i * 100); // 100ms entre chaque placement
-        }
-        
-        console.log(`🧱 ${quantity} éléments placés en ligne côté ${isLeftSide ? 'GAUCHE' : 'DROIT'} avec un espacement de ${spacing}cm (rotation: ${(suggestion.rotation * 180 / Math.PI).toFixed(1)}°)`);
-        
-        // Créer le joint vertical sur la brique de référence (celle d'origine)
-        if (suggestion.referenceBrick && window.SceneManager) {
-            setTimeout(() => {
-                if (isLeftSide) {
-                    // Pour le côté gauche (B), créer le joint vertical gauche sur la brique de référence
-                    console.log('🔧 Création du joint vertical gauche sur la brique de référence');
-                    if (window.SceneManager.createAutomaticLeftVerticalJoint) {
-                        window.SceneManager.createAutomaticLeftVerticalJoint(suggestion.referenceBrick);
-                    }
-                } else {
-                    // Pour le côté droit (A), créer le joint vertical droit sur la brique de référence
-                    console.log('🔧 Création du joint vertical droit sur la brique de référence');
-                    if (window.SceneManager.createAutomaticRightVerticalJoint) {
-                        window.SceneManager.createAutomaticRightVerticalJoint(suggestion.referenceBrick);
-                    }
-                }
-            }, 200); // Délai pour s'assurer que toutes les briques sont placées
-        }
-        
-        // Désactiver les suggestions actuelles et forcer une régénération
-        this.deactivateSuggestions();
-        
-        // Régénérer le fantôme après un court délai pour permettre le placement complet
-        setTimeout(() => {
-            console.log('🔄 Régénération du fantôme après placement multiple');
-            
-            // S'assurer que toutes les variables d'état sont correctement réinitialisées
-            this.activeBrickForSuggestions = null;
-            this.referenceElement = null;
-            this.suggestionsActive = false;
-            this.showGhost = true;
-            
-            console.log('🔧 Variables d\'état réinitialisées');
-            
-            // Forcer une mise à jour de position avec les coordonnées actuelles du curseur
-            if (window.SceneManager && window.SceneManager.lastCursorPosition) {
-                const pos = window.SceneManager.lastCursorPosition;
-                this.updateGhostPosition(pos.x, pos.z);
-                console.log(`🔄 Position du fantôme mise à jour: x=${pos.x}, z=${pos.z}`);
-            } else {
-                // Mettre à jour sa position de manière générale
-                this.updateGhostPosition();
-            }
-            
-            // Réactiver explicitement le fantôme
-            this.showGhostElement();
-            
-            // S'assurer que le fantôme est visible et réactif
-            if (this.ghostElement && this.ghostElement.mesh) {
-                this.ghostElement.mesh.visible = true;
-                console.log(`✅ Fantôme réactivé, visible: ${this.ghostElement.mesh.visible}`);
-            }
-            
-            // Forcer le redémarrage du système de mise à jour de position
-            if (this._positionUpdateThrottle) {
-                clearTimeout(this._positionUpdateThrottle);
-                this._positionUpdateThrottle = null;
-            }
-            
-            // Test direct : forcer une position au centre de l'écran pour vérifier que ça marche
-            this.updateGhostPosition(0, 0);
-            console.log('� Test: Position forcée à (0,0)');
-            
-            console.log('✅ Système fantôme complètement réactivé');
-        }, 500); // Délai suffisant pour que tous les placements et joints soient terminés
     }
 }
 

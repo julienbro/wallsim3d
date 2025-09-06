@@ -291,7 +291,7 @@ class TabManager {
         
         // Écouter les changements de sélection de blocs
         document.addEventListener('blockSelectionChanged', (e) => {
-            console.log('🔧 TabManager: Événement blockSelectionChanged reçu:', e.detail);
+            // console.log('🔧 TabManager: Événement blockSelectionChanged reçu:', e.detail); // désactivé
             const { newType, blockData } = e.detail;
             this.updateSelectedElementInfo(newType, blockData);
         });
@@ -312,7 +312,7 @@ class TabManager {
         
         // Écouter les sélections d'éléments de bibliothèque
         document.addEventListener('libraryItemSelected', (e) => {
-            console.log('🔧 TabManager: Événement libraryItemSelected reçu:', e.detail);
+            // console.log('🔧 TabManager: Événement libraryItemSelected reçu:', e.detail); // désactivé
             const { itemType, itemElement, subTab } = e.detail;
             
             // Créer un objet de données pour l'élément de bibliothèque
@@ -1062,6 +1062,15 @@ class TabManager {
     updateButtonTooltip(button) {
         const cutType = button.dataset.cut;
         const baseType = button.dataset.baseType;
+        // Spécifique poutres: afficher directement la longueur en cm
+        if (window.BeamProfiles && window.BeamProfiles.isBeamType && window.BeamProfiles.isBeamType(baseType)) {
+            if (cutType === 'P') {
+                button.setAttribute('data-length', 'Personnalisée');
+            } else if (!isNaN(parseInt(cutType))) {
+                button.setAttribute('data-length', `${parseInt(cutType)}cm`);
+            }
+            return;
+        }
         
         if (cutType === 'P') {
             button.setAttribute('data-length', 'Personnalisée');
@@ -1081,6 +1090,50 @@ class TabManager {
         // Récupérer l'item parent pour l'utiliser plus tard
         const parentItem = buttonElement.closest('.library-item');
         
+        // Gestion prioritaire pour les poutres (BeamProfiles): boutons 100/200/300/400/P
+        if (window.BeamProfiles && window.BeamProfiles.isBeamType && window.BeamProfiles.isBeamType(baseType)) {
+            // Activer visuellement le bouton et désactiver les autres dans l'item
+            if (parentItem) {
+                parentItem.querySelectorAll('.cut-btn-mini').forEach(btn => btn.classList.remove('active'));
+            }
+            buttonElement.classList.add('active');
+
+            // Définir la longueur
+            let newLen = null;
+            if (cutType === 'P') {
+                const input = prompt('Longueur de poutre (cm) ?', (window.ConstructionTools?.currentBeamLengthCm || 100).toString());
+                if (input === null) return; // annulé
+                const val = parseInt(input, 10);
+                if (!isNaN(val) && val > 0) newLen = val;
+            } else if (!isNaN(parseInt(cutType, 10))) {
+                newLen = parseInt(cutType, 10);
+            }
+
+            if (newLen !== null) {
+                if (window.ConstructionTools) {
+                    // S'assurer qu'on est en mode poutre avec le bon profil
+                    if (typeof window.ConstructionTools.setBeamProfile === 'function') {
+                        window.ConstructionTools.setBeamProfile(baseType);
+                    } else {
+                        window.ConstructionTools.currentBeamType = baseType;
+                    }
+                    if (typeof window.ConstructionTools.setMode === 'function') {
+                        window.ConstructionTools.setMode('beam');
+                    }
+                    window.ConstructionTools.currentBeamLengthCm = newLen;
+                    if (typeof window.ConstructionTools.updateGhostElement === 'function') {
+                        window.ConstructionTools.updateGhostElement();
+                    } else if (typeof window.ConstructionTools.createGhostElement === 'function') {
+                        window.ConstructionTools.createGhostElement();
+                    }
+                }
+
+                // Petite notification
+                this.showCutNotification({ name: baseType, length: newLen, cutType: cutType, width: 0, height: 0 });
+            }
+            return; // ne pas continuer avec la logique briques/blocs
+        }
+
         // ✅ UTILISER LE GESTIONNAIRE CENTRALISÉ pour éviter les boutons actifs simultanés
         if (window.CutButtonManager) {
             window.CutButtonManager.activateCutButton(buttonElement, baseType, cutType);
@@ -1869,13 +1922,51 @@ class TabManager {
                 break;
 
             case 'planchers':
-            case 'poutres':
             case 'outils':
                 // Gestion des éléments GLB - pas de synchronisation avec des sélecteurs spécifiques
                 if (window.DEBUG_TAB_MANAGER) {
                     console.log(`📦 TabManager: Élément GLB ${itemType} de catégorie ${elementCategory} - aucune synchronisation nécessaire`);
                 }
                 // Ne pas basculer d'onglet automatiquement pour les GLB, rester dans la bibliothèque
+                break;
+
+            case 'poutres':
+                // Poutres procédurales (BeamProfiles) → activer le mode 'beam' et créer un fantôme
+                if (window.BeamProfiles && window.BeamProfiles.isBeamType && window.BeamProfiles.isBeamType(itemType)) {
+                    if (window.ConstructionTools) {
+                        if (typeof window.ConstructionTools.setBeamProfile === 'function') {
+                            window.ConstructionTools.setBeamProfile(itemType);
+                        } else {
+                            // Stockage minimal si la méthode n'existe pas
+                            window.ConstructionTools.currentBeamType = itemType;
+                        }
+                        if (typeof window.ConstructionTools.setMode === 'function') {
+                            window.ConstructionTools.setMode('beam');
+                        }
+                        if (typeof window.ConstructionTools.createGhostElement === 'function') {
+                            // Assurer la création du fantôme poutre et sélectionner 100cm par défaut
+                            setTimeout(() => {
+                                window.ConstructionTools.createGhostElement();
+                                if (itemElement) {
+                                    const defaultBtn = itemElement.querySelector('.cut-btn-mini[data-cut="100"]');
+                                    if (defaultBtn) {
+                                        setTimeout(() => defaultBtn.click(), 50);
+                                    } else if (window.ConstructionTools) {
+                                        window.ConstructionTools.currentBeamLengthCm = window.ConstructionTools.currentBeamLengthCm || 100;
+                                        if (typeof window.ConstructionTools.updateGhostElement === 'function') {
+                                            window.ConstructionTools.updateGhostElement();
+                                        }
+                                    }
+                                }
+                            }, 50);
+                        }
+                    }
+
+                    // Mettre à jour l'onglet outils pour afficher l'aperçu/context
+                    if (window.ToolsTabManager && window.ToolsTabManager.updateActiveElementPreview) {
+                        setTimeout(() => window.ToolsTabManager.updateActiveElementPreview(), 100);
+                    }
+                }
                 break;
         }
     }
@@ -1953,6 +2044,12 @@ class TabManager {
             }
         }
         
+        // Poutres procédurales (BeamProfiles)
+        if (window.BeamProfiles && window.BeamProfiles.isBeamType && window.BeamProfiles.isBeamType(itemType)) {
+            // console.log(`🎯 TabManager: ${itemType} détecté comme poutre (BeamProfiles)`); // désactivé
+            return 'poutres';
+        }
+
         // Par défaut, essayer de détecter par le préfixe
         if (itemType.startsWith('B')) {
             // console.log(`🎯 TabManager: ${itemType} détecté comme bloc par préfixe`);
@@ -5293,7 +5390,8 @@ TabManager.prototype.handleGLBImportWithLength = function(parentItem, lengthValu
     
     // Afficher le D-pad GLB dès la sélection d'un élément GLB
     if (window.GLBDpadController) {
-        window.GLBDpadController.showForObjectType(true); // true = objet GLB avec boutons Y
+    // Afficher avec boutons Y aussi pour les poutres
+    window.GLBDpadController.showForObjectType(true);
     }
     
     // 📦 Déclencher la mise à jour de l'aperçu dans l'onglet Outils
@@ -5557,7 +5655,7 @@ TabManager.prototype.updateSelectedElementInfo = function(elementType, elementDa
 
     brickInfoDiv.innerHTML = infoHtml;
     
-    console.log('📋 Informations de l\'élément sélectionné mises à jour:', safeElementType);
+    // console.log('📋 Informations de l\'élément sélectionné mises à jour:', safeElementType); // log désactivé
 };
 
 // Méthode pour initialiser les informations d'élément au chargement
@@ -5569,7 +5667,7 @@ TabManager.prototype.initializeSelectedElementInfo = function() {
         
         if (brickData) {
             this.updateSelectedElementInfo(currentBrick, brickData);
-            console.log('📋 Informations de brique initialisées au chargement:', currentBrick);
+            // console.log('📋 Informations de brique initialisées au chargement:', currentBrick); // log désactivé
             return;
         }
     }
@@ -5581,7 +5679,7 @@ TabManager.prototype.initializeSelectedElementInfo = function() {
         
         if (blockData) {
             this.updateSelectedElementInfo(currentBlock, blockData);
-            console.log('📋 Informations de bloc initialisées au chargement:', currentBlock);
+            // console.log('📋 Informations de bloc initialisées au chargement:', currentBlock); // log désactivé
             return;
         }
     }

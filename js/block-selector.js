@@ -55,6 +55,10 @@ class BlockSelector {
             'TC_50x10': { length: 50, width: 10, height: 25, name: 'Terre cuite 50x10x25', category: 'terracotta', customCut: true },
             'TC_50x14': { length: 50, width: 14, height: 25, name: 'Terre cuite 50x14x25', category: 'terracotta', customCut: true },
             'TC_50x19': { length: 50, width: 19, height: 25, name: 'Terre cuite 50x19x25', category: 'terracotta', customCut: true }
+            ,
+            // Asselets béton armé (assises spéciales) demandés
+            'ASSELET_BA_60x14x19': { length: 60, width: 14, height: 19, name: 'Asselet béton armé 60x14x19', category: 'reinforced-sill', reinforced: true },
+            'ASSELET_BA_60x19x19': { length: 60, width: 19, height: 19, name: 'Asselet béton armé 60x19x19', category: 'reinforced-sill', reinforced: true }
         };
         
         this.modal = null;
@@ -377,7 +381,7 @@ class BlockSelector {
                     baseBlock: baseType,
                     cutType: cutTypeLabel || baseBlock.cutType
                 };
-                console.log(`🆕 Type dérivé (coupe) créé: ${type} basé sur ${baseType}`);
+                // console.log(`🆕 Type dérivé (coupe) créé: ${type} basé sur ${baseType}`); // désactivé
             } else {
                 console.warn(`❌ Type de base introuvable pour: ${type}`);
                 return;
@@ -388,7 +392,7 @@ class BlockSelector {
         
         // ✅ NOUVEAU: Utiliser les dimensions personnalisées si fournies
         if (customDimensions) {
-            console.log(`🎨 Application de dimensions personnalisées pour ${type}:`, customDimensions);
+            // console.log(`🎨 Application de dimensions personnalisées pour ${type}:`, customDimensions); // désactivé
             this.blockTypes[type] = {
                 ...this.blockTypes[type],
                 ...customDimensions

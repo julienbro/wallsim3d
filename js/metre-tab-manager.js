@@ -143,7 +143,8 @@ class MetreTabManager {
         return {
             id: element.id,
             type: element.type,
-            typeName: this.getTypeDisplayName(element.type),
+            // Personnalisation: pour les poutres afficher le profil (ex: Poutre IPE100)
+            typeName: (element.type === 'beam' && element.beamType) ? `Poutre ${element.beamType}` : this.getTypeDisplayName(element.type),
             brickType: brickType,
             brickTypeName: brickType || 'N/A',
             blockType: blockType,
@@ -612,6 +613,10 @@ class MetreTabManager {
                 } else {
                     groupKey = `Modèle 3D: ${element.modelName || element.fileName || 'GLB'}`;
                 }
+            } else if (element.type === 'beam' && element.beamType) {
+                // Grouper spécifiquement par profil poutre (ex: IPE100) + coupe éventuelle
+                const cutDisplay = element.cutDisplay || 'Entier';
+                groupKey = `Poutre ${element.beamType}` + (cutDisplay !== 'Entier' ? ` - ${cutDisplay}` : '');
             } else if (element.type === 'brick' && element.brickType) {
                 // Séparer par type de brique ET par coupe
                 const baseType = element.brickType.split('_')[0]; // Enlever les suffixes de coupe
@@ -818,6 +823,10 @@ class MetreTabManager {
         
         // Affichage enrichi du type avec le type de brique spécifique
         let typeDisplay = element.typeName;
+        // Remplacer l'affichage générique pour les poutres par le profil réel
+        if (element.type === 'beam' && element.beamType) {
+            typeDisplay = `Poutre ${element.beamType}`;
+        }
         if (element.type === 'brick' && element.brickType) {
             typeDisplay = `${element.typeName} ${element.brickType}`;
         }

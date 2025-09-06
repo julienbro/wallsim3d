@@ -2507,9 +2507,17 @@ class PresentationManager {
         for (const element of metreData.elements) {
             // Utiliser brickType pour les briques spécifiques (M50, M65, etc.) ou le type général
             let elementType = element.brickType || element.type || 'N/A';
-            
-            // Utiliser la fonction getTypeDisplayName pour obtenir le nom complet
-            let fullType = this.getTypeDisplayName(elementType);
+
+            // Spécifique poutres: si type beam et beamType présent dans l'élément source, utiliser "Poutre IPE100"
+            let fullType;
+            if (element.type === 'beam' && element.element && element.element.beamType) {
+                fullType = `Poutre ${element.element.beamType}`;
+            } else if (element.type === 'beam' && element.beamType) {
+                fullType = `Poutre ${element.beamType}`;
+            } else {
+                // Utiliser la fonction getTypeDisplayName pour obtenir le nom complet
+                fullType = this.getTypeDisplayName(elementType);
+            }
             
             const key = `${fullType}|${element.materialName || 'N/A'}|${element.dimensions?.formatted || 'N/A'}`;
             
