@@ -12,7 +12,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
-    <title>WallSim3D v1.0.2 - Simulateur de Construction de Murs</title>
+    <title>WallSim3D v1.0.3 - Simulateur de Construction de Murs</title>
     
     <!-- SYSTÈME DE STYLES UNIFIÉ -->
     <!-- 1. Variables CSS globales MODERNES (À CHARGER EN PREMIER) -->
@@ -715,7 +715,7 @@
                 <div class="header-left">
                     <h1 class="logo">
                         <span class="logo-text">WallSim3D</span>
-                        <span class="logo-version">v1.0.2</span>
+                        <span class="logo-version">v1.0.3</span>
                     </h1>
                     
                     <!-- Menu Bar -->
@@ -2205,13 +2205,205 @@
 
                             <!-- Contenu bibliothèque poutres -->
                             <div id="subtab-poutres" class="subtab-content">
+                                <!-- IPE -->
                                 <div class="library-section">
-                                    <h5><i class="fas fa-grip-lines"></i> Types de Poutres</h5>
+                                    <h5>🏗️ Poutres IPE</h5>
                                     <div class="library-grid">
-                                        <!-- Les éléments poutres seront ajoutés ici -->
-                                        <div class="library-placeholder">
-                                            <div class="placeholder-icon">🏢</div>
-                                            <div class="placeholder-text">Poutres à ajouter</div>
+                                        <div class="library-item" data-type="IPE80">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">IPE 80</div>
+                                            <div class="item-dimensions">h80 × b46 × tw3.9 × tf5.2 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="IPE80">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="IPE80">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="IPE80">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="IPE80">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="IPE80">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="IPE100">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">IPE 100</div>
+                                            <div class="item-dimensions">h100 × b55 × tw4.1 × tf5.7 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="IPE100">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="IPE100">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="IPE100">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="IPE100">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="IPE100">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="IPE200">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">IPE 200</div>
+                                            <div class="item-dimensions">h200 × b100 × tw5.6 × tf8.5 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="IPE200">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="IPE200">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="IPE200">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="IPE200">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="IPE200">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="IPE300">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">IPE 300</div>
+                                            <div class="item-dimensions">h300 × b150 × tw6.8 × tf10.7 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="IPE300">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="IPE300">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="IPE300">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="IPE300">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="IPE300">P</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Cornières galvanisées (L) -->
+                                <div class="library-section">
+                                    <h5>🔩 Cornières galvanisées</h5>
+                                    <div class="library-grid">
+                                        <div class="library-item" data-type="L95x95x3">
+                                            <div class="item-icon">🔩</div>
+                                            <div class="item-name">L 95×95×3</div>
+                                            <div class="item-dimensions">ailes 95 mm × 95 mm × ép. 3 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="L95x95x3">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="L95x95x3">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="L95x95x3">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="L95x95x3">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="L95x95x3">P</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- HEA -->
+                                <div class="library-section">
+                                    <h5>🏗️ Poutres HEA</h5>
+                                    <div class="library-grid">
+                                        <div class="library-item" data-type="HEA100">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">HEA 100</div>
+                                            <div class="item-dimensions">h96 × b100 × tw5.0 × tf8.0 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="HEA100">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="HEA100">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="HEA100">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="HEA100">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="HEA100">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="HEA200">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">HEA 200</div>
+                                            <div class="item-dimensions">h190 × b200 × tw6.5 × tf10.0 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="HEA200">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="HEA200">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="HEA200">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="HEA200">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="HEA200">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="HEA240">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">HEA 240</div>
+                                            <div class="item-dimensions">h230 × b240 × tw7.5 × tf12.0 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="HEA240">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="HEA240">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="HEA240">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="HEA240">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="HEA240">P</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- HEB -->
+                                <div class="library-section">
+                                    <h5>🏗️ Poutres HEB</h5>
+                                    <div class="library-grid">
+                                        <div class="library-item" data-type="HEB100">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">HEB 100</div>
+                                            <div class="item-dimensions">h100 × b100 × tw6.0 × tf10.0 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="HEB100">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="HEB100">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="HEB100">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="HEB100">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="HEB100">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="HEB200">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">HEB 200</div>
+                                            <div class="item-dimensions">h200 × b200 × tw8.5 × tf14.0 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="HEB200">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="HEB200">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="HEB200">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="HEB200">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="HEB200">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="HEB240">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">HEB 240</div>
+                                            <div class="item-dimensions">h240 × b240 × tw9.5 × tf17.0 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="HEB240">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="HEB240">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="HEB240">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="HEB240">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="HEB240">P</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- UPN -->
+                                <div class="library-section">
+                                    <h5>🏗️ Poutres UPN</h5>
+                                    <div class="library-grid">
+                                        <div class="library-item" data-type="UPN80">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">UPN 80</div>
+                                            <div class="item-dimensions">h80 × b45 × tw4.5 × tf7.0 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="UPN80">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="UPN80">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="UPN80">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="UPN80">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="UPN80">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="UPN100">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">UPN 100</div>
+                                            <div class="item-dimensions">h100 × b50 × tw5.0 × tf8.0 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="UPN100">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="UPN100">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="UPN100">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="UPN100">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="UPN100">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="UPN160">
+                                            <div class="item-icon">🏗️</div>
+                                            <div class="item-name">UPN 160</div>
+                                            <div class="item-dimensions">h160 × b65 × tw6.5 × tf10.0 mm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="100" data-base-type="UPN160">100</button>
+                                                <button class="cut-btn-mini" data-cut="200" data-base-type="UPN160">200</button>
+                                                <button class="cut-btn-mini" data-cut="300" data-base-type="UPN160">300</button>
+                                                <button class="cut-btn-mini" data-cut="400" data-base-type="UPN160">400</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="UPN160">P</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -4071,6 +4263,29 @@
                         </div>
                     </div>
 
+                    <!-- Asselets béton armé -->
+                    <div class="block-category-section">
+                        <h3 class="category-title">Asselets béton armé</h3>
+                        <div class="block-type-section">
+                            <h4>Asselet BA 60×14×19 cm</h4>
+                            <div class="size-buttons">
+                                <button class="block-size-btn" data-type="ASSELET_BA_60x14x19" data-length="60">
+                                    <span class="fraction">1/1</span>
+                                    <span class="dimension">60cm</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="block-type-section">
+                            <h4>Asselet BA 60×19×19 cm</h4>
+                            <div class="size-buttons">
+                                <button class="block-size-btn" data-type="ASSELET_BA_60x19x19" data-length="60">
+                                    <span class="fraction">1/1</span>
+                                    <span class="dimension">60cm</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Blocs Argex -->
                     <div class="block-category-section">
                         <h3 class="category-title">Blocs Argex</h3>
@@ -4534,6 +4749,7 @@
     <script src="js/rich-text-editor.js"></script>
     <script src="js/tab-manager.js"></script>
     <script src="js/shadow-manager.js"></script>
+    <script src="js/beam-profiles.js"></script>
     <script src="js/library-preview-3d.js"></script>
     <script src="js/library-visibility-manager.js"></script>
     <script src="js/file-menu-handler.js"></script>
@@ -5258,7 +5474,7 @@ setTimeout(() => {
                 <div class="about-logo">
                     <i class="fas fa-cube"></i>
                 </div>
-                <div class="about-version">Version 1.0.2</div>
+                <div class="about-version">Version 1.0.3</div>
                 <div class="about-description">
                     Simulateur professionnel de construction murale en 3D
                 </div>
