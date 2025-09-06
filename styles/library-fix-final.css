@@ -58,6 +58,28 @@ html body .library-grid.force-visible .library-item {
     overflow: visible !important;
 }
 
+/* === CORRECTION SPÉCIFIQUE: ONGLET POUTRES – éviter chevauchement titres/aperçus === */
+/* Laisse les sections s'étendre normalement et fixe le contexte d'empilement */
+#subtab-poutres .library-section {
+    max-height: none !important;
+    overflow: visible !important;
+    position: relative !important;
+}
+
+/* Assure un espace sous le titre et une bonne superposition */
+#subtab-poutres .library-section h5 {
+    margin: 0 0 12px 0 !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* La grille démarre sous le titre et ne remonte pas par-dessus */
+#subtab-poutres .library-section .library-grid {
+    margin-top: 8px !important;
+    position: relative !important;
+    z-index: 0 !important;
+}
+
 /* === UNIFORMISATION: APERÇUS 3D DE LA BIBLIOTHÈQUE (toutes catégories) === */
 /* Donne la même grandeur que les autres catégories (aperçu confortable) */
 html body #tab-content-biblio .library-item .item-preview,
