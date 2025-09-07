@@ -3737,22 +3737,23 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-file-pdf"></i> Exportation PDF - Présentation</h3>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" id="cancelExportBtn">Annuler</button>
+                    <button class="btn btn-primary" id="generatePdfBtn">
+                        <i class="fas fa-file-pdf"></i>
+                        Générer PDF
+                    </button>
+                </div>
                 <button class="modal-close" id="closeModalBtn">×</button>
             </div>
             
             <div class="modal-body">
                 <div class="export-settings">
-                    <h4>Options d'exportation</h4>
-                    
                     <div class="export-content">
                         <div class="export-column">
                             <div class="pages-selection">
                                 <h5>Pages à inclure :</h5>
                                 <div class="pages-selection-container">
-                                    <div class="pages-selection-help">
-                                        <p><i class="fas fa-info-circle"></i> Glissez-déposez les pages entre les colonnes ou utilisez les boutons de transfert.</p>
-                                    </div>
-                                    
                                     <div class="pages-container">
                                         <div class="pages-list-container">
                                             <h6>Pages disponibles</h6>
@@ -3790,10 +3791,6 @@
                         <div class="export-column">
                             <div class="assise-cuts-section" id="assiseCutsSection">
                                 <h5>Coupes d'assises :</h5>
-                                <div class="assise-cuts-help">
-                                    <p><i class="fas fa-info-circle"></i> Sélectionnez les assises pour générer des vues en plan au niveau supérieur.</p>
-                                </div>
-                                
                                 <div class="assise-cuts-container">
                                     <div class="assise-list-container">
                                         <h6>Assises disponibles</h6>
@@ -3842,14 +3839,6 @@
                                         <div class="progress-fill" id="progressFill"></div>
                                     </div>
                                     <span class="progress-text" id="progressText">Génération en cours...</span>
-                                </div>
-                                
-                                <div class="modal-actions">
-                                    <button class="btn btn-secondary" id="cancelExportBtn">Annuler</button>
-                                    <button class="btn btn-primary" id="generatePdfBtn">
-                                        <i class="fas fa-file-pdf"></i>
-                                        Générer PDF
-                                    </button>
                                 </div>
                             </div>
                         </div>
