@@ -308,22 +308,47 @@ class AssiseHelpSystem {
     }
 
     highlightGlobalList() {
-        // Cibler exactement l'élément spécifié par l'utilisateur
+        // Pour la liste d'assise, afficher seulement le texte sans cadre
         const list = document.querySelector('.assise-global-list');
         
         if (list) {
-            // DEBUG supprimé
-            
-            // Cibler directement sans ajustements pour un centrage naturel
-            this.createHighlightBox(list, { 
+            // Créer uniquement un label flottant sans cadre
+            this.createTextOnlyLabel(list, { 
                 label: 'Liste', 
                 color: '#7cb342', 
-                position: 'top', 
                 delay: 1.45
             });
-        } else {
-            // DEBUG supprimé
         }
+    }
+
+    // Nouvelle méthode pour créer uniquement un label sans cadre
+    createTextOnlyLabel(target, { label = '', color = '#1e88e5', delay = 0 } = {}) {
+        if (!this.highlightsContainer || !target || !label) return;
+        const rect = target.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0) return;
+
+        const labelEl = document.createElement('div');
+        const sidebar = document.querySelector('aside.sidebar');
+        const srect = sidebar ? sidebar.getBoundingClientRect() : null;
+        const left = (srect ? srect.left : rect.left) - 12;
+        const top = rect.top + rect.height / 2;
+        
+        labelEl.style.cssText = `
+            position: fixed; left: ${left}px; top: ${top}px; transform: translate(-100%, -50%);
+            background: ${color}; color: #fff; padding: 4px 10px; border-radius: 12px;
+            font-size: 11px; font-weight: 700; white-space: nowrap; 
+            box-shadow: 0 2px 8px ${color}55; pointer-events: none; z-index: 10000;
+            opacity: 0; transition: opacity 0.45s ease;
+        `;
+        labelEl.className = 'assise-help-label';
+        labelEl.textContent = label;
+        
+        this.highlightsContainer.appendChild(labelEl);
+        this.highlightCount = (this.highlightCount || 0) + 1;
+        
+        setTimeout(() => { 
+            labelEl.style.opacity = '1'; 
+        }, delay * 1000);
     }
 }
 

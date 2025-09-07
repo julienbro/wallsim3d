@@ -391,9 +391,6 @@ class PresentationManager {
                 <div class="page-name">
                     ${typeBadge} ${page.name}
                 </div>
-                <div class="page-description">
-                    ${page.description}
-                </div>
             </div>
         `;
 

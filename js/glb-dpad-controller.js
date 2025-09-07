@@ -12,6 +12,8 @@ class GLBDpadController {
         this.dpadSize = 60; // Taille ultra-réduite du D-pad en pixels
         this.trackingInterval = null; // Pour le suivi continu de l'objet
         this.useInitialPosition = true; // Flag pour maintenir la position initiale - CHANGÉ à true (position fixe)
+        this.isFirstTimeShown = true; // Flag pour savoir si c'est la première fois que le d-pad apparaît
+        this.helpShown = false; // Flag pour éviter de montrer l'aide plusieurs fois
         
         this.setupDpadHTML();
         this.bindEvents();
@@ -60,8 +62,8 @@ class GLBDpadController {
             <!-- D-pad principal pour X/Z -->
             <div class="glb-dpad-main">
                 <div class="glb-dpad-cross">
-                    <!-- Bouton Haut (Z+) -->
-                    <button class="glb-dpad-btn glb-dpad-up" id="moveZUp" data-direction="z" data-value="1">
+                    <!-- Bouton Haut (Z-) - éloigner l'objet -->
+                    <button class="glb-dpad-btn glb-dpad-up" id="moveZUp" data-direction="z" data-value="-1">
                         <i class="fas fa-chevron-up"></i>
                     </button>
                     
@@ -78,8 +80,8 @@ class GLBDpadController {
                         </button>
                     </div>
                     
-                    <!-- Bouton Bas (Z-) -->
-                    <button class="glb-dpad-btn glb-dpad-down" id="moveZDown" data-direction="z" data-value="-1">
+                    <!-- Bouton Bas (Z+) - rapprocher l'objet -->
+                    <button class="glb-dpad-btn glb-dpad-down" id="moveZDown" data-direction="z" data-value="1">
                         <i class="fas fa-chevron-down"></i>
                     </button>
                 </div>
@@ -777,6 +779,13 @@ class GLBDpadController {
                     button.style.visibility = 'visible';
                     button.style.pointerEvents = 'auto';
                 });
+
+                // Afficher l'aide si c'est la première fois
+                if (this.isFirstTimeShown && !this.helpShown) {
+                    this.showDpadHelp();
+                    this.isFirstTimeShown = false;
+                    this.helpShown = true;
+                }
             }, 100);
         }
     }    /**
@@ -1064,6 +1073,101 @@ class GLBDpadController {
                 }
             }
         });
+    }
+
+    /**
+     * Afficher l'aide contextuelle pour le d-pad lors de sa première apparition
+     */
+    showDpadHelp() {
+        if (!this.dpadContainer) return;
+
+        // Créer le conteneur d'aide
+        const helpContainer = document.createElement('div');
+        helpContainer.id = 'dpad-help-container';
+        helpContainer.style.cssText = `
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10001;
+        `;
+
+        // Obtenir les dimensions exactes des boutons directionnels du d-pad
+        const dpadCross = this.dpadContainer.querySelector('.glb-dpad-cross');
+        const dpadRect = dpadCross ? dpadCross.getBoundingClientRect() : this.dpadContainer.getBoundingClientRect();
+        
+        // Créer la bulle d'aide sans cadre
+        const tooltip = document.createElement('div');
+        tooltip.style.cssText = `
+            position: fixed;
+            left: ${dpadRect.right + 20}px;
+            top: ${dpadRect.top + dpadRect.height / 2}px;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #FF6B35, #F7931E);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            max-width: 250px;
+            line-height: 1.4;
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+            opacity: 0;
+            animation: dpad-fadeIn 0.5s ease forwards 0.5s;
+            pointer-events: none;
+        `;
+        tooltip.innerHTML = `
+            <div style="margin-bottom: 8px; font-weight: 700;">🎮 Contrôles de déplacement</div>
+            <div style="margin-bottom: 6px;">• Cliquez sur les boutons pour déplacer l'élément</div>
+            <div style="margin-bottom: 6px;">• Utilisez les flèches du clavier ⬅️ ➡️ ⬆️ ⬇️</div>
+            <div style="font-size: 11px; opacity: 0.9;">Appuyez sur Échap pour fermer cette aide</div>
+        `;
+
+        // Ajouter les animations CSS si pas déjà présentes
+        if (!document.querySelector('#dpad-help-styles')) {
+            const styles = document.createElement('style');
+            styles.id = 'dpad-help-styles';
+            styles.textContent = `
+                @keyframes dpad-fadeIn {
+                    from { opacity: 0; transform: translateY(-50%) translateX(-10px); }
+                    to { opacity: 1; transform: translateY(-50%) translateX(0); }
+                }
+            `;
+            document.head.appendChild(styles);
+        }
+
+        // Assembler l'aide (seulement la bulle)
+        helpContainer.appendChild(tooltip);
+        document.body.appendChild(helpContainer);
+
+        // Gérer la fermeture de l'aide
+        const hideHelp = () => {
+            if (helpContainer && helpContainer.parentNode) {
+                helpContainer.remove();
+            }
+        };
+
+        // Auto-fermeture après 15 secondes (au lieu de 8)
+        setTimeout(hideHelp, 15000);
+
+        // Fermeture avec Échap
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                hideHelp();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+
+        // Fermeture si on clique ailleurs (hors d-pad)
+        const clickHandler = (e) => {
+            if (!this.dpadContainer.contains(e.target)) {
+                hideHelp();
+                document.removeEventListener('click', clickHandler);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', clickHandler);
+        }, 1000); // Délai pour éviter la fermeture immédiate
     }
 }
 
