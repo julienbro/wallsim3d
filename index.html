@@ -1153,6 +1153,7 @@
                                     <button class="sub-tab" data-subtab="blocs">Blocs</button>
                                     <button class="sub-tab" data-subtab="isolants">Isolants</button>
                                     <button class="sub-tab" data-subtab="linteaux">Linteaux</button>
+                                    <button class="sub-tab" data-subtab="etancheite">Etanchéité</button>
                                     <button class="sub-tab" data-subtab="outils">Outils</button>
                                     <button class="sub-tab" data-subtab="planchers">Planchers</button>
                                     <button class="sub-tab" data-subtab="poutres">Poutres</button>
@@ -2068,6 +2069,22 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- Contenu bibliothèque étanchéité -->
+                            <div id="subtab-etancheite" class="subtab-content">
+                                <div class="library-section">
+                                    <h5>Étanchéité (Membranes)</h5>
+                                    <div class="library-grid">
+                                        <div class="library-item" data-type="diba">
+                                            <div class="item-icon">💧</div>
+                                            <div class="item-name">Diba Noir</div>
+                                            <div class="item-dimensions">Polyline + Extrusion</div>
+                                            <div class="item-description" style="font-size:11px;opacity:0.8;">Membrane 0.05cm noire – dessiner un chemin</div>
+                                        </div>
+                                    </div>
+                                    <small>Cliquez l'élément puis cliquez dans la scène pour définir une polyligne (coins des éléments). Double‑clic ou Entrée pour terminer.</small>
                                 </div>
                             </div>
 
@@ -3556,6 +3573,28 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        <!-- Calque Etanchéité / Diba -->
+                                        <div class="layer-item" data-layer="etancheite">
+                                            <div class="layer-header">
+                                                <span class="layer-icon"><i class="fas fa-tint"></i></span>
+                                                <span class="layer-name">Étanchéité</span>
+                                                <span class="layer-count" id="etancheite-count">0</span>
+                                                <div class="layer-controls">
+                                                    <button class="layer-visibility-btn active" data-layer="etancheite"><i class="fas fa-eye"></i></button>
+                                                    <button class="layer-lock-btn" data-layer="etancheite"><i class="fas fa-unlock"></i></button>
+                                                </div>
+                                            </div>
+                                            <div class="layer-controls-advanced">
+                                                <div class="layer-setting">
+                                                    <label>Opacité</label>
+                                                    <input type="range" class="layer-opacity" data-layer="etancheite" min="0" max="100" value="100">
+                                                </div>
+                                                <div class="layer-setting">
+                                                    <label>Couleur</label>
+                                                    <input type="color" class="layer-color" data-layer="etancheite" value="#111111">
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- Calque Cotations -->
@@ -4731,6 +4770,7 @@
     <script src="js/block-selector.js"></script>
     <script src="js/insulation-selector.js"></script>
     <script src="js/linteau-selector.js"></script>
+    <script src="js/diba-tool.js"></script>
     <script src="js/construction-tools.js?v=20250823-FIX-GHOST-UPDATE-V8"></script>
     <script src="debug-delete-icon.js"></script>
     <script src="js/layer-manager.js"></script>
