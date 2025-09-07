@@ -491,6 +491,8 @@ class LibraryPreview3D {
         // Appliquer aux éléments sans canvas (créer des images)
         document.querySelectorAll('.library-item').forEach(item => {
             const type = item.getAttribute('data-type');
+            // Exclure diba des aperçus automatiques (icône statique suffisante)
+            if (type === 'diba') return;
             
             // Traitement spécial pour les éléments GLB
             if (item.hasAttribute('data-glb-path') ||

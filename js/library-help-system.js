@@ -552,7 +552,7 @@ class LibraryHelpSystem {
     }
 
     createCategoryHighlights() {
-        // Surligner les 7 onglets de catégories (Briques, Blocs, Isolants, Linteaux, Outils, Planchers, Poutres)
+        // Surligner les onglets de catégories (ajout Étanchéité)
         const categoryTabs = [
             { selector: '[data-subtab="briques"]', color: '#e53935' },
             { selector: '[data-subtab="blocs"]', color: '#1e88e5' },
@@ -560,7 +560,8 @@ class LibraryHelpSystem {
             { selector: '[data-subtab="linteaux"]', color: '#fb8c00' },
             { selector: '[data-subtab="outils"]', color: '#9c27b0' },
             { selector: '[data-subtab="planchers"]', color: '#795548' },
-            { selector: '[data-subtab="poutres"]', color: '#607d8b' }
+            { selector: '[data-subtab="poutres"]', color: '#607d8b' },
+            { selector: '[data-subtab="etancheite"]', color: '#00695c' }
         ];
 
         // Détecter quels onglets sont sur la deuxième ligne
@@ -794,7 +795,7 @@ class LibraryHelpSystem {
                                         <!-- Effet de brillance -->
                                         <div style="position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; background: rgba(255, 255, 255, 0.8); border-radius: 50%; animation: twinkle 1.5s ease-in-out infinite;"></div>
                                     </div>
-                                    <div style="flex: 1; font-weight: 500;">📚 <strong>7 catégories d'éléments :</strong> Briques (base), Blocs (rapide), Isolants (isolation), Linteaux (renforcement), Outils (construction), Planchers (dalles), Poutres (structure)</div>
+                                    <div style="flex: 1; font-weight: 500;">📚 <strong>8 catégories d'éléments :</strong> Briques (base), Blocs (rapide), Isolants (isolation), Linteaux (renforcement), Outils (construction), Planchers (dalles), Poutres (structure), Étanchéité (membranes)</div>
                                 </div>
                             </div>
                             

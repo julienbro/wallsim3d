@@ -82,6 +82,13 @@ class MetreTabManager {
                 this.refreshData();
             }
         });
+
+        // Rafraîchir quand un élément est placé (ex: Diba)
+        document.addEventListener('elementPlaced', () => {
+            if (this.isTabActive()) {
+                this.refreshData();
+            }
+        });
     }
 
     setupTabListener() {
@@ -112,12 +119,29 @@ class MetreTabManager {
         
         // Récupérer tous les éléments de la scène
         if (window.SceneManager && window.SceneManager.elements) {
-            window.SceneManager.elements.forEach((element, id) => {
-                this.elements.set(id, this.processElement(element));
-            });
+            const coll = window.SceneManager.elements;
+            try {
+                console.debug('MetreTabManager: type collection éléments =', coll instanceof Map ? 'Map' : Array.isArray(coll) ? 'Array' : typeof coll, coll);
+            } catch(e){}
+            if (typeof coll.forEach === 'function') {
+                // Map ou structure avec forEach
+                coll.forEach((element, id) => {
+                    this.elements.set(id, this.processElement(element));
+                });
+            } else if (Array.isArray(coll)) {
+                coll.forEach((element, idx) => {
+                    if (element && element.id) this.elements.set(element.id, this.processElement(element));
+                });
+            } else if (typeof coll === 'object') {
+                for (const id in coll) {
+                    if (!Object.prototype.hasOwnProperty.call(coll, id)) continue;
+                    const el = coll[id];
+                    if (el && el.type) this.elements.set(id, this.processElement(el));
+                }
+            }
         }
 
-        // console.log(`📊 ${this.elements.size} élément(s) trouvé(s) dans la scène`);
+    try { console.debug('MetreTabManager: éléments collectés =', this.elements.size, Array.from(this.elements.keys())); } catch(e){}
         
         this.updateSummary();
         this.refreshTable();
@@ -140,7 +164,7 @@ class MetreTabManager {
             return this.processGLBElement(element);
         }
 
-        return {
+    const base = {
             id: element.id,
             type: element.type,
             // Personnalisation: pour les poutres afficher le profil (ex: Poutre IPE100)
@@ -171,6 +195,17 @@ class MetreTabManager {
             rotation: element.rotation || 0,
             element: element // Référence vers l'élément original
         };
+
+        // Personnalisation Diba: dimensions = longueur polyligne / extrusion
+        if (element.type === 'diba') {
+            const Ldev = Math.ceil(element.dimensions.length || 0); // cm
+            const Lextr = Math.ceil(element.dimensions.height || 0); // hauteur stockée = extrusion
+            base.dimensions.formattedPolyline = Ldev + ' cm';
+            base.dimensions.formattedExtrusion = Lextr + ' cm';
+            base.dimensions.formatted = Ldev + ' cm / ' + Lextr + ' cm';
+        }
+
+        return base;
     }
 
     processGLBElement(element) {
@@ -488,7 +523,8 @@ class MetreTabManager {
             'insulation': 'Isolant',
             'joint': 'Joint',
             'glb': 'Modèle 3D (GLB)',
-            'gltf': 'Modèle 3D (GLTF)'
+            'gltf': 'Modèle 3D (GLTF)',
+            'diba': 'Membrane (Diba)'
         };
         return typeNames[type] || type;
     }
@@ -544,6 +580,10 @@ class MetreTabManager {
             if (element.type === 'glb' || element.isGLBModel) return true;
             
             // Pour les autres éléments, vérifier volume et masse
+            if (element.type === 'diba') {
+                // Inclure les membranes même masse nulle si volume > 0
+                return element.volume > 0;
+            }
             return element.volume > 0 && element.mass > 0;
         });
         allElements = [...filteredSceneElements];
@@ -597,8 +637,9 @@ class MetreTabManager {
             // Exception pour les objets manuels et les modèles GLB qui sont toujours valides
             if (!element.isManual && 
                 !(element.type === 'glb' || element.isGLBModel) && 
+                element.type !== 'diba' &&
                 (!element.volume || element.volume <= 0 || !element.mass || element.mass <= 0)) {
-                return; // Ignorer les éléments vides (sauf objets manuels et GLB)
+                return; // Ignorer éléments vides (sauf objets manuels, GLB, diba)
             }
             
             let groupKey = '';
@@ -730,7 +771,12 @@ class MetreTabManager {
         
         // Obtenir les dimensions représentatives (du premier élément)
         const representativeElement = elements[0];
-        const dimensions = representativeElement.dimensions.formatted;
+        let dimensions = representativeElement.dimensions.formatted;
+        if (representativeElement.type === 'diba') {
+            const poly = representativeElement.dimensions.formattedPolyline || Math.ceil(representativeElement.dimensions.length)+' cm';
+            const extru = representativeElement.dimensions.formattedExtrusion || Math.ceil(representativeElement.dimensions.height)+' cm';
+            dimensions = 'L: ' + poly + ' / l: ' + extru;
+        }
         
         // Vérifier si c'est un objet manuel
         const isManualItem = representativeElement.isManual;
@@ -791,7 +837,7 @@ class MetreTabManager {
                         ${materialCounts.size > 1 ? `<small>(+${materialCounts.size - 1})</small>` : ''}
                     </div>
                 </td>
-                <td class="dimensions-text">${dimensions} cm</td>
+                <td class="dimensions-text">${representativeElement.type === 'diba' ? dimensions : (dimensions + ' cm')}</td>
                 <td class="summary-totals">
                     <div class="total-volume">${totalVolume.toFixed(4)} m³</div>
                     <div class="total-mass">${totalMass.toFixed(2)} kg</div>
@@ -845,7 +891,7 @@ class MetreTabManager {
                     <span>${element.materialName}</span>
                 </div>
             </td>
-            <td class="dimensions-text">${element.dimensions.formatted} cm</td>
+            <td class="dimensions-text">${element.type==='diba' ? ('L: '+(element.dimensions.formattedPolyline||Math.ceil(element.dimensions.length)+' cm')+' / l: '+(element.dimensions.formattedExtrusion||Math.ceil(element.dimensions.height)+' cm')) : (element.dimensions.formatted+' cm')}</td>
             <td class="position-text">${element.position.formatted} cm</td>
             <td class="numeric-value">${element.volume.toFixed(4)}</td>
             <td class="numeric-value">${element.mass.toFixed(2)}</td>

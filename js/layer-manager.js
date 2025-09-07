@@ -59,6 +59,15 @@ class LayerManager {
                 elements: new Set(),
                 icon: 'emoji'
             },
+            'etancheite': {
+                name: 'Étanchéité',
+                visible: true,
+                locked: false,
+                opacity: 100,
+                color: '#111111',
+                elements: new Set(),
+                icon: 'fas fa-tint'
+            },
             'cotations': {
                 name: 'Cotations',
                 visible: true,
@@ -246,6 +255,8 @@ class LayerManager {
             'insulation': 'isolants',
             'linteau': 'linteaux',
             'lintel': 'linteaux',
+            'diba': 'etancheite',
+            'etancheite': 'etancheite',
             'measurement': 'cotations',
             'cotation': 'cotations',
             'dimension': 'cotations',

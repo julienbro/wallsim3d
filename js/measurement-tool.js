@@ -637,7 +637,7 @@ class MeasurementTool {
         
         // Méthode 1: Élément WallElement standard (briques, blocs, etc.)
         if (element.mesh && element.dimensions && element.position) {
-            return ['brick', 'block', 'insulation', 'linteau'].includes(element.type);
+            return ['brick', 'block', 'insulation', 'linteau', 'diba'].includes(element.type);
         }
         
         // Méthode 2: Élément avec userData
@@ -646,7 +646,7 @@ class MeasurementTool {
             if (wallElement.type === 'joint' || wallElement.type === 'horizontalJoint' || wallElement.type === 'verticalJoint') {
                 return false;
             }
-            return wallElement.dimensions && wallElement.position && ['brick', 'block', 'insulation', 'linteau'].includes(wallElement.type);
+            return wallElement.dimensions && wallElement.position && ['brick', 'block', 'insulation', 'linteau', 'diba'].includes(wallElement.type);
         }
         
         // Méthode 3: Mesh direct avec userData
@@ -655,7 +655,7 @@ class MeasurementTool {
             if (type === 'joint' || type === 'horizontalJoint' || type === 'verticalJoint') {
                 return false;
             }
-            return ['brick', 'block', 'insulation', 'linteau'].includes(type);
+            return ['brick', 'block', 'insulation', 'linteau', 'diba'].includes(type);
         }
         
         return false;
@@ -668,7 +668,7 @@ class MeasurementTool {
         
         // Vérifier le type d'élément
         const type = mesh.userData.type || (mesh.userData.element && mesh.userData.element.type);
-        const isConstructionElement = ['brick', 'block', 'insulation', 'linteau'].includes(type);
+    const isConstructionElement = ['brick', 'block', 'insulation', 'linteau', 'diba'].includes(type);
         
         // Exclure les joints et autres éléments non pertinents
         const isJoint = mesh.userData.isJoint || mesh.userData.isVerticalJoint || mesh.userData.isHorizontalJoint;

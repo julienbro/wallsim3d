@@ -1974,6 +1974,10 @@ class TabManager {
     // Nouvelle méthode pour détecter automatiquement la catégorie d'un élément
     detectElementCategory(itemType, itemElement = null) {
         // console.log(`🔍 TabManager: Détection de catégorie pour ${itemType}`);
+        // Gestion explicite Diba (membrane étanchéité)
+        if (itemType && itemType.toLowerCase() === 'diba') {
+            return 'etancheite';
+        }
         
         // D'abord, vérifier si c'est un élément GLB basé sur l'élément DOM
         if (itemElement) {

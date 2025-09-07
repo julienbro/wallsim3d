@@ -8,7 +8,7 @@ class AssiseManager {
         this.attachmentMarkersByType = new Map(); // Map<type, Map<assiseIndex, markers>>
         
         // Types d'éléments supportés - incluant les sous-types de briques et blocs
-    this.supportedTypes = ['brick', 'block', 'insulation', 'custom', 'joint', 'linteau', 'beam']; // ajout beam
+    this.supportedTypes = ['brick', 'block', 'insulation', 'custom', 'joint', 'linteau', 'beam', 'diba']; // ajout beam + diba (membrane, pas de joints)
         
         // Sous-types de briques supportés pour gestion d'assise indépendante
         this.brickSubTypes = ['M50', 'M57', 'M60', 'M65', 'M90'];
@@ -39,8 +39,8 @@ class AssiseManager {
         this.jointHeightByAssise = new Map();
         
         for (const type of this.allSupportedTypes) {
-            // CORRECTION: Les isolants et hourdis n'ont pas de joints horizontaux
-            const defaultJointHeight = (type === 'insulation' || type.includes('hourdis') || type === 'beam') ? 0 : 1.2; // beam sans joint horizontal
+            // CORRECTION: Les isolants, hourdis, poutres et diba n'ont pas de joints horizontaux
+            const defaultJointHeight = (type === 'insulation' || type.includes('hourdis') || type === 'beam' || type === 'diba') ? 0 : 1.2; // beam & diba sans joint horizontal
             this.jointHeightByType.set(type, defaultJointHeight);
             this.jointHeightByAssise.set(type, new Map());
         }

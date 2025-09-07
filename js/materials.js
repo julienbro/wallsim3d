@@ -2,6 +2,19 @@
 class MaterialLibrary {
     constructor() {
         this.materials = {
+            // ========== ETANCHEITE ==========
+            'diba-noir': {
+                name: 'Membrane Diba Noire',
+                color: 0x111111,
+                roughness: 0.95,
+                metalness: 0.0,
+                density: 950,
+                thermalConductivity: 0.25,
+                price: 2.50,
+                section: 'etancheite',
+                description: 'Membrane polyéthylène 500µ pour rupture capillaire / étanchéité.',
+                rgb: '(17,17,17)'
+            },
             // ========== BOIS (10 teintes) ==========
             'pin-epicea': {
                 name: 'Pin / Épicéa',

@@ -800,6 +800,14 @@ class ConstructionTools {
     }
 
     updateGhostElement() {
+        // Mode Diba: aucun fantôme nécessaire
+        if (this.currentMode === 'diba') {
+            if (this.ghostElement && this.ghostElement.mesh) {
+                try { window.SceneManager.scene.remove(this.ghostElement.mesh); } catch(e){}
+            }
+            this.ghostElement = null;
+            return;
+        }
         // Système de debounce pour éviter les mises à jour trop fréquentes
         if (this._updateDebounceTimer) {
             clearTimeout(this._updateDebounceTimer);
@@ -1516,7 +1524,8 @@ class ConstructionTools {
             'brick': { length: 19, width: 9, height: 6.5 }, // M65 par défaut
             'block': { length: 39, width: 19, height: 19 },
             'insulation': { length: 120, width: 5, height: 60 }, // PUR5 par défaut
-            'linteau': { length: 120, width: 14, height: 19 } // L120 par défaut
+            'linteau': { length: 120, width: 14, height: 19 }, // L120 par défaut
+            'diba': { length: 100, width: 0.5, height: 15 } // largeur (épaisseur) ~0.5cm, hauteur d'extrusion par défaut 15cm
         };
 
         const dims = defaults[mode] || defaults['brick'];
@@ -1530,7 +1539,8 @@ class ConstructionTools {
             'brick': 'Brique',
             'block': 'Bloc',
             'insulation': 'Isolant',
-            'linteau': 'Linteau'
+            'linteau': 'Linteau',
+            'diba': 'Étanchéité'
         };
         return names[mode] || 'Brique';
     }
@@ -2074,7 +2084,9 @@ class ConstructionTools {
         
         // Si on a des suggestions actives, les recréer aussi
         if (this.activeBrickForSuggestions) {
-            this.createPlacementSuggestions(this.activeBrickForSuggestions);
+            if (this.currentMode !== 'diba') {
+                this.createPlacementSuggestions(this.activeBrickForSuggestions);
+            }
         }
     }
 
@@ -2436,6 +2448,11 @@ class ConstructionTools {
 
     // Créer des suggestions de placement autour d'un élément survolé
     createPlacementSuggestions(hoveredElement) {
+        // Blocage global mode diba: aucune suggestion adjacente
+        if (this.currentMode === 'diba') {
+            // Pas de log verbeux pour ne pas polluer la console
+            return;
+        }
         // 🔒 BLOCAGE PRIORITAIRE: Vérifier si la toolbar est active
         if (window.isToolbarBlocking && window.isToolbarBlocking()) {
             console.log('🔒 BLOCAGE TOOLBAR: Suggestions désactivées car toolbar active');
@@ -3400,6 +3417,14 @@ class ConstructionTools {
     
     // NOUVEAU: Fonction globale pour basculer l'affichage des lettres de proposition adjacente
     toggleAdjacentProposalLetters() {
+        // Désactiver totalement en mode diba
+        if (this.currentMode === 'diba') {
+            if (window.showAdjacentProposalLetters) {
+                window.showAdjacentProposalLetters = false;
+            }
+            console.log('🔤 Lettres adjacentes ignorées (mode diba)');
+            return false;
+        }
         window.showAdjacentProposalLetters = !window.showAdjacentProposalLetters;
         console.log(`🔤 Lettres de proposition adjacente: ${window.showAdjacentProposalLetters ? 'ACTIVÉES' : 'DÉSACTIVÉES'}`);
         
@@ -3538,7 +3563,9 @@ class ConstructionTools {
         this.addPulseEffect(element);
         
         // Créer les suggestions
-        this.createPlacementSuggestions(element);
+        if (this.currentMode !== 'diba') {
+            this.createPlacementSuggestions(element);
+        }
         
         // NE PAS créer automatiquement les joints pour les briques
         // Les joints seront créés uniquement avec Ctrl+clic via activateJointMode()
@@ -3865,7 +3892,9 @@ class ConstructionTools {
 
     // 🆕 NOUVEAU: Détecter si le clic est sur le dos de la brique originelle
     isClickOnBrickBack(clickedElement, referenceBrick) {
-        if (!clickedElement || !referenceBrick || !referenceBrick.mesh) {
+    // Désactivation totale en mode diba
+    if (this.currentMode === 'diba') return false;
+    if (!clickedElement || !referenceBrick || !referenceBrick.mesh) {
             return false;
         }
         
@@ -3895,6 +3924,9 @@ class ConstructionTools {
         
         // Récupérer la normale de la face intersectée
         const intersection = intersects[0];
+        if (!intersection || !intersection.face || !intersection.face.normal) {
+            return false;
+        }
         const faceNormal = intersection.face.normal.clone();
         
         // Transformer la normale dans l'espace mondial
@@ -3960,6 +3992,7 @@ class ConstructionTools {
             'block': 'block', 
             'insulation': 'insulation',
             'linteau': 'linteau',
+            'diba': 'diba',
             'beam': 'beam',
             'custom': 'custom'
         };
@@ -3975,6 +4008,7 @@ class ConstructionTools {
                     'blocs': 'block',
                     'isolants': 'insulation',
                     'linteaux': 'linteau',
+                    'etancheite': 'diba',
                     'poutres': 'beam'
                 };
                 type = subtabToTypeMap[window.TabManager.currentSubTab] || 'brick';
@@ -4775,6 +4809,11 @@ class ConstructionTools {
 
     // NOUVELLE FONCTIONNALITÉ: Mode briques adjacentes (clic simple)
     activateAdjacentBricksMode(element, isUserClick = true) {
+        // Blocage complet si mode diba actif
+        if (this.currentMode === 'diba') {
+            console.log('🚫 Mode briques adjacentes bloqué: mode diba actif');
+            return;
+        }
         if (!element || (element.type !== 'brick' && element.type !== 'block')) return;
         
         console.log('🧱 Activation du mode briques adjacentes pour l\'élément:', element.type, element.id);
@@ -4802,7 +4841,9 @@ class ConstructionTools {
         }
         
         // Créer les suggestions de briques adjacentes uniquement
-        this.createPlacementSuggestions(element);
+        if (this.currentMode !== 'diba') {
+            this.createPlacementSuggestions(element);
+        }
         
         // Ajouter un effet visuel à la brique sélectionnée
         this.addPulseEffect(element);
