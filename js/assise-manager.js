@@ -14,7 +14,7 @@ class AssiseManager {
         this.brickSubTypes = ['M50', 'M57', 'M60', 'M65', 'M90'];
         
         // Sous-types de blocs supportés pour gestion d'assise indépendante
-        this.blockSubTypes = ['HOLLOW', 'CELLULAR', 'ARGEX', 'TERRACOTTA'];
+        this.blockSubTypes = ['CREUX', 'CELLULAIRE', 'ARGEX', 'TERRE_CUITE'];
         
         // Sous-types de linteaux supportés pour gestion d'assise indépendante
         this.linteauSubTypes = ['LINTEAU_L120', 'LINTEAU_L140', 'LINTEAU_L160', 'LINTEAU_L180', 'LINTEAU_L200'];
@@ -828,6 +828,11 @@ class AssiseManager {
             if (type === 'insulation') {
                 return 0;
             }
+
+            // 🔧 BÉTON CELLULAIRE (CELLULAIRE / BCA_ via type 'CELLULAIRE'): Assise 0 = 1.2cm mortier
+            if (type === 'CELLULAIRE') {
+                return 1.2; // 1.2 cm sur la première assise
+            }
             
             // Assise 0 pour autres types : utilise la hauteur de joint spécifique ou celle par défaut du type
             const jointHeight = this.getJointHeightForAssise(type, 0);
@@ -842,18 +847,29 @@ class AssiseManager {
             const jointHeightForThisAssise = this.getJointHeightForAssise(type, i);
             
             if (i === 0) {
-                // Assise 0 : seulement la hauteur du joint (déjà 0 pour isolants)
-                totalHeight = jointHeightForThisAssise;
-            } else {
-                // Assises suivantes : hauteur de l'élément + joint suivant
-                const elementHeight = this.getDefaultElementHeight(type);
-                
-                // 🔧 ISOLANTS: Pas de joints horizontaux entre les assises d'isolants
-                if (type === 'insulation') {
-                    totalHeight += elementHeight; // Pas de joint horizontal pour les isolants
+                // Assise 0 : seulement la hauteur du joint (ou règle spéciale)
+                if (type === 'CELLULAIRE') {
+                    totalHeight = 1.2; // mortier base
+                } else if (type === 'insulation') {
+                    totalHeight = 0; // déjà 0
                 } else {
-                    totalHeight += elementHeight + jointHeightForThisAssise;
+                    totalHeight = jointHeightForThisAssise;
                 }
+                continue;
+            }
+
+            // Assises suivantes : hauteur de l'élément + joint suivant (sauf exceptions)
+            const elementHeight = this.getDefaultElementHeight(type);
+
+            if (type === 'insulation') {
+                // Pas de joint horizontal pour isolants
+                totalHeight += elementHeight;
+            } else if (type === 'CELLULAIRE') {
+                // Colle très fine 1mm = 0.1cm pour TOUTES les assises > 0
+                const thinJoint = 0.1; // 1 mm
+                totalHeight += elementHeight + thinJoint;
+            } else {
+                totalHeight += elementHeight + jointHeightForThisAssise;
             }
         }
         
@@ -947,10 +963,10 @@ class AssiseManager {
             'linteau': 19,     // Hauteur linteau standard
             
             // Sous-types de blocs avec leurs hauteurs spécifiques
-            'HOLLOW': 19,      // Blocs creux (B9, B14, B19, B29) - hauteur 19 cm
-            'CELLULAR': 25,    // Bàton cellulaire (BC_*) - hauteur 25 cm
+            'CREUX': 19,      // Blocs creux (B9, B14, B19, B29) - hauteur 19 cm
+            'CELLULAIRE': 25,    // Béton cellulaire (BC_*) - hauteur 25 cm
             'ARGEX': 19,       // Blocs Argex - hauteur 19 cm
-            'TERRACOTTA': 25,  // Terre cuite (TC_*) - hauteur 25 cm
+            'TERRE_CUITE': 25,  // Terre cuite (TC_*) - hauteur 25 cm
             
             // Sous-types de linteaux avec leurs hauteurs spécifiques
             'LINTEAU_L120': 19,    // Linteau L120 - hauteur 19 cm
@@ -1014,22 +1030,63 @@ class AssiseManager {
                 if (currentBlock && currentBlock.category) {
                     const category = currentBlock.category;
                     
+                    console.log('🔍 [AssiseManager] Détermination du type d\'assise:', {
+                        currentBlockId: currentBlock.id,
+                        category: category,
+                        elementId: element?.id,
+                        elementBlockType: element?.blockType
+                    });
                     
-                    // Mapper les catàgories aux types d'assises
+                    // Mapper les catégories aux types d'assises
                     switch (category) {
                         case 'hollow':
-                        case 'cut': // Les blocs coupés sont des variantes des blocs creux
-                            // Bloc de type HOLLOW détecté
-                            return 'HOLLOW';
+                            // Bloc de type CREUX détecté
+                            console.log('🔧 [AssiseManager] Type CREUX assigné (category: hollow)');
+                            return 'CREUX';
+                        case 'cut':
+                            // Pour les blocs coupés, vérifier s'ils sont d'origine spécialisée
+                            // D'abord vérifier l'ID du bloc sélectionné
+                            if (currentBlock.id && (currentBlock.id.startsWith('BC_') || currentBlock.id.startsWith('BCA_'))) {
+                                // Bloc béton cellulaire coupé → type CELLULAIRE
+                                console.log(`🔧 [AssiseManager] Type CELLULAIRE assigné (bloc coupé béton cellulaire: ${currentBlock.id})`);
+                                return 'CELLULAIRE';
+                            } else if (currentBlock.id && currentBlock.id.startsWith('ARGEX_')) {
+                                // Bloc ARGEX coupé → type ARGEX
+                                console.log(`🔧 [AssiseManager] Type ARGEX assigné (bloc coupé ARGEX: ${currentBlock.id})`);
+                                return 'ARGEX';
+                            } else if (currentBlock.id && currentBlock.id.startsWith('TC_')) {
+                                // Bloc terre cuite coupé → type TERRE_CUITE
+                                console.log(`🔧 [AssiseManager] Type TERRE_CUITE assigné (bloc coupé terre cuite: ${currentBlock.id})`);
+                                return 'TERRE_CUITE';
+                            }
+                            // Si l'ID n'est pas disponible, vérifier le blockType de l'élément
+                            else if (element && element.blockType === 'CELLULAIRE') {
+                                // L'élément a été identifié comme CELLULAIRE par ConstructionTools → type CELLULAIRE
+                                console.log(`🔧 [AssiseManager] Type CELLULAIRE assigné (élément CELLULAIRE: ${element.id})`);
+                                return 'CELLULAIRE';
+                            } else if (element && element.blockType === 'ARGEX') {
+                                // L'élément a été identifié comme ARGEX par ConstructionTools → type ARGEX
+                                console.log(`🔧 [AssiseManager] Type ARGEX assigné (élément ARGEX: ${element.id})`);
+                                return 'ARGEX';
+                            } else if (element && element.blockType === 'TERRE_CUITE') {
+                                // L'élément a été identifié comme TERRE_CUITE par ConstructionTools → type TERRE_CUITE
+                                console.log(`🔧 [AssiseManager] Type TERRE_CUITE assigné (élément TERRE_CUITE: ${element.id})`);
+                                return 'TERRE_CUITE';
+                            } else {
+                                // Autre bloc coupé → type CREUX
+                                console.log(`🔧 [AssiseManager] Type CREUX assigné (bloc coupé non-spécialisé: ${currentBlock.id})`);
+                                return 'CREUX';
+                            }
                         case 'cellular':
-                            // Bloc de type CELLULAR détecté
-                            return 'CELLULAR';
+                            // Bloc de type CELLULAIRE détecté
+                            console.log('🔧 [AssiseManager] Type CELLULAIRE assigné (category: cellular)');
+                            return 'CELLULAIRE';
                         case 'argex':
                             return 'ARGEX';
                         case 'terracotta':
-                            return 'TERRACOTTA';
+                            return 'TERRE_CUITE';
                         case 'cellular-assise':
-                            return 'CELLULAR';
+                            return 'CELLULAIRE';
                         default:
                             // // console.log(`🔧 Catégorie de bloc inconnue: ${category}, utilisation du type générique 'block'`);
                             return null;
@@ -1344,6 +1401,10 @@ class AssiseManager {
                         this.setJointHeightForAssise(type, assiseIndex, jointHeightCm);
                         
                         console.log(`🔧 SYNCHRONISATION JOINT: Assise ${assiseIndex} (${type}) mise à jour avec joint de ${jointHeightCm}cm (${jointSettings.horizontalThickness}mm) selon élément ${elementId} (${element.material})`);
+                        // Nettoyage immédiat des joints horizontaux cellulaires en double (mortier + colle)
+                        if (type === 'CELLULAR' && window.ConstructionTools && typeof window.ConstructionTools.dedupeCellularHorizontalJoints === 'function') {
+                            window.ConstructionTools.dedupeCellularHorizontalJoints();
+                        }
                     }
                 }
             } else if (this.isRepositioning) {
@@ -1561,17 +1622,25 @@ class AssiseManager {
             maxZ = Math.max(maxZ, pos.z + halfWidth);
         });
         
-        // Calculer la taille nàcessaire avec exactement 2m (200cm) de marge de chaque càtà
-        const rangeX = maxX - minX + 400; // +400cm = +200cm de chaque càtà en X
-        const rangeZ = maxZ - minZ + 400; // +400cm = +200cm de chaque càtà en Z
+        // AMÉLIORATION: Calculer la taille nàcessaire avec une marge adaptative plus importante
+        // Pour les constructions étendues, augmenter la marge proportionnellement
+        const elementRange = Math.max(maxX - minX, maxZ - minZ);
+        
+        // Marge adaptative : 
+        // - Minimum 3m de chaque côté pour petites constructions (600cm au total)
+        // - Jusqu'à 5m de chaque côté pour grandes constructions (1000cm au total)
+        const adaptiveMargin = Math.max(600, Math.min(1000, elementRange * 0.5));
+        
+        const rangeX = maxX - minX + adaptiveMargin;
+        const rangeZ = maxZ - minZ + adaptiveMargin;
         const maxRange = Math.max(rangeX, rangeZ);
         
         // Arrondir à la dizaine supàrieure pour une grille propre
         const finalSize = Math.ceil(maxRange / 10) * 10;
         
-        // Taille minimale de 400cm (pour garantir 2m de marge màme avec de petits éléments)
-        // Taille maximale de 1200cm pour àviter les performances
-        return Math.min(Math.max(finalSize, 400), 1200);
+        // Taille minimale de 600cm (pour garantir au moins 3m de marge)
+        // Taille maximale augmentée à 2000cm (20m) pour supporter les grandes constructions
+        return Math.min(Math.max(finalSize, 600), 2000);
     }
 
     // Cràer la grille pour une assise d'un type spécifique
@@ -1663,12 +1732,12 @@ class AssiseManager {
                 maxZ = Math.max(maxZ, pos.z + halfWidth);
             });
             
-            // console.log(`🔧 Mise à jour des grilles:`);
-            // console.log(`   éléments étendus de X=${minX.toFixed(1)}cm à X=${maxX.toFixed(1)}cm (${(maxX-minX).toFixed(1)}cm)`);
-            // console.log(`   éléments étendus de Z=${minZ.toFixed(1)}cm à Z=${maxZ.toFixed(1)}cm (${(maxZ-minZ).toFixed(1)}cm)`);
-            // console.log(`   Nouvelle taille grille: ${newSize}cm (avec marge de 200cm de chaque càtà)`);
+            console.log(`🔧 Mise à jour des grilles d'assise:`);
+            console.log(`   Éléments étendus de X=${minX.toFixed(1)}cm à X=${maxX.toFixed(1)}cm (largeur: ${(maxX-minX).toFixed(1)}cm)`);
+            console.log(`   Éléments étendus de Z=${minZ.toFixed(1)}cm à Z=${maxZ.toFixed(1)}cm (profondeur: ${(maxZ-minZ).toFixed(1)}cm)`);
+            console.log(`   Nouvelle taille grille: ${newSize}cm (avec marge adaptative)`);
         } else {
-            // console.log(`🔧 Mise à jour des grilles: ${newSize}cm (taille par défaut)`);
+            console.log(`🔧 Mise à jour des grilles: ${newSize}cm (taille par défaut)`);
         }
         
         // Parcourir tous les types et toutes les assises
@@ -3081,7 +3150,9 @@ class AssiseManager {
         // Vàrifier via les types de blocs si disponibles
         if (window.BlockSelector && window.BlockSelector.blockTypes) {
             for (const [blockId, blockInfo] of Object.entries(window.BlockSelector.blockTypes)) {
-                if (blockInfo.category === 'hollow' || blockInfo.category === 'cut') {
+                if (blockInfo.category === 'hollow' || 
+                    (blockInfo.category === 'cut' && !blockId.startsWith('BC_') && !blockId.startsWith('BCA_') && 
+                     !blockId.startsWith('ARGEX_') && !blockId.startsWith('TC_'))) {
                     if (element.dimensions.length === blockInfo.length && 
                         element.dimensions.width === blockInfo.width && 
                         element.dimensions.height === blockInfo.height) {

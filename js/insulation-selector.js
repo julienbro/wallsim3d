@@ -854,6 +854,22 @@ class InsulationSelector {
         
         // Mettre à jour les dimensions AVANT tout changement de mode (utiliser le type de base)
         this.updateInsulationDimensions(baseType);
+
+        // Créer une entrée virtuelle pour les variantes coupées standard si elle n'existe pas (HALF, 1Q, 3Q, P)
+        if (!this.insulationTypes[type] && cutSuffix) {
+            const ratios = { '_HALF': 0.5, '_1Q': 0.25, '_3Q': 0.75, '_P': 0.85 };
+            const ratio = ratios[cutSuffix] || 1;
+            const baseObj = this.insulationTypes[baseType];
+            if (baseObj) {
+                this.insulationTypes[type] = {
+                    ...baseObj,
+                    length: Math.round(baseObj.length * ratio),
+                    name: `${baseObj.name} ${cutSuffix.replace('_','')}`,
+                    cutType: cutSuffix.replace('_',''),
+                    baseType: baseType
+                };
+            }
+        }
         
         // Synchroniser le type d'assise avec le mode isolant (même si on est déjà en mode insulation)
         if (window.AssiseManager && window.AssiseManager.currentType !== 'insulation') {
@@ -903,7 +919,9 @@ class InsulationSelector {
             }
         }));
         
-        console.log('Isolant défini:', type, this.insulationTypes[type]);
+    // Logging plus robuste
+    const logObj = this.insulationTypes[type] || this.getCurrentInsulationWithCutObject();
+    console.log('Isolant défini:', type, logObj);
     }
 
     updateSelection() {

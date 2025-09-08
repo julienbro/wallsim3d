@@ -9,6 +9,10 @@ class KeyboardManager {
             alt: false
         };
         
+        // CONFIGURATION: Touches précédemment désactivées, maintenant utilisées pour les vues de caméra
+        // Ces touches déclencheront des changements de vue de caméra
+        this.blacklistedKeys = []; // Toutes les touches sont maintenant réactivées pour les vues
+        
         this.setupShortcuts();
         this.setupEventListeners();
     }
@@ -22,27 +26,34 @@ class KeyboardManager {
         // Raccourcis pour les actions
         this.registerShortcut('Delete', () => this.deleteSelected(), 'Supprimer l\'élément sélectionné');
         this.registerShortcut('KeyG', () => this.toggleGhost(), 'Afficher/masquer l\'élément fantôme');
-        this.registerShortcut('KeyS', () => this.toggleSuggestions(), 'Activer/désactiver les suggestions');
         this.registerShortcut('Escape', () => this.cancelAction(), 'Annuler l\'action en cours');
         
-        // Raccourcis avec modificateurs
-        this.registerShortcut('KeyS', () => this.saveProject(), 'Sauvegarder le projet', { ctrl: true });
+        // Raccourcis avec modificateurs (maintenus désactivés sur demande)
         this.registerShortcut('KeyO', () => this.openProject(), 'Ouvrir un projet', { ctrl: true });
         this.registerShortcut('KeyN', () => this.newProject(), 'Nouveau projet', { ctrl: true });
-        this.registerShortcut('KeyZ', () => this.undo(), 'Annuler', { ctrl: true });
         this.registerShortcut('KeyY', () => this.redo(), 'Refaire', { ctrl: true });
         
-        // Raccourcis pour les vues
+        // Raccourcis pour les vues numériques (conservés)
         this.registerShortcut('Digit1', () => this.setCameraView('top'), 'Vue de dessus');
         this.registerShortcut('Digit2', () => this.setCameraView('front'), 'Vue de face');
         this.registerShortcut('Digit3', () => this.setCameraView('side'), 'Vue de côté');
         this.registerShortcut('Digit4', () => this.setCameraView('iso'), 'Vue isométrique');
         
+        // NOUVEAUX RACCOURCIS: Vues de caméra avec les touches AZERTY (positions physiques)
+        this.registerShortcut('KeyQ', () => this.setCameraView('backLeft'), 'Vue perspective arrière gauche (A)');     // Q = position A en AZERTY
+        this.registerShortcut('KeyE', () => this.setCameraView('backRight'), 'Vue perspective arrière droite (E)');    // E reste E
+        this.registerShortcut('KeyZ', () => this.setCameraView('frontLeft'), 'Vue perspective avant gauche (W)');      // Z = position W en AZERTY
+        this.registerShortcut('KeyC', () => this.setCameraView('frontRight'), 'Vue perspective avant droite (C)');     // C reste C
+        this.registerShortcut('KeyA', () => this.setCameraView('left'), 'Vue de gauche (Q)');                          // A = position Q en AZERTY
+        this.registerShortcut('KeyD', () => this.setCameraView('right'), 'Vue de droite (D)');                         // D reste D
+        this.registerShortcut('KeyW', () => this.setCameraView('back'), 'Vue de derrière (Z)');                        // W = position Z en AZERTY
+        this.registerShortcut('KeyX', () => this.setCameraView('face'), 'Vue de face (X)');                            // X reste X
+        this.registerShortcut('KeyS', () => this.setCameraView('topView'), 'Vue du dessus (S)');                       // S reste S
+        
         // Raccourcis pour les outils
         this.registerShortcut('Space', () => this.togglePlacementMode(), 'Activer/désactiver le mode placement');
         this.registerShortcut('KeyR', () => this.rotateElement(), 'Faire tourner l\'élément (R)');
         this.registerShortcut('ArrowRight', () => this.rotateElement(), 'Faire tourner l\'élément (→)');
-        this.registerShortcut('KeyX', () => this.clearAll(), 'Tout effacer', { shift: true });
     }
 
     registerShortcut(key, action, description, modifiers = {}) {
@@ -232,10 +243,19 @@ class KeyboardManager {
     }
 
     setCameraView(view) {
-        const button = document.getElementById(view + 'View');
-        if (button) {
-            button.click();
+        // Appeler directement SceneManager au lieu de chercher des boutons
+        if (window.SceneManager && window.SceneManager.setCameraView) {
+            window.SceneManager.setCameraView(view);
             this.showToast(`Vue ${view} activée`);
+        } else {
+            // Fallback: essayer de trouver un bouton correspondant
+            const button = document.getElementById(view + 'View');
+            if (button) {
+                button.click();
+                this.showToast(`Vue ${view} activée`);
+            } else {
+                this.showToast(`Vue ${view} non disponible`);
+            }
         }
     }
 
@@ -324,12 +344,13 @@ class KeyboardManager {
         if (modifiers.shift) parts.push('Shift');
         if (modifiers.alt) parts.push('Alt');
         
-        // Convertir les codes de touches en noms lisibles
+        // Convertir les codes de touches en noms lisibles (disposition AZERTY)
         const keyNames = {
             'KeyB': 'B', 'KeyL': 'L', 'KeyI': 'I', 'KeyG': 'G', 'KeyS': 'S',
             'KeyO': 'O', 'KeyN': 'N', 'KeyZ': 'Z', 'KeyY': 'Y', 'KeyR': 'R',
-            'KeyX': 'X', 'Delete': 'Suppr', 'Escape': 'Échap', 'Space': 'Espace',
-            'Digit1': '1', 'Digit2': '2', 'Digit3': '3', 'Digit4': '4'
+            'KeyX': 'X', 'KeyA': 'A', 'KeyE': 'E', 'KeyW': 'W', 'KeyC': 'C',
+            'KeyQ': 'Q', 'KeyD': 'D', 'Delete': 'Suppr', 'Escape': 'Échap', 
+            'Space': 'Espace', 'Digit1': '1', 'Digit2': '2', 'Digit3': '3', 'Digit4': '4'
         };
         
         parts.push(keyNames[key] || key);

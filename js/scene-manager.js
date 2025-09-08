@@ -19,10 +19,25 @@ class SceneManager {
         
         // Paramètres de la caméra - positions ajustées pour être moins proches
         this.cameraPositions = {
+            // Vues existantes
             iso: { position: [50, 50, 50], target: [0, 0, 0] },
             top: { position: [0, 80, 0], target: [0, 0, 0] },
             front: { position: [0, 35, 60], target: [0, 12, 0] },
-            side: { position: [60, 35, 0], target: [0, 12, 0] }
+            side: { position: [60, 35, 0], target: [0, 12, 0] },
+            
+            // Nouvelles vues de perspective demandées par l'utilisateur
+            // Vues de perspective avec angles variés
+            backLeft: { position: [-40, 40, -40], target: [0, 12, 0] },      // a - perspective arrière gauche
+            backRight: { position: [40, 40, -40], target: [0, 12, 0] },     // e - perspective arrière droite  
+            frontLeft: { position: [-40, 40, 40], target: [0, 12, 0] },     // w - perspective avant gauche
+            frontRight: { position: [40, 40, 40], target: [0, 12, 0] },     // c - perspective avant droite
+            
+            // Vues orthogonales
+            left: { position: [-60, 35, 0], target: [0, 12, 0] },          // q - vue de gauche
+            right: { position: [60, 35, 0], target: [0, 12, 0] },          // d - vue de droite (déjà existante sous 'side')
+            back: { position: [0, 35, -60], target: [0, 12, 0] },          // z - vue de derrière
+            face: { position: [0, 35, 60], target: [0, 12, 0] },           // x - vue de face (même que 'front')
+            topView: { position: [0, 80, 0], target: [0, 0, 0] }           // s - vue du dessus (même que 'top')
         };
 
         // Système de performance
@@ -286,7 +301,8 @@ class SceneManager {
             this.scene.remove(this.grid);
         }
 
-        const size = 500; // Taille de la grille en cm
+    const size = 500; // Taille de la grille en cm
+    this.gridSize = size; // Conserver la taille pour d'autres modules (export, ligne de sol)
         const divisions = size / this.gridSpacing;
 
         this.grid = new THREE.GridHelper(size, divisions, 0xaaaaaa, 0x666666);
@@ -791,6 +807,21 @@ class SceneManager {
                             // Vérifier si c'est une suggestion perpendiculaire pour créer automatiquement les joints
                             const suggestionType = ghost.mesh.userData.suggestionType;
                             // console.log('🔧 DEBUG: suggestionType =', suggestionType);
+                            // Nouveau: demander le nombre d'éléments à insérer pour une continuité
+                            let multiInsertCount = 1;
+                            if (suggestionType === 'continuation') {
+                                try {
+                                    const input = prompt("Nombre d'éléments à insérer ?", "1");
+                                    if (input !== null) {
+                                        const n = parseInt(input, 10);
+                                        if (!isNaN(n) && n > 1 && n < 500) {
+                                            multiInsertCount = n;
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn('Prompt multi-insertion indisponible:', e);
+                                }
+                            }
                             
                             const isPerpendicularSuggestion = suggestionType === 'perpendiculaire-frontale-droite' || 
                                                              suggestionType === 'perpendiculaire-frontale-gauche' ||
@@ -992,6 +1023,45 @@ class SceneManager {
                                         // Utiliser la brique nouvellement placée
                                         this.createAutomaticRightVerticalJoint(placedElement || this.getLastPlacedElement());
                                     }
+
+                                    // Multi-insertion pour continuité (placer les éléments supplémentaires après le premier)
+                                    if (suggestionType === 'continuation' && multiInsertCount > 1) {
+                                        try {
+                                            let previous = placedElement || this.getLastPlacedElement();
+                                            if (previous) {
+                                                const rotation = previous.rotation || ghost.rotation || 0;
+                                                // Déterminer le signe (A = +, B = -) en utilisant la dernière lettre (A/B) du code lettre
+                                                const letterCode = ghost.mesh.userData.letter || '';
+                                                const basePosLetter = letterCode.charAt(letterCode.length - 1); // ex: EEA -> A
+                                                const sign = basePosLetter === 'B' ? -1 : 1;
+                                                // Longueur de l'élément courant
+                                                const elementLength = previous.dimensions?.length || 19;
+                                                let jointVertical = 0;
+                                                if (window.ConstructionTools && window.ConstructionTools.getJointVerticalThickness) {
+                                                    try { jointVertical = window.ConstructionTools.getJointVerticalThickness(previous); } catch (e) { jointVertical = 0; }
+                                                }
+                                                const step = elementLength + jointVertical; // avancement en cm
+                                                for (let i = 1; i < multiInsertCount; i++) {
+                                                    const newX = previous.position.x + sign * step * Math.cos(rotation);
+                                                    const newZ = previous.position.z + sign * step * Math.sin(rotation);
+                                                    const newElement = this.placeElementAt(newX, newZ, rotation);
+                                                    if (newElement && this.createAutomaticHorizontalJoint) {
+                                                        this.createAutomaticHorizontalJoint(newElement);
+                                                    }
+                                                    // Si on part du côté droit (A / signe positif), ajouter un joint gauche sur chaque nouvelle brique
+                                                    if (sign === 1 && newElement && this.createAutomaticLeftVerticalJoint) {
+                                                        this.createAutomaticLeftVerticalJoint(newElement);
+                                                    } else if (sign === -1 && newElement && this.createAutomaticRightVerticalJoint) {
+                                                        // Si on part de la continuité B (gauche), ajouter un joint droit
+                                                        this.createAutomaticRightVerticalJoint(newElement);
+                                                    }
+                                                    previous = newElement || previous;
+                                                }
+                                            }
+                                        } catch (e) {
+                                            console.warn('Erreur multi-insertion continuité:', e);
+                                        }
+                                    }
                                     
                                     // Désactiver les suggestions APRÈS avoir créé les joints
                                     if (window.ConstructionTools.deactivateSuggestions) {
@@ -1040,6 +1110,43 @@ class SceneManager {
                                     } else {
                                         console.log('🔧 UNIVERSEL (fallback): Création joint vertical droit pour position', position);
                                         this.createAutomaticRightVerticalJoint(targetElement);
+                                    }
+                                }
+
+                                // Multi-insertion pour continuité (fallback sans animation)
+                                if (suggestionType === 'continuation' && multiInsertCount > 1) {
+                                    try {
+                                        let previous = placedElement || this.getLastPlacedElement();
+                                        if (previous) {
+                                            const rotation = previous.rotation || ghost.rotation || 0;
+                                            const letterCode = ghost.mesh.userData.letter || '';
+                                            const basePosLetter = letterCode.charAt(letterCode.length - 1);
+                                            const sign = basePosLetter === 'B' ? -1 : 1;
+                                            const elementLength = previous.dimensions?.length || 19;
+                                            let jointVertical = 0;
+                                            if (window.ConstructionTools && window.ConstructionTools.getJointVerticalThickness) {
+                                                try { jointVertical = window.ConstructionTools.getJointVerticalThickness(previous); } catch (e) { jointVertical = 0; }
+                                            }
+                                            const step = elementLength + jointVertical;
+                                            for (let i = 1; i < multiInsertCount; i++) {
+                                                const newX = previous.position.x + sign * step * Math.cos(rotation);
+                                                const newZ = previous.position.z + sign * step * Math.sin(rotation);
+                                                const newElement = this.placeElementAt(newX, newZ, rotation);
+                                                if (newElement && this.createAutomaticHorizontalJoint) {
+                                                    this.createAutomaticHorizontalJoint(newElement);
+                                                }
+                                                // Ajout du joint gauche si insertion depuis côté droit
+                                                if (sign === 1 && newElement && this.createAutomaticLeftVerticalJoint) {
+                                                    this.createAutomaticLeftVerticalJoint(newElement);
+                                                } else if (sign === -1 && newElement && this.createAutomaticRightVerticalJoint) {
+                                                    // Ajout du joint droit si insertion depuis côté gauche
+                                                    this.createAutomaticRightVerticalJoint(newElement);
+                                                }
+                                                previous = newElement || previous;
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.warn('Erreur multi-insertion continuité (fallback):', e);
                                     }
                                 }
                                 
@@ -1544,12 +1651,52 @@ class SceneManager {
                         const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
                         if (groundIntersects.length > 0) {
                             const point = groundIntersects[0].point;
-                            if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
-                                window.ConstructionTools.ghostElement.updatePosition(
-                                    point.x, 
-                                    window.ConstructionTools.ghostElement.position.y, 
-                                    point.z
-                                );
+                            
+                            // 🆕 NOUVEAU: Si on est en mode sélection et qu'on clique à côté d'une brique, 
+                            // revenir automatiquement au mode pose de brique
+                            if (isSelectionMode) {
+                                console.log('🎯 Mode sélection - Clic à côté d\'une brique, retour au mode pose');
+                                
+                                // Désélectionner tous les éléments
+                                this.deselectElement();
+                                
+                                // Effacer les suggestions si elles existent
+                                if (window.ConstructionTools && window.ConstructionTools.clearSuggestions) {
+                                    window.ConstructionTools.clearSuggestions();
+                                }
+                                
+                                // Revenir au mode pose de brique
+                                if (window.toolbarManager) {
+                                    window.toolbarManager.setInteractionMode('placement');
+                                }
+                                
+                                // S'assurer que l'onglet construction est activé
+                                if (window.TabManager) {
+                                    window.TabManager.switchMainTab('construction');
+                                }
+                                
+                                // Mettre à jour la position du fantôme
+                                if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
+                                    window.ConstructionTools.ghostElement.updatePosition(
+                                        point.x, 
+                                        window.ConstructionTools.ghostElement.position.y, 
+                                        point.z
+                                    );
+                                }
+                                
+                                // Activer le fantôme si nécessaire
+                                if (window.ConstructionTools && window.ConstructionTools.showGhostElement) {
+                                    window.ConstructionTools.showGhostElement();
+                                }
+                            } else {
+                                // Mode normal - juste mettre à jour la position du fantôme
+                                if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
+                                    window.ConstructionTools.ghostElement.updatePosition(
+                                        point.x, 
+                                        window.ConstructionTools.ghostElement.position.y, 
+                                        point.z
+                                    );
+                                }
                             }
                         }
                     } else {
@@ -4208,8 +4355,18 @@ class SceneManager {
             // CORRECTION ÉPAISSEUR DYNAMIQUE: Utiliser l'épaisseur configurée par l'utilisateur dans AssiseManager
             let jointHorizontal = 1.2; // Valeur par défaut
             
-            // D'abord, essayer de récupérer l'épaisseur depuis AssiseManager pour le type d'élément approprié
-            if (window.AssiseManager) {
+            // PRIORITÉ 1: Logique ConstructionTools spécialisée (notamment pour béton cellulaire)
+            if (window.ConstructionTools && window.ConstructionTools.getJointSettingsForElement) {
+                const jointSettings = window.ConstructionTools.getJointSettingsForElement(referenceElement);
+                if (jointSettings && jointSettings.createJoints) {
+                    jointHorizontal = jointSettings.horizontalThickness / 10; // Conversion mm vers cm
+                    console.log(`🔧 [SCENE-MANAGER] Joint horizontal automatique: ${jointSettings.horizontalThickness}mm (${jointHorizontal}cm) pour ${referenceElement.type} selon logique ConstructionTools (PRIORITÉ)`);
+                    console.log(`🔧 [SCENE-MANAGER] Element blockType: ${referenceElement.blockType}, category: ${referenceElement.category}`);
+                }
+            }
+            
+            // PRIORITÉ 2: D'abord, essayer de récupérer l'épaisseur depuis AssiseManager pour le type d'élément approprié (seulement si ConstructionTools n'a pas de règle)
+            if (jointHorizontal === 1.2 && window.AssiseManager) { // Seulement si la valeur par défaut n'a pas été changée par ConstructionTools
                 // CORRECTION MAJEURE: Priorité au blockType, puis type en fallback
                 const elementType = referenceElement.blockType || referenceElement.userData?.blockType || referenceElement.type;
                 
@@ -4263,14 +4420,6 @@ class SceneManager {
                 if (!jointHorizontal) {
                     jointHorizontal = window.AssiseManager.getJointHeightForType(assiseType);
                     console.warn(`⚠️ [JOINT CREATION] Hauteur par défaut depuis getJointHeightForType(${assiseType}): ${jointHorizontal} cm`);
-                }
-            }
-            // Fallback vers ConstructionTools si AssiseManager n'est pas disponible
-            else if (window.ConstructionTools && window.ConstructionTools.getJointSettingsForElement) {
-                const jointSettings = window.ConstructionTools.getJointSettingsForElement(referenceElement);
-                if (jointSettings && jointSettings.createJoints) {
-                    jointHorizontal = jointSettings.horizontalThickness / 10; // Conversion mm vers cm
-                    console.log(`🔧 Joint horizontal automatique: ${jointSettings.horizontalThickness}mm (${jointHorizontal}cm) pour ${referenceElement.type} selon logique ConstructionTools (fallback)`);
                 }
             }
             
@@ -4365,7 +4514,7 @@ class SceneManager {
             // console.log(`🔧 CORRECTION POSITION: Joint AU-DESSUS de la brique précédente. Centre=${jointCenterY}cm, épaisseur=${finalJointHeight}cm`);
             
             // Utiliser le même matériau que les joints verticaux
-            const jointMaterial = window.ConstructionTools ? window.ConstructionTools.getJointMaterial() : 'joint';
+            const jointMaterial = window.ConstructionTools ? window.ConstructionTools.getJointMaterial(referenceElement) : 'joint';
             
             // Créer l'élément joint horizontal directement
             // console.log(`🔧 [JOINT DEBUG CRÉATION] Création WallElement avec height=${finalJointHeight}cm - CORRECTION: utilise finalJointHeight configuré`);
@@ -4406,7 +4555,7 @@ class SceneManager {
             
             // Appliquer la même couleur que les joints verticaux
             if (window.ConstructionTools && window.ConstructionTools.applyJointColorToElement) {
-                window.ConstructionTools.applyJointColorToElement(jointElement, referenceElement.type);
+                window.ConstructionTools.applyJointColorToElement(jointElement, referenceElement.type, referenceElement);
             }
             
             // Ajouter à la scène (ajouter directement sans passer par addElement pour éviter la récursion)

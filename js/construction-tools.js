@@ -394,35 +394,18 @@ class ConstructionTools {
             length = currentBlock.length;
             width = currentBlock.width;
             height = currentBlock.height;
-            
-            // CORRECTION: Appliquer les coupes si détectées
-            const elementTypeWithCut = this.getElementTypeForMode(this.currentMode);
-            if (elementTypeWithCut && typeof elementTypeWithCut === 'string' && elementTypeWithCut.includes('_')) {
-                const cutSuffix = elementTypeWithCut.split('_')[1];
-                const ratio = this.getCutRatio(cutSuffix);
-                if (ratio && ratio !== 1) {
-                    length = Math.round(length * ratio);
-                }
-            }
+            // IMPORTANT: ne pas réappliquer de ratio ici (BlockSelector donne déjà la longueur exacte pour HALF / 3Q / 1Q / personnalisés)
         } else if (this.currentMode === 'insulation' && window.InsulationSelector) {
-            // Pour les isolants, utiliser les dimensions effectives (avec coupe personnalisée si présente)
-            const currentInsulation =
-                (typeof window.InsulationSelector.getCurrentInsulationWithCutObject === 'function'
-                    ? window.InsulationSelector.getCurrentInsulationWithCutObject()
-                    : window.InsulationSelector.getCurrentInsulationData());
+            // Pour les isolants, récupérer l'objet déjà ajusté (coupe appliquée dedans)
+            const currentInsulation = (typeof window.InsulationSelector.getCurrentInsulationWithCutObject === 'function'
+                ? window.InsulationSelector.getCurrentInsulationWithCutObject()
+                : window.InsulationSelector.getCurrentInsulationData());
             length = currentInsulation.length;
             width = currentInsulation.width;
             height = currentInsulation.height;
 
-            // Appliquer les coupes par suffixe uniquement pour les ratios standards (pas CUSTOM)
-            const elementTypeWithCut = this.getElementTypeForMode(this.currentMode);
-            if (elementTypeWithCut && typeof elementTypeWithCut === 'string' && elementTypeWithCut.includes('_')) {
-                const cutSuffix = elementTypeWithCut.split('_')[1];
-                const ratio = this.getCutRatio(cutSuffix);
-                if (ratio && ratio !== 1) {
-                    length = Math.round(length * ratio);
-                }
-            }
+            // IMPORTANT: ne pas réappliquer un ratio ici, la méthode getCurrentInsulationWithCutObject l'a déjà fait.
+            // (Ancienne logique supprimée pour éviter une double réduction donnant 1/4 au lieu de 1/2.)
     } else if (this.currentMode === 'linteau' && window.LinteauSelector) {
             // Pour les linteaux, utiliser LinteauSelector avec détection de coupe
             const currentLinteau = window.LinteauSelector.getCurrentLinteauData();
@@ -853,35 +836,18 @@ class ConstructionTools {
                 length = currentBlock.length;
                 width = currentBlock.width;
                 height = currentBlock.height;
-                
-                // CORRECTION: Appliquer les coupes si détectées
-                const elementTypeWithCut = this.getElementTypeForMode(this.currentMode);
-                if (elementTypeWithCut && typeof elementTypeWithCut === 'string' && elementTypeWithCut.includes('_')) {
-                    const cutSuffix = elementTypeWithCut.split('_')[1];
-                    const ratio = this.getCutRatio(cutSuffix);
-                    if (ratio && ratio !== 1) {
-                        length = Math.round(length * ratio);
-                    }
-                }
+                // IMPORTANT: ne pas ré-appliquer de ratio ici.
+                // BlockSelector fournit déjà les dimensions ajustées (B9_3Q, B9_HALF, etc.)
+                // L'ancien recalcul causait des longueurs erronées pour le fantôme (ex: B9 affiché différent).
             } else if (this.currentMode === 'insulation' && window.InsulationSelector) {
-                // Pour les isolants, récupérer directement les dimensions effectives (incluant coupe personnalisée)
-                const currentInsulation =
-                    (typeof window.InsulationSelector.getCurrentInsulationWithCutObject === 'function'
-                        ? window.InsulationSelector.getCurrentInsulationWithCutObject()
-                        : window.InsulationSelector.getCurrentInsulationData());
+                // Pour les isolants: dimensions déjà ajustées dans getCurrentInsulationWithCutObject (éviter double ratio)
+                const currentInsulation = (typeof window.InsulationSelector.getCurrentInsulationWithCutObject === 'function'
+                    ? window.InsulationSelector.getCurrentInsulationWithCutObject()
+                    : window.InsulationSelector.getCurrentInsulationData());
                 length = currentInsulation.length;
                 width = currentInsulation.width;
                 height = currentInsulation.height;
-
-                // Appliquer les coupes par suffixe uniquement pour les ratios standards (pas CUSTOM)
-                const elementTypeWithCut = this.getElementTypeForMode(this.currentMode);
-                if (elementTypeWithCut && typeof elementTypeWithCut === 'string' && elementTypeWithCut.includes('_')) {
-                    const cutSuffix = elementTypeWithCut.split('_')[1];
-                    const ratio = this.getCutRatio(cutSuffix);
-                    if (ratio && ratio !== 1) {
-                        length = Math.round(length * ratio);
-                    }
-                }
+                // Pas de recalcul de ratio ici (ancienne logique supprimée)
             } else if (this.currentMode === 'beam' && window.BeamProfiles) {
                 const lengthCmExact = Math.max(1, Math.round(this.currentBeamLengthCm || 100));
                 const p = window.BeamProfiles.getProfile ? window.BeamProfiles.getProfile(this.currentBeamType || 'IPE80') : null;
@@ -2934,7 +2900,13 @@ class ConstructionTools {
         let positionsToProcess = basePositions;
         if (this.currentMode === 'block') {
             console.log('🧱 MODE BLOC: Suppression des positions panneresse A-F (seules les boutisses seront proposées)');
-            positionsToProcess = []; // Vider les positions de base pour les blocs
+            positionsToProcess = []; // Vider d'abord
+            // Ajouter quand même des continuités longitudinales (A / B) pour permettre l'allongement + multi-insertion
+            const jointForBlock = jointVertical; // déjà calculé via getJointVerticalThickness
+            positionsToProcess.push(
+                { x: dims.length + jointForBlock, z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'A' },
+                { x: -(dims.length + jointForBlock), z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'B' }
+            );
         }
         
         // LOGIQUE SPÉCIFIQUE POUR LES ISOLANTS: ne proposer que les positions de continuité A et B
@@ -4050,25 +4022,40 @@ class ConstructionTools {
         if (type === 'block' && window.BlockSelector && window.BlockSelector.getCurrentBlockData) {
             try {
                 const currentBlock = window.BlockSelector.getCurrentBlockData();
+                const currentBlockType = window.BlockSelector.currentBlock;
+                
                 if (currentBlock && currentBlock.category) {
                     const category = currentBlock.category;
                     
                     // Mapper les catégories aux types d'assises (même logique que detectBlockSubType)
                     switch (category) {
                         case 'hollow':
-                            type = 'HOLLOW';
+                            type = 'CREUX';
                             break;
                         case 'cut':
-                            type = 'HOLLOW'; // Les blocs découpés sont aussi des blocs creux
+                            // Pour les blocs coupés, vérifier le type d'origine
+                            if (currentBlockType && (currentBlockType.startsWith('BC_') || currentBlockType.startsWith('BCA_'))) {
+                                type = 'CELLULAIRE'; // Les blocs béton cellulaire coupés restent CELLULAIRE
+                                console.log(`🔧 Bloc béton cellulaire coupé détecté: ${currentBlockType} → type CELLULAIRE conservé`);
+                            } else if (currentBlockType && currentBlockType.startsWith('ARGEX_')) {
+                                type = 'ARGEX'; // Les blocs ARGEX coupés restent ARGEX
+                                console.log(`🔧 Bloc ARGEX coupé détecté: ${currentBlockType} → type ARGEX conservé`);
+                            } else if (currentBlockType && currentBlockType.startsWith('TC_')) {
+                                type = 'TERRE_CUITE'; // Les blocs terre cuite coupés restent TERRE_CUITE
+                                console.log(`🔧 Bloc terre cuite coupé détecté: ${currentBlockType} → type TERRE_CUITE conservé`);
+                            } else {
+                                type = 'CREUX'; // Les autres blocs découpés deviennent CREUX
+                            }
                             break;
                         case 'cellular':
-                            type = 'CELLULAR';
+                        case 'cellular-assise':
+                            type = 'CELLULAIRE';
                             break;
                         case 'argex':
                             type = 'ARGEX';
                             break;
                         case 'terracotta':
-                            type = 'TERRACOTTA';
+                            type = 'TERRE_CUITE';
                             break;
                         default:
                             console.log(`⚠️ Catégorie de bloc inconnue: ${category}, utilisation du type générique 'block'`);
@@ -4260,15 +4247,85 @@ class ConstructionTools {
         } else if (this.currentMode === 'beam') {
             // Matériau par défaut pour poutres acier (acier standard, pas inox)
             return 'axier';
+        } else if (this.currentMode === 'linteau') {
+            // Linteaux toujours en béton gris
+            return 'concrete';
         }
         
         // Défaut pour les cas non prévus → brique rouge classique
         return 'brique-rouge-classique';
     }
 
+    // Utilitaire: forcer la recolorisation de tous les linteaux déjà présents en béton
+    recolorExistingLinteauxToConcrete() {
+        if (!window.SceneManager || !window.SceneManager.scene || !window.MaterialLibrary) return;
+        const concreteMat = window.MaterialLibrary.getMaterial('concrete');
+        let count = 0;
+        window.SceneManager.scene.traverse(obj => {
+            if (obj.isMesh && obj.userData && obj.userData.type === 'linteau') {
+                // Remplacer le matériau seulement si différent
+                if (obj.material !== concreteMat && concreteMat) {
+                    obj.material = concreteMat;
+                }
+                obj.userData.material = 'concrete';
+                count++;
+            }
+        });
+        if (count > 0) {
+            console.log(`🎨 Linteaux recolorisés en béton: ${count}`);
+        }
+    }
+
     // Méthode pour déterminer le matériau des joints
-    getJointMaterial() {
-        return 'joint-gris-souris'; // Couleur gris souris par défaut pour tous les joints
+    getJointMaterial(element = null) {
+        // Log de débogage pour voir ce qui est passé
+        console.log(`🔍 [getJointMaterial] Élément reçu:`, {
+            element: !!element,
+            blockType: element?.blockType,
+            type: element?.type,
+            id: element?.id,
+            category: element?.category
+        });
+        
+        // Pour les blocs béton cellulaire, utiliser du blanc cassé
+        if (element && element.blockType && (element.blockType.startsWith('BC_') || element.blockType.startsWith('BCA_'))) {
+            console.log(`🎨 Joint blanc cassé pour béton cellulaire: ${element.blockType}`);
+            return 'joint-blanc-casse'; // Couleur blanc cassé pour béton cellulaire
+        }
+        
+        // Vérifier aussi si c'est un élément CELLULAIRE
+        if (element && element.blockType === 'CELLULAIRE') {
+            console.log(`🎨 Joint blanc cassé pour béton cellulaire CELLULAIRE`);
+            return 'joint-blanc-casse';
+        }
+        
+        // Pour les blocs ARGEX, utiliser le joint lavande
+        if (element && element.blockType && element.blockType.startsWith('ARGEX_')) {
+            console.log(`🎨 Joint lavande pour bloc ARGEX: ${element.blockType}`);
+            return 'joint-argex';
+        }
+        
+        // Vérifier aussi si c'est un élément ARGEX
+        if (element && element.blockType === 'ARGEX') {
+            console.log(`🎨 Joint lavande pour bloc ARGEX`);
+            return 'joint-argex';
+        }
+        
+        // Pour les blocs terre cuite, utiliser le joint GRIS (demande utilisateur)
+        if (element && element.blockType && element.blockType.startsWith('TC_')) {
+            console.log(`🎨 Joint gris pour terre cuite: ${element.blockType}`);
+            return 'joint-gris-souris';
+        }
+        
+        // Vérifier aussi si c'est un élément TERRE_CUITE
+        if (element && element.blockType === 'TERRE_CUITE') {
+            console.log(`🎨 Joint gris pour terre cuite TERRE_CUITE`);
+            return 'joint-gris-souris';
+        }
+        
+        // Pour les autres éléments, utiliser la couleur par défaut
+        console.log(`🎨 Joint gris standard pour élément non-spécialisé`);
+        return 'joint-gris-souris'; // Couleur gris souris par défaut pour les autres joints
     }
 
     // Méthode pour obtenir l'épaisseur du joint vertical en cm
@@ -4542,7 +4599,7 @@ class ConstructionTools {
     }
 
     // Créer un fantôme de joint debout
-    createVerticalJointGhost(x, y, z, rotation, color, index, jointType, jointLength, jointWidth, jointHeight) {
+    createVerticalJointGhost(x, y, z, rotation, color, index, jointType, jointLength, jointWidth, jointHeight, element = null) {
         // // console.log(`🔧 Joint ${jointType}:`, {
         //     dimensions: { length: jointLength, width: jointWidth, height: jointHeight },
         //     position: { x, y, z },
@@ -4551,7 +4608,7 @@ class ConstructionTools {
         
         const ghost = new WallElement({
             type: 'brick',
-            material: this.getJointMaterial(), // Utiliser le matériau spécifique aux joints
+            material: this.getJointMaterial(element), // Utiliser le matériau spécifique aux joints avec l'élément source
             x: x,
             y: y, // Utiliser directement la position Y calculée
             z: z,
@@ -4671,9 +4728,10 @@ class ConstructionTools {
         }
         
         // Créer l'élément joint permanent avec la position exacte du fantôme
+        const refElement = this.referenceElement || this.activeBrickForSuggestions;
         const joint = new WallElement({
             type: 'joint', // Type spécifique pour les joints
-            material: this.getJointMaterial(), // Utiliser le matériau spécifique aux joints
+            material: this.getJointMaterial(refElement), // Utiliser le matériau spécifique aux joints avec l'élément source
             x: finalX,
             y: finalY,
             z: finalZ,
@@ -4704,7 +4762,6 @@ class ConstructionTools {
         joint.mesh.userData.isHorizontalJoint = suggestionGhost.mesh.userData.isHorizontalJoint;
         
         // 🎯 CORRECTION CRITIQUE: Ajouter l'ID de l'élément parent pour l'undo/redo
-        const refElement = this.referenceElement || this.activeBrickForSuggestions;
         if (refElement && refElement.id) {
             joint.mesh.userData.parentElementId = refElement.id;
             joint.userData = joint.userData || {};
@@ -4715,7 +4772,7 @@ class ConstructionTools {
         }
         
         // Appliquer la couleur appropriée selon le type de parent
-        this.applyJointColorToElement(joint, joint.mesh.userData.parentElementType);
+        this.applyJointColorToElement(joint, joint.mesh.userData.parentElementType, refElement);
         
         // DÉSACTIVATION de la vérification de collision pour les joints
         // Les joints sont censés être en contact direct avec les briques
@@ -5062,11 +5119,16 @@ class ConstructionTools {
      * @param {WallElement} element - L'élément de référence
      */
     createHorizontalJointOnly(element) {
+        console.log(`🔧 [createHorizontalJointOnly] DÉBUT pour élément ${element.id}, blockType=${element.blockType}`);
+        
         // 🔧 ISOLANTS: Ne pas créer de joints horizontaux pour les isolants
         if (element.type === 'insulation') {
             console.log('🔧 Isolant détecté - pas de joint horizontal créé dans createHorizontalJointOnly:', element.id);
             return;
         }
+    // Variables d'assise locales (éviter global implicite)
+    let elementAssiseType = null;
+    let elementAssiseIndex = 0;
         
         const basePos = element.position;
         const rotation = element.rotation;
@@ -5112,6 +5174,37 @@ class ConstructionTools {
         }
         const faceInferieureBrique = brickCenter.y - dims.height / 2;
         let hauteurJointHorizontal = faceInferieureBrique - planZeroAssise;
+
+        // 🔧 RÈGLE SPÉCIALE BÉTON CELLULAIRE (détection renforcée)
+        if (element.type === 'block' && element.blockType && (element.blockType.startsWith('BC_') || element.blockType.startsWith('BCA_'))) {
+            const hBloc = dims.height || 0;
+            // Collecte centres Y des autres blocs cellulaires
+            let otherCenters = [];
+            if (window.SceneManager && window.SceneManager.elements) {
+                for (const el of window.SceneManager.elements.values()) {
+                    if (el !== element && el.type === 'block' && el.blockType && (el.blockType.startsWith('BC_') || el.blockType.startsWith('BCA_'))) {
+                        otherCenters.push(el.position?.y || 0);
+                    }
+                }
+            }
+            // Critère de détection d'une assise supérieure via écart des centres
+            if (otherCenters.length > 0) {
+                const minCenter = Math.min(...otherCenters);
+                const deltaCenter = brickCenter.y - minCenter; // écart centre courant vs premier
+                const isUpperByCenter = deltaCenter > hBloc * 0.8; // >80% hauteur bloc ⇒ rangée supérieure probable
+                const looksLikeMortar = Math.abs(hauteurJointHorizontal - 1.2) < 0.25; // joint épais détecté
+                if ((elementAssiseIndex > 0 || isUpperByCenter) && looksLikeMortar) {
+                    console.log(`🔧 Reclass CELLULAR: deltaCenter=${deltaCenter.toFixed(2)} (>${(hBloc*0.8).toFixed(2)}?) assiseIndex=${elementAssiseIndex} ⇒ joint 0.1cm (était ${hauteurJointHorizontal.toFixed(2)}cm)`);
+                    hauteurJointHorizontal = 0.1;
+                } else if (elementAssiseIndex === 0 && !isUpperByCenter) {
+                    // Première assise: normalisation autour de 1.2
+                    if (hauteurJointHorizontal < 1.0 || hauteurJointHorizontal > 1.4) {
+                        console.log(`🔧 Normalisation mortier base CELLULAR assise 0 à 1.2cm (valeur ${hauteurJointHorizontal.toFixed(2)}cm)`);
+                        hauteurJointHorizontal = 1.2;
+                    }
+                }
+            }
+        }
         
         if (hauteurJointHorizontal > 0.1) {
             const jointHorizontalDimensions = {
@@ -5136,7 +5229,8 @@ class ConstructionTools {
                 'joint-horizontal',
                 jointHorizontalDimensions.length,
                 jointHorizontalDimensions.width,
-                jointHorizontalDimensions.height
+                jointHorizontalDimensions.height,
+                element // Passer l'élément pour déterminer le matériau du joint
             );
             
             if (suggestion) {
@@ -5166,8 +5260,22 @@ class ConstructionTools {
         console.log('🔧 Résultat détection adjacence:', adjacency, 'hasAdjacent:', hasAdjacentBricks);
         
         if (!hasAdjacentBricks) {
-            console.log('🔧 Aucune brique adjacente détectée - Affichage du joint horizontal uniquement');
-            this.createHorizontalJointOnly(element);
+            console.log('🔧 Aucune brique adjacente détectée - Affichage joint horizontal (si autorisé)');
+            if (!(element.type === 'block' && element.blockType && (element.blockType.startsWith('BC_') || element.blockType.startsWith('BCA_'))) ) {
+                this.createHorizontalJointOnly(element);
+            } else {
+                // Déterminer assise via AssiseManager
+                let idx = 0;
+                if (window.AssiseManager) {
+                    const bt = element.blockType.startsWith('BCA_') ? 'CELLULAR' : 'CELLULAR';
+                    idx = window.AssiseManager.currentAssiseByType.get(bt) || 0;
+                }
+                if (idx === 0) {
+                    this.createHorizontalJointOnly(element); // première assise seulement
+                } else {
+                    console.log('🚫 Joint horizontal épais ignoré (CELLULAR assise >0)');
+                }
+            }
             return;
         }
         
@@ -5205,8 +5313,25 @@ class ConstructionTools {
         
         // CORRECTION: Ne pas créer de joints verticaux si l'épaisseur est 0 (béton cellulaire assises 2+)
         if (jointVertical <= 0) {
-            console.log('🚫 Pas de joints verticaux - Épaisseur nulle, affichage joint horizontal uniquement (béton cellulaire assises 2+)');
-            this.createHorizontalJointOnly(element);
+            console.log('🚫 Pas de joints verticaux - tentative joint horizontal (colle)');
+            // Pour CELLULAR assise >0, joint horizontal fin (0.1cm) seulement si pas déjà créé
+            if (element.type === 'block' && element.blockType && (element.blockType.startsWith('BC_') || element.blockType.startsWith('BCA_'))) {
+                let idx = 0;
+                if (window.AssiseManager) {
+                    const bt = 'CELLULAR';
+                    idx = window.AssiseManager.currentAssiseByType.get(bt) || 0;
+                }
+                if (idx === 0) {
+                    this.createHorizontalJointOnly(element); // mortier 1.2cm
+                } else {
+                    // Créer une version forcée 0.1cm si besoin
+                    const saved = element.dimensions.height;
+                    // Appel classique puis clamp dans createHorizontalJointOnly (déjà géré)
+                    this.createHorizontalJointOnly(element);
+                }
+            } else {
+                this.createHorizontalJointOnly(element);
+            }
             return;
         }
         
@@ -5537,11 +5662,20 @@ class ConstructionTools {
 
     createLinteauElement(type, material, elementData) {
         // ✅ CORRECTION: Utiliser le bon format d'options pour WallElement
+        // 🎨 FORCAGE COULEUR: Les linteaux doivent toujours être en béton gris
+        const concreteMaterial = window.MaterialLibrary
+            ? window.MaterialLibrary.getMaterial('concrete')
+            : material; // fallback si librairie indisponible
+
         const element = new WallElement({
             blockType: type,
-            material: material,
+            material: concreteMaterial,
             type: 'linteau'
         });
+        // S'assurer que userData reflète le matériau béton
+        if (element && element.mesh && concreteMaterial) {
+            element.mesh.userData.material = 'concrete';
+        }
         this.setupElementUserData(element, elementData);
         return element.mesh;
     }
@@ -5626,47 +5760,132 @@ class ConstructionTools {
     getCurrentCellularAssiseIndex() {
         let currentAssiseIndex = 0;
         
+        console.log(`🔍 [getCurrentCellularAssiseIndex] Début de la détection`);
+        
         if (window.AssiseManager) {
-            // Approche 1: Vérifier directement le type CELLULAR
+            // Approche prioritaire: Analyser les niveaux Y des blocs cellulaires existants
+            if (window.SceneManager && window.SceneManager.elements) {
+                console.log(`🔍 [getCurrentCellularAssiseIndex] Analyse des éléments de la scène (${window.SceneManager.elements.size} éléments)`);
+                
+                const cellularElements = [];
+                for (const el of window.SceneManager.elements.values()) {
+                    if (el.type === 'block') {
+                        const isCellular = (el.blockType && (el.blockType.startsWith('BC_') || el.blockType.startsWith('BCA_'))) || el.material === 'cellular-concrete';
+                        if (isCellular) {
+                            const element = {
+                                id: el.id,
+                                baseY: el.position?.y ?? 0,
+                                height: el.dimensions?.height ?? 25,
+                                blockType: el.blockType,
+                                material: el.material
+                            };
+                            cellularElements.push(element);
+                            console.log(`🔍 [getCurrentCellularAssiseIndex] Bloc cellulaire trouvé: ${element.id}, baseY=${element.baseY.toFixed(2)}, blockType=${element.blockType}`);
+                        }
+                    }
+                }
+                
+                console.log(`🔍 [getCurrentCellularAssiseIndex] ${cellularElements.length} blocs cellulaires trouvés`);
+                
+                if (cellularElements.length > 0) {
+                    // Regrouper par niveaux avec tolérance
+                    const levels = [];
+                    const TOL = 0.5; // tolérance plus large pour regroupement
+                    
+                    console.log(`🔍 [getCurrentCellularAssiseIndex] Regroupement par niveaux (tolérance=${TOL}cm)`);
+                    
+                    for (const el of cellularElements) {
+                        let foundLevel = false;
+                        for (const level of levels) {
+                            if (Math.abs(level.avgY - el.baseY) < TOL) {
+                                level.elements.push(el);
+                                level.avgY = level.elements.reduce((sum, e) => sum + e.baseY, 0) / level.elements.length;
+                                console.log(`🔍 [getCurrentCellularAssiseIndex] Bloc ${el.id} ajouté au niveau existant ${level.index}, nouvelle avgY=${level.avgY.toFixed(2)}`);
+                                foundLevel = true;
+                                break;
+                            }
+                        }
+                        if (!foundLevel) {
+                            const newLevel = {
+                                index: levels.length,
+                                avgY: el.baseY,
+                                elements: [el]
+                            };
+                            levels.push(newLevel);
+                            console.log(`🔍 [getCurrentCellularAssiseIndex] Nouveau niveau ${newLevel.index} créé avec bloc ${el.id}, avgY=${newLevel.avgY.toFixed(2)}`);
+                        }
+                    }
+                    
+                    // Trier les niveaux par hauteur
+                    levels.sort((a, b) => a.avgY - b.avgY);
+                    
+                    // Réassigner les index après tri
+                    levels.forEach((level, index) => {
+                        level.index = index;
+                    });
+                    
+                    // L'assise courante est celle du niveau le plus haut
+                    currentAssiseIndex = levels.length - 1;
+                    
+                    console.log(`🔍 [getCurrentCellularAssiseIndex] Résultat final:`);
+                    console.log(`🔍 [getCurrentCellularAssiseIndex] - ${levels.length} niveau(x) détecté(s)`);
+                    console.log(`🔍 [getCurrentCellularAssiseIndex] - Assise courante = ${currentAssiseIndex}`);
+                    
+                    levels.forEach((level, i) => {
+                        console.log(`🔍 [getCurrentCellularAssiseIndex] - Niveau ${i}: Y=${level.avgY.toFixed(2)}cm, ${level.elements.length} bloc(s): [${level.elements.map(e => e.id).join(', ')}]`);
+                    });
+                    
+                    console.log(`🏗️ Détection niveaux béton cellulaire: ${levels.length} niveau(x), assise courante = ${currentAssiseIndex}`);
+                    console.log(`🏗️ Niveaux détectés:`, levels.map((l, i) => `Assise ${i}: Y=${l.avgY.toFixed(2)} (${l.elements.length} blocs)`));
+                    return currentAssiseIndex;
+                } else {
+                    console.log(`🔍 [getCurrentCellularAssiseIndex] Aucun bloc cellulaire trouvé dans la scène`);
+                }
+            } else {
+                console.log(`🔍 [getCurrentCellularAssiseIndex] SceneManager ou elements non disponible`);
+            }
+            
+            // Fallback: Vérifier directement le type CELLULAR
             const cellularAssiseIndex = window.AssiseManager.currentAssiseByType.get('CELLULAR');
             if (cellularAssiseIndex !== undefined) {
                 currentAssiseIndex = cellularAssiseIndex;
+                console.log(`🔍 [getCurrentCellularAssiseIndex] Fallback 1: Assise CELLULAR trouvée directement: ${currentAssiseIndex}`);
                 console.log(`🏗️ Assise CELLULAR trouvée directement: ${currentAssiseIndex}`);
                 return currentAssiseIndex;
+            } else {
+                console.log(`🔍 [getCurrentCellularAssiseIndex] Fallback 1: Aucune assise CELLULAR dans currentAssiseByType`);
             }
             
-            // Approche 2: Si le type courant est CELLULAR, utiliser l'assise courante
+            // Fallback: Si le type courant est CELLULAR, utiliser l'assise courante
             if (window.AssiseManager.currentType === 'CELLULAR') {
                 currentAssiseIndex = window.AssiseManager.getCurrentAssise();
+                console.log(`🔍 [getCurrentCellularAssiseIndex] Fallback 2: Type courant est CELLULAR, assise courante: ${currentAssiseIndex}`);
                 console.log(`🏗️ Type courant est CELLULAR, assise courante: ${currentAssiseIndex}`);
                 return currentAssiseIndex;
+            } else {
+                console.log(`🔍 [getCurrentCellularAssiseIndex] Fallback 2: Type courant n'est pas CELLULAR (${window.AssiseManager.currentType})`);
             }
             
-            // Approche 3: Vérifier s'il y a des éléments cellulaires dans les assises existantes
+            // Fallback: Vérifier s'il y a des éléments cellulaires dans les assises existantes
             if (window.AssiseManager.elementsByType && window.AssiseManager.elementsByType.has('CELLULAR')) {
                 const cellularAssises = window.AssiseManager.elementsByType.get('CELLULAR');
                 if (cellularAssises && cellularAssises.size > 0) {
-                    // Prendre la plus haute assise qui contient des éléments
                     const maxAssiseIndex = Math.max(...cellularAssises.keys());
                     currentAssiseIndex = maxAssiseIndex;
+                    console.log(`🔍 [getCurrentCellularAssiseIndex] Fallback 3: Assise CELLULAR la plus élevée avec éléments: ${currentAssiseIndex}`);
                     console.log(`🏗️ Assise CELLULAR la plus élevée avec éléments: ${currentAssiseIndex}`);
                     return currentAssiseIndex;
+                } else {
+                    console.log(`🔍 [getCurrentCellularAssiseIndex] Fallback 3: elementsByType CELLULAR vide`);
                 }
+            } else {
+                console.log(`🔍 [getCurrentCellularAssiseIndex] Fallback 3: Pas de elementsByType CELLULAR`);
             }
-            
-            // Approche 4: Compter les blocs cellulaires dans la scène pour déterminer l'assise
-            if (window.SceneManager && window.SceneManager.elements) {
-                const cellularBlocksCount = this.countCellularBlocksInScene();
-                // Estimer l'assise basée sur le nombre de blocs (approximation)
-                // Si on a des blocs, on est probablement sur l'assise suivante
-                if (cellularBlocksCount > 0) {
-                    currentAssiseIndex = 1; // Deuxième assise
-                    console.log(`🏗️ ${cellularBlocksCount} blocs cellulaires trouvés, estimation assise: ${currentAssiseIndex}`);
-                    return currentAssiseIndex;
-                }
-            }
+        } else {
+            console.log(`🔍 [getCurrentCellularAssiseIndex] AssiseManager non disponible`);
         }
         
+        console.log(`🔍 [getCurrentCellularAssiseIndex] Retour de l'assise par défaut: ${currentAssiseIndex}`);
         console.log(`🏗️ Utilisation de l'assise par défaut: ${currentAssiseIndex}`);
         return currentAssiseIndex;
     }
@@ -5720,10 +5939,53 @@ class ConstructionTools {
             
             // Béton cellulaire standard (BC_*) : joints selon l'assise
             if (blockType.startsWith('BC_')) {
-                // Déterminer l'assise actuelle pour les blocs cellulaires
+                // Déterminer l'assise actuelle pour les blocs cellulaires avec détection améliorée
                 let currentAssiseIndex = this.getCurrentCellularAssiseIndex();
                 
                 console.log(`🔍 DIAGNOSTIC BC_: Assise index=${currentAssiseIndex}, nouvelle numérotation=${currentAssiseIndex + 1}`);
+
+                // Vérification supplémentaire: si on place un nouvel élément, recalculer l'assise réelle
+                if (element.position && element.dimensions) {
+                    const elementBaseY = element.position.y;
+                    const elementHeight = element.dimensions.height;
+                    
+                    console.log(`🔍 [BC_] Vérification position élément: baseY=${elementBaseY.toFixed(2)}, height=${elementHeight.toFixed(2)}`);
+                    
+                    // Collecter les bases des autres blocs cellulaires
+                    const otherBases = [];
+                    if (window.SceneManager && window.SceneManager.elements) {
+                        for (const el of window.SceneManager.elements.values()) {
+                            if (el !== element && el.type === 'block' && el.blockType && el.blockType.startsWith('BC_')) {
+                                const baseY = el.position?.y || 0;
+                                otherBases.push(baseY);
+                                console.log(`🔍 [BC_] Autre bloc BC_ trouvé: ${el.id}, baseY=${baseY.toFixed(2)}`);
+                            }
+                        }
+                    }
+                    
+                    console.log(`🔍 [BC_] ${otherBases.length} autres blocs BC_ trouvés`);
+                    
+                    if (otherBases.length > 0) {
+                        const minBase = Math.min(...otherBases);
+                        const seuil = minBase + elementHeight * 0.8;
+                        
+                        console.log(`🔍 [BC_] minBase=${minBase.toFixed(2)}, seuil=${seuil.toFixed(2)} (minBase + ${elementHeight.toFixed(2)} * 0.8)`);
+                        
+                        if (elementBaseY > seuil) {
+                            console.log(`🔍 [BC_] Condition remplie: ${elementBaseY.toFixed(2)} > ${seuil.toFixed(2)} → Correction assise`);
+                            console.log(`🔍 Correction assise BC_: baseY=${elementBaseY.toFixed(2)} > seuil=${seuil.toFixed(2)} → assise supérieure détectée`);
+                            const oldIndex = currentAssiseIndex;
+                            currentAssiseIndex = Math.max(1, currentAssiseIndex);
+                            console.log(`🔍 [BC_] Assise corrigée: ${oldIndex} → ${currentAssiseIndex}`);
+                        } else {
+                            console.log(`🔍 [BC_] Condition non remplie: ${elementBaseY.toFixed(2)} <= ${seuil.toFixed(2)} → Pas de correction`);
+                        }
+                    } else {
+                        console.log(`🔍 [BC_] Aucun autre bloc BC_ → Premier bloc, assise 0`);
+                    }
+                } else {
+                    console.log(`🔍 [BC_] Pas de position/dimensions disponibles pour la vérification`);
+                }
                 
                 if (currentAssiseIndex === 0) {
                     // Première assise (assise 1) : joint au sol 1.2cm, ZÉRO vertical
@@ -5734,11 +5996,15 @@ class ConstructionTools {
                         verticalThickness: 0     // 0mm - PAS de joints verticaux pour béton cellulaire (TOUTES assises)
                     };
                 } else {
-                    // Assises suivantes (assise 2+) : joints de 2mm horizontal, ZÉRO vertical
-                    console.log(`🏗️ Bloc BC_ - ASSISE ${currentAssiseIndex + 1} (index ${currentAssiseIndex}) : joints colle 2mm horizontal, 0mm vertical (blockType: ${blockType})`);
+                    // Normaliser les joints existants trop épais sur les assises supérieures
+                    this.normalizeCellularSecondCourseJoints();
+                    // Dédupliquer si un joint mortier (1.2) s'est déjà créé avant mise à jour d'assise
+                    this.dedupeCellularHorizontalJoints();
+                    // Assises suivantes (assise 2+) : joints de 1mm horizontal, ZÉRO vertical (demande utilisateur)
+                    console.log(`🏗️ Bloc BC_ - ASSISE ${currentAssiseIndex + 1} (index ${currentAssiseIndex}) : joints colle 1mm horizontal, 0mm vertical (blockType: ${blockType})`);
                     return { 
                         createJoints: true, 
-                        horizontalThickness: 2, // 2mm (colle fine)
+                        horizontalThickness: 1, // 1mm (colle très fine)
                         verticalThickness: 0    // 0mm - PAS de joints verticaux pour béton cellulaire (TOUTES assises)
                     };
                 }
@@ -5746,10 +6012,50 @@ class ConstructionTools {
             
             // Béton cellulaire assise (BCA_*) : joints selon l'assise
             if (blockType.startsWith('BCA_')) {
-                // Déterminer l'assise actuelle pour les blocs cellulaires
+                // Déterminer l'assise actuelle pour les blocs cellulaires avec détection améliorée
                 let currentAssiseIndex = this.getCurrentCellularAssiseIndex();
                 
                 console.log(`🔍 DIAGNOSTIC BCA_: Assise index=${currentAssiseIndex}, nouvelle numérotation=${currentAssiseIndex + 1}`);
+
+                // Vérification supplémentaire pour BCA_
+                if (element.position && element.dimensions) {
+                    const elementBaseY = element.position.y;
+                    const elementHeight = element.dimensions.height;
+                    
+                    console.log(`🔍 [BCA_] Vérification position élément: baseY=${elementBaseY.toFixed(2)}, height=${elementHeight.toFixed(2)}`);
+                    
+                    const otherBases = [];
+                    if (window.SceneManager && window.SceneManager.elements) {
+                        for (const el of window.SceneManager.elements.values()) {
+                            if (el !== element && el.type === 'block' && el.blockType && el.blockType.startsWith('BCA_')) {
+                                const baseY = el.position?.y || 0;
+                                otherBases.push(baseY);
+                                console.log(`🔍 [BCA_] Autre bloc BCA_ trouvé: ${el.id}, baseY=${baseY.toFixed(2)}`);
+                            }
+                        }
+                    }
+                    
+                    console.log(`🔍 [BCA_] ${otherBases.length} autres blocs BCA_ trouvés`);
+                    
+                    if (otherBases.length > 0) {
+                        const minBase = Math.min(...otherBases);
+                        const seuil = minBase + elementHeight * 0.8;
+                        
+                        console.log(`🔍 [BCA_] minBase=${minBase.toFixed(2)}, seuil=${seuil.toFixed(2)} (minBase + ${elementHeight.toFixed(2)} * 0.8)`);
+                        
+                        if (elementBaseY > seuil) {
+                            console.log(`🔍 [BCA_] Condition remplie: ${elementBaseY.toFixed(2)} > ${seuil.toFixed(2)} → Correction assise`);
+                            console.log(`🔍 Correction assise BCA_: baseY=${elementBaseY.toFixed(2)} > seuil=${seuil.toFixed(2)} → assise supérieure détectée`);
+                            const oldIndex = currentAssiseIndex;
+                            currentAssiseIndex = Math.max(1, currentAssiseIndex);
+                            console.log(`🔍 [BCA_] Assise corrigée: ${oldIndex} → ${currentAssiseIndex}`);
+                        } else {
+                            console.log(`🔍 [BCA_] Condition non remplie: ${elementBaseY.toFixed(2)} <= ${seuil.toFixed(2)} → Pas de correction`);
+                        }
+                    } else {
+                        console.log(`🔍 [BCA_] Aucun autre bloc BCA_ → Premier bloc, assise 0`);
+                    }
+                }
                 
                 if (currentAssiseIndex === 0) {
                     // Première assise (assise 1) : joint au sol 1.2cm, ZÉRO vertical
@@ -5760,11 +6066,13 @@ class ConstructionTools {
                         verticalThickness: 0     // 0mm - PAS de joints verticaux pour béton cellulaire (TOUTES assises)
                     };
                 } else {
-                    // Assises suivantes (assise 2+) : joints de 2mm horizontal, ZÉRO vertical
-                    console.log(`🏗️ Bloc BCA_ - ASSISE ${currentAssiseIndex + 1} (index ${currentAssiseIndex}) : joints colle 2mm horizontal, 0mm vertical (blockType: ${blockType})`);
+                    this.normalizeCellularSecondCourseJoints();
+                    this.dedupeCellularHorizontalJoints();
+                    // Assises suivantes (assise 2+) : joints de 1mm horizontal, ZÉRO vertical (demande utilisateur)
+                    console.log(`🏗️ Bloc BCA_ - ASSISE ${currentAssiseIndex + 1} (index ${currentAssiseIndex}) : joints colle 1mm horizontal, 0mm vertical (blockType: ${blockType})`);
                     return { 
                         createJoints: true, 
-                        horizontalThickness: 2, // 2mm (colle fine)
+                        horizontalThickness: 1, // 1mm (colle très fine)
                         verticalThickness: 0    // 0mm - PAS de joints verticaux pour béton cellulaire (TOUTES assises)
                     };
                 }
@@ -5822,40 +6130,39 @@ class ConstructionTools {
                 };
             }
             
-            // Si on a des données de bloc et que c'est un bloc béton cellulaire (cellular ou cellular-assise)
-            if (blockData && (blockData.category === 'cellular' || blockData.category === 'cellular-assise')) {
+            // Si on a des données de bloc et que c'est un bloc béton cellulaire, ARGEX ou terre cuite (standard, assise, ou coupé)
+            if (blockData && (blockData.category === 'cellular' || blockData.category === 'cellular-assise' || 
+                blockData.category === 'argex' || blockData.category === 'terracotta' ||
+                (blockData.category === 'cut' && element.blockType === 'CELLULAIRE') ||
+                (blockData.category === 'cut' && element.blockType === 'ARGEX') ||
+                (blockData.category === 'cut' && element.blockType === 'TERRE_CUITE'))) {
                 // INTEGRATION ASSISE MANAGER: Utiliser AssiseManager pour déterminer l'assise courante
                 let currentAssiseIndex = 0;
                 
                 if (window.AssiseManager) {
-                    // Chercher l'assise de cet élément dans AssiseManager
-                    const assiseData = window.AssiseManager.findElementAssiseComplete(element.id);
-                    if (assiseData) {
-                        currentAssiseIndex = assiseData.assiseIndex;
-                        console.log(`🏗️ Bloc béton cellulaire: AssiseManager indique assise ${currentAssiseIndex}`);
-                    } else {
-                        // Fallback: utiliser l'assise active du type approprié
-                        const elementType = element.blockType || 'CELLULAR';
-                        currentAssiseIndex = window.AssiseManager.currentAssiseByType.get(elementType) || 0;
-                        console.log(`🏗️ Bloc béton cellulaire: Fallback assise active ${currentAssiseIndex} pour type ${elementType}`);
-                    }
+                    // CORRECTION: Utiliser notre détection améliorée plutôt que AssiseManager basique
+                    console.log(`🔍 [SPÉCIALISÉ] Utilisation de getCurrentCellularAssiseIndex() pour une détection précise`);
+                    currentAssiseIndex = this.getCurrentCellularAssiseIndex(element);
+                    console.log(`🏗️ Bloc spécialisé (${blockData.category}/${element.blockType}): AssiseManager amélioré indique assise ${currentAssiseIndex}`);
                 }
                 
                 if (currentAssiseIndex === 0) {
                     // Première assise : mortier traditionnel avec joints de 1.2cm horizontal, ZÉRO vertical
-                    console.log(`🏗️ Bloc béton cellulaire/BCA - PREMIÈRE ASSISE : joints mortier 1.2cm horizontal, 0mm vertical (catégorie: ${blockData.category})`);
+                    console.log(`🏗️ Bloc spécialisé (${blockData.category}/${element.blockType}) - PREMIÈRE ASSISE : joints mortier 1.2cm horizontal, 0mm vertical`);
                     return { 
                         createJoints: true, 
                         horizontalThickness: 12, // 1.2cm = 12mm
-                        verticalThickness: 0     // 0mm - PAS de joints verticaux pour béton cellulaire (TOUTES assises)
+                        verticalThickness: 0     // 0mm - PAS de joints verticaux pour blocs spécialisés (TOUTES assises)
                     };
                 } else {
-                    // Assises supérieures : colle fine avec joints de 2mm horizontal, ZÉRO vertical
-                    console.log(`🏗️ Bloc béton cellulaire/BCA - ASSISE ${currentAssiseIndex + 1} : joints colle 2mm horizontal, 0mm vertical (catégorie: ${blockData.category})`);
+                    this.normalizeCellularSecondCourseJoints();
+                    this.dedupeCellularHorizontalJoints();
+                    // Assises supérieures : colle fine avec joints de 1mm horizontal, ZÉRO vertical (mise à jour)
+                    console.log(`🏗️ Bloc spécialisé (${blockData.category}/${element.blockType}) - ASSISE ${currentAssiseIndex + 1} : joints colle 1mm horizontal, 0mm vertical`);
                     return { 
                         createJoints: true, 
-                        horizontalThickness: 2, // 2mm
-                        verticalThickness: 0    // 0mm - PAS de joints verticaux pour béton cellulaire (TOUTES assises)
+                        horizontalThickness: 1, // 1mm
+                        verticalThickness: 0    // 0mm - PAS de joints verticaux pour blocs spécialisés (TOUTES assises)
                     };
                 }
             }
@@ -5888,6 +6195,145 @@ class ConstructionTools {
 
         // Par défaut, ne pas créer de joints
         return { createJoints: false, horizontalThickness: 0, verticalThickness: 0 };
+    }
+
+    /**
+     * Normalise (ou masque) les joints horizontaux de 1.2cm qui subsistent sous des blocs CELLULAR des assises supérieures.
+     * Stratégie: détecter le niveau de base minimal (première assise), déduire hauteur bloc, puis pour chaque joint horizontal
+     * associé à un bloc CELLULAR dont le centre Y dépasse (minBase + heightBloc*0.8), masquer ou réduire à 0.1cm.
+     */
+    normalizeCellularSecondCourseJoints() {
+        if (!window.SceneManager || !window.SceneManager.scene) return;
+        try {
+            // Collecter bases des blocs cellulaires
+            const cellularBases = [];
+            let sampleHeight = null;
+            const elements = window.SceneManager.elements;
+            if (!elements) return;
+            for (const el of elements.values()) {
+                if (el.type === 'block' && el.blockType && (el.blockType.startsWith('BC_') || el.blockType.startsWith('BCA_'))) {
+                    cellularBases.push(el.position?.y || 0);
+                    if (!sampleHeight && el.dimensions?.height) sampleHeight = el.dimensions.height;
+                }
+            }
+            if (cellularBases.length === 0 || !sampleHeight) return;
+            const minBase = Math.min(...cellularBases);
+            const secondCourseThreshold = minBase + sampleHeight * 0.8; // base d'une assise supérieure attendue
+            let fixedCount = 0;
+            window.SceneManager.scene.traverse((child) => {
+                if (!child.userData) return;
+                if (child.userData.isJoint && child.userData.isHorizontalJoint) {
+                    const parentType = child.userData.parentElementType;
+                    const blockType = child.userData.blockType || child.userData.blockTypeId;
+                    if (parentType === 'block' && blockType && (blockType.startsWith('BC_') || blockType.startsWith('BCA_'))) {
+                        // Déterminer hauteur actuelle (approx: boundingBox ou scale.y)
+                        let h = 0;
+                        if (child.geometry && child.geometry.boundingBox) {
+                            const bb = child.geometry.boundingBox;
+                            h = (bb.max.y - bb.min.y) * child.scale.y;
+                        } else {
+                            h = child.scale.y; // fallback
+                        }
+                        // Centre Y du joint
+                        const centerY = child.position.y;
+                        const topY = centerY + h / 2;
+                        // Si joint épais (≈1.2) et situé sous un bloc de seconde assise → corriger
+                        if (h > 0.2 && (topY > secondCourseThreshold)) {
+                            // Réduire à 0.1cm: ajuster scale et position pour garder le haut aligné
+                            const newH = 0.1;
+                            const delta = (h - newH) / 2;
+                            child.scale.y = (child.scale.y * newH) / h;
+                            child.position.y = child.position.y + delta; // remonte le centre
+                            child.userData.correctedCellularJoint = true;
+                            fixedCount++;
+                        }
+                    }
+                }
+            });
+            if (fixedCount > 0) {
+                console.log(`🔧 Normalisation joints CELLULAR assises supérieures: ${fixedCount} joint(s) corrigé(s)`);
+            }
+        } catch (e) {
+            console.warn('Échec normalisation joints CELLULAR:', e);
+        }
+    }
+
+    /**
+     * Déduplique les joints horizontaux cellulaires (évite superposition 1.2cm + 0.1cm).
+     * Regroupe par position (x,z) arrondie et garde le joint le plus fin si doublon.
+     */
+    dedupeCellularHorizontalJoints() {
+        if (!window.SceneManager || !window.SceneManager.scene) return;
+        console.log(`🧹 [DEDUPE] Début de la déduplication des joints cellulaires`);
+        try {
+            const groups = new Map(); // key -> array of joints
+            let totalJoints = 0;
+            window.SceneManager.scene.traverse((child) => {
+                if (!child.userData) return;
+                if (child.userData.isJoint && child.userData.isHorizontalJoint) {
+                    totalJoints++;
+                    const bt = child.userData.blockType || child.userData.blockTypeId;
+                    if (bt && (bt.startsWith('BC_') || bt.startsWith('BCA_'))) {
+                        const x = child.position.x.toFixed(2);
+                        const z = child.position.z.toFixed(2);
+                        const key = x + '|' + z;
+                        if (!groups.has(key)) groups.set(key, []);
+                        groups.get(key).push(child);
+                        console.log(`🧹 [DEDUPE] Joint cellulaire trouvé: pos=(${x},${child.position.y.toFixed(2)},${z}), blockType=${bt}, key=${key}`);
+                    }
+                }
+            });
+            console.log(`🧹 [DEDUPE] Total joints analysés: ${totalJoints}, groupes cellulaires: ${groups.size}`);
+            
+            let removed = 0, hidden = 0, shrunk = 0;
+            for (const [key, arr] of groups.entries()) {
+                if (arr.length < 2) continue;
+                console.log(`🧹 [DEDUPE] Groupe ${key}: ${arr.length} joints à traiter`);
+                
+                // Mesurer hauteurs
+                const data = arr.map(j => {
+                    let h = 0;
+                    if (j.geometry && j.geometry.boundingBox) {
+                        const bb = j.geometry.boundingBox; h = (bb.max.y - bb.min.y) * j.scale.y;
+                    } else { h = j.scale.y; }
+                    console.log(`🧹 [DEDUPE] Joint hauteur: ${h.toFixed(3)}, Y=${j.position.y.toFixed(2)}, visible=${j.visible}`);
+                    return { node: j, h };
+                });
+                const thick = data.filter(d => d.h > 0.2);
+                const thin = data.filter(d => d.h <= 0.15);
+                console.log(`🧹 [DEDUPE] Groupe ${key}: ${thick.length} épais, ${thin.length} fins`);
+                
+                if (thick.length && thin.length) {
+                    // Garder le plus fin, masquer les épais
+                    console.log(`🧹 [DEDUPE] Masquage de ${thick.length} joints épais`);
+                    for (const t of thick) {
+                        t.node.visible = false;
+                        t.node.userData.dedupeHidden = true;
+                        hidden++;
+                    }
+                } else if (thick.length > 1) {
+                    // Réduire tous sauf un
+                    thick.sort((a,b)=>a.h-b.h);
+                    console.log(`🧹 [DEDUPE] Réduction de ${thick.length-1} joints épais`);
+                    for (let i=1;i<thick.length;i++) {
+                        const j = thick[i];
+                        const newH = 0.1;
+                        const oldH = j.h;
+                        const delta = (oldH - newH)/2;
+                        j.node.scale.y = (j.node.scale.y * newH)/oldH;
+                        j.node.position.y += delta;
+                        j.node.userData.shrunkByDedupe = true;
+                        shrunk++;
+                    }
+                }
+            }
+            console.log(`🧹 [DEDUPE] Résultats: hidden=${hidden}, shrunk=${shrunk}, removed=${removed}`);
+            if (hidden || removed || shrunk) {
+                console.log(`🔧 Déduplication joints CELLULAR: hidden=${hidden}, shrunk=${shrunk}`);
+            }
+        } catch (e) {
+            console.warn('Échec déduplication joints CELLULAR:', e);
+        }
     }
 
     // ========== MÉTHODES UTILITAIRES ==========
@@ -6263,11 +6709,14 @@ class ConstructionTools {
         return 'brick';
     }
 
-    applyJointColorToElement(jointElement, parentElementType) {
+    applyJointColorToElement(jointElement, parentElementType, referenceElementParam = null) {
         if (!jointElement || !jointElement.mesh || !jointElement.mesh.material) return;
         
-        // Utiliser le nouveau système de matériaux avec le matériau par défaut joint-gris-souris
-        const jointMaterialId = this.getJointMaterial();
+        // Essayer de déterminer l'élément parent pour le matériau
+        const parentElement = referenceElementParam || this.referenceElement || this.activeBrickForSuggestions;
+        
+        // Utiliser le nouveau système de matériaux avec l'élément parent
+        const jointMaterialId = this.getJointMaterial(parentElement);
         
         if (window.MaterialLibrary && jointMaterialId) {
             const jointMaterial = window.MaterialLibrary.getMaterial(jointMaterialId);
@@ -6765,7 +7214,7 @@ class ConstructionTools {
         // ===== CRÉATION DE L'ÉLÉMENT JOINT PERMANENT (copie exacte) =====
         const joint = new WallElement({
             type: 'joint', // Type spécifique pour les joints
-            material: this.getJointMaterial(), // Utiliser le matériau spécifique aux joints
+            material: this.getJointMaterial(referenceElement), // Utiliser le matériau spécifique aux joints avec l'élément source
             x: cornerX,
             y: finalY,
             z: cornerZ,
@@ -6803,6 +7252,13 @@ class ConstructionTools {
             joint.userData.elementType = 'joint';
             joint.userData.isVerticalJoint = jointData.isVerticalJoint;
             joint.userData.isHorizontalJoint = jointData.isHorizontalJoint;
+            // Stocker côté vertical explicite si disponible
+            if (jointData.verticalJointSide) {
+                joint.userData.verticalJointSide = jointData.verticalJointSide;
+            } else if (jointData.type) {
+                if (/droite|right/i.test(jointData.type)) joint.userData.verticalJointSide = 'right';
+                else if (/gauche|left/i.test(jointData.type)) joint.userData.verticalJointSide = 'left';
+            }
             
             // NOUVEAU: Assurer que le mesh.userData est aussi correctement configuré
             joint.mesh.userData.isJoint = true;
@@ -6811,9 +7267,12 @@ class ConstructionTools {
             joint.mesh.userData.elementType = 'joint';
             joint.mesh.userData.isVerticalJoint = jointData.isVerticalJoint;
             joint.mesh.userData.isHorizontalJoint = jointData.isHorizontalJoint;
+            if (joint.userData.verticalJointSide) {
+                joint.mesh.userData.verticalJointSide = joint.userData.verticalJointSide;
+            }
             
             // Appliquer la couleur appropriée selon le type de parent
-            this.applyJointColorToElement(joint, joint.mesh.userData.parentElementType);
+            this.applyJointColorToElement(joint, joint.mesh.userData.parentElementType, referenceElement);
             
             // console.log(`🔗 Joint ${joint.userData.parentElementType === 'brick' ? 'brique' : 'bloc'} associé à l'élément parent:`, parentId);
             
@@ -7742,7 +8201,9 @@ ConstructionTools.prototype.createSpecificVerticalJoint = function(element, side
         type: jointPosition.type,
         dimensions: jointDimensions,
         isVerticalJoint: true,
-        parentElementType: element.type
+    parentElementType: element.type,
+    // Ajout: stockage explicite du côté pour fiabilité détection ultérieure
+    verticalJointSide: side === 'left' ? 'left' : 'right'
     };
 
     // Créer le joint automatiquement

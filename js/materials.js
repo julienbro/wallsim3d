@@ -690,14 +690,16 @@ class MaterialLibrary {
                 section: 'compatibilite'
             },
             'terracotta': {
-                name: 'Terre Cuite (ancien)',
-                color: 0xB85C57,
-                roughness: 0.8,
+                name: 'Terre Cuite Rouge',
+                color: 0xCD5C5C,  // Rouge indien plus vif
+                roughness: 0.7,
                 metalness: 0.0,
                 density: 1800,
                 thermalConductivity: 0.6,
                 price: 0.35,
-                section: 'compatibilite'
+                section: 'compatibilite',
+                description: 'Terre cuite aux nuances rouges, idéale pour construction traditionnelle.',
+                rgb: '(205, 92, 92)'
             },
             'cellular-concrete': {
                 name: 'Béton Cellulaire (ancien)',
@@ -822,6 +824,30 @@ class MaterialLibrary {
                 section: 'modernes-composites',
                 description: 'Joint de maçonnerie de couleur gris souris, neutre et moderne.',
                 rgb: '(158, 158, 158)'
+            },
+            'joint-blanc-casse': {
+                name: 'Joint Blanc Cassé',
+                color: 0xF5F5DC,
+                roughness: 0.9,
+                metalness: 0.0,
+                density: 1500,
+                thermalConductivity: 0.7,
+                price: 0.15,
+                section: 'modernes-composites',
+                description: 'Joint de maçonnerie de couleur blanc cassé, idéal pour béton cellulaire.',
+                rgb: '(245, 245, 220)'
+            },
+            'joint-argex': {
+                name: 'Joint Argex',
+                color: 0xE6E6FA,
+                roughness: 0.9,
+                metalness: 0.0,
+                density: 1500,
+                thermalConductivity: 0.7,
+                price: 0.15,
+                section: 'modernes-composites',
+                description: 'Joint de maçonnerie lavande clair, spécialement adapté aux blocs ARGEX.',
+                rgb: '(230, 230, 250)'
             }
         };
     }

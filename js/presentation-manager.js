@@ -1242,6 +1242,9 @@ class PresentationManager {
         // Récupérer les informations du projet depuis l'onglet "Projet" de la barre latérale
         const projectNameElement = document.getElementById('projectName');
         const projectDesignerElement = document.getElementById('projectDesigner');
+    // Sélecteur d'échelle orthogonale (vue du dessus + élévations)
+    const orthoScaleSelect = document.getElementById('orthogonalScaleSelect');
+    const orthoScale = orthoScaleSelect ? orthoScaleSelect.value : '1:20';
         
         return {
             projectTitle: projectNameElement ? (projectNameElement.value || 'Nom du projet à définir') : 'Nom du projet à définir',
@@ -1257,8 +1260,8 @@ class PresentationManager {
                 metrage: this.selectedPagesForExport.has('pageMetrage')
             },
             scales: {
-                top: '1:20',      // Échelle fixe pour la vue du dessus
-                elevation: '1:20' // Échelle fixe pour les élévations
+                top: orthoScale,        // Échelle choisie pour la vue du dessus
+                elevation: orthoScale   // Même échelle appliquée aux élévations
             },
             // Nouvelles données pour les coupes d'assises
             assiseCuts: Array.from(this.selectedAssisesForExport).map(assiseId => {
@@ -4512,6 +4515,29 @@ class PresentationManager {
             
             // Positionner la caméra orthographique selon la vue demandée
             this.setOrthographicCameraPosition(orthographicCamera, viewType, sceneManager);
+
+            // RECENTRAGE LATÉRAL : Ajuster la position/target pour centrer exactement le bâtiment dans le frustum
+            if (buildingAnalysis && buildingAnalysis.boundingBox) {
+                const bb = buildingAnalysis.boundingBox; // THREE.Box3
+                const centerX = (bb.min.x + bb.max.x) / 2;
+                const centerZ = (bb.min.z + bb.max.z) / 2;
+                // Pour les vues d'élévation (front/back -> axe X, left/right -> axe Z)
+                // On replace la caméra de façon relative sans modifier la distance Y ou l'axe principal
+                if (viewType === 'front' || viewType === 'back') {
+                    // Centrer sur X et Z
+                    orthographicCamera.position.x = centerX;
+                    orthographicCamera.lookAt(centerX, 0, centerZ);
+                } else if (viewType === 'left' || viewType === 'right') {
+                    orthographicCamera.position.z = centerZ;
+                    orthographicCamera.lookAt(centerX, 0, centerZ);
+                } else if (viewType === 'top') {
+                    // Vue du dessus : centrer X et Z
+                    orthographicCamera.position.x = centerX;
+                    orthographicCamera.position.z = centerZ;
+                    orthographicCamera.lookAt(centerX, 0, centerZ);
+                }
+                orthographicCamera.updateMatrixWorld(true);
+            }
             
             // DÉBOGAGE: Log après positionnement de la caméra
 
@@ -4993,7 +5019,8 @@ class PresentationManager {
         }
         
         // Ajouter une marge pour voir tout le bâtiment (20% de marge pour optimiser l'espace)
-        const margin = 1.2;
+    // Marge augmentée pour éviter que les objets soient rognés sur les bords lors de l'export
+    const margin = 1.35; // ancien 1.2
         
         let maxDimension;
         switch(viewType) {
@@ -5039,7 +5066,9 @@ class PresentationManager {
         // Frustum final basé sur l'échelle technique réelle corrigée
         // Plus l'échelle est grande (petit dénominateur), plus le frustum est petit (zoom avant)
         // Plus l'échelle est petite (grand dénominateur), plus le frustum est grand (zoom arrière)
-        const frustumSize = realSizeWithMargin * technicalScale; // Calcul direct cohérent avec correction
+    let frustumSize = realSizeWithMargin * technicalScale; // Calcul direct cohérent avec correction
+    // Ajout: léger élargissement de sécurité horizontal pour éviter coupures (5%)
+    frustumSize *= 1.05;
         
         // Diagnostic de l'échelle calculée
 
@@ -5386,6 +5415,11 @@ class PresentationManager {
             // Faire une ligne qui dépasse un peu du bâtiment
             const maxDimension = Math.max(buildingAnalysis.size.x, buildingAnalysis.size.z);
             lineLength = maxDimension * 1.5; // 50% plus large que le bâtiment
+        }
+
+        // Forcer au minimum la largeur de la grille si disponible pour couvrir toute la grille
+        if (sceneManager.grid && sceneManager.gridSize) {
+            lineLength = Math.max(lineLength, sceneManager.gridSize);
         }
 
         // Créer la géométrie de ligne selon le type de vue

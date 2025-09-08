@@ -414,18 +414,18 @@ class UIController {
                     event.preventDefault();
                     this.newProject();
                     break;
-                case 's':
-                    event.preventDefault();
-                    this.saveProject();
-                    break;
+                // DÉSACTIVÉ sur demande utilisateur: case 's':
+                //     event.preventDefault();
+                //     this.saveProject();
+                //     break;
                 case 'o':
                     event.preventDefault();
                     this.loadProject();
                     break;
-                case 'z':
-                    event.preventDefault();
-                    this.undo();
-                    break;
+                // DÉSACTIVÉ sur demande utilisateur: case 'z':
+                //     event.preventDefault();
+                //     this.undo();
+                //     break;
                 case 'y':
                     event.preventDefault();
                     this.redo();

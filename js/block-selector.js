@@ -413,16 +413,16 @@ class BlockSelector {
                     switch (blockInfo.category) {
                         case 'hollow':
                         case 'cut': // Les blocs coupés sont des variantes des blocs creux
-                            assiseType = 'HOLLOW';
+                            assiseType = 'CREUX';
                             break;
                         case 'cellular':
-                            assiseType = 'CELLULAR';
+                            assiseType = 'CELLULAIRE';
                             break;
                         case 'argex':
                             assiseType = 'ARGEX';
                             break;
                         case 'terracotta':
-                            assiseType = 'TERRACOTTA';
+                            assiseType = 'TERRE_CUITE';
                             break;
                     }
                     

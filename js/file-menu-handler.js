@@ -19,9 +19,9 @@ class FileMenuHandler {
         this.importInProgress = false;
         this.fileTypes = {
             project: {
-                extension: '.json',
-                mime: 'application/json',
-                description: 'Projet WallSim3D'
+                extension: '.wsm',
+                mime: 'application/json', // Contenu toujours JSON sérialisé
+                description: 'Projet WallSim3D (.wsm)'
             },
             export: {
                 stl: { extension: '.stl', mime: 'application/sla', description: 'Fichier STL 3D' },
@@ -268,7 +268,7 @@ class FileMenuHandler {
     /**
      * Sauvegarder le projet actuel
      */
-    saveProject() {
+    async saveProject() {
         // Protection contre les multiples exécutions simultanées
         if (this.savingInProgress) {
             console.log('💾 Sauvegarde déjà en cours, ignorée');
@@ -299,14 +299,70 @@ class FileMenuHandler {
                 };
             }
 
+            // Demander le nom de fichier à chaque sauvegarde (sans extension)
+            const currentName = this.currentProject.name || 'mon_projet';
+            const userInput = window.prompt('Nom du fichier (sans extension .wsm) :', currentName);
+            if (userInput === null) {
+                // Annulé par l'utilisateur
+                this.savingInProgress = false;
+                console.log('💾 Sauvegarde annulée par l\'utilisateur');
+                return;
+            }
+            const trimmed = userInput.trim();
+            if (trimmed.length > 0) {
+                this.currentProject.name = trimmed;
+            }
+
             // Mise à jour des données du projet
             this.updateProjectData();
 
             const fileName = this.sanitizeFileName(this.currentProject.name) + this.fileTypes.project.extension;
             const content = this.exportProjectData();
 
-            this.downloadFile(content, fileName, this.fileTypes.project.mime);
-            this.saveToLocalStorage();
+            const tryFSAccess = async () => {
+                if (!window.isSecureContext) {
+                    // Nécessaire pour File System Access
+                    console.warn('Contexte non sécurisé: impossible d\'ouvrir le sélecteur d\'emplacement');
+                    return false;
+                }
+                if (!window.showSaveFilePicker) return false;
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [{
+                            description: 'Projet WallSim3D',
+                            accept: { 'application/json': ['.wsm'] }
+                        }]
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(new Blob([content], { type: this.fileTypes.project.mime }));
+                    await writable.close();
+                    this.saveToLocalStorage();
+                    this.hasUnsavedChanges = false;
+                    this.showNotification('Projet sauvegardé (emplacement choisi)', 'success');
+                    console.log('✅ Sauvegarde via File System Access');
+                    return true;
+                } catch (e) {
+                    if (e.name === 'AbortError') {
+                        console.log('Sauvegarde annulée par l\'utilisateur');
+                        return true; // Considérer traité (pas de fallback auto)
+                    }
+                    console.warn('Échec File System Access, fallback téléchargement:', e);
+                    return false;
+                }
+            };
+
+            const usedPicker = await tryFSAccess();
+            if (!usedPicker) {
+                this.downloadFile(content, fileName, this.fileTypes.project.mime);
+                this.saveToLocalStorage();
+                this.showNotification('Projet téléchargé (dossier Téléchargements)', 'info');
+
+                if (!window.isSecureContext || !window.showSaveFilePicker) {
+                    // Afficher une aide claire à l'utilisateur
+                    this.showFSAccessHelp(!window.isSecureContext ? 'insecure' : 'unsupported');
+                }
+            }
 
             this.hasUnsavedChanges = false;
             this.showNotification('Projet sauvegardé avec succès', 'success');
@@ -317,6 +373,48 @@ class FileMenuHandler {
                 this.savingInProgress = false;
             }, 500);
         }
+    }
+
+    /**
+     * Affiche un dialogue expliquant pourquoi le choix d'emplacement n'est pas possible
+     */
+    showFSAccessHelp(reason = 'insecure') {
+        // Éviter doublons
+        if (document.getElementById('fsaccess-help-overlay')) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'fsaccess-help-overlay';
+        overlay.style.cssText = `position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;font-family:Arial, sans-serif;`;
+
+        const box = document.createElement('div');
+        box.style.cssText = `background:#fff;max-width:520px;width:90%;padding:22px 26px;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.35);position:relative;`;
+        box.innerHTML = `
+            <h3 style="margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:20px;">📁</span> Choisir l'emplacement n'est pas disponible
+            </h3>
+            <p style="margin:0 0 10px;font-size:14px;line-height:1.4;">
+                ${reason === 'insecure' ? "Le navigateur bloque l'API de sélection d'emplacement car la page n'est pas servie depuis un contexte sécurisé (HTTPS ou localhost)." : "Votre navigateur ne supporte pas l'API File System Access nécessaire pour ouvrir une vraie boîte de dialogue d'enregistrement."}
+            </p>
+            <div style="background:#f6f7f9;border:1px solid #dde1e5;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.5;">
+                <strong>Solutions :</strong>
+                <ul style="padding-left:18px;margin:6px 0;">
+                    <li>Ouvrir l'application via <code>http://localhost:5555</code> au lieu de l'adresse IP.</li>
+                    <li>Ou servir le projet via HTTPS (certificat local / reverse proxy).</li>
+                    <li>Chrome/Edge uniquement : activer l'option navigateur "Toujours demander où enregistrer" pour forcer une boîte.</li>
+                    <li>(Avancé) Utiliser un mapping hosts: ajouter <code>127.0.0.1 walsim.local</code> puis ouvrir <code>http://walsim.local:5555</code>.</li>
+                </ul>
+                <em>Sans ces conditions, le fichier sera téléchargé automatiquement dans le dossier par défaut.</em>
+            </div>
+            <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px;">
+                <button id="fsaccess-help-close" style="background:#0078d4;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;">Compris</button>
+            </div>
+        `;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        box.querySelector('#fsaccess-help-close').addEventListener('click', close);
     }
 
     /**
@@ -467,6 +565,16 @@ class FileMenuHandler {
 
         // Appliquer les paramètres
         this.applyProjectSettings(projectData.settings);
+
+        // Restaurer les champs Mode Opératoire si présents
+        if (projectData.detailedProcedure !== undefined) {
+            const dp = document.getElementById('detailedProcedure');
+            if (dp) dp.value = projectData.detailedProcedure;
+        }
+        if (projectData.procedureRecommendations !== undefined) {
+            const pr = document.getElementById('procedureRecommendations');
+            if (pr) pr.value = projectData.procedureRecommendations;
+        }
         
         this.hasUnsavedChanges = false;
         this.updateProjectInfo();
@@ -490,7 +598,9 @@ class FileMenuHandler {
             settings: {
                 ...this.currentProject.settings,
                 ...sceneData.settings
-            }
+            },
+            detailedProcedure: (document.getElementById('detailedProcedure')?.value || '').trim(),
+            procedureRecommendations: (document.getElementById('procedureRecommendations')?.value || '').trim()
         };
 
         return JSON.stringify(projectData, null, 2);
@@ -513,6 +623,10 @@ class FileMenuHandler {
                 ...sceneData.settings
             };
         }
+
+    // Mettre à jour les champs textuels Mode Opératoire
+    this.currentProject.detailedProcedure = (document.getElementById('detailedProcedure')?.value || '').trim();
+    this.currentProject.procedureRecommendations = (document.getElementById('procedureRecommendations')?.value || '').trim();
     }
 
     /**
@@ -1393,16 +1507,44 @@ class FileMenuHandler {
      */
     downloadFile(content, fileName, mimeType) {
         const blob = new Blob([content], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        URL.revokeObjectURL(url);
+
+        // Tentative d'utilisation de l'API File System Access (Chrome / Edge modernes)
+        const saveWithFSAccess = async () => {
+            try {
+                if (window.showSaveFilePicker) {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [
+                            {
+                                description: 'Projet WallSim3D',
+                                accept: { 'application/json': ['.wsm'] }
+                            }
+                        ]
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    return true;
+                }
+            } catch (err) {
+                console.warn('File System Access API non utilisée:', err);
+            }
+            return false;
+        };
+
+        saveWithFSAccess().then((usedFS) => {
+            if (usedFS) return; // Déjà sauvegardé à l'emplacement choisi
+
+            // Fallback: téléchargement classique
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        });
     }
 
     /**

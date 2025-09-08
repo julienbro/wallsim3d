@@ -111,34 +111,34 @@ class EditMenuHandler {
 
             if (e.ctrlKey || e.metaKey) {
                 switch (e.key.toLowerCase()) {
-                    case 'z':
-                        e.preventDefault();
-                        if (e.shiftKey) {
-                            this.redo();
-                        } else {
-                            this.undo();
-                        }
-                        break;
+                    // DÉSACTIVÉ sur demande utilisateur: case 'z':
+                    //     e.preventDefault();
+                    //     if (e.shiftKey) {
+                    //         this.redo();
+                    //     } else {
+                    //         this.undo();
+                    //     }
+                    //     break;
                     case 'y':
                         e.preventDefault();
                         this.redo();
                         break;
-                    case 'c':
-                        e.preventDefault();
-                        this.copy();
-                        break;
+                    // DÉSACTIVÉ sur demande utilisateur: case 'c':
+                    //     e.preventDefault();
+                    //     this.copy();
+                    //     break;
                     case 'v':
                         e.preventDefault();
                         this.paste();
                         break;
-                    case 'x':
-                        e.preventDefault();
-                        this.cut();
-                        break;
-                    case 'a':
-                        e.preventDefault();
-                        this.selectAll();
-                        break;
+                    // DÉSACTIVÉ sur demande utilisateur: case 'x':
+                    //     e.preventDefault();
+                    //     this.cut();
+                    //     break;
+                    // DÉSACTIVÉ sur demande utilisateur: case 'a':
+                        // Suppression de l'action personnalisée Ctrl+A (demande utilisateur)
+                        // Laisser le comportement natif du navigateur (sélection texte) ou ne rien faire
+                        // return; // ne pas empêcher le défaut
                     case 'd':
                         e.preventDefault();
                         this.duplicate();

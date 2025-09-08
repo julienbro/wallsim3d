@@ -308,8 +308,16 @@ class LibraryPreview3D {
         }
 
     const mesh = new THREE.Mesh(geometry, material);
+        // Par défaut activer les ombres
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+
+        // Désactiver les ombres pour les isolants dans l'aperçu (demande utilisateur)
+        if (type.startsWith('PUR') || type.startsWith('LAINEROCHE') || type.startsWith('XPS') ||
+            type.startsWith('PSE') || type.startsWith('FB') || type.startsWith('LV') || type.startsWith('LRM')) {
+            mesh.castShadow = false;
+            mesh.receiveShadow = false;
+        }
 
         // Ajouter des contours pour plus de clarté
         const edges = new THREE.EdgesGeometry(geometry);

@@ -8,28 +8,26 @@ function checkThreeVersion() {
         // console.log('🏷️ Version THREE.REVISION:', window.THREE.REVISION);
         // console.log('🌐 Source:', window.THREE.REVISION >= 150 ? 'ES6 Module' : 'UMD Classic');
         
-        // Afficher dans la page
-        const versionDiv = document.createElement('div');
-        versionDiv.innerHTML = `
-            <div style="
-                position: fixed; top: 10px; right: 10px;
-                background: rgba(0,0,0,0.8); color: white;
-                padding: 15px; border-radius: 8px;
-                font-family: monospace; font-size: 14px;
-                z-index: 10000;
-            ">
-                <strong>Three.js Version</strong><br>
-                📦 Revision: r${window.THREE.REVISION}<br>
-                🌐 Type: ${window.THREE.REVISION >= 150 ? 'ES6 Module' : 'UMD Legacy'}<br>
-                📅 ${window.THREE.REVISION >= 168 ? 'Latest (2024+)' : 
-                       window.THREE.REVISION >= 150 ? 'Modern (2023)' : 
-                       'Legacy (2022-)'}
-            </div>
-        `;
-        document.body.appendChild(versionDiv);
-        
-        // Supprimer après 10 secondes
-        setTimeout(() => versionDiv.remove(), 10000);
+        // (Affichage désactivé) Ancienne popin version supprimée pour ne pas gêner l'UI.
+        // Si besoin de réactiver: restaurer le code supprimé ou appeler showThreeVersionOverlay(info).
+
+        // Fonction utilitaire optionnelle pour réactiver manuellement l'affichage via la console.
+        window.showThreeVersionOverlay = (customInfo) => {
+            const data = customInfo || {
+                revision: window.THREE.REVISION,
+                type: window.THREE.REVISION >= 150 ? 'ES6 Module' : 'UMD Legacy',
+                period: window.THREE.REVISION >= 168 ? 'Latest (2024+)' : window.THREE.REVISION >= 150 ? 'Modern (2023)' : 'Legacy (2022-)'
+            };
+            const versionDiv = document.createElement('div');
+            versionDiv.innerHTML = `
+                <div style="position:fixed;top:10px;right:10px;background:rgba(0,0,0,.8);color:#fff;padding:12px 14px;border-radius:8px;font:13px/1.4 monospace;z-index:10000;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+                    <strong>Three.js</strong> r${data.revision}<br>
+                    ${data.type} • ${data.period}
+                </div>`;
+            document.body.appendChild(versionDiv);
+            setTimeout(()=>versionDiv.remove(),8000);
+            return data;
+        };
         
         // Retourner les infos
         return {

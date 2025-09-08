@@ -1428,6 +1428,15 @@ class TabManager {
                                    step="0.1">
                             <span class="unit">cm</span>
                         </div>
+                        ${ isBlock ? `
+                        <div class="input-group">
+                            <label for="customCutWidth">Largeur / épaisseur personnalisée (cm) :</label>
+                            <input type="number" id="customCutWidth"
+                                   min="1" max="${baseDimensions.width}"
+                                   value="${baseDimensions.width}"
+                                   step="0.1">
+                            <span class="unit">cm</span>
+                        </div>` : ''}
                         ${ (isInsulation || isBlock) ? `
                         <div class="input-group">
                             <label for="customCutHeight">Hauteur personnalisée (cm) :</label>
@@ -1438,13 +1447,16 @@ class TabManager {
                             <span class="unit">cm</span>
                         </div>` : ''}
                         <div class="input-note">
-                            ${ (isInsulation || isBlock) ? `
-                                <p>Largeur (épaisseur) inchangée : ${baseDimensions.width} cm</p>
-                                <p>Longueur max : ${baseDimensions.length} cm — Hauteur max : ${baseDimensions.height} cm</p>
+                            ${ isBlock ? `
+                                <p>Vous pouvez modifier les 3 dimensions (L × ép. × H) dans les limites maximales.</p>
+                                <p>Max : L ${baseDimensions.length} cm — Ép. ${baseDimensions.width} cm — H ${baseDimensions.height} cm</p>
+                            ` : (isInsulation ? `
+                                <p>Largeur (épaisseur) fixe : ${baseDimensions.width} cm</p>
+                                <p>Max : L ${baseDimensions.length} cm — H ${baseDimensions.height} cm</p>
                             ` : `
-                                <p>Largeur et hauteur restent inchangées : ${baseDimensions.width}×${baseDimensions.height} cm</p>
+                                <p>Largeur et hauteur fixes : ${baseDimensions.width}×${baseDimensions.height} cm</p>
                                 <p>Longueur max : ${baseDimensions.length} cm</p>
-                            `}
+                            `)}
                         </div>
                     </div>
                 </div>
@@ -1476,6 +1488,8 @@ class TabManager {
     applyCustomCut(baseType, modal) {
         const lengthInput = modal.querySelector('#customCutLength');
         const customLength = parseFloat(lengthInput.value);
+        const widthInput = modal.querySelector('#customCutWidth');
+        const customWidth = widthInput ? parseFloat(widthInput.value) : null;
         const heightInput = modal.querySelector('#customCutHeight');
         const customHeight = heightInput ? parseFloat(heightInput.value) : null;
         const buttonElement = modal.buttonElement;
@@ -1486,29 +1500,39 @@ class TabManager {
             alert(`La longueur doit être comprise entre 0.1 et ${baseDimensions.length} cm.`);
             return;
         }
-    if (heightInput) {
+        if (widthInput) {
+            if (customWidth <= 0 || customWidth > baseDimensions.width) {
+                alert(`L'épaisseur doit être comprise entre 0.1 et ${baseDimensions.width} cm.`);
+                return;
+            }
+        }
+        if (heightInput) {
             if (customHeight <= 0 || customHeight > baseDimensions.height) {
                 alert(`La hauteur doit être comprise entre 0.1 et ${baseDimensions.height} cm.`);
                 return;
             }
         }
         
-    // Créer un suffixe personnalisé avec la longueur et, si présent, la hauteur
-    const lengthStr = customLength.toString().replace('.', '_');
-    const heightStr = heightInput ? customHeight.toString().replace('.', '_') : null;
-    const customSuffix = `_CUSTOM_${lengthStr}` + (heightStr ? `_H_${heightStr}` : '');
-    const finalType = baseType + customSuffix;
+        // Créer un suffixe personnalisé avec les dimensions (Longueur obligatoire, épaisseur et hauteur optionnelles)
+        const lengthStr = customLength.toString().replace('.', '_');
+        const widthStr = widthInput ? customWidth.toString().replace('.', '_') : null;
+        const heightStr = heightInput ? customHeight.toString().replace('.', '_') : null;
+        let customSuffix = `_CUSTOM_${lengthStr}`;
+        if (widthStr) customSuffix += `_W_${widthStr}`;
+        if (heightStr) customSuffix += `_H_${heightStr}`;
+        const finalType = baseType + customSuffix;
         
         // console.log(`🎯 Coupe personnalisée appliquée : ${baseType} → ${finalType} (${customLength}cm)`);
         
         // Créer les dimensions personnalisées
-    const customDimensions = {
+        const customDimensions = {
             length: customLength,
-            width: baseDimensions.width,
+            width: widthInput ? customWidth : baseDimensions.width,
             height: heightInput ? customHeight : baseDimensions.height,
-            name: `${baseDimensions.name} (${customLength}cm)`,
+            name: `${baseDimensions.name} (${customLength}${widthInput ? '×'+customWidth : ''}${heightInput ? '×'+customHeight : ''}cm)`,
             cutType: 'P',
             customLength: customLength,
+            ...(widthInput ? { customWidth: customWidth } : {}),
             ...(heightInput ? { customHeight: customHeight } : {})
         };
         
@@ -1536,7 +1560,7 @@ class TabManager {
         } else if (baseType.startsWith('BC') || baseType.startsWith('BCA') || baseType.startsWith('TC') || baseType.startsWith('ARGEX')) {
             targetSubTab = 'blocs';
             targetMode = 'block';
-    } else if (baseType.startsWith('PUR') || baseType.startsWith('LAINEROCHE') || baseType.startsWith('XPS') || baseType.startsWith('PSE')) {
+    } else if (baseType.startsWith('PUR') || baseType.startsWith('LAINEROCHE') || baseType.startsWith('XPS') || baseType.startsWith('PSE') || baseType.startsWith('FB') || baseType.startsWith('LV') || baseType.startsWith('LRM')) {
             targetSubTab = 'isolants';
             targetMode = 'insulation';
         } else if (baseType.startsWith('L') && ['L120', 'L140', 'L160', 'L180', 'L200'].includes(baseType)) {
@@ -1584,9 +1608,10 @@ class TabManager {
                 window.InsulationSelector.setInsulation(baseType, cutDimensions);
                 this.updateDisplayedDimensions('insulation', cutDimensions);
             } else {
-                if (window.DEBUG_MODE) console.log(`🟡 Sélection de l'isolant: ${finalType}`);
-                window.InsulationSelector.setInsulation(baseType);
-                // Mettre à jour l'affichage des dimensions
+                // IMPORTANT: passer le type complet (finalType) pour conserver le suffixe (_HALF, _1Q, etc.)
+                if (window.DEBUG_MODE) console.log(`🟡 Sélection de l'isolant (variante): ${finalType}`);
+                window.InsulationSelector.setInsulation(finalType);
+                // Mettre à jour l'affichage des dimensions (les dimensions dérivées seront recalculées dans InsulationSelector)
                 this.updateDisplayedDimensions('insulation', cutDimensions);
             }
         } else if (targetSubTab === 'linteaux' && window.LinteauSelector) {
@@ -2054,14 +2079,33 @@ class TabManager {
             return 'poutres';
         }
 
-        // Par défaut, essayer de détecter par le préfixe
+        // Par défaut, essayer de détecter par le préfixe (gérer d'abord coupes avec suffixes)
+        const baseForCut = itemType.split('_')[0];
+        if (
+            baseForCut.startsWith('PUR') || baseForCut.startsWith('LAINEROCHE') ||
+            baseForCut.startsWith('XPS') || baseForCut.startsWith('PSE') ||
+            baseForCut.startsWith('FB') || baseForCut.startsWith('LV') ||
+            baseForCut.startsWith('LRM') // Laine roche moderne variantes coupées
+        ) {
+            console.log(`🎯 TabManager: ${itemType} (base: ${baseForCut}) détecté comme isolant (variante coupée)`);
+            return 'isolants';
+        }
+
         if (itemType.startsWith('B')) {
             // console.log(`🎯 TabManager: ${itemType} détecté comme bloc par préfixe`);
             return 'blocs';
         } else if (itemType.startsWith('M')) {
             console.log(`🎯 TabManager: ${itemType} détecté comme brique par préfixe`);
             return 'briques';
-        } else if (itemType.startsWith('PUR') || itemType.startsWith('LAINEROCHE')) {
+        } else if (
+            itemType.startsWith('PUR') ||
+            itemType.startsWith('LAINEROCHE') ||
+            itemType.startsWith('XPS') ||
+            itemType.startsWith('PSE') ||
+            itemType.startsWith('FB') || // Fibre de bois éventuelle
+            itemType.startsWith('LV') ||  // Laine de verre éventuelle
+            itemType.startsWith('LRM')    // Laine roche moderne
+        ) {
             console.log(`🎯 TabManager: ${itemType} détecté comme isolant par préfixe`);
             return 'isolants';
         } else if (itemType.startsWith('L')) {
@@ -2561,7 +2605,7 @@ class TabManager {
         
         // Synchroniser les états initiaux avec ConstructionTools si disponible
         if (window.ConstructionTools) {
-            const brickThickness = document.getElementById('brickJointThickness')?.value || 10;
+            const brickThickness = document.getElementById('brickJointThickness')?.value || 12;
             const blockThickness = document.getElementById('blockJointThickness')?.value || 10;
             const brickColor = this.selectedBrickJointColor?.hex || '#9E9E9E';
             const blockColor = this.selectedBlockJointColor?.hex || '#9E9E9E';
@@ -3654,6 +3698,12 @@ class TabManager {
         
         // Stocker la référence à l'élément actuel
         this.currentSelectedElement = element;
+
+        // Réinitialiser l'état désiré pour ce nouvel élément afin d'éviter héritage de l'élément précédent
+        if (this.jointDesiredStates) {
+            const elementId = element.userData?.elementId || element.id;
+            this.jointDesiredStates.delete(elementId); // sera reconstruit lors de applyJointVisibilityChanges
+        }
         
         // Trouver les joints associés à cet élément
         const associatedJoints = this.findAssociatedJointsForElement(element);
@@ -3664,6 +3714,9 @@ class TabManager {
         
         // Afficher le groupe de contrôles
         jointsControlGroup.style.display = 'block';
+
+    // Forcer une synchronisation des toggles modernes maintenant que l'élément a changé
+    this.syncJointTogglesWithRealState();
     }
     
     /**
@@ -3685,6 +3738,11 @@ class TabManager {
     findAssociatedJointsForElement(element) {
         if (!window.SceneManager || !window.SceneManager.scene) {
             return [];
+        }
+
+        // Initialiser un cache interne des joints si absent
+        if (!this.jointCache) {
+            this.jointCache = new Map(); // elementId -> { left, right, horizontal }
         }
         
         const elementId = element.userData?.elementId || element.id;
@@ -3727,16 +3785,54 @@ class TabManager {
                         // Déterminer le type de joint
                         let jointType = 'unknown';
                         if (userData.isVerticalJoint || elementData.isVerticalJoint) {
-                            // Différencier gauche/droite selon la position relative
-                            const elementCenter = element.position;
-                            const jointCenter = object.position;
-                            
-                            if (jointCenter.x < elementCenter.x) {
-                                jointType = 'left';
-                            } else if (jointCenter.x > elementCenter.x) {
-                                jointType = 'right';
+                            // 1) Priorité: attribut explicite du côté
+                            const sideExplicit = userData.verticalJointSide || elementData.verticalJointSide;
+                            if (sideExplicit === 'left' || sideExplicit === 'right') {
+                                jointType = sideExplicit;
                             } else {
-                                jointType = 'vertical';
+                                // 2) Calcul robuste via transformation inverse dans l'espace local de l'élément
+                                try {
+                                    // Cloner positions pour éviter mutation
+                                    const jointWorld = object.position.clone ? object.position.clone() : { x: object.position.x, y: object.position.y, z: object.position.z };
+                                    const elementWorld = element.position.clone ? element.position.clone() : { x: element.position.x, y: element.position.y, z: element.position.z };
+                                    const rot = element.rotation || 0;
+                                    const cos = Math.cos(-rot);
+                                    const sin = Math.sin(-rot);
+                                    // Offset joint relatif
+                                    const dx = jointWorld.x - elementWorld.x;
+                                    const dz = jointWorld.z - elementWorld.z;
+                                    // Rotation inverse pour obtenir coord locale X
+                                    const localX = dx * cos - dz * sin;
+                                    // Seuil: moitié de la longueur + marge
+                                    const halfLen = (element.dimensions?.length || 0) / 2;
+                                    const margin = 0.1; // petite marge numérique
+                                    if (localX < -halfLen - margin) {
+                                        jointType = 'left';
+                                    } else if (localX > halfLen + margin) {
+                                        jointType = 'right';
+                                    } else {
+                                        // 3) Fallback ultime: comparaison X monde
+                                        if (jointWorld.x < elementWorld.x) jointType = 'left';
+                                        else if (jointWorld.x > elementWorld.x) jointType = 'right';
+                                        else jointType = 'vertical';
+                                    }
+                                    if (window.DEBUG_JOINT_DETECTION) {
+                                        console.log('🧪 Joint vertical detection', {
+                                            elementId: elementId,
+                                            jointObj: object.name || object.id,
+                                            dx, dz, localX, halfLen, margin,
+                                            decided: jointType
+                                        });
+                                    }
+                                } catch (e) {
+                                    // Fallback simple si erreur
+                                    if (object.position.x < element.position.x) jointType = 'left';
+                                    else if (object.position.x > element.position.x) jointType = 'right';
+                                    else jointType = 'vertical';
+                                    if (window.DEBUG_JOINT_DETECTION) {
+                                        console.warn('⚠️ Fallback joint side detection', { elementId: elementId, error: e });
+                                    }
+                                }
                             }
                         } else if (userData.isHorizontalJoint || elementData.isHorizontalJoint) {
                             jointType = 'horizontal';
@@ -3753,6 +3849,14 @@ class TabManager {
             }
         });
         
+        // Mettre à jour le cache (fusion: conserver les références existantes si valides)
+        let cacheEntry = this.jointCache.get(elementId) || { left: null, right: null, horizontal: null };
+        associatedJoints.forEach(j => {
+            if (j.type === 'left') cacheEntry.left = j;
+            else if (j.type === 'right') cacheEntry.right = j;
+            else if (j.type === 'horizontal') cacheEntry.horizontal = j;
+        });
+        this.jointCache.set(elementId, cacheEntry);
         return associatedJoints;
     }
     
@@ -3868,10 +3972,37 @@ class TabManager {
             horizontal: horizontalToggle ? horizontalToggle.classList.contains('active') : true
         };
         
+        // Initialiser structures de mémorisation
+        if (!this.jointDesiredStates) this.jointDesiredStates = new Map(); // elementId -> states
+        if (!this.jointLastCreation) this.jointLastCreation = new Map();   // elementId -> {side: timestamp}
+
+        const elementId = this.currentSelectedElement.userData?.elementId || this.currentSelectedElement.id;
+        let desired = this.jointDesiredStates.get(elementId);
+        if (!desired) {
+            // Première fois: prendre états actuels comme désirés
+            desired = { ...jointStates };
+            this.jointDesiredStates.set(elementId, desired);
+        }
+
+        // Protection anti-flap: si un joint vient d'être créé ( <400ms ) et l'état UI repasse à false sans action utilisateur explicite
+        const now = Date.now();
+        const creationInfo = this.jointLastCreation.get(elementId) || {};
+        ['left','right'].forEach(side => {
+            if (creationInfo[side] && (now - creationInfo[side] < 400)) {
+                if (desired[side] === true && jointStates[side] === false) {
+                    console.log(`🛡️ Anti-flap: maintien ${side}=true juste après création (delta ${now - creationInfo[side]}ms)`);
+                    jointStates[side] = true; // rétablir
+                    if (leftToggle && side==='left') leftToggle.classList.add('active');
+                    if (rightToggle && side==='right') rightToggle.classList.add('active');
+                }
+            }
+        });
+
         console.log('🔧 États des joints demandés:', jointStates);
         
         // Trouver les joints associés existants
-        const associatedJoints = this.findAssociatedJointsForElement(this.currentSelectedElement);
+    const associatedJoints = this.findAssociatedJointsForElement(this.currentSelectedElement);
+    const cacheEntry = this.jointCache ? this.jointCache.get(elementId) : null;
         let modifiedCount = 0;
         
         // Créer un map des joints existants par type
@@ -3890,15 +4021,29 @@ class TabManager {
                 console.log(`🔧 Création du joint ${jointType} pour l'élément ${this.currentSelectedElement.id}`);
                 
                 if (jointType === 'left' && window.ConstructionTools) {
-                    window.ConstructionTools.createSpecificVerticalJoint(this.currentSelectedElement, 'left');
-                    modifiedCount++;
+                    const created = window.ConstructionTools.createSpecificVerticalJoint(this.currentSelectedElement, 'left');
+                    if (created) {
+                        modifiedCount++;
+                        // Mémoriser création
+                        const ci = this.jointLastCreation.get(elementId) || {};
+                        ci.left = Date.now();
+                        this.jointLastCreation.set(elementId, ci);
+                        desired.left = true;
+                    }
                 } else if (jointType === 'right' && window.ConstructionTools) {
-                    window.ConstructionTools.createSpecificVerticalJoint(this.currentSelectedElement, 'right');
-                    modifiedCount++;
+                    const created = window.ConstructionTools.createSpecificVerticalJoint(this.currentSelectedElement, 'right');
+                    if (created) {
+                        modifiedCount++;
+                        const ci = this.jointLastCreation.get(elementId) || {};
+                        ci.right = Date.now();
+                        this.jointLastCreation.set(elementId, ci);
+                        desired.right = true;
+                    }
                 } else if (jointType === 'horizontal' && window.SceneManager && this.currentSelectedElement.type !== 'insulation') {
                     // 🔧 ISOLANTS: Ne pas créer de joints horizontaux pour les isolants
                     window.SceneManager.createAutomaticHorizontalJoint(this.currentSelectedElement);
                     modifiedCount++;
+                    desired.horizontal = true;
                 } else if (jointType === 'horizontal' && this.currentSelectedElement.type === 'insulation') {
                     console.log('🔧 Isolant détecté - pas de joint horizontal créé via TabManager');
                 }
@@ -3919,6 +4064,7 @@ class TabManager {
                     }
                     
                     modifiedCount++;
+                    desired[jointType] = shouldBeVisible;
                     console.log(`🔧 Joint ${jointType} (${existingJoint.id}): visibilité = ${shouldBeVisible}`);
                 }
             }
@@ -3926,7 +4072,10 @@ class TabManager {
         
         // Afficher un message de confirmation
         if (modifiedCount > 0) {
+            // Re-synchroniser le cache après modifications
+            this.findAssociatedJointsForElement(this.currentSelectedElement);
             this.showNotification(`${modifiedCount} joint(s) modifié(s)`, 'success');
+            this.jointDesiredStates.set(elementId, desired);
             
             // Redessiner la scène si nécessaire
             if (window.SceneManager && window.SceneManager.render) {
