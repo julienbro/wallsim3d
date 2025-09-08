@@ -2690,12 +2690,12 @@
                             <h4><i class="fas fa-th"></i> Joints de Briques</h4>
                             
                             <div class="joint-controls">
-                                <!-- Épaisseurs de joints fixes à 10mm (non modifiables) -->
+                                <!-- Épaisseurs de joints fixes à 12mm/10mm (non modifiables) -->
                                 <div class="form-group">
                                     <div class="joint-info" style="margin-bottom: 10px;">
                                         <strong>Épaisseurs des joints de briques (fixes) :</strong><br>
-                                        • Joints horizontaux : 10mm<br>
-                                        • Joints verticaux : 10mm
+                                        • Joints horizontaux : 12mm (1.2cm)<br>
+                                        • Joints verticaux : 10mm (1cm)
                                     </div>
                                 </div>
                                 
@@ -3868,6 +3868,18 @@
                                 <div class="setting-item">
                                     <span class="setting-label">Format :</span>
                                     <span class="setting-value">A4 Paysage</span>
+                                </div>
+                            </div>
+
+                            <!-- Sélection d'échelle pour les vues orthogonales -->
+                            <div class="scale-settings">
+                                <h5>Échelle orthogonale :</h5>
+                                <div class="setting-item">
+                                    <label for="orthogonalScaleSelect" class="setting-label">Vue du dessus & élévations :</label>
+                                    <select id="orthogonalScaleSelect" class="setting-input">
+                                        <option value="1:20" selected>1:20</option>
+                                        <option value="1:50">1:50</option>
+                                    </select>
                                 </div>
                             </div>
                             
