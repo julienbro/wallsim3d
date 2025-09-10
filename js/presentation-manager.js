@@ -147,6 +147,22 @@ class PresentationManager {
             presentBtn._presentationEventAdded = true;
         }
 
+        // Bouton Impression 3D
+        const print3dBtn = document.getElementById('print3dBtn');
+        if (print3dBtn) {
+            // Vérifier si l'événement existe déjà
+            if (print3dBtn._print3dEventAdded) {
+                return;
+            }
+            
+            print3dBtn.addEventListener('click', () => {
+                this.exportSTLForPrinting();
+            });
+            
+            // Marquer comme configuré
+            print3dBtn._print3dEventAdded = true;
+        }
+
         // Fermeture de la modale
         const closeBtn = document.getElementById('closeModalBtn');
         const cancelBtn = document.getElementById('cancelExportBtn');
@@ -7623,6 +7639,19 @@ function testScale1to20() {
 // Exposer les fonctions de test
 window.testScaleCalculations = testScaleCalculations;
 window.testScale1to20 = testScale1to20;
+
+// Ajouter la méthode d'export STL au PresentationManager
+PresentationManager.prototype.exportSTLForPrinting = function() {
+    console.log('🖨️ [Print3D] Démarrage export STL pour impression 3D...');
+    
+    // Vérifier si FileMenuHandler est disponible
+    if (window.FileMenuHandler && typeof window.FileMenuHandler.exportSTLForPrinting === 'function') {
+        window.FileMenuHandler.exportSTLForPrinting();
+    } else {
+        console.error('❌ FileMenuHandler.exportSTLForPrinting non disponible');
+        alert('Fonction d\'export STL non disponible. Veuillez vérifier la configuration.');
+    }
+};
 
 // Export pour utilisation dans d'autres modules
 if (typeof module !== 'undefined' && module.exports) {

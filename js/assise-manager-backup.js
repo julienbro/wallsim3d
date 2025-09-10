@@ -1377,8 +1377,8 @@ class AssiseManager {
             
             // Mettre � jour les marqueurs d'accroche si n�cessaire
             const currentAssiseForType = this.currentAssiseByType.get(removedFromType);
-            if (currentAssiseForType > removedFromAssise) {
-                // Un �l�ment a �t� retir� d'une assise inf�rieure, mettre � jour les marqueurs
+            if (currentAssiseForType >= removedFromAssise) {
+                // Un �l�ment a �t� retir� d'une assise inf�rieure ou de l'assise courante, mettre � jour les marqueurs
                 this.updateAttachmentMarkers();
             }
         }

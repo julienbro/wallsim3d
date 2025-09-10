@@ -1178,7 +1178,9 @@ class TabManager {
             const suffixes = {
                 '3/4': '_3Q',
                 '1/2': '_HALF',
-                '1/4': '_1Q'
+                '1/4': '_1Q',
+                '34cm': '_34CM',
+                '4cm': '_4CM'
             };
 
             if (suffixes[cutType]) {
@@ -1323,6 +1325,12 @@ class TabManager {
                         break;
                     case '1/4':
                         newLength = 9; // 1/4 de bloc creux = 9cm
+                        break;
+                    case '34cm':
+                        newLength = 34; // Coupe spécifique B14 = 34cm
+                        break;
+                    case '4cm':
+                        newLength = 4; // Coupe spécifique B14 = 4cm
                         break;
                 }
                 if (window.DEBUG_MODE) console.log(`🏗️ TabManager: Coupe bloc creux ${cutType} - ${newLength}cm`);
@@ -1570,7 +1578,7 @@ class TabManager {
 
         // Activer le bon mode de construction d'abord
         if (window.UIController) {
-            if (window.DEBUG_MODE) console.log(`🔧 Activation du mode ${targetMode} pour ${finalType}`);
+            // Log retiré: activation mode
             window.UIController.setConstructionMode(targetMode, true);
         }
 
@@ -3946,7 +3954,7 @@ class TabManager {
             }
         });
         
-        console.log(`🔧 Synchronisation toggles: ${associatedJoints.length} joints trouvés`);
+    // Log retiré: synchronisation toggles
     }
     
     /**
@@ -3958,7 +3966,7 @@ class TabManager {
             return;
         }
         
-        console.log('🔧 Application des modifications de visibilité des joints...');
+    // Log retiré: application visibilité joints
         
         // Récupérer les états des toggles modernes
         const leftToggle = document.querySelector('[data-joint="left"] .toggle-switch');
@@ -3998,7 +4006,7 @@ class TabManager {
             }
         });
 
-        console.log('🔧 États des joints demandés:', jointStates);
+    // Log retiré: états des joints demandés
         
         // Trouver les joints associés existants
     const associatedJoints = this.findAssociatedJointsForElement(this.currentSelectedElement);
@@ -4018,7 +4026,7 @@ class TabManager {
             
             if (shouldBeVisible && !existingJoint) {
                 // Créer le joint s'il n'existe pas et qu'il est demandé
-                console.log(`🔧 Création du joint ${jointType} pour l'élément ${this.currentSelectedElement.id}`);
+                // Log retiré: création joint
                 
                 if (jointType === 'left' && window.ConstructionTools) {
                     const created = window.ConstructionTools.createSpecificVerticalJoint(this.currentSelectedElement, 'left');
@@ -4065,7 +4073,7 @@ class TabManager {
                     
                     modifiedCount++;
                     desired[jointType] = shouldBeVisible;
-                    console.log(`🔧 Joint ${jointType} (${existingJoint.id}): visibilité = ${shouldBeVisible}`);
+                // Log retiré: joint visibilité
                 }
             }
         });
@@ -4897,7 +4905,7 @@ class TabManager {
                 // Sélectionner le bouton approprié
                 cutButton.classList.add('selected');
                 this.selectedCutType = selectedCut;
-                console.log(`🔧 Bouton de coupe ${selectedCut} sélectionné dans l'interface`);
+                // Log retiré: bouton de coupe sélectionné
             }
         }
         
@@ -5041,7 +5049,7 @@ class TabManager {
                     width: ghost.dimensions.width,
                     height: ghost.dimensions.height
                 };
-                console.log(`🔧 Dimensions récupérées du fantôme existant: ${baseDimensions.length}x${baseDimensions.width}x${baseDimensions.height}`);
+                // Log retiré: dimensions fantôme existant
             } else {
                 return;
             }
@@ -5065,8 +5073,8 @@ class TabManager {
         }
         
         // Mettre à jour les dimensions du fantôme
-        console.log(`🔧 AVANT updateDimensions: ghostElement.dimensions = ${ghost.dimensions ? ghost.dimensions.length + 'x' + ghost.dimensions.width + 'x' + ghost.dimensions.height : 'undefined'}`);
-        console.log(`🔧 APPEL updateDimensions avec: ${finalDimensions.length}x${finalDimensions.width}x${finalDimensions.height}`);
+    // Log retiré: avant updateDimensions
+    // Log retiré: appel updateDimensions
         
         // Essayer plusieurs méthodes de mise à jour
         let updateSuccess = false;
@@ -5095,7 +5103,7 @@ class TabManager {
         }
         
         if (updateSuccess && ghost.dimensions) {
-            console.log(`🔧 APRÈS updateDimensions: ghostElement.dimensions = ${ghost.dimensions.length}x${ghost.dimensions.width}x${ghost.dimensions.height}`);
+            // Log retiré: après updateDimensions
         }
         
         // Forcer le rendu si disponible

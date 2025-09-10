@@ -1030,6 +1030,19 @@ class FileMenuHandler {
                             <button class="export-btn" data-format="stl">
                                 <i class="fas fa-cube"></i> STL (Impression 3D)
                             </button>
+                            <button class="export-btn" data-format="stl-print">
+                                <i class="fas fa-print"></i> Export impr 3D (STL optimisé Z-up)
+                            </button>
+                            <div class="orientation-controls" style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                                <strong>Orientation Export STL :</strong>
+                                <div style="margin-top: 5px;">
+                                    <button class="orientation-btn" onclick="window.FileMenuHandler.setSTLOrientation('x', 90)" style="font-size: 11px; padding: 3px 6px; margin: 2px;">+90°X</button>
+                                    <button class="orientation-btn" onclick="window.FileMenuHandler.setSTLOrientation('x', -90)" style="font-size: 11px; padding: 3px 6px; margin: 2px;">-90°X</button>
+                                    <button class="orientation-btn" onclick="window.FileMenuHandler.setSTLOrientation('y', 180)" style="font-size: 11px; padding: 3px 6px; margin: 2px;">180°Y</button>
+                                    <button class="orientation-btn" onclick="window.FileMenuHandler.setSTLOrientation('none', 0)" style="font-size: 11px; padding: 3px 6px; margin: 2px;">Original</button>
+                                </div>
+                                <div id="current-orientation" style="font-size: 11px; color: #666; margin-top: 3px;">Actuel: +90°X</div>
+                            </div>
                             <button class="export-btn" data-format="obj">
                                 <i class="fas fa-shapes"></i> OBJ (3D Standard)
                             </button>
@@ -1142,6 +1155,9 @@ class FileMenuHandler {
             case 'stl':
                 this.exportSTL();
                 break;
+            case 'stl-print':
+                this.exportSTLForPrinting();
+                break;
             case 'obj':
                 this.exportOBJ();
                 break;
@@ -1216,6 +1232,56 @@ class FileMenuHandler {
             this.showNotification('Export STL terminé', 'success');
         } else {
             this.showNotification('Export STL non disponible', 'warning');
+        }
+    }
+
+    /**
+     * Export STL optimisé pour l'impression 3D
+     * Exclut les éléments de texte, annotations, flèches et autres éléments non imprimables
+     */
+    exportSTLForPrinting() {
+        if (window.SceneManager) {
+            // Utiliser la version avec diagnostic si disponible
+            if (typeof window.SceneManager.exportSTLWithDiagnostic === 'function') {
+                const result = window.SceneManager.exportSTLWithDiagnostic();
+                
+                if (result && result.content) {
+                    const fileName = this.sanitizeFileName(this.currentProject?.name || 'WallSim3D_Print') + '_print.stl';
+                    this.downloadFile(result.content, fileName, 'application/sla');
+                    
+                    // Afficher un rapport de diagnostic
+                    if (result.report) {
+                        const stats = result.report.stats;
+                        let message = `Export STL pour impression 3D terminé\n`;
+                        message += `📊 ${stats.triangleCount} triangles, ${stats.solidCount} solide(s)\n`;
+                        message += `📁 Taille: ${(stats.size / 1024).toFixed(1)} KB`;
+                        
+                        if (result.repaired) {
+                            message += `\n🔧 Fichier réparé automatiquement`;
+                        }
+                        
+                        if (result.report.warnings.length > 0) {
+                            message += `\n⚠️ ${result.report.warnings.length} avertissement(s)`;
+                        }
+                        
+                        this.showNotification(message, result.report.isValid ? 'success' : 'warning');
+                    } else {
+                        this.showNotification('Export STL pour impression 3D terminé', 'success');
+                    }
+                } else {
+                    this.showNotification('Erreur lors de l\'export STL pour impression 3D', 'error');
+                }
+            } else if (typeof window.SceneManager.exportSTLForPrinting === 'function') {
+                // Version de base sans diagnostic
+                const stlData = window.SceneManager.exportSTLForPrinting();
+                const fileName = this.sanitizeFileName(this.currentProject?.name || 'WallSim3D_Print') + '_print.stl';
+                this.downloadFile(stlData, fileName, 'application/sla');
+                this.showNotification('Export STL pour impression 3D terminé', 'success');
+            } else {
+                this.showNotification('Export STL pour impression 3D non disponible', 'warning');
+            }
+        } else {
+            this.showNotification('SceneManager non disponible', 'error');
         }
     }
 
@@ -2500,6 +2566,35 @@ class FileMenuHandler {
                 console.error('❌ Erreur lors du chargement du fichier GLB:', error);
                 alert(`Erreur lors du chargement du modèle GLB:\n${glbPath}\n\nVérifiez que le fichier existe.`);
             });
+    }
+
+    /**
+     * Définir l'orientation pour l'export STL
+     */
+    setSTLOrientation(axis, degrees) {
+        try {
+            if (typeof SceneManager !== 'undefined' && SceneManager.setExportOrientation) {
+                if (axis === 'none') {
+                    SceneManager.setExportOrientation('x', 0, false);
+                    const orientationDiv = document.getElementById('current-orientation');
+                    if (orientationDiv) {
+                        orientationDiv.textContent = 'Actuel: Original (sans rotation)';
+                    }
+                    console.log('🔧 Orientation STL: Original (sans rotation)');
+                } else {
+                    SceneManager.setExportOrientation(axis, degrees, true);
+                    const orientationDiv = document.getElementById('current-orientation');
+                    if (orientationDiv) {
+                        orientationDiv.textContent = `Actuel: ${degrees > 0 ? '+' : ''}${degrees}°${axis.toUpperCase()}`;
+                    }
+                    console.log(`🔧 Orientation STL: ${degrees}° autour de ${axis.toUpperCase()}`);
+                }
+            } else {
+                console.warn('⚠️ SceneManager.setExportOrientation non disponible');
+            }
+        } catch (error) {
+            console.error('❌ Erreur changement orientation:', error);
+        }
     }
 }
 

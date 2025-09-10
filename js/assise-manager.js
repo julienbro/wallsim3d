@@ -67,6 +67,46 @@ class AssiseManager {
         
         // Initialiser les structures pour chaque type
         this.initializeTypeStructures();
+
+        // === DEBUG ISOLATION GHOST (instrumentation légère) ===
+        // Activer/désactiver: window.DEBUG_ISOLATION_GHOST = true/false dans la console.
+        if (typeof window !== 'undefined' && window.DEBUG_ISOLATION_GHOST === undefined) {
+            window.DEBUG_ISOLATION_GHOST = true; // Activé par défaut pour analyse utilisateur
+        }
+        if (typeof window !== 'undefined' && !window._isoGhostLog) {
+            window._isoGhostLog = function(stage, info) {
+                if (window.DEBUG_ISOLATION_GHOST) {
+                    try { console.log('🧥👻[ISO-GHOST]', stage, info); } catch(e) {}
+                }
+            };
+            // Utilitaire de dump complet état isolant
+            window.dumpIsoState = () => {
+                try {
+                    const am = window.AssiseManager;
+                    if (!am) { console.warn('AssiseManager indisponible'); return; }
+                    const map = am.assisesByType.get('insulation');
+                    const data = [];
+                    if (map) {
+                        for (const [idx, ass] of map.entries()) {
+                            data.push({
+                                index: idx,
+                                height: am.getAssiseHeightForType('insulation', idx),
+                                elementCount: ass.elements.size
+                            });
+                        }
+                    }
+                    const ghost = window.ConstructionTools?.ghostElement;
+                    const ghostInfo = ghost ? {
+                        y: ghost.position.y,
+                        dims: ghost.dimensions,
+                        mode: window.ConstructionTools.currentMode,
+                        currentAssiseIndex: am.currentAssiseByType.get('insulation')
+                    } : null;
+                    console.log('🧥👻 dumpIsoState', { assises: data, ghost: ghostInfo });
+                    return { assises: data, ghost: ghostInfo };
+                } catch(e) { console.error('dumpIsoState error', e); }
+            };
+        }
     }
 
     // ? UTILITAIRE: Vàrifier si un type est supporté (incluant les types personnalisàs)
@@ -188,7 +228,14 @@ class AssiseManager {
             this.updateVerticalJointsForType(type);
         }
         if (window.ConstructionTools && window.ConstructionTools.isInitialized) {
-            window.ConstructionTools.updateGhostElement();
+            // Forcer la recréation du fantôme pour s'assurer qu'il a les bonnes dimensions
+            setTimeout(() => {
+                if (typeof window.ConstructionTools.createGhostElement === 'function') {
+                    window.ConstructionTools.createGhostElement();
+                } else {
+                    window.ConstructionTools.updateGhostElement();
+                }
+            }, 50);
             if (window.ConstructionTools.suggestionGhosts && window.ConstructionTools.suggestionGhosts.length > 0) {
                 const selectedElement = window.SceneManager?.selectedElement;
                 if (selectedElement) {
@@ -496,6 +543,15 @@ class AssiseManager {
         
         // Mettre à jour la hauteur du point d'accrochage
         this.updateSnapPointHeight();
+
+        // DEBUG ISOLATION: journaliser changement de type vers/depuis insulation
+        if (window._isoGhostLog) {
+            window._isoGhostLog('SET_CURRENT_TYPE', {
+                newType: this.currentType,
+                currentAssiseIndex: this.currentAssiseByType.get(this.currentType),
+                assiseHeight: this.getAssiseHeightForType(this.currentType, this.currentAssiseByType.get(this.currentType))
+            });
+        }
         
         // émettre un événement de changement de type
         document.dispatchEvent(new CustomEvent('assiseTypeChanged', {
@@ -635,7 +691,7 @@ class AssiseManager {
         return this.addAssiseForType(this.currentType, index);
     }
 
-    // Dàfinir l'assise active pour un type spécifique
+    // Définir l'assise active pour un type spécifique
     setActiveAssiseForType(type, index) {
         if (!this.allSupportedTypes.includes(type)) {
             console.warn(`Type non supporté: ${type}`);
@@ -1030,56 +1086,59 @@ class AssiseManager {
                 if (currentBlock && currentBlock.category) {
                     const category = currentBlock.category;
                     
+                    // Log retiré: Détermination du type d'assise
+                    /*
                     console.log('🔍 [AssiseManager] Détermination du type d\'assise:', {
                         currentBlockId: currentBlock.id,
                         category: category,
                         elementId: element?.id,
                         elementBlockType: element?.blockType
                     });
+                    */
                     
                     // Mapper les catégories aux types d'assises
                     switch (category) {
                         case 'hollow':
                             // Bloc de type CREUX détecté
-                            console.log('🔧 [AssiseManager] Type CREUX assigné (category: hollow)');
+                            // Log retiré: Type CREUX assigné (category: hollow)
                             return 'CREUX';
                         case 'cut':
                             // Pour les blocs coupés, vérifier s'ils sont d'origine spécialisée
                             // D'abord vérifier l'ID du bloc sélectionné
                             if (currentBlock.id && (currentBlock.id.startsWith('BC_') || currentBlock.id.startsWith('BCA_'))) {
                                 // Bloc béton cellulaire coupé → type CELLULAIRE
-                                console.log(`🔧 [AssiseManager] Type CELLULAIRE assigné (bloc coupé béton cellulaire: ${currentBlock.id})`);
+                                // Log retiré: Type CELLULAIRE assigné (bloc coupé béton cellulaire)
                                 return 'CELLULAIRE';
                             } else if (currentBlock.id && currentBlock.id.startsWith('ARGEX_')) {
                                 // Bloc ARGEX coupé → type ARGEX
-                                console.log(`🔧 [AssiseManager] Type ARGEX assigné (bloc coupé ARGEX: ${currentBlock.id})`);
+                                // Log retiré: Type ARGEX assigné (bloc coupé ARGEX)
                                 return 'ARGEX';
                             } else if (currentBlock.id && currentBlock.id.startsWith('TC_')) {
                                 // Bloc terre cuite coupé → type TERRE_CUITE
-                                console.log(`🔧 [AssiseManager] Type TERRE_CUITE assigné (bloc coupé terre cuite: ${currentBlock.id})`);
+                                // Log retiré: Type TERRE_CUITE assigné (bloc coupé terre cuite)
                                 return 'TERRE_CUITE';
                             }
                             // Si l'ID n'est pas disponible, vérifier le blockType de l'élément
                             else if (element && element.blockType === 'CELLULAIRE') {
                                 // L'élément a été identifié comme CELLULAIRE par ConstructionTools → type CELLULAIRE
-                                console.log(`🔧 [AssiseManager] Type CELLULAIRE assigné (élément CELLULAIRE: ${element.id})`);
+                                // Log retiré: Type CELLULAIRE assigné (élément CELLULAIRE)
                                 return 'CELLULAIRE';
                             } else if (element && element.blockType === 'ARGEX') {
                                 // L'élément a été identifié comme ARGEX par ConstructionTools → type ARGEX
-                                console.log(`🔧 [AssiseManager] Type ARGEX assigné (élément ARGEX: ${element.id})`);
+                                // Log retiré: Type ARGEX assigné (élément ARGEX)
                                 return 'ARGEX';
                             } else if (element && element.blockType === 'TERRE_CUITE') {
                                 // L'élément a été identifié comme TERRE_CUITE par ConstructionTools → type TERRE_CUITE
-                                console.log(`🔧 [AssiseManager] Type TERRE_CUITE assigné (élément TERRE_CUITE: ${element.id})`);
+                                // Log retiré: Type TERRE_CUITE assigné (élément TERRE_CUITE)
                                 return 'TERRE_CUITE';
                             } else {
                                 // Autre bloc coupé → type CREUX
-                                console.log(`🔧 [AssiseManager] Type CREUX assigné (bloc coupé non-spécialisé: ${currentBlock.id})`);
+                                // Log retiré: Type CREUX assigné (bloc coupé non-spécialisé)
                                 return 'CREUX';
                             }
                         case 'cellular':
                             // Bloc de type CELLULAIRE détecté
-                            console.log('🔧 [AssiseManager] Type CELLULAIRE assigné (category: cellular)');
+                            // Log retiré: Type CELLULAIRE assigné (category: cellular)
                             return 'CELLULAIRE';
                         case 'argex':
                             return 'ARGEX';
@@ -1092,8 +1151,8 @@ class AssiseManager {
                             return null;
                     }
                 } else {
-                    console.log(`🔧 getCurrentBlockData() existe mais pas de propriété 'category'`);
-                    console.log(`   - currentBlock:`, currentBlock);
+                    // Log retiré: getCurrentBlockData() sans propriété category
+                    // Log retiré: affichage currentBlock
                 }
             } catch (error) {
                 console.warn('Erreur lors de la dàtection du type de bloc:', error);
@@ -1172,8 +1231,8 @@ class AssiseManager {
         return maxHeight;
     }
 
-    addElementToAssise(elementId, assiseIndex = null) {
-        // Dàterminer le type de l'élément et le sous-type pour les briques
+    addElementToAssise(elementId, assiseIndex = null) {        
+        // Déterminer le type de l'élément et le sous-type pour les briques
         const element = window.SceneManager.elements.get(elementId);
     // Poutres désormais gérées (assise dédiée 'beam')
         let elementType = this.currentType; // Par défaut
@@ -1252,12 +1311,22 @@ class AssiseManager {
                 elementType = element.type;
                 // console.log(`🔧 Type supporté directement: ${element.type}`); // désactivé
             } else {
-                if (window.DEBUG_CONSTRUCTION) {
-                    console.log(`🔧 Type non supporté: ${element.type}, utilisation du type actuel: ${this.currentType}`);
-                }
+                // Log supprimé: Type non supporté (debug construction)
             }
         } else {
-            console.log(`🔧 élément non trouvé ou sans type, utilisation du type actuel: ${this.currentType}`);
+            // Log supprimé: élément non trouvé ou sans type
+        }
+
+        // NORMALISATION SUPPLÉMENTAIRE ISOLANT (libellés UI ex: 'Isolant PUR5')
+        if (elementType && typeof elementType === 'string') {
+            const up = elementType.toUpperCase();
+            if (up.startsWith('ISOLANT') || up.startsWith('ISOLATION') || up.includes(' ISOLANT')) {
+                const prev = elementType;
+                elementType = 'insulation';
+                if (window._isoGhostLog) {
+                    window._isoGhostLog('NORMALIZE_ISOLANT_ELEMENT_TYPE', { previous: prev, normalized: elementType });
+                }
+            }
         }
         
         // console.log(`🔧 DEBUG addElementToAssise END: elementType final=${elementType}`);
@@ -1268,6 +1337,40 @@ class AssiseManager {
         
         // Utiliser la nouvelle màthode multi-type avec le bon type
         this.addElementToAssiseForType(elementType, elementId, assiseIndex);
+
+        // LOG SPÉCIFIQUE ISOLANT
+        if (elementType === 'insulation') {
+            try {
+                const idx = assiseIndex;
+                const assiseHeight = this.getAssiseHeightForType('insulation', idx);
+                const currentAssise = this.currentAssiseByType.get('insulation');
+                const ghost = window.ConstructionTools?.ghostElement;
+                const ghostY = ghost ? Math.round((ghost.position?.y || 0) * 100)/100 : null;
+                let anomaly = null;
+                if (idx > 0 && ghostY !== null) {
+                    const expected = assiseHeight + (ghost?.dimensions?.height||0)/2;
+                    // Si le fantôme est encore proche de l'assise 0 (ex ~30) alors que la base devrait être >= assiseHeight
+                    if (ghostY < assiseHeight + 0.1) {
+                        anomaly = {
+                            message: 'Fantôme isolant semble bloqué à une hauteur basse (reste sur assise 0 ?) ',
+                            ghostY,
+                            assiseHeight,
+                            expectedCenter: expected
+                        };
+                    }
+                }
+                window._isoGhostLog('ADD_ELEMENT_INSULATION', {
+                    elementId,
+                    placedOnAssiseIndex: idx,
+                    currentAssiseSelection: currentAssise,
+                    computedAssiseHeight: assiseHeight,
+                    ghostY,
+                    ghostExpectedCenterY: assiseHeight + (ghost?.dimensions?.height||0)/2,
+                    elementCountInAssise: this.assisesByType.get('insulation')?.get(idx)?.elements.size,
+                    anomaly
+                });
+            } catch(e) { /* ignore */ }
+        }
     }
 
     // Ajouter un élément à une assise d'un type spécifique
@@ -1289,8 +1392,17 @@ class AssiseManager {
         if (!assisesForType.has(assiseIndex)) {
             this.addAssiseForType(type, assiseIndex);
         }
+
+        // Après création potentielle de l'assise, log pré-ajout pour isolants
+        if (type === 'insulation') {
+            try {
+                const beforeCount = assisesForType.get(assiseIndex)?.elements.size || 0;
+                window._isoGhostLog('PRE_ADD_TO_ASSISE_INSULATION', { assiseIndex, beforeCount });
+            } catch(e) {}
+        }
         
-        const assise = assisesForType.get(assiseIndex);
+    const assise = assisesForType.get(assiseIndex);
+        
         assise.elements.add(elementId);
         elementsForType.get(assiseIndex).add(elementId);
         
@@ -1358,14 +1470,12 @@ class AssiseManager {
                     if (isHourdis) {
                         element.position.y = 0;
                     } else {
-                        if (window.DEBUG_CONSTRUCTION) {
-                            console.log(`🔧 GLB déjà positionnà par les outils de construction, position Y conservàe: ${element.position.y}`);
-                        }
+                        // Log supprimé: GLB déjà positionné par les outils de construction
                     }
                 } else {
                     // Positionner directement seulement si pas déjà positionnà
                     element.position.y = targetCenterY;
-                    console.log(`🔧 GLB positionnà directement à Y=${targetCenterY}`);
+                    // Log supprimé: GLB positionné directement
                 }
             }
             
@@ -1400,7 +1510,7 @@ class AssiseManager {
                         // Mettre à jour la hauteur de joint pour cette assise spécifique
                         this.setJointHeightForAssise(type, assiseIndex, jointHeightCm);
                         
-                        console.log(`🔧 SYNCHRONISATION JOINT: Assise ${assiseIndex} (${type}) mise à jour avec joint de ${jointHeightCm}cm (${jointSettings.horizontalThickness}mm) selon élément ${elementId} (${element.material})`);
+            // Log supprimé: SYNCHRONISATION JOINT
                         // Nettoyage immédiat des joints horizontaux cellulaires en double (mortier + colle)
                         if (type === 'CELLULAR' && window.ConstructionTools && typeof window.ConstructionTools.dedupeCellularHorizontalJoints === 'function') {
                             window.ConstructionTools.dedupeCellularHorizontalJoints();
@@ -1408,7 +1518,7 @@ class AssiseManager {
                     }
                 }
             } else if (this.isRepositioning) {
-                console.log(`🔧 PROTECTION ANTI-BOUCLE: Synchronisation joint évitée pendant repositionnement`);
+        // Log supprimé: PROTECTION ANTI-BOUCLE synchronisation
             }
         }
         
@@ -1454,16 +1564,49 @@ class AssiseManager {
     }
 
     removeElementFromAssise(elementId) {
+    // Log supprimé: début suppression élément
         let removedFromAssise = null;
         let removedFromType = null;
         
-        // Rechercher dans tous les types
-        for (const type of this.supportedTypes) {
+        // D'abord, affichons l'état actuel des assises pour debug
+    // Log supprimé: état des assises avant suppression
+        for (const type of this.allSupportedTypes) {
+            const assisesForType = this.assisesByType.get(type);
+            const elementsForType = this.elementsByType.get(type);
+            if (assisesForType && assisesForType.size > 0) {
+                let hasElements = false;
+                for (const [assiseIndex, assise] of assisesForType.entries()) {
+                    const elementsInAssise = elementsForType.get(assiseIndex);
+                    if (assise.elements.size > 0 || (elementsInAssise && elementsInAssise.size > 0)) {
+                        hasElements = true;
+                        break;
+                    }
+                }
+                if (hasElements) { // Log supprimé: Type avec éléments
+                    for (const [assiseIndex, assise] of assisesForType.entries()) {
+                        const elementsInAssise = elementsForType.get(assiseIndex);
+                        if (assise.elements.size > 0 || (elementsInAssise && elementsInAssise.size > 0)) {
+                            // Logs supprimés: détail des éléments d'assise
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Rechercher dans tous les types (incluant les sous-types)
+        for (const type of this.allSupportedTypes) {
+            // Log supprimé: recherche dans type
             const assisesForType = this.assisesByType.get(type);
             const elementsForType = this.elementsByType.get(type);
             
             for (const [assiseIndex, assise] of assisesForType.entries()) {
+                // Log supprimé: vérification assise contient élément
                 if (assise.elements.has(elementId)) {
+                    // Log supprimé: élément trouvé
+                    
+                    // TEMPORAIREMENT DÉSACTIVÉ - suppression des joints associés
+                    // this.removeAssociatedJoints(elementId, assiseIndex, type);
+                    
                     assise.elements.delete(elementId);
                     elementsForType.get(assiseIndex).delete(elementId);
                     removedFromAssise = assiseIndex;
@@ -1476,7 +1619,7 @@ class AssiseManager {
         
         if (removedFromAssise !== null) {
             this.updateUI();
-            console.log(`élément ${elementId} retirà de l'assise ${removedFromAssise} (type: ${removedFromType})`);
+            // Log supprimé: élément retiré
             
             // émettre un événement pour notifier les changements d'éléments
             document.dispatchEvent(new CustomEvent('assiseElementsChanged', {
@@ -1496,12 +1639,20 @@ class AssiseManager {
             
             // Mettre à jour les marqueurs d'accroche si nàcessaire
             const currentAssiseForType = this.currentAssiseByType.get(removedFromType);
-            if (currentAssiseForType > removedFromAssise) {
-                // Un élément a àtà retirà d'une assise infàrieure, mettre à jour les marqueurs
+            // Logs supprimés: détails suppression et condition mise à jour marqueurs
+            
+            if (currentAssiseForType >= removedFromAssise) {
+                // Log supprimé: déclenchement mise à jour marqueurs
+                // Un élément a àtà retirà d'une assise infàrieure ou de l'assise courante, mettre à jour les marqueurs
                 this.updateAttachmentMarkers();
+            } else {
+                // Log supprimé: pas de mise à jour marqueurs nécessaire
             }
+        } else {
+            // Log supprimé: élément non trouvé
         }
         
+        // Log supprimé: fin suppression élément
         return removedFromAssise;
     }
 
@@ -1732,12 +1883,9 @@ class AssiseManager {
                 maxZ = Math.max(maxZ, pos.z + halfWidth);
             });
             
-            console.log(`🔧 Mise à jour des grilles d'assise:`);
-            console.log(`   Éléments étendus de X=${minX.toFixed(1)}cm à X=${maxX.toFixed(1)}cm (largeur: ${(maxX-minX).toFixed(1)}cm)`);
-            console.log(`   Éléments étendus de Z=${minZ.toFixed(1)}cm à Z=${maxZ.toFixed(1)}cm (profondeur: ${(maxZ-minZ).toFixed(1)}cm)`);
-            console.log(`   Nouvelle taille grille: ${newSize}cm (avec marge adaptative)`);
+            // Logs supprimés: détails mise à jour grilles (extent & nouvelle taille)
         } else {
-            console.log(`🔧 Mise à jour des grilles: ${newSize}cm (taille par défaut)`);
+            // Log supprimé: mise à jour grilles taille par défaut
         }
         
         // Parcourir tous les types et toutes les assises
@@ -1887,7 +2035,7 @@ class AssiseManager {
             const activeGrids = currentGridHelpers.get(currentAssiseIndex);
             activeGrids.main.visible = this.showAssiseGrids;
             activeGrids.joint.visible = false; // Toujours masquà
-            console.log(`? Grille active affichàe: Type ${this.currentType}, Assise ${currentAssiseIndex}`);
+            // Log supprimé: grille active affichée
         }
         
         // Mettre à jour la visibilità du point d'accrochage
@@ -1959,6 +2107,36 @@ class AssiseManager {
                 const newIndex = assisesForCurrentType.size;
                 this.addAssiseForType(this.currentType, newIndex);
                 this.setActiveAssiseForType(this.currentType, newIndex);
+                // 🔄 Retour automatique au mode pose de brique (placement)
+                if (window.ToolbarManagerInstance && typeof window.ToolbarManagerInstance.setInteractionMode === 'function') {
+                    window.ToolbarManagerInstance.setInteractionMode('placement');
+                } else if (window.ToolbarManager && window.ToolbarManager.prototype?.setInteractionMode) {
+                    // Tentative récupération instance globale si stockée différemment
+                    try {
+                        const tm = window.ToolbarManagerInstance || window.toolbarManager || window.TOOLBAR_MANAGER;
+                        if (tm && typeof tm.setInteractionMode === 'function') {
+                            tm.setInteractionMode('placement');
+                        }
+                    } catch(e) { /* ignore */ }
+                }
+                // ✅ Activer l'onglet Bibliothèque automatiquement
+                try {
+                    // Utiliser l'API officielle TabManager pour éviter de casser les listeners
+                    if (window.TabManager && typeof window.TabManager.switchMainTab === 'function') {
+                        window.TabManager.switchMainTab('biblio');
+                    } else {
+                        // Fallback minimal si TabManager absent
+                        const biblioTabBtn = document.querySelector('.main-tab[data-tab="biblio"]');
+                        const biblioContent = document.getElementById('tab-content-biblio');
+                        if (biblioTabBtn && biblioContent) {
+                            biblioTabBtn.classList.add('active');
+                            biblioContent.classList.add('active');
+                        }
+                    }
+                    if (window.AssiseHelpSystem && typeof window.AssiseHelpSystem.forceHideHelp === 'function') {
+                        window.AssiseHelpSystem.forceHideHelp();
+                    }
+                } catch(e) { /* silent */ }
             };
             
             addAssiseBtn.addEventListener('click', this.handleAddAssise);
@@ -2324,8 +2502,10 @@ class AssiseManager {
         const globalAssiseList = document.getElementById('globalAssiseList');
         if (!globalAssiseList) return;
 
-        // Collecter toutes les assises de tous les types
-        // Règle: afficher les assises ayant des éléments ET les assises inférieures créées lors d'une copie
+    // Collecter toutes les assises de tous les types
+    // Règle demandée: on n'affiche toutes les assises (y compris vides) d'un type
+    // QUE si sa première assise (index 0) est remplie.
+    // Sinon, on affiche uniquement les assises ayant des éléments (ou marquées createdByCopyIntermediate)
         const allAssises = [];
         for (const type of this.allSupportedTypes) {
             const assisesForType = this.assisesByType.get(type);
@@ -2336,9 +2516,17 @@ class AssiseManager {
 
             for (let index = 0; index <= maxIndex; index++) {
                 const assise = assisesForType.get(index) || null;
+                if (!assise) continue; // Assise non créée
                 const elementCount = this.getNonJointElementCountForType(type, index);
-                const shouldShow = elementCount > 0 || (assise && assise.createdByCopyIntermediate === true);
-                if (!shouldShow) continue;
+
+                // Vérifier si la première assise est remplie
+                const firstAssiseFilled = this.getNonJointElementCountForType(type, 0) > 0;
+
+                // Si la première n'est pas remplie, on filtre les vides (sauf intermédiaires copiées)
+                if (!firstAssiseFilled) {
+                    const show = elementCount > 0 || assise.createdByCopyIntermediate === true;
+                    if (!show) continue;
+                }
 
                 allAssises.push({
                     type,
@@ -2584,6 +2772,8 @@ class AssiseManager {
     }
 
     importData(data) {
+    // Logs supprimés: import data appelé & trace
+        
         // Nettoyer l'àtat actuel
         this.clear();
         
@@ -2639,7 +2829,7 @@ class AssiseManager {
         }
         
         this.updateUI();
-        console.log('Donnàes d\'assise multi-types importàes');
+    // Log supprimé: données importées
     }
 
     clear() {
@@ -2663,6 +2853,8 @@ class AssiseManager {
         }
         
         // Vider les collections pour tous les types
+    // Logs supprimés: vidage complet des assises & trace
+        
         for (const type of this.allSupportedTypes) {
             this.assisesByType.get(type).clear();
             this.elementsByType.get(type).clear();
@@ -2678,7 +2870,7 @@ class AssiseManager {
         this.createDefaultAssises();
         this.createSnapPoint();
         
-        console.log('Assises multi-types réinitialisées avec sous-types de briques');
+    // Log supprimé: assises multi-types réinitialisées
     }
 
     // Alias pour clartà dans les tests
@@ -2823,6 +3015,8 @@ class AssiseManager {
 
     // Cràer les marqueurs d'accroche pour les éléments des assises infàrieures
     createAttachmentMarkers(activeAssiseIndex = null) {
+    // Log supprimé: début création marqueurs
+        
         // Nettoyer les marqueurs existants
         this.clearAttachmentMarkers();
         
@@ -2830,54 +3024,97 @@ class AssiseManager {
             activeAssiseIndex = this.currentAssiseByType.get(this.currentType);
         }
         
+    // Log supprimé: assise active
+        
         // Cràer des marqueurs pour les éléments de l'assise immàdiatement infàrieure uniquement
         const elementsForType = this.elementsByType.get(this.currentType);
         const previousAssiseIndex = activeAssiseIndex - 1;
         
+    // Log supprimé: assise précédente à analyser
+        
         // Ne montrer que les points de l'assise directement en dessous (pas toutes les assises infàrieures)
         if (previousAssiseIndex >= 0) {
             const elementsInPreviousAssise = elementsForType.get(previousAssiseIndex);
+            // Logs supprimés: nombre et liste des éléments dans assise précédente
+            
             if (elementsInPreviousAssise) {
+                let markerCount = 0;
                 elementsInPreviousAssise.forEach(elementId => {
                     const element = window.SceneManager.elements.get(elementId);
+                    // Log supprimé: traitement élément
                     if (element) {
+                        // Log supprimé: type & position élément
+                        
+                        // 🔧 NOUVEAUTÉ: Vérifier si c'est un joint orphelin (sans brique associée)
+                        if (element.type === 'joint') {
+                            const hasAssociatedBrick = this.hasAssociatedBrick(elementId, previousAssiseIndex, this.currentType);
+                            if (!hasAssociatedBrick) {
+                                // Log supprimé: joint orphelin ignoré
+                                return; // Ignorer ce joint orphelin
+                            }
+                        }
+                        
                         this.createMarkerForElement(element, activeAssiseIndex);
+                        markerCount++;
                     }
                 });
+                // Log supprimé: total marqueurs créés
             }
+        } else {
+            // Log supprimé: aucune assise précédente
         }
         
         // 🔧 NOUVEAUTà: Ajouter des marqueurs pour les joints verticaux des assises infàrieures
         this.createJointAttachmentMarkers(activeAssiseIndex);
+        
+    // Log supprimé: fin création marqueurs
     }
 
     // Cràer des marqueurs d'accroche pour les joints verticaux de l'assise immàdiatement infàrieure
     createJointAttachmentMarkers(activeAssiseIndex) {
-        if (!window.SceneManager || !window.SceneManager.elements) return;
+    // Log supprimé: début création marqueurs joints
+        
+        if (!window.SceneManager || !window.SceneManager.elements) {
+            // Log supprimé: SceneManager non disponible
+            return;
+        }
         
         // Collecter les joints verticaux de l'assise immàdiatement infàrieure uniquement
         const verticalJoints = [];
         const previousAssiseIndex = activeAssiseIndex - 1;
         
+    // Log supprimé: recherche joints
+        
         // Ne traiter que l'assise directement en dessous
         if (previousAssiseIndex >= 0) {
             // Parcourir tous les éléments pour trouver les joints verticaux
+            let jointCount = 0;
             for (const [elementId, element] of window.SceneManager.elements.entries()) {
                 if (element.isVerticalJoint && element.type === 'joint') {
+                    // Log supprimé: joint vertical trouvé
                     const jointAssiseInfo = this.getElementAssiseAndType(elementId);
+                    
+                    // Log supprimé: info assise joint
                     
                     // Vàrifier si le joint est dans l'assise immàdiatement infàrieure du type actuel
                     if (jointAssiseInfo && 
                         jointAssiseInfo.type === this.currentType && 
                         jointAssiseInfo.assiseIndex === previousAssiseIndex) {
                         
+                        // Log supprimé: joint ajouté aux marqueurs
                         verticalJoints.push({
                             element: element,
                             assiseIndex: jointAssiseInfo.assiseIndex
                         });
+                        jointCount++;
+                    } else {
+                        // Log supprimé: joint ignoré
                     }
                 }
             }
+            // Log supprimé: nombre joints verticaux trouvés
+        } else {
+            // Log supprimé: aucune assise précédente pour joints
         }
         
         // console.log(`🔧 Joints verticaux trouvés pour marqueurs (assise ${previousAssiseIndex} uniquement): ${verticalJoints.length}`);
@@ -2886,9 +3123,14 @@ class AssiseManager {
         const existingBrickPositions = this.getExistingBrickPositionsInPreviousAssise(activeAssiseIndex);
         
         // Cràer des marqueurs pour chaque joint vertical
+        let jointMarkersCreated = 0;
         verticalJoints.forEach(jointInfo => {
+            // Log supprimé: création marqueur pour joint
             this.createJointMarkerForElement(jointInfo.element, activeAssiseIndex, existingBrickPositions);
+            jointMarkersCreated++;
         });
+        
+        // Logs supprimés: total marqueurs joints & fin création
     }
 
     // Obtenir les positions des briques existantes dans l'assise immàdiatement infàrieure
@@ -3214,13 +3456,19 @@ class AssiseManager {
 
     // Cràer un marqueur d'accroche pour un élément spécifique
     createMarkerForElement(element, targetAssiseHeight) {
+    // Logs supprimés: création marqueur élément (position, dimensions, rotation)
+        
         const currentAssiseForType = this.currentAssiseByType.get(this.currentType);
         const assisesForType = this.assisesByType.get(this.currentType);
         const assise = assisesForType.get(currentAssiseForType);
-        if (!assise) return;
+        if (!assise) {
+            // Log supprimé: assise non trouvée pour marqueur
+            return;
+        }
         
         // Calculer la position du marqueur sur la grille de l'assise active
         const markerY = assise.height;
+    // Log supprimé: hauteur assise cible
         
         // Cràer le contour de la brique projetà sur l'assise active
         const outlineGeometry = new THREE.RingGeometry(
@@ -3305,6 +3553,7 @@ class AssiseManager {
         
         // Ajouter à la scène et au tracking
         window.SceneManager.scene.add(markerGroup);
+    // Log supprimé: marqueur ajouté à la scène
         
         if (!this.attachmentMarkers.has(this.currentAssise)) {
             this.attachmentMarkers.set(this.currentAssise, []);
@@ -3314,6 +3563,8 @@ class AssiseManager {
             elementId: element.id,
             sourceAssise: this.getElementAssise(element.id)
         });
+        
+    // Log supprimé: marqueur enregistré
     }
 
     // Ajouter des points d'accroche spécifiques (coins et centre)
@@ -3364,7 +3615,7 @@ class AssiseManager {
                     { x: leftFrontCornerX + 29, z: leftFrontCornerZ, type: 'snap-29cm-front', description: '29cm du coin avant-gauche' },
                     { x: leftFrontCornerX + 30, z: leftFrontCornerZ, type: 'snap-30cm-front', description: '30cm du coin avant-gauche' }
                 );
-                console.log(`🔧? Bloc creux entier 1/1: Ajout des points à 9, 10, 19, 20, 29 et 30cm`);
+                // Log supprimé: points ajoutés bloc creux entier 1/1
             } else if (cutType === '3/4' && element.dimensions.length === 29) {
                 // Bloc creux 3/4 (29cm) : points à 9, 10, 19 et 20cm
                 attachmentPoints.push(
@@ -3383,7 +3634,7 @@ class AssiseManager {
                 // console.log(`🏗️ Bloc creux 3/4: Ajout des points à 9, 10, 19 et 20cm`);
             } else if (cutType === '1/4' && element.dimensions.length === 9) {
                 // Bloc creux 1/4 (9cm) : pas de points intermàdiaires
-                console.log(`🔧? Bloc creux 1/4: Aucun point intermàdiaire ajoutà`);
+                // Log supprimé: bloc creux 1/4 aucun point intermédiaire
             } else if (cutType === '1/2' && element.dimensions.length === 19) {
                 // Bloc creux 1/2 (19cm) : points à 9 et 10cm
                 attachmentPoints.push(
@@ -3395,7 +3646,7 @@ class AssiseManager {
                     { x: leftFrontCornerX + 9, z: leftFrontCornerZ, type: 'snap-9cm-front', description: '9cm du coin avant-gauche' },
                     { x: leftFrontCornerX + 10, z: leftFrontCornerZ, type: 'snap-10cm-front', description: '10cm du coin avant-gauche' }
                 );
-                console.log(`🔧? Bloc creux 1/2: Ajout des points à 9 et 10cm`);
+                // Log supprimé: bloc creux 1/2 points ajoutés
             }
         } else {
             // === BRIQUES ET AUTRES àLàMENTS ===
@@ -3639,8 +3890,8 @@ class AssiseManager {
     }
 
     // Nettoyer tous les marqueurs d'accroche
-    clearAttachmentMarkers() {
-        // Arràter l'animation avant de nettoyer
+    clearAttachmentMarkers() {        
+        // Arrêter l'animation avant de nettoyer
         this.stopAttachmentPointAnimation();
         
         this.attachmentMarkers.forEach((markers, assiseIndex) => {
@@ -3659,9 +3910,10 @@ class AssiseManager {
     // Mettre à jour les marqueurs d'accroche quand l'assise active change
     updateAttachmentMarkers() {
         const currentAssiseForType = this.currentAssiseByType.get(this.currentType);
+        
         if (this.showAttachmentMarkers && currentAssiseForType > 0) {
             this.createAttachmentMarkers(currentAssiseForType);
-            // Dàmarrer l'animation des points d'accroche
+            // Démarrer l'animation des points d'accroche
             this.startAttachmentPointAnimation();
         } else {
             this.clearAttachmentMarkers();
@@ -3831,7 +4083,7 @@ class AssiseManager {
     updateVerticalJoints() {
         if (!window.SceneManager || !window.SceneManager.elements) return;
         
-        console.log('🔧 Mise à jour des joints existants...');
+    // Log supprimé: début mise à jour joints existants
         let updatedCount = 0;
         
         // Parcourir tous les éléments de la scène
@@ -3856,7 +4108,7 @@ class AssiseManager {
                 
                 // Si le joint n'est associà à aucune assise spécifique, ne pas le modifier
                 if (!jointAssiseType) {
-                    console.log(`🔧 Joint ${elementId}: aucune assise associàe, non modifià`);
+                    // Log supprimé: joint sans assise associée
                     continue;
                 }
                 
@@ -3900,9 +4152,9 @@ class AssiseManager {
                     
                     // Stocker pour les prochaines fois
                     element.originalBrickHeight = originalBrickHeight;
-                    console.log(`🔧 Joint ${elementId}: hauteur brique dàduite = ${originalBrickHeight} cm (depuis hauteur joint ${element.dimensions.height} cm)`);
+                    // Log supprimé: hauteur brique déduite
                 } else {
-                    console.log(`🔧 Joint ${elementId}: hauteur brique stockée = ${originalBrickHeight} cm`);
+                    // Log supprimé: hauteur brique stockée
                 }
                 
                 // Calculer la nouvelle hauteur du joint basàe sur la brique D'ORIGINE et le joint spécifique au type
@@ -3936,7 +4188,7 @@ class AssiseManager {
                 );
                 
                 updatedCount++;
-                console.log(`🔧 Joint debout ${elementId} mis à jour: ${element.dimensions.length}à${element.dimensions.width}à${newJointHeight} cm (assise ${jointAssiseType}:${elementAssiseIndex}) - Brique d'origine: ${originalBrickHeight} cm`);
+                // Log supprimé: joint debout mis à jour
             }
             // Traiter les joints horizontaux (marquage isHorizontalJoint)
             else if (element.isHorizontalJoint) {
@@ -3958,7 +4210,7 @@ class AssiseManager {
                 
                 // Si le joint n'est associà à aucune assise spécifique, ne pas le modifier
                 if (!jointAssiseType) {
-                    console.log(`🔧 Joint horizontal ${elementId}: aucune assise associàe, non modifià`);
+                    // Log supprimé: joint horizontal sans assise
                     continue;
                 }
                 
@@ -3978,16 +4230,16 @@ class AssiseManager {
                     // Pour l'assise 0, le joint horizontal va de Y=0 à Y=jointHeight
                     // Son centre doit donc àtre à jointHeight/2
                     newPositionY = newJointHeight / 2;
-                    console.log(`🔧 Joint horizontal assise 0: centre à Y=${newPositionY} cm (joint de 0 à ${newJointHeight} cm)`);
+                    // Log supprimé: joint horizontal assise 0
                 } else if (elementAssiseIndex !== null && elementAssiseIndex > 0) {
                     // Pour les autres assises, calculer la position relative
                     const assiseHeight = this.calculateAssiseHeightForType(jointAssiseType, elementAssiseIndex);
                     newPositionY = assiseHeight - newJointHeight / 2;
-                    console.log(`🔧 Joint horizontal assise ${elementAssiseIndex}: centre à Y=${newPositionY} cm`);
+                    // Log supprimé: joint horizontal autre assise
                 } else {
                     // Fallback : rester au sol si assise non trouvée
                     newPositionY = newJointHeight / 2;
-                    console.log(`🔧 Joint horizontal fallback: centre à Y=${newPositionY} cm`);
+                    // Log supprimé: joint horizontal fallback
                 }
                 
                 element.updatePosition(
@@ -3997,13 +4249,11 @@ class AssiseManager {
                 );
                 
                 updatedCount++;
-                console.log(`🔧 Joint horizontal ${elementId} mis à jour: ${element.dimensions.length}à${element.dimensions.width}à${newJointHeight} cm (assise ${jointAssiseType}:${elementAssiseIndex})`);
+        // Log supprimé: joint horizontal mis à jour
             }
         }
         
-        if (updatedCount > 0) {
-            console.log(`🔧 ${updatedCount} joints mis à jour`);
-        }
+    // Log supprimé: récap joints mis à jour
     }
     
     // Mettre à jour seulement les joints d'un type d'assise spécifique
@@ -4260,20 +4510,172 @@ class AssiseManager {
         // Vàrification finale
         const actualBaseY = centerY - elementHeight / 2;
         
-        console.log(`🔧 élément ${elementId} repositionné sur assise ${assiseIndex} (${type}):`);
-        console.log(`   - Assise height: ${assiseHeight} cm`);
-        console.log(`   - Centre Y: ${centerY} cm`);
-        console.log(`   - Face infàrieure Y: ${actualBaseY} cm`);
-        console.log(`   - Hauteur: ${elementHeight} cm`);
+    // Logs supprimés: repositionnement élément (détails)
         
         // Vàrification spàciale pour assise 0
         if (assiseIndex === 0) {
             if (Math.abs(actualBaseY - assiseHeight) < 0.001) {
-                console.log(`   ? PARFAIT! Face infàrieure exactement à ${assiseHeight} cm`);
+                // Log supprimé: parfait face inférieure
             } else {
                 console.error(`   ? ERREUR! Face infàrieure à ${actualBaseY} cm au lieu de ${assiseHeight} cm`);
             }
         }
+    }
+    
+    /**
+     * Supprime les joints associés à un élément (ex: joint horizontal d'une brique)
+     */
+    removeAssociatedJoints(elementId, assiseLevel, elementType) {
+    // Log supprimé: début suppression joints associés
+        
+        // Vérifier si c'est une brique/bloc qui peut avoir un joint horizontal
+        const elementData = this.sceneManager.wallElements.get(elementId);
+        if (!elementData || !['brick', 'block'].includes(elementData.type)) {
+            // Log supprimé: élément non éligible joints associés
+            return;
+        }
+        
+        // Récupérer l'objet Three.js de l'élément pour obtenir sa position
+        const element = this.sceneManager.scene.getObjectById(elementData.id);
+    if (!element) { // Log supprimé: élément Three.js non trouvé
+            return;
+        }
+        
+    // Log supprimé: recherche joints associés à la brique
+        
+        // Chercher tous les joints dans la même assise qui pourraient être associés
+        const assiseData = this.assisesByType.get(elementType);
+    if (!assiseData || !assiseData.has(assiseLevel)) { // Log supprimé: pas d'assise pour type
+            return;
+        }
+        
+        const assise = assiseData.get(assiseLevel);
+        const elementsToRemove = [];
+        
+    // Logs supprimés: éléments dans assise & liste
+        
+        // Parcourir tous les éléments de l'assise pour trouver les joints associés
+        for (const otherElementId of assise.elements) {
+            if (otherElementId === elementId) continue;
+            
+            const otherElementData = this.sceneManager.wallElements.get(otherElementId);
+            if (otherElementData && otherElementData.type === 'joint') {
+                // Log supprimé: joint trouvé
+                
+                // Vérifier si c'est un joint horizontal associé (même position que la brique)
+                const brickPos = element.position;
+                const jointMesh = this.sceneManager.scene.getObjectById(otherElementData.id);
+                const jointPos = jointMesh?.position;
+                
+                if (jointPos) {
+                    const distanceX = Math.abs(brickPos.x - jointPos.x);
+                    const distanceZ = Math.abs(brickPos.z - jointPos.z);
+                    // Log supprimé: distance brique-joint
+                    
+                    if (distanceX < 0.1 && distanceZ < 0.1) {
+                        // Log supprimé: joint horizontal associé détecté
+                        elementsToRemove.push(otherElementId);
+                    } else {
+                        // Log supprimé: joint trop éloigné
+                    }
+                } else {
+                    // Log supprimé: position joint non trouvée
+                }
+            }
+        }
+        
+        // Log supprimé: nombre joints associés à supprimer
+        
+        // Supprimer les joints associés trouvés
+        for (const jointId of elementsToRemove) {
+            // Log supprimé: suppression joint associé
+            
+            // Supprimer directement du SceneManager wallElements et de la scène Three.js
+            const jointElement = this.sceneManager.wallElements.get(jointId);
+            if (jointElement) {
+                // Retirer de la scène Three.js
+                const jointMesh = this.sceneManager.scene.getObjectById(jointElement.id);
+                if (jointMesh) {
+                    this.sceneManager.scene.remove(jointMesh);
+                    // Log supprimé: joint retiré de la scène
+                }
+                
+                // Retirer des structures de données AssiseManager DIRECTEMENT (pas de récursion)
+                const targetAssise = assise;
+                if (targetAssise && targetAssise.elements.has(jointId)) {
+                    targetAssise.elements.delete(jointId);
+                    // Log supprimé: joint retiré des éléments d'assise
+                }
+                
+                // Retirer de elementsByType directement
+                const elementsForThisType = this.elementsByType.get(elementType);
+                if (elementsForThisType && elementsForThisType.has(assiseLevel)) {
+                    elementsForThisType.get(assiseLevel).delete(jointId);
+                    // Log supprimé: joint retiré de elementsByType
+                }
+                
+                // Retirer du SceneManager wallElements
+                this.sceneManager.wallElements.delete(jointId);
+                // Log supprimé: joint retiré du SceneManager
+            }
+        }
+        
+        // Log supprimé: fin suppression joints associés
+    }
+    
+    /**
+     * Vérifie si un joint a une brique/bloc associé dans la même assise
+     */
+    hasAssociatedBrick(jointId, assiseLevel, elementType) {
+    // Log supprimé: vérification joint orphelin début
+        
+        // Récupérer la position du joint
+        const jointElement = window.SceneManager?.elements?.get(jointId);
+    if (!jointElement) { // Log supprimé: joint non trouvé wallElements
+            return false;
+        }
+        
+        const jointMesh = window.SceneManager?.scene?.getObjectById(jointElement.id);
+    if (!jointMesh) { // Log supprimé: mesh joint non trouvé
+            return false;
+        }
+        
+        const jointPos = jointMesh.position;
+    // Log supprimé: position du joint
+        
+        // Chercher des briques/blocs dans la même assise avec une position similaire
+        const assiseData = this.assisesByType.get(elementType);
+    if (!assiseData || !assiseData.has(assiseLevel)) { // Log supprimé: pas d'assise pour type (orphan check)
+            return false;
+        }
+        
+        const assise = assiseData.get(assiseLevel);
+        let bricksFound = 0;
+        
+        for (const otherElementId of assise.elements) {
+            if (otherElementId === jointId) continue;
+            
+            const otherElementData = window.SceneManager?.elements?.get(otherElementId);
+            if (otherElementData && ['brick', 'block'].includes(otherElementData.type)) {
+                const otherMesh = window.SceneManager?.scene?.getObjectById(otherElementData.id);
+                if (otherMesh) {
+                    const otherPos = otherMesh.position;
+                    const distanceX = Math.abs(jointPos.x - otherPos.x);
+                    const distanceZ = Math.abs(jointPos.z - otherPos.z);
+                    
+                    // Log supprimé: distance brique-joint (orphan check)
+                    
+                    if (distanceX < 0.1 && distanceZ < 0.1) {
+                        // Log supprimé: brique associée trouvée (orphan check)
+                        return true; // Joint a une brique associée
+                    }
+                    bricksFound++;
+                }
+            }
+        }
+        
+    // Log supprimé: joint orphelin confirmé
+        return false; // Aucune brique associée trouvée
     }
 }
 

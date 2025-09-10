@@ -593,41 +593,18 @@ class ToolbarManager {
             // console.log('🗑️ Direct deletion without confirmation');
             
             try {
-                // Supprimer l'élément principal et ses wireframes
-                if (element.parent) {
-                    // console.log('🗑️ Removing main element from Three.js scene');
-                    
-                    // Nettoyer les wireframes associés aux éléments GLB
-                    if (element.isGLBModel || element.userData?.isGLB) {
-                        element.traverse((child) => {
-                            if (child.userData && child.userData.isWireframe) {
-                                console.log('🗑️ Removing wireframe:', child);
-                                if (child.parent) {
-                                    child.parent.remove(child);
-                                }
-                                if (child.geometry) child.geometry.dispose();
-                                if (child.material) child.material.dispose();
-                            }
-                        });
-                    }
-                    
-                    element.parent.remove(element);
-                }
+                // 🔧 CORRECTION: D'abord supprimer l'élément principal des managers
+                // Cela déclenchera la suppression de Three.js ET des assises via SceneManager
+                this.removeElementFromManagers(element, elementId);
                 
                 // Supprimer les joints associés
                 associatedJoints.forEach((joint, index) => {
                     // console.log(`🗑️ Removing associated joint ${index + 1}/${jointCount}:`, joint.userData);
-                    if (joint.parent) {
-                        joint.parent.remove(joint);
-                    }
                     
-                    // Supprimer le joint des managers
+                    // Supprimer le joint des managers (qui supprimera aussi de Three.js)
                     const jointId = joint.userData.elementId || joint.userData.id || joint.name;
                     this.removeElementFromManagers(joint, jointId);
                 });
-                
-                // Supprimer l'élément principal des managers
-                this.removeElementFromManagers(element, elementId);
                 
                 this.hideInstruction();
                 const message = jointCount > 0 
@@ -674,17 +651,19 @@ class ToolbarManager {
         // Supprimer des managers spécifiques
         this.removeFromManagers(element);
         
-        // Essayer de supprimer du SceneManager si disponible
-        if (window.sceneManager && typeof window.sceneManager.removeElementById === 'function') {
+        // Essayer de supprimer du SceneManager si disponible (CORRIGÉ: utiliser la bonne casse et méthode)
+        if (window.SceneManager && typeof window.SceneManager.removeElement === 'function') {
             console.log('🗑️ Removing from SceneManager:', elementId);
-            window.sceneManager.removeElementById(elementId);
+            window.SceneManager.removeElement(elementId);
+        } else {
+            console.warn('🗑️ SceneManager.removeElement non disponible');
         }
         
-        // Essayer de supprimer de l'AssiseManager si disponible
-        if (window.assiseManager && typeof window.assiseManager.removeElementById === 'function') {
-            console.log('🗑️ Removing from AssiseManager:', elementId);
-            window.assiseManager.removeElementById(elementId);
-        }
+        // 🚫 SUPPRIMÉ: Ne plus essayer AssiseManager directement, c'est fait par SceneManager
+        // if (window.assiseManager && typeof window.assiseManager.removeElementById === 'function') {
+        //     console.log('🗑️ Removing from AssiseManager:', elementId);
+        //     window.assiseManager.removeElementById(elementId);
+        // }
         
         // 🔧 NOUVEAUTÉ: Supprimer des managers spécialisés pour les outils
         // MeasurementTool / MeasurementAnnotationManager

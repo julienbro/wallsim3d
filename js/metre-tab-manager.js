@@ -120,9 +120,7 @@ class MetreTabManager {
         // Récupérer tous les éléments de la scène
         if (window.SceneManager && window.SceneManager.elements) {
             const coll = window.SceneManager.elements;
-            try {
-                console.debug('MetreTabManager: type collection éléments =', coll instanceof Map ? 'Map' : Array.isArray(coll) ? 'Array' : typeof coll, coll);
-            } catch(e){}
+            // Log détaillé supprimé
             if (typeof coll.forEach === 'function') {
                 // Map ou structure avec forEach
                 coll.forEach((element, id) => {
@@ -141,7 +139,7 @@ class MetreTabManager {
             }
         }
 
-    try { console.debug('MetreTabManager: éléments collectés =', this.elements.size, Array.from(this.elements.keys())); } catch(e){}
+    // Log de comptage supprimé
         
         this.updateSummary();
         this.refreshTable();
@@ -229,7 +227,7 @@ class MetreTabManager {
             dimensions.width = Math.round((box.max.z - box.min.z) * 10) / 10;
             dimensions.height = Math.round((box.max.y - box.min.y) * 10) / 10;
             volume = (dimensions.length * dimensions.width * dimensions.height) / 1000000; // Conversion en m³
-            console.log('📐 Dimensions GLB depuis boundingBox:', dimensions);
+            // Log retiré: Dimensions GLB depuis boundingBox
         } else {
             console.warn('⚠️ Aucune dimension disponible pour l\'élément GLB:', element);
         }
@@ -877,12 +875,19 @@ class MetreTabManager {
             typeDisplay = `${element.typeName} ${element.brickType}`;
         }
         
+        // Badge spécial pour les objets manuels
+        const manualBadge = element.isManual ? '<span class="manual-item-badge">Manuel</span>' : '';
+        
+        // Affichage spécial pour les objets manuels
+        const displayName = element.isManual ? element.name : typeDisplay;
+        const quantityDisplay = element.isManual ? `${element.quantity} ${element.unit}` : '1';
+        
         row.innerHTML = `
             <td class="element-id">${element.id.substring(0, 8)}...</td>
             <td>
                 <span class="element-type ${element.type}">
                     <i class="fas fa-${this.getTypeIcon(element.type)}"></i>
-                    ${typeDisplay}
+                    ${displayName}${manualBadge}
                 </span>
             </td>
             <td>
@@ -891,18 +896,21 @@ class MetreTabManager {
                     <span>${element.materialName}</span>
                 </div>
             </td>
-            <td class="dimensions-text">${element.type==='diba' ? ('L: '+(element.dimensions.formattedPolyline||Math.ceil(element.dimensions.length)+' cm')+' / l: '+(element.dimensions.formattedExtrusion||Math.ceil(element.dimensions.height)+' cm')) : (element.dimensions.formatted+' cm')}</td>
-            <td class="position-text">${element.position.formatted} cm</td>
+            <td class="dimensions-text">${element.dimensions.formatted}</td>
+            <td class="position-text">${element.position.formatted}</td>
             <td class="numeric-value">${element.volume.toFixed(4)}</td>
             <td class="numeric-value">${element.mass.toFixed(2)}</td>
+            <td class="quantity-display">${quantityDisplay}</td>
             <td>
                 <div class="row-actions">
-                    <button class="action-btn locate" title="Localiser dans la scène" data-action="locate">
-                        <i class="fas fa-crosshairs"></i>
-                    </button>
-                    <button class="action-btn select" title="Sélectionner" data-action="select">
-                        <i class="fas fa-mouse-pointer"></i>
-                    </button>
+                    ${!element.isManual ? `
+                        <button class="action-btn locate" title="Localiser dans la scène" data-action="locate">
+                            <i class="fas fa-crosshairs"></i>
+                        </button>
+                        <button class="action-btn select" title="Sélectionner" data-action="select">
+                            <i class="fas fa-mouse-pointer"></i>
+                        </button>
+                    ` : ''}
                     <button class="action-btn delete" title="Supprimer" data-action="delete">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -1002,7 +1010,7 @@ class MetreTabManager {
     }
 
     selectAllElements(elements) {
-        console.log('📋 Sélection de tous les éléments du groupe:', elements.length);
+        // Log retiré: Sélection de tous les éléments du groupe
         
         if (window.SceneManager && window.SceneManager.selectMultipleElements) {
             const elementIds = elements.map(el => el.id);
@@ -1011,7 +1019,7 @@ class MetreTabManager {
     }
 
     expandGroup(row, elements) {
-        console.log('👁️ Expansion du groupe:', elements.length, 'éléments');
+        // Log retiré: Expansion du groupe
         
         // Basculer entre vue résumée et vue détaillée
         const isExpanded = row.classList.contains('expanded');
@@ -1049,7 +1057,7 @@ class MetreTabManager {
     }
 
     locateElement(element) {
-        console.log('🎯 Localisation de l\'élément:', element.id);
+        // Log retiré: Localisation de l'élément
         
         // Centrer la caméra sur l'élément
         if (window.CameraControls && element.element && element.element.mesh) {
@@ -1062,7 +1070,7 @@ class MetreTabManager {
     }
 
     selectElement(element) {
-        console.log('👆 Sélection de l\'élément:', element.id);
+        // Log retiré: Sélection de l'élément
         
         if (window.SceneManager && element.element) {
             window.SceneManager.selectElement(element.element);
@@ -1070,7 +1078,7 @@ class MetreTabManager {
     }
 
     deleteElement(element) {
-        console.log('🗑️ Suppression de l\'élément:', element.id);
+        // Log retiré: Suppression de l'élément
         
         if (element.isManual) {
             // Suppression d'un objet manuel
@@ -1161,7 +1169,7 @@ class MetreTabManager {
     }
 
     exportData() {
-        console.log('📤 Export des données du métré');
+        // Log retiré: Export des données du métré
         
         // Filtrer les éléments non-joints pour l'export
         const nonJointElements = Array.from(this.elements.values()).filter(element => 
@@ -1198,7 +1206,7 @@ class MetreTabManager {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        console.log('✅ Export terminé');
+    // Log retiré: Export terminé
     }
 
     // ==========================================

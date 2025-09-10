@@ -27,6 +27,10 @@ class BlockSelector {
             'B19_1Q': { length: 9, width: 19, height: 19, name: 'Bloc creux B19 1/4', category: 'cut', cutType: '1/4', baseBlock: 'B19', weight: 4.5 },
             'B29_1Q': { length: 9, width: 29, height: 19, name: 'Bloc creux B29 1/4', category: 'cut', cutType: '1/4', baseBlock: 'B29', weight: 5.75 },
             
+            // Blocs creux B14 longueurs spécifiques
+            'B14_34CM': { length: 34, width: 14, height: 19, name: 'Bloc creux B14 34cm', category: 'cut', cutType: '34cm', baseBlock: 'B14', weight: 13.1 },
+            'B14_4CM': { length: 4, width: 14, height: 19, name: 'Bloc creux B14 4cm', category: 'cut', cutType: '4cm', baseBlock: 'B14', weight: 1.5 },
+            
             // Blocs béton cellulaire
             'BC_60x5': { length: 60, width: 5, height: 25, name: 'Bloc béton cell. 60x5x25', category: 'cellular', customCut: true },
             'BC_60x7': { length: 60, width: 7, height: 25, name: 'Bloc béton cell. 60x7x25', category: 'cellular', customCut: true },

@@ -112,13 +112,8 @@ class ToolsTabManager {
         
         // Écouter les changements de sélection de brique/bloc/isolant/linteau
         document.addEventListener('brickSelectionChanged', (e) => {
-            console.log('🔧 TabManager: Événement brickSelectionChanged reçu');
-            console.log('🔧 TabManager: brickType:', e.detail?.brickType);
-            console.log('🔧 TabManager: brickData:', e.detail?.brickData);
-            
-            // Récupérer l'onglet actuel depuis le TabManager principal
+            // Logs retirés (brickSelectionChanged)
             const currentMainTab = window.tabManager ? window.tabManager.currentMainTab : null;
-            console.log('🔧 TabManager: currentMainTab:', currentMainTab);
             
             // Toujours mettre à jour l'élément actif avec la brique sélectionnée si les données sont disponibles
             if (e.detail?.brickData) {
@@ -132,7 +127,7 @@ class ToolsTabManager {
                     },
                     category: e.detail.brickData.category || 'brick'
                 };
-                console.log('🧱 Mise à jour élément actif avec brique:', brickElement);
+                // Log retiré: mise à jour élément actif brique
                 
                 // Mémoriser la brique sélectionnée pour l'afficher dans l'onglet Outils
                 this.selectedBrickElement = brickElement;
@@ -183,17 +178,17 @@ class ToolsTabManager {
         // Écouter les changements d'onglet pour mettre à jour l'aperçu
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('tab-button')) {
-                console.log('🔧 Clic détecté sur onglet:', e.target.textContent, e.target.dataset.tab);
+                // Log retiré: clic onglet
                 
                 // Vérifier si on doit ignorer ce clic (clic programmatique depuis activateToolsTab)
                 if (window.skipTabClickHandler) {
-                    console.log('🔧 Clic programmatique ignoré - pas de réinitialisation de brique');
+                    // Log retiré: clic programmatique ignoré
                     return;
                 }
                 
                 // Si c'est l'onglet Outils qui devient actif, forcer la mise à jour de l'aperçu 3D
                 if (e.target.dataset.tab === 'outils') {
-                    console.log('🎨 Onglet Outils activé - force refresh aperçu 3D');
+                    // Log retiré: activation onglet Outils
                     setTimeout(() => {
                         this.forceRefresh3DPreview();
                     }, 100);
@@ -205,10 +200,10 @@ class ToolsTabManager {
                     // SEULEMENT si aucune brique n'est actuellement sélectionnée
                     if (!window.BrickSelector || !window.BrickSelector.currentBrick || 
                         window.BrickSelector.currentBrick.trim() === '') {
-                        console.log('🔧 Onglet changé + aucune brique sélectionnée → sélection par défaut');
+                        // Log retiré: sélection par défaut
                         this.ensureDefaultElementSelection();
                     } else {
-                        console.log('🔧 Onglet changé mais brique déjà sélectionnée:', window.BrickSelector.currentBrick, '→ conservation');
+                        // Log retiré: brique déjà sélectionnée
                     }
                 });
             }
@@ -530,13 +525,13 @@ class ToolsTabManager {
         
         // Log réduit - seulement si forceElement ou debug activé
         if (forceElement && window.DEBUG_TOOLS_TAB) {
-            console.log('🔧 ToolsTabManager: updateActiveElementPreview appelée avec forceElement:', forceElement);
+            // Log retiré: updateActiveElementPreview appelée avec forceElement
         }
         
         // Si un élément est forcé (depuis la sélection), l'utiliser directement
         if (forceElement) {
             if (window.DEBUG_TOOLS_TAB) {
-                console.log('🔧 ToolsTabManager: Utilisation d\'élément forcé:', forceElement);
+                // Log retiré: Utilisation d'élément forcé
             }
             this.renderElementPreview(forceElement);
             return;
@@ -544,7 +539,7 @@ class ToolsTabManager {
         
         // Si une brique est sélectionnée et mémorisée, l'utiliser en priorité
         if (this.selectedBrickElement) {
-            console.log('🧱 Utilisation de la brique mémorisée:', this.selectedBrickElement);
+            // Log retiré: Utilisation de la brique mémorisée
             this.renderElementPreview(this.selectedBrickElement);
             return;
         }
@@ -572,8 +567,8 @@ class ToolsTabManager {
         
         const nameElement = document.getElementById('toolsElementName');
         const dimensionsElement = document.getElementById('toolsElementDimensions');
-        const cutButtonsContainer = document.getElementById('toolsCutButtons');
-        console.log('🔍 Container boutons coupe trouvé:', cutButtonsContainer);
+    const cutButtonsContainer = document.getElementById('toolsCutButtons');
+    // Log retiré: Container boutons coupe trouvé
 
         if (!nameElement || !dimensionsElement || !cutButtonsContainer) {
             if (window.DEBUG_TOOLS_TAB) {
@@ -608,7 +603,7 @@ class ToolsTabManager {
         
         // Log uniquement si quelque chose a changé ET si debug activé
         if ((!this.lastSelectorState || this.lastSelectorState !== stateKey) && window.DEBUG_TOOLS_TAB) {
-            console.log('🎨 États sélecteurs:', selectorStates);
+            // Log retiré: États sélecteurs
             this.lastSelectorState = stateKey;
         }
 
@@ -803,18 +798,12 @@ class ToolsTabManager {
 
         if (activeElement) {       
             if (window.DEBUG_TOOLS_TAB) {
-                console.log('✅ ToolsTabManager: Élément actif détecté:', {
-                    name: activeElement.name,
-                    type: activeElement.type,
-                    baseType: activeElement.baseType,
-                    elementType: elementType,
-                    cutInfo: cutInfo
-                });     
+                // Log retiré: Élément actif détecté
             }
             // Mettre à jour les informations de l'élément
             const displayName = activeElement.name || activeElement.type || 'Élément inconnu';
             if (window.DEBUG_TOOLS_TAB) {
-                console.log('🏷️ ToolsTabManager: Mise à jour nom affichage:', displayName);
+                // Log retiré: Mise à jour nom affichage
             }
             nameElement.textContent = displayName;
             
@@ -880,19 +869,12 @@ class ToolsTabManager {
                 this.drawFallbackPreview(canvas, activeElement, elementType);
             }
 
-            // Mettre à jour les boutons de coupe pour les éléments qui supportent les coupes
-            console.log('🔍 Type d\'élément pour boutons coupe:', elementType, 'activeElement.type:', activeElement?.type);
-            
-            // Forcer l'affichage des boutons pour tous les éléments pour debug
+            // Mettre à jour les boutons de coupe pour les éléments qui supportent les coupes (logs retirés)
             if (activeElement && activeElement.type) {
-                console.log('🧱 Affichage boutons pour TOUS les types (debug):', activeElement.type);
                 this.updateToolsCutButtons(cutButtonsContainer, activeElement);
             } else if (elementType === 'glb' && activeElement) {
-                // Pour les éléments GLB, utiliser l'interface spécialisée
-                console.log('📐 Affichage boutons GLB pour:', activeElement.type);
                 this.updateGLBLengthButtons(cutButtonsContainer, activeElement);
             } else {
-                console.log('❌ Pas de boutons de coupe pour ce type:', elementType);
                 cutButtonsContainer.style.display = 'none';
             }
 
@@ -933,7 +915,7 @@ class ToolsTabManager {
         }
         
         if (window.DEBUG_TOOLS_TAB) {
-            console.log('🎨 ToolsTabManager: Rendu d\'élément forcé:', element);
+            // Log retiré: Rendu d'élément forcé
         }
         
         const canvas = document.getElementById('toolsActiveElementCanvas');
@@ -970,7 +952,7 @@ class ToolsTabManager {
             elementType = 'glb';
         }
 
-        console.log('🔍 Type d\'élément détecté:', elementType, 'pour', element.type);
+    // Log retiré: Type d'élément détecté
 
         // Initialiser l'aperçu selon le type d'élément
         if (window.LibraryPreview3D && elementType === 'glb') {
@@ -998,14 +980,7 @@ class ToolsTabManager {
                 currentCanvas.setAttribute('data-current-element-type', 'glb');
                 currentCanvas.setAttribute('data-element-type', canvasSignature);
                 
-                console.log('🔧 Canvas réinitialisé pour GLB:', {
-                    display: currentCanvas.style.display,
-                    previewType: currentCanvas.getAttribute('data-preview-type'),
-                    elementType: currentCanvas.getAttribute('data-current-element-type'),
-                    visible: currentCanvas.offsetWidth > 0 && currentCanvas.offsetHeight > 0
-                });
-                
-                console.log('🎯 Rendu aperçu 3D élément actif pour:', element.type);
+                // Logs retirés: Canvas réinitialisé pour GLB & Rendu aperçu 3D
                 
                 try {
                     // Vérifier que le canvas est visible et prêt
@@ -1019,7 +994,7 @@ class ToolsTabManager {
                         // Utiliser le canvas actuel pour les GLB
                         this.createGLBPreviewUsingLibrary(currentCanvas, element);
                         if (window.DEBUG_TOOLS_TAB) {
-                            console.log('✅ ToolsTabManager: Aperçu 3D GLB créé pour:', element.type);
+                            // Log retiré: Aperçu 3D GLB créé
                         }
                     }, 50);
                 } catch (error) {
@@ -1029,11 +1004,11 @@ class ToolsTabManager {
                     this.drawFallbackPreview(canvas, element, elementType);
                 }
             } else {
-                console.log('🔄 Aperçu 3D élément actif déjà à jour pour:', element.type);
+                // Log retiré: Aperçu 3D élément actif déjà à jour
             }
         } else if (elementType === 'brick') {
             // Pour les briques simples, créer un aperçu 3D dédié
-            console.log('🧱 Rendu aperçu 3D pour brique:', element.type);
+            // Log retiré: Rendu aperçu 3D pour brique
             
             // Marquer le canvas comme aperçu de brique 3D
             canvas.setAttribute('data-preview-type', '3d-brick');
@@ -1064,13 +1039,13 @@ class ToolsTabManager {
         }
         
         if (window.DEBUG_TOOLS_TAB) {
-            console.log('✅ ToolsTabManager: Élément GLB rendu:', elementType, '-', element.name || element.type);
+            // Log retiré: Élément GLB rendu
         }
     }
 
     // Dessiner un aperçu de brique sur le canvas
     drawBrickPreview(canvas, element) {
-        console.log('🎨 drawBrickPreview appelée pour:', element.type);
+        // Log retiré: drawBrickPreview appelée
         
         // Vérifier si le canvas existe
         if (!canvas) {
@@ -1081,7 +1056,7 @@ class ToolsTabManager {
         // Si le canvas a un contexte WebGL, on doit le nettoyer d'abord
         const existingWebGL = canvas.getContext('webgl') || canvas.getContext('webgl2') || canvas.getContext('experimental-webgl');
         if (existingWebGL) {
-            console.log('🧹 Nettoyage du contexte WebGL existant');
+            // Log retiré: Nettoyage du contexte WebGL existant
             // Perdre le contexte WebGL
             if (existingWebGL.getExtension('WEBGL_lose_context')) {
                 existingWebGL.getExtension('WEBGL_lose_context').loseContext();
@@ -1094,7 +1069,7 @@ class ToolsTabManager {
             return;
         }
         
-        console.log('✅ Contexte 2D obtenu, début du dessin');
+    // Log retiré: Contexte 2D obtenu, début du dessin
 
         // Effacer le canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1146,12 +1121,12 @@ class ToolsTabManager {
             ctx.fillText(dimText, canvasWidth / 2, canvasHeight - 15);
         }
 
-        console.log('✅ Aperçu de brique dessiné pour:', element.type);
+    // Log retiré: Aperçu de brique dessiné
     }
 
     // Créer un aperçu SVG pour brique en remplaçant le canvas
     createBrickSVGPreview(canvas, element) {
-        console.log('🎨 createBrickSVGPreview appelée pour:', element.type);
+    // Log retiré: createBrickSVGPreview appelée
         
         // Cacher le canvas
         canvas.style.display = 'none';
@@ -1175,7 +1150,7 @@ class ToolsTabManager {
         
         // Utiliser le système d'aperçu statique existant
         if (window.toolsReusablePanel && window.toolsReusablePanel.createBrickStaticPreview) {
-            console.log('🧱 Génération aperçu statique SVG pour brique:', element.type);
+            // Log retiré: Génération aperçu statique SVG
             window.toolsReusablePanel.createBrickStaticPreview(svgContainer, element);
         } else {
             // Fallback : créer un aperçu simple
@@ -1188,12 +1163,12 @@ class ToolsTabManager {
             `;
         }
         
-        console.log('✅ Aperçu SVG de brique créé pour:', element.type);
+    // Log retiré: Aperçu SVG de brique créé
     }
 
     // Nettoyer les aperçus de brique existants
     cleanupBrickPreview(canvas) {
-        console.log('🧹 Nettoyage aperçu de brique');
+    // Log retiré: Nettoyage aperçu de brique
         
         // Arrêter l'animation de brique s'il y en a une
         this.stopBrickAnimation();
@@ -1204,28 +1179,28 @@ class ToolsTabManager {
             const brickCanvas = parent.querySelector('.brick-3d-canvas');
             if (brickCanvas) {
                 brickCanvas.remove();
-                console.log('✅ Canvas 3D de brique supprimé');
+                // Log retiré: Canvas 3D de brique supprimé
             }
             
             // Supprimer l'overlay d'informations de brique
             const infoOverlay = parent.querySelector('.brick-info-overlay');
             if (infoOverlay) {
                 infoOverlay.remove();
-                console.log('✅ Overlay informations brique supprimé');
+                // Log retiré: Overlay informations brique supprimé
             }
             
             // Supprimer le container d'aperçu statique de brique s'il existe
             const staticContainer = parent.querySelector('.brick-static-preview');
             if (staticContainer) {
                 staticContainer.remove();
-                console.log('✅ Container statique de brique supprimé');
+                // Log retiré: Container statique supprimé
             }
             
             // Supprimer l'ancien container SVG s'il existe
             const svgContainer = parent.querySelector('.brick-svg-preview');
             if (svgContainer) {
                 svgContainer.remove();
-                console.log('✅ Container SVG de brique supprimé');
+                // Log retiré: Container SVG supprimé
             }
         }
         
@@ -1239,11 +1214,11 @@ class ToolsTabManager {
             
             // Si le canvas avait des attributs de brique, les réinitialiser
             if (currentCanvas.getAttribute('data-current-element-type') === 'brick') {
-                console.log('🔧 Réinitialisation canvas pour GLB');
+                // Log retiré: Réinitialisation canvas pour GLB
                 // Ne pas changer les attributs ici, ils seront mis à jour par le caller
             }
             
-            console.log('✅ Canvas original GLB restauré');
+            // Log retiré: Canvas original GLB restauré
         }
         
         // Nettoyer SEULEMENT les ressources 3D de brique dédiées (pas celles des GLB)
@@ -1251,9 +1226,9 @@ class ToolsTabManager {
             try {
                 this.brickRenderer.dispose();
                 this.brickRenderer = null;
-                console.log('✅ Renderer brique nettoyé');
+                // Log retiré: Renderer brique nettoyé
             } catch (e) {
-                console.log('⚠️ Erreur nettoyage renderer brique:', e.message);
+                // Log retiré: Erreur nettoyage renderer brique
             }
         }
         
@@ -1262,7 +1237,7 @@ class ToolsTabManager {
                 this.brickScene.remove(this.brickScene.children[0]);
             }
             this.brickScene = null;
-            console.log('✅ Scène brique nettoyée');
+            // Log retiré: Scène brique nettoyée
         }
         
         this.brickCamera = null;
@@ -1273,7 +1248,7 @@ class ToolsTabManager {
 
     createBrickStaticPreview(canvas, element) {
         try {
-            console.log('🧱 Création aperçu statique pour brique:', element.type);
+            // Log retiré: Création aperçu statique brique
             
             // Cacher le canvas et utiliser un overlay
             canvas.style.display = 'none';
@@ -1310,7 +1285,7 @@ class ToolsTabManager {
             // Créer l'aperçu statique de la brique
             this.renderBrickStaticContent(previewContainer, element);
             
-            console.log('✅ Aperçu statique de brique créé:', element.type);
+            // Log retiré: Aperçu statique de brique créé
             
         } catch (error) {
             console.error('❌ Erreur création aperçu statique brique:', error);
@@ -1448,7 +1423,7 @@ class ToolsTabManager {
 
     createDedicated3DBrickPreview(originalCanvas, element) {
         try {
-            console.log('🧱 Création aperçu 3D dédié pour brique:', element.type);
+            // Log retiré: Création aperçu 3D dédié brique
             
             // Vérifier que le canvas a un parent
             if (!originalCanvas.parentNode) {
@@ -1463,7 +1438,7 @@ class ToolsTabManager {
             const existingBrickCanvas = originalCanvas.parentNode.querySelector('.brick-3d-canvas');
             if (existingBrickCanvas) {
                 existingBrickCanvas.remove();
-                console.log('🧹 Canvas brique existant supprimé');
+                // Log retiré: Canvas brique existant supprimé
             }
             
             // Créer un nouveau canvas dédié pour la brique 3D
@@ -1513,7 +1488,7 @@ class ToolsTabManager {
             // Démarrer l'animation rotative
             this.startBrickAnimation(brickCanvas, brickMesh);
             
-            console.log('✅ Aperçu 3D dédié brique créé avec succès');
+            // Log retiré: Aperçu 3D dédié brique créé
             
         } catch (error) {
             console.error('❌ Erreur création aperçu 3D dédié brique:', error);
@@ -1525,7 +1500,7 @@ class ToolsTabManager {
 
     initBrick3DScene(canvas) {
         try {
-            console.log('🎬 Initialisation scène 3D dédiée pour brique');
+            // Log retiré: Initialisation scène 3D dédiée brique
             
             // Créer la scène dédiée
             this.brickScene = new THREE.Scene();
@@ -1557,7 +1532,7 @@ class ToolsTabManager {
             directionalLight2.position.set(-5, -5, -5);
             this.brickScene.add(directionalLight2);
             
-            console.log('✅ Scène 3D dédiée pour brique initialisée');
+            // Log retiré: Scène 3D dédiée brique initialisée
             
         } catch (error) {
             console.error('❌ Erreur initialisation scène 3D brique:', error);
@@ -1596,7 +1571,7 @@ class ToolsTabManager {
             try {
                 this.brickRenderer.render(this.brickScene, this.brickCamera);
             } catch (e) {
-                console.log('Arrêt animation brique:', e.message);
+                // Log retiré: Arrêt animation brique (erreur)
                 cancelAnimationFrame(animationId);
             }
         };
@@ -1606,14 +1581,14 @@ class ToolsTabManager {
         
         animate();
         
-        console.log('🎬 Animation brique démarrée');
+    // Log retiré: Animation brique démarrée
     }
 
     stopBrickAnimation() {
         if (this.brickAnimationId) {
             cancelAnimationFrame(this.brickAnimationId);
             this.brickAnimationId = null;
-            console.log('⏹️ Animation brique arrêtée');
+            // Log retiré: Animation brique arrêtée
         }
     }
 
@@ -1681,7 +1656,7 @@ class ToolsTabManager {
             // Ajouter l'overlay au container parent
             parentContainer.appendChild(infoOverlay);
             
-            console.log('✅ Overlay d\'informations brique créé');
+            // Log retiré: Overlay infos brique créé
             
         } catch (error) {
             console.error('❌ Erreur création overlay brique:', error);
@@ -1690,7 +1665,7 @@ class ToolsTabManager {
 
     create3DBrickPreview(canvas, element) {
         try {
-            console.log('🧱 Création aperçu 3D pour brique:', element.type);
+            // Log retiré: Création aperçu 3D brique
             
             // Le canvas a déjà un contexte WebGL du hourdis, nous devons le remplacer
             // Créer un nouveau canvas temporaire pour contourner le problème de contexte
@@ -1715,7 +1690,7 @@ class ToolsTabManager {
                 newCanvas.setAttribute(name, value);
             }
             
-            console.log('🔄 Canvas remplacé pour éviter conflit de contexte WebGL');
+            // Log retiré: Canvas remplacé (conflit WebGL)
             
             // Maintenant créer la scène 3D sur le nouveau canvas propre
             this.initPreviewScene(newCanvas);
@@ -1751,7 +1726,7 @@ class ToolsTabManager {
             // Marquer le nouveau canvas pour le nettoyage futur
             newCanvas.setAttribute('data-brick-canvas', 'true');
             
-            console.log('✅ Aperçu 3D brique créé avec succès sur nouveau canvas');
+            // Log retiré: Aperçu 3D brique créé sur nouveau canvas
             
         } catch (error) {
             console.error('❌ Erreur création aperçu 3D brique:', error);
@@ -1830,12 +1805,12 @@ class ToolsTabManager {
 
     initPreviewScene(canvas) {
         try {
-            console.log('🎬 Initialisation scène aperçu 3D');
+            // Log retiré: Initialisation scène aperçu 3D
             
             // Vérifier que le canvas est propre (pas de contexte existant)
             const existingContext = canvas.getContext('webgl', { failIfMajorPerformanceCaveat: false });
             if (existingContext && existingContext.isContextLost && existingContext.isContextLost()) {
-                console.log('⚠️ Contexte WebGL perdu détecté, recréation...');
+                // Log retiré: Contexte WebGL perdu détecté
             }
             
             // Créer la scène
@@ -1857,7 +1832,7 @@ class ToolsTabManager {
                     powerPreference: "default"
                 });
                 
-                console.log('✅ Renderer WebGL créé avec succès');
+                // Log retiré: Renderer WebGL créé
             } catch (rendererError) {
                 console.error('❌ Erreur création renderer WebGL:', rendererError);
                 throw new Error('Impossible de créer le renderer WebGL: ' + rendererError.message);
@@ -1883,7 +1858,7 @@ class ToolsTabManager {
             // Effacer immédiatement le canvas
             this.previewRenderer.clear();
             
-            console.log('✅ Scène aperçu 3D initialisée');
+            // Log retiré: Scène aperçu 3D initialisée
             
         } catch (error) {
             console.error('❌ Erreur initialisation scène aperçu:', error);
@@ -1896,7 +1871,7 @@ class ToolsTabManager {
         if (this.previewRenderer && this.previewScene && this.previewCamera) {
             try {
                 this.previewRenderer.render(this.previewScene, this.previewCamera);
-                console.log('✅ Rendu aperçu 3D effectué');
+                // Log retiré: Rendu aperçu 3D effectué
             } catch (error) {
                 console.error('❌ Erreur rendu aperçu 3D:', error);
             }
@@ -1905,14 +1880,14 @@ class ToolsTabManager {
 
     // Méthode de débogage pour forcer la mise à jour de l'aperçu
     forcePreviewUpdate() {
-        console.log('🔧 Force la mise à jour de l\'aperçu 3D...');
+    // Log retiré: Force update aperçu 3D
         this.lastPreviewCache = null; // Réinitialiser le cache
         this.updateActiveElementPreview(null, true);
     }
     
     // Méthode pour forcer le refresh de l'aperçu 3D quand l'onglet devient visible
     forceRefresh3DPreview() {
-        console.log('🎨 [DEBUG] forceRefresh3DPreview démarré');
+    // Log retiré: forceRefresh3DPreview démarré
         
         const canvas = document.getElementById('toolsActiveElementCanvas');
         if (!canvas) {
@@ -1923,7 +1898,7 @@ class ToolsTabManager {
         // Vérifier que l'onglet Outils est bien actif
         const toolsTab = document.querySelector('[data-tab="outils"]');
         if (!toolsTab || !toolsTab.classList.contains('active')) {
-            console.log('⚠️ Onglet Outils non actif, abandon forceRefresh3DPreview');
+            // Log retiré: Onglet Outils non actif (forceRefresh)
             return;
         }
         
@@ -1939,10 +1914,10 @@ class ToolsTabManager {
         // Obtenir l'élément actif et relancer l'aperçu
         const activeElement = this.getActiveElement();
         if (activeElement) {
-            console.log('🎨 [DEBUG] Relancement aperçu pour:', activeElement.type);
+            // Log retiré: Relancement aperçu pour élément
             this.renderElementPreview(activeElement);
         } else {
-            console.log('⚠️ Aucun élément actif pour forceRefresh3DPreview');
+            // Log retiré: Aucun élément actif forceRefresh3DPreview
         }
         
         // Démarrer la surveillance continue
@@ -1957,7 +1932,7 @@ class ToolsTabManager {
         }
         
         this.canvas3DRetryCount = 0;
-        console.log('🔍 [DEBUG] Démarrage surveillance canvas 3D');
+    // Log retiré: Démarrage surveillance canvas 3D
         
         this.canvas3DMonitor = setInterval(() => {
             const canvas = document.getElementById('toolsActiveElementCanvas');
@@ -1968,12 +1943,12 @@ class ToolsTabManager {
                 // Arrêter la surveillance si l'onglet n'est plus actif
                 clearInterval(this.canvas3DMonitor);
                 this.canvas3DMonitor = null;
-                console.log('🔍 [DEBUG] Surveillance arrêtée - onglet non actif');
+                // Log retiré: Surveillance arrêtée - onglet non actif
                 return;
             }
             
             if (!canvas) {
-                console.log('🔍 [DEBUG] Canvas non trouvé dans surveillance');
+                // Log retiré: Canvas non trouvé (surveillance)
                 return;
             }
             
@@ -1982,7 +1957,7 @@ class ToolsTabManager {
             
             if (!hasContent && this.canvas3DRetryCount < this.maxRetries) {
                 this.canvas3DRetryCount++;
-                console.log(`🔄 [DEBUG] Canvas vide, retry ${this.canvas3DRetryCount}/${this.maxRetries}`);
+                // Log retiré: Canvas vide retry
                 
                 // Forcer le re-rendu
                 const activeElement = this.getActiveElement();
@@ -1991,7 +1966,7 @@ class ToolsTabManager {
                 }
             } else if (hasContent) {
                 // Succès ! Arrêter la surveillance
-                console.log('✅ [DEBUG] Canvas 3D fonctionne - surveillance arrêtée');
+                // Log retiré: Canvas 3D fonctionne - surveillance arrêtée
                 clearInterval(this.canvas3DMonitor);
                 this.canvas3DMonitor = null;
             } else if (this.canvas3DRetryCount >= this.maxRetries) {
@@ -2050,7 +2025,7 @@ class ToolsTabManager {
             ctx.fillText('Erreur 3D', canvas.width / 2, canvas.height / 2 - 10);
             ctx.fillText('Rechargez', canvas.width / 2, canvas.height / 2 + 10);
             
-            console.log('🔧 [DEBUG] Placeholder d\'erreur affiché');
+            // Log retiré: Placeholder erreur affiché
         } catch (error) {
             console.error('Erreur affichage placeholder:', error);
         }
@@ -2067,7 +2042,7 @@ class ToolsTabManager {
     }
 
     updateToolsCutButtons(cutButtonsContainer, activeElement) {
-        console.log('🔧 updateToolsCutButtons appelée avec:', activeElement?.type, cutButtonsContainer);
+    // Log retiré: updateToolsCutButtons appelée
         
         // Identifier le type de base selon le type d'élément
         let baseType = activeElement.type;
@@ -2122,7 +2097,7 @@ class ToolsTabManager {
         
         // Mettre à jour les boutons avec le bon type de base
         const buttons = cutButtonsContainer.querySelectorAll('.cut-btn-mini');
-        console.log('🔍 Boutons trouvés dans container:', buttons.length, 'HTML:', cutButtonsContainer.innerHTML.substring(0, 200));
+    // Log retiré: Boutons trouvés dans container
         
         // D'abord, nettoyer tous les états actifs
         buttons.forEach(button => button.classList.remove('active'));
@@ -2156,13 +2131,13 @@ class ToolsTabManager {
         });
         
         cutButtonsContainer.style.display = 'flex';
-        console.log('✅ Boutons de coupe affichés pour:', baseType, 'catégorie:', elementCategory, 'buttons:', buttons.length);
+    // Log retiré: Boutons de coupe affichés
     }
 
     restoreNormalCutButtons(cutButtonsContainer) {
         // Vérifier si le conteneur contient l'interface GLB au lieu des boutons normaux
         if (cutButtonsContainer.querySelector('.glb-length-controls')) {
-            console.log('🔄 Restauration des boutons de coupe normaux (remplacement interface GLB)');
+            // Log retiré: Restauration boutons coupe
             
             // Restaurer les boutons de coupe normaux
             cutButtonsContainer.innerHTML = `
@@ -2173,7 +2148,7 @@ class ToolsTabManager {
                 <button class="cut-btn-mini" data-cut="P" data-base-type="">P</button>
             `;
         } else {
-            console.log('✅ Boutons de coupe normaux déjà présents');
+            // Log retiré: Boutons coupe déjà présents
         }
     }
 
@@ -2312,12 +2287,12 @@ class ToolsTabManager {
                 
                 // Éviter le rechargement si c'est déjà le bon GLB
                 if (currentCanvasSignature === glbSignature && this.currentGLBModel) {
-                    console.log('🔄 GLB déjà chargé, réutilisation du modèle existant');
+                    // Log retiré: GLB déjà chargé
                     this.startToolsAnimation();
                     return;
                 }
                 
-                console.log('📦 Chargement nouveau GLB:', elementTypeValue);
+                // Log retiré: Chargement nouveau GLB
                 this.createGLBPreview(elementTypeValue).then(() => {
                     // Marquer le canvas avec la signature GLB
                     canvas.setAttribute('data-element-type', glbSignature);
@@ -2788,11 +2763,11 @@ class ToolsTabManager {
     // Méthode pour s'assurer qu'un élément par défaut est sélectionné
     ensureDefaultElementSelection() {
         if (window.DEBUG_TOOLS_TAB) {
-            console.log('🔧 ensureDefaultElementSelection appelée');
-            console.log('🔧 BrickSelector exists:', !!window.BrickSelector);
-            console.log('🔧 currentBrick value:', window.BrickSelector?.currentBrick);
-            console.log('🔧 currentBrick type:', typeof window.BrickSelector?.currentBrick);
-            console.log('🔧 currentBrick trimmed:', window.BrickSelector?.currentBrick?.trim());
+            // Log retiré: ensureDefaultElementSelection appelée
+            // Log retiré: BrickSelector exists
+            // Log retiré: currentBrick value
+            // Log retiré: currentBrick type
+            // Log retiré: currentBrick trimmed
         }
         
         // Vérifier si une brique est déjà sélectionnée ET valide (y compris les briques coupées)
@@ -2800,14 +2775,14 @@ class ToolsTabManager {
             typeof window.BrickSelector.currentBrick === 'string' && 
             window.BrickSelector.currentBrick.trim() !== '') {
             if (window.DEBUG_TOOLS_TAB) {
-                console.log('✅ Une brique est déjà sélectionnée:', window.BrickSelector.currentBrick, '- Conservation de la sélection');
+                // Log retiré: brique déjà sélectionnée
             }
             return;
         }
         
         // Essayer de sélectionner automatiquement une brique M65 par défaut SEULEMENT si aucune brique n'est sélectionnée
         if (window.BrickSelector && !window.BrickSelector.currentBrick) {
-            console.log('🔧 Aucune brique sélectionnée, sélection de M65 par défaut');
+            // Log retiré: sélection M65 par défaut
             // Forcer une brique M65 par défaut
             window.BrickSelector.currentBrick = 'M65';
             
@@ -2819,7 +2794,7 @@ class ToolsTabManager {
             this.updateActiveElementPreview();
             return;
         } else {
-            console.log('🔧 BrickSelector non disponible ou currentBrick existe déjà:', window.BrickSelector?.currentBrick);
+            // Log retiré: BrickSelector non dispo ou déjà sélection
         }
     }
 
@@ -2910,7 +2885,7 @@ class ToolsTabManager {
 
     handleElementSelection(element) {
         if (!element.userData || element.userData.assiseIndex === undefined) {
-            console.log('❌ Élément sans informations d\'assise');
+            // Log retiré: Élément sans informations d'assise
             return;
         }
         
@@ -3069,7 +3044,7 @@ class ToolsTabManager {
             throw new Error('Aucune info GLB disponible');
         }
 
-        console.log('📦 Création aperçu GLB pour l\'onglet Outils:', glbType, glbInfo);
+    // Log retiré: Création aperçu GLB onglet Outils
         
         // Charger le modèle GLB directement
         if (!window.GLTFLoader) {
@@ -3083,7 +3058,7 @@ class ToolsTabManager {
                 loader.load(
                     glbInfo.path, 
                     resolve, 
-                    progress => console.log('📥 Chargement GLB aperçu:', Math.round(progress.loaded / progress.total * 100) + '%'),
+                    progress => {/* Log retiré: progression chargement GLB aperçu */},
                     reject
                 );
             });
@@ -3094,7 +3069,7 @@ class ToolsTabManager {
                 // Appliquer l'échelle si disponible
                 if (glbInfo.scale) {
                     glbScene.scale.set(glbInfo.scale.x, glbInfo.scale.y, glbInfo.scale.z);
-                    console.log('📏 Échelle GLB appliquée:', glbInfo.scale);
+                    // Log retiré: Échelle GLB appliquée
                 }
                 
                 // Centrer le modèle pour l'aperçu
@@ -3110,7 +3085,7 @@ class ToolsTabManager {
                 if (this.camera) {
                     this.camera.position.set(maxDim * 0.8, maxDim * 0.6, maxDim * 0.8);
                     this.camera.lookAt(0, 0, 0);
-                    console.log('📷 Caméra ajustée pour GLB, taille max:', maxDim);
+                    // Log retiré: Caméra ajustée GLB
                 }
                 
                 // Nettoyer la scène précédente et ajouter le nouveau modèle
@@ -3131,7 +3106,7 @@ class ToolsTabManager {
                     this.currentGLBModel = glbScene;
                     this.currentGLBType = glbType;
                     
-                    console.log('✅ Aperçu GLB ajouté à la scène de l\'onglet Outils et mis en cache');
+                    // Log retiré: Aperçu GLB ajouté et mis en cache
                 }
                 
                 return glbScene;
@@ -3172,7 +3147,7 @@ class ToolsTabManager {
             
             // Si une tentative est déjà en cours pour ce canvas/GLB, l'ignorer
             if (existingAttempt && (Date.now() - existingAttempt.startTime) < 5000) {
-                console.log(`⏳ Tentative d'aperçu GLB déjà en cours pour ${attemptKey}, ignorée`);
+                // Log retiré: Tentative aperçu GLB déjà en cours
                 return;
             }
             
@@ -3181,7 +3156,7 @@ class ToolsTabManager {
                 .filter(attempt => (Date.now() - attempt.startTime) < 5000).length;
             
             if (activeAttempts >= 5) { // Maximum 5 tentatives simultanées
-                console.log(`⏳ Trop d'aperçus GLB en cours (${activeAttempts}), utilisation du fallback`);
+                // Log retiré: Trop d'aperçus GLB en cours
                 this.drawFallback2DPreview(canvas, glbElement.type);
                 return;
             }
@@ -3196,11 +3171,11 @@ class ToolsTabManager {
             
             // Debug détaillé (moins verbeux après les premiers essais)
             if (retryCount === 0) {
-                console.log('🔍 [DEBUG] createGLBPreviewUsingLibrary démarré');
-                console.log('🔍 [DEBUG] Canvas:', canvas);
-                console.log('🔍 [DEBUG] GLB Element:', glbElement);
+                // Log retiré: createGLBPreviewUsingLibrary démarré
+                // Log retiré: debug canvas
+                // Log retiré: debug GLB Element
             }
-            console.log('🔍 [DEBUG] Canvas visible:', canvas.offsetParent !== null);
+            // Log retiré: Canvas visible
             console.log('🔍 [DEBUG] Canvas dimensions:', canvas.width, 'x', canvas.height);
             
             // Vérifier si c'est l'aperçu de l'élément actif (priorité haute)

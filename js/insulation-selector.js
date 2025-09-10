@@ -826,6 +826,9 @@ class InsulationSelector {
         }
         
         console.log('🔍 InsulationSelector.setInsulation:', { originalType: type, baseType, cutSuffix });
+        if (window._isoGhostLog) {
+            window._isoGhostLog('SET_INSULATION_CALL', { originalType: type, baseType, cutSuffix });
+        }
         
         if (!this.insulationTypes[baseType]) {
             console.warn('🔍 Type isolant non trouvé:', baseType);
@@ -892,6 +895,14 @@ class InsulationSelector {
                 this._updatingGhostElement = true;
                 try {
                     window.ConstructionTools.updateGhostElement();
+                    if (window._isoGhostLog) {
+                        const g = window.ConstructionTools.ghostElement;
+                        window._isoGhostLog('FORCED_GHOST_UPDATE_AFTER_SELECTION', {
+                            ghostExists: !!g,
+                            ghostY: g?.position?.y,
+                            dims: g ? { l: g.dimensions.length, w: g.dimensions.width, h: g.dimensions.height } : null
+                        });
+                    }
                 } finally {
                     // Reset le flag après un petit délai
                     setTimeout(() => {

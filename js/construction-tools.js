@@ -916,7 +916,15 @@ class ConstructionTools {
                     assiseType = elementType.split('_')[0];
                 }
                 // Normaliser les types d'isolants spécifiques (PUR5, XPS30, etc.) vers 'insulation'
-                if (this.currentMode === 'insulation' || (typeof assiseType === 'string' && ['PUR','LAINEROCHE','XPS','PSE','FB','LV'].some(p => assiseType.toUpperCase().startsWith(p)))) {
+                if (this.currentMode === 'insulation' || (typeof assiseType === 'string' && ['PUR','LAINEROCHE','XPS','PSE','FB','LV','ISOLANT','ISOLATION'].some(p => assiseType.toUpperCase().startsWith(p)))) {
+                    if (assiseType !== 'insulation') {
+                        if (window._isoGhostLog) window._isoGhostLog('ASSISE_TYPE_NORMALIZE_GHOST_UPDATE', { from: assiseType, to: 'insulation' });
+                    }
+                    assiseType = 'insulation';
+                }
+                // Fallback si le type n'est pas connu dans AssiseManager
+                if (window.AssiseManager && assiseType !== 'insulation' && !window.AssiseManager.currentAssiseByType.has(assiseType) && this.currentMode === 'insulation') {
+                    if (window._isoGhostLog) window._isoGhostLog('ASSISE_TYPE_FALLBACK_GHOST_UPDATE', { unknown: assiseType, fallback: 'insulation' });
                     assiseType = 'insulation';
                 }
                 
@@ -1104,11 +1112,35 @@ class ConstructionTools {
                     // // console.log(`🔧 ConstructionTools: Brique coupée détectée (${elementType}), utilisation du type de base (${baseType}) pour l'assise`);
                     assiseType = baseType;
                 }
+                // Normalisation isolant étendue (support 'Isolant ...')
+                if (this.currentMode === 'insulation' || (typeof assiseType === 'string' && ['PUR','LAINEROCHE','XPS','PSE','FB','LV','ISOLANT','ISOLATION'].some(p => assiseType.toUpperCase().startsWith(p)))) {
+                    if (assiseType !== 'insulation') {
+                        if (window._isoGhostLog) window._isoGhostLog('ASSISE_TYPE_NORMALIZE_GHOST_MOVE', { from: assiseType, to: 'insulation' });
+                    }
+                    assiseType = 'insulation';
+                }
+                if (window.AssiseManager && assiseType !== 'insulation' && !window.AssiseManager.currentAssiseByType.has(assiseType) && this.currentMode === 'insulation') {
+                    if (window._isoGhostLog) window._isoGhostLog('ASSISE_TYPE_FALLBACK_GHOST_MOVE', { unknown: assiseType, fallback: 'insulation' });
+                    assiseType = 'insulation';
+                }
                 
                 const currentAssiseForType = window.AssiseManager.currentAssiseByType.get(assiseType);
                 const assiseHeight = window.AssiseManager.getAssiseHeightForType(assiseType, currentAssiseForType);
                 const elementHeight = this.ghostElement.dimensions.height;
                 y = assiseHeight + elementHeight / 2;
+
+                // LOG DEBUG ISOLATION GHOST (position calculée)
+                if (assiseType === 'insulation' && window._isoGhostLog) {
+                    window._isoGhostLog('GHOST_MOVE_COMPUTE', {
+                        mode: this.currentMode,
+                        assiseType,
+                        assiseIndex: currentAssiseForType,
+                        assiseHeight,
+                        elementHeight,
+                        targetY: y,
+                        currentGhostY: this.ghostElement.position.y
+                    });
+                }
                 
                 // NOTE: Logs de debug supprimés pour éviter le spam dans la console
                 // Le fantôme est correctement positionné à la hauteur de l'assise active
@@ -1129,6 +1161,20 @@ class ConstructionTools {
                 this.ghostElement.mesh.position.y = y;
             } else {
                 this.ghostElement.updatePosition(this.ghostElement.position.x, y, this.ghostElement.position.z);
+            }
+
+            // LOG après mise à jour réelle
+            if (window._isoGhostLog && this.currentMode === 'insulation') {
+                // Throttle: log max 1 fois / 200ms pour éviter le spam
+                const now = performance.now();
+                if (!this._lastIsoGhostAppliedLog || (now - this._lastIsoGhostAppliedLog) > 200) {
+                    this._lastIsoGhostAppliedLog = now;
+                    window._isoGhostLog('GHOST_MOVE_APPLIED', {
+                        newY: this.ghostElement.position.y,
+                        expectedY: y,
+                        delta: Math.round((this.ghostElement.position.y - y)*100)/100
+                    });
+                }
             }
             
             // Rotation manuelle seulement
@@ -2903,9 +2949,32 @@ class ConstructionTools {
             positionsToProcess = []; // Vider d'abord
             // Ajouter quand même des continuités longitudinales (A / B) pour permettre l'allongement + multi-insertion
             const jointForBlock = jointVertical; // déjà calculé via getJointVerticalThickness
+            // Détection correcte du bloc courant (identifiant comme 'B14_HALF')
+            const activeBlockType = window.BlockSelector && window.BlockSelector.getCurrentBlock ? window.BlockSelector.getCurrentBlock() : null;
+            const isHalfBlock = activeBlockType && /_HALF$/.test(activeBlockType);
+            let leftContinuationX = -(dims.length + jointForBlock);
+            if (isHalfBlock) {
+                // Récupérer la longueur du bloc plein (base) pour calculer le décalage exact.
+                const blockData = window.BlockSelector && window.BlockSelector.getCurrentBlockData ? window.BlockSelector.getCurrentBlockData() : null;
+                let fullLength = null;
+                if (blockData && blockData.baseBlock && window.BlockSelector.getBlockData) {
+                    const allBlocks = window.BlockSelector.getBlockData();
+                    const base = allBlocks[blockData.baseBlock];
+                    if (base && base.length) fullLength = base.length;
+                }
+                // Si on a la longueur du bloc plein (> demi), corriger précisément: position gauche = -(half + joint) + (full - half)
+                // car l'ancien calcul utilisait -(full + joint) donnant un surplus de (full - half)
+                if (fullLength && fullLength > dims.length) {
+                    const delta = fullLength - dims.length; // ex: 39 - 19 = 20
+                    leftContinuationX += delta; // rapproche de delta cm
+                } else {
+                    // Fallback conservatif: ajouter 20cm (cas observé)
+                    leftContinuationX += 20;
+                }
+            }
             positionsToProcess.push(
                 { x: dims.length + jointForBlock, z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'A' },
-                { x: -(dims.length + jointForBlock), z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'B' }
+                { x: leftContinuationX, z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'B' }
             );
         }
         
@@ -2918,7 +2987,7 @@ class ConstructionTools {
         }
         
         // Filtrer les positions selon les règles de compatibilité et ajouter les lettres avec ajustements indépendants
-        const localPositions = positionsToProcess
+        let localPositions = positionsToProcess
             .map(pos => {
                 const letter = getLetterForPosition(pos.key, isBoutisse, brickType, referenceBrickType);
                 if (letter === null) return null; // Position exclue
@@ -2933,6 +3002,18 @@ class ConstructionTools {
                 };
             })
             .filter(pos => pos !== null); // Éliminer les positions exclues
+
+        // MODE BLOCK: forcer exactement 2 suggestions (A et B) sans doublon
+        if (this.currentMode === 'block') {
+            const keepKeys = new Set(['A','B']);
+            const seen = new Set();
+            localPositions = localPositions.filter(pos => {
+                if (!keepKeys.has(pos.key)) return false;
+                if (seen.has(pos.key)) return false;
+                seen.add(pos.key);
+                return true;
+            });
+        }
         
         // SUGGESTIONS D'ANGLE DE MUR POUR TOUTES LES BRIQUES
         // Ajouter des suggestions d'angle pour créer des angles à 90° (technique de maçonnerie)
@@ -3010,13 +3091,24 @@ class ConstructionTools {
             
             // Ajouter les suggestions d'angle à la liste
             localPositions.push(...anglePositions);
+            // Filtrage final spécifique mode block: supprimer S/T (ou toute clé autre que A/B)
+            if (this.currentMode === 'block') {
+                const seen = new Set();
+                localPositions = localPositions.filter(p => {
+                    if (p.key !== 'A' && p.key !== 'B') return false;
+                    if (seen.has(p.key)) return false; // éviter doublon même clé
+                    seen.add(p.key);
+                    return true;
+                });
+            }
         }
         
         // SUGGESTIONS D'ANGLE POUR LES BOUTISSES
         // Si la brique est une boutisse, ajouter des suggestions pour créer des angles
         // OU si on est en mode bloc (forcer l'affichage des positions S et T pour les blocs)
         // MAIS PAS POUR LES ISOLANTS (seulement continuité A et B)
-        if ((isBoutisse || this.currentMode === 'block') && this.currentMode !== 'insulation') {
+    // Angles uniquement pour les briques boutisse (pas pour les blocs) afin d'éviter doublons A/S et B/T
+    if (isBoutisse && this.currentMode !== 'insulation' && this.currentMode !== 'block') {
             // Calcul des décalages adaptatifs aux dimensions actuelles
             const offsetX = 5; // Décalage sur X
             const offsetZ = Math.max(4, dims.height * 0.62); // Minimum 4cm ou 62% de la hauteur
@@ -3065,30 +3157,7 @@ class ConstructionTools {
                 }
             };
             
-            // LOGIQUE SPÉCIFIQUE POUR LES BLOCS: créer des positions de continuité boutisse (pas d'angles)
-            let positionsToProcess = baseAnglePositions;
-            if (this.currentMode === 'block') {
-                console.log('🧱 MODE BLOC: Création de positions de continuité boutisse S et T (pas d\'angles)');
-                // Pour les blocs, créer des positions de continuité dans le même sens (pas perpendiculaires)
-                positionsToProcess = {
-                    'S': { 
-                        x: dims.length + jointVertical, // Position à droite (continuité)
-                        z: 0, // Même ligne
-                        rotation: rotation, // MÊME ROTATION (pas perpendiculaire)
-                        color: 0xFFFFFF, // BLANC - Continuité boutisse droite
-                        type: 'continuity-boutisse-droite',
-                        isAngle: false // Pas un angle mais une continuité
-                    },
-                    'T': { 
-                        x: -(dims.length + jointVertical), // Position à gauche (continuité)
-                        z: 0, // Même ligne
-                        rotation: rotation, // MÊME ROTATION (pas perpendiculaire)
-                        color: 0xFFFFFF, // BLANC - Continuité boutisse gauche
-                        type: 'continuity-boutisse-gauche',
-                        isAngle: false // Pas un angle mais une continuité
-                    }
-                };
-            }
+            let positionsToProcess = baseAnglePositions; // uniquement base S/T/U/V pour briques boutisse
             
             // Filtrer et créer les suggestions d'angle avec ajustements indépendants par lettre
             const anglePositions = [];
@@ -3145,9 +3214,16 @@ class ConstructionTools {
     
     // Créer un fantôme de suggestion
     createSuggestionGhost(x, y, z, rotation, color, index, letter = null, suggestionType = null) {
-        // CORRECTION: Utiliser les dimensions selon le mode actuel
+        // CORRECTION: Utiliser les dimensions de l'élément actif en mode suggestions
         let length, width, height;
-        if (this.currentMode === 'brick' && window.BrickSelector) {
+        
+        // Si on est en mode suggestions et qu'on a un élément actif, utiliser ses dimensions
+        if (this.activeBrickForSuggestions) {
+            const activeElement = this.activeBrickForSuggestions;
+            length = activeElement.dimensions.length;
+            width = activeElement.dimensions.width;
+            height = activeElement.dimensions.height;
+        } else if (this.currentMode === 'brick' && window.BrickSelector) {
             // Pour les briques, utiliser BrickSelector
             const currentBrick = window.BrickSelector.getCurrentBrick();
             length = currentBrick.length;
@@ -4271,61 +4347,33 @@ class ConstructionTools {
                 count++;
             }
         });
-        if (count > 0) {
-            console.log(`🎨 Linteaux recolorisés en béton: ${count}`);
-        }
+    // Log retiré (recolorisation linteaux)
     }
 
     // Méthode pour déterminer le matériau des joints
     getJointMaterial(element = null) {
-        // Log de débogage pour voir ce qui est passé
-        console.log(`🔍 [getJointMaterial] Élément reçu:`, {
-            element: !!element,
-            blockType: element?.blockType,
-            type: element?.type,
-            id: element?.id,
-            category: element?.category
-        });
-        
-        // Pour les blocs béton cellulaire, utiliser du blanc cassé
+        // Logs retirés pour réduire le bruit
         if (element && element.blockType && (element.blockType.startsWith('BC_') || element.blockType.startsWith('BCA_'))) {
-            console.log(`🎨 Joint blanc cassé pour béton cellulaire: ${element.blockType}`);
-            return 'joint-blanc-casse'; // Couleur blanc cassé pour béton cellulaire
-        }
-        
-        // Vérifier aussi si c'est un élément CELLULAIRE
-        if (element && element.blockType === 'CELLULAIRE') {
-            console.log(`🎨 Joint blanc cassé pour béton cellulaire CELLULAIRE`);
             return 'joint-blanc-casse';
         }
-        
-        // Pour les blocs ARGEX, utiliser le joint lavande
+        if (element && element.blockType === 'CELLULAIRE') {
+            return 'joint-blanc-casse';
+        }
         if (element && element.blockType && element.blockType.startsWith('ARGEX_')) {
-            console.log(`🎨 Joint lavande pour bloc ARGEX: ${element.blockType}`);
             return 'joint-argex';
         }
-        
-        // Vérifier aussi si c'est un élément ARGEX
         if (element && element.blockType === 'ARGEX') {
-            console.log(`🎨 Joint lavande pour bloc ARGEX`);
             return 'joint-argex';
         }
         
         // Pour les blocs terre cuite, utiliser le joint GRIS (demande utilisateur)
         if (element && element.blockType && element.blockType.startsWith('TC_')) {
-            console.log(`🎨 Joint gris pour terre cuite: ${element.blockType}`);
             return 'joint-gris-souris';
         }
-        
-        // Vérifier aussi si c'est un élément TERRE_CUITE
         if (element && element.blockType === 'TERRE_CUITE') {
-            console.log(`🎨 Joint gris pour terre cuite TERRE_CUITE`);
             return 'joint-gris-souris';
         }
-        
-        // Pour les autres éléments, utiliser la couleur par défaut
-        console.log(`🎨 Joint gris standard pour élément non-spécialisé`);
-        return 'joint-gris-souris'; // Couleur gris souris par défaut pour les autres joints
+        return 'joint-gris-souris';
     }
 
     // Méthode pour obtenir l'épaisseur du joint vertical en cm
@@ -4974,12 +5022,14 @@ class ConstructionTools {
         if (!element || !window.SceneManager || !window.SceneManager.elements) {
             return { left: false, right: false, front: false, back: false };
         }
+    // Mode debug joints activable dynamiquement
+    const dbg = !!window.enableJointDebug;
 
         // Si aucune distance n'est fournie, calculer selon le type d'élément
         if (maxDistance === null) {
             const jointSettings = this.getJointSettingsForElement(element);
             maxDistance = jointSettings.verticalThickness / 10; // Conversion mm vers cm
-            // console.log(`🔍 Distance d'adjacence calculée pour ${element.type} (${element.blockType || 'N/A'}): ${maxDistance}cm`);
+            if (dbg) console.log(`🧪[JOINT-DBG] Base maxDistance=${maxDistance}cm type=${element.type} blockType=${element.blockType}`);
         }
 
         const pos = element.position;
@@ -5011,7 +5061,11 @@ class ConstructionTools {
         
         // console.log(`🔍 Positions des faces:`, facePositions);
         
-        const adjacency = { left: false, right: false, front: false, back: false };
+    const adjacency = { left: false, right: false, front: false, back: false };
+    if (dbg) {
+        console.log('🧪[JOINT-DBG] Début détection adjacency pour', element.id, 'dims=', dims, 'pos=', pos, 'rot=', rotation.toFixed(3));
+        console.log('🧪[JOINT-DBG] Element blockType:', element.blockType, 'type:', element.type);
+    }
         let elementsChecked = 0;
         
         // Vérifier chaque élément de la scène
@@ -5066,25 +5120,48 @@ class ConstructionTools {
                 Math.pow(pos.z - otherPos.z, 2)
             );
             
-            // Tolérance pour détecter l'adjacence - RÉDUITE pour permettre placement précis
-            // La tolérance doit être juste suffisante pour l'épaisseur du joint + petite marge
-            const tolerance = Math.max(maxDistance + 0.5, 1.0); // Tolérance très réduite: joint + 0.5cm, minimum 1cm
+            // Tolérance pour détecter l'adjacence - RÉDUITE pour placement précis
+            // Par défaut : épaisseur du joint + 0.5cm (min 1cm)
+            let tolerance = Math.max(maxDistance + 0.5, 1.0);
+
+            // CORRECTION: Les blocs coupés (_HALF, _1Q, _3Q) sont souvent positionnés avec des arrondis
+            // ou des références de coin différentes => distances calculées légèrement > tolérance.
+            // On élargit légèrement la fenêtre pour ces cas afin de permettre l'apparition des joints.
+            const isCutType = (el) => {
+                if(!el) return false;
+                const t = (el.blockType || el.type || '');
+                const isCut = /(_HALF|_1Q|_3Q)$/i.test(t);
+                if (dbg && isCut) console.log(`🧪[JOINT-DBG] Type coupé détecté: ${el.id} (${t})`);
+                return isCut;
+            };
             
-            console.log(`🔍 Vérification avec ${otherElement.id}:`, {
+            const elementIsCut = isCutType(element);
+            const otherIsCut = isCutType(otherElement);
+            
+            if (elementIsCut || otherIsCut) {
+                // Augmenter la tolérance d'au moins +1cm (ou +50%) sans dépasser 3cm
+                const enlarged = Math.min(Math.max(tolerance * 1.5, tolerance + 1.0), tolerance + 2.0);
+                // S'assurer d'un minimum confortable de 2cm pour éviter faux négatifs
+                const oldTolerance = tolerance;
+                tolerance = Math.max(enlarged, 2.0);
+                if (dbg) console.log(`🧪[JOINT-DBG] Tolérance augmentée pour type coupé: ${oldTolerance.toFixed(2)} → ${tolerance.toFixed(2)}cm (element=${elementIsCut}, other=${otherIsCut})`);
+            }
+            
+            if (dbg) console.log(`🧪[JOINT-DBG] Test ${element.id} vs ${otherElement.id}`, {
                 centerDistance: centerDistance.toFixed(2),
-                distanceRightToLeft: distanceRightToLeft.toFixed(2),
-                distanceLeftToRight: distanceLeftToRight.toFixed(2),
+                dRtoL: distanceRightToLeft.toFixed(2),
+                dLtoR: distanceLeftToRight.toFixed(2),
                 tolerance: tolerance.toFixed(2)
             });
             
             if (distanceRightToLeft <= tolerance) {
                 adjacency.right = true;
-                console.log(`✅ Brique adjacente à droite détectée: ${otherElement.id}`);
+                if (dbg) console.log(`✅[JOINT-DBG] Droite OK avec ${otherElement.id} (d=${distanceRightToLeft.toFixed(2)} tol=${tolerance.toFixed(2)})`);
             }
             
             if (distanceLeftToRight <= tolerance) {
                 adjacency.left = true;
-                console.log(`✅ Brique adjacente à gauche détectée: ${otherElement.id}`);
+                if (dbg) console.log(`✅[JOINT-DBG] Gauche OK avec ${otherElement.id} (d=${distanceLeftToRight.toFixed(2)} tol=${tolerance.toFixed(2)})`);
             }
             
             // Méthode alternative : vérifier si les briques sont proches en général
@@ -5101,16 +5178,16 @@ class ConstructionTools {
                     // Plus dans la direction X (longueur)
                     if (localDx > 0) {
                         adjacency.right = true;
-                        console.log(`✅ Brique adjacente à droite (méthode alternative): ${otherElement.id}`);
+                        if (dbg) console.log(`✅[JOINT-DBG] Droite ALT ${otherElement.id}`);
                     } else {
                         adjacency.left = true;
-                        console.log(`✅ Brique adjacente à gauche (méthode alternative): ${otherElement.id}`);
+                        if (dbg) console.log(`✅[JOINT-DBG] Gauche ALT ${otherElement.id}`);
                     }
                 }
             }
         }
         
-        // console.log(`🔍 Détection terminée - ${elementsChecked} éléments vérifiés:`, adjacency);
+    if (dbg) console.log(`🧪[JOINT-DBG] Fin détection (${elementsChecked} éléments scannés) =>`, adjacency);
         return adjacency;
     }
 
@@ -5355,24 +5432,57 @@ class ConstructionTools {
         
         let jointPositions = [];
         
-        // Joint à l'extrémité droite seulement si une brique est adjacente à droite
-        if (adjacency.right) {
+        // CORRECTION SPÉCIALE POUR BLOCS COUPÉS (_HALF, _1Q, _3Q)
+        // Si l'élément est un bloc coupé, on réduit les exigences d'adjacence
+        const isElementCut = element.blockType && /(_HALF|_1Q|_3Q)$/i.test(element.blockType);
+        
+        if (dbg && isElementCut) {
+            console.log('🧪[JOINT-DBG] Bloc coupé détecté:', element.blockType, 'adjacency actuelle:', adjacency);
+        }
+        
+        // Pour les blocs coupés, créer les joints gauche/droite par défaut (même sans adjacence parfaite)
+        // Cela simule le comportement attendu où un bloc 1/2 devrait avoir des joints disponibles
+        let shouldCreateLeft = adjacency.left;
+        let shouldCreateRight = adjacency.right;
+        
+        if (isElementCut) {
+            // Pour les blocs coupés, créer des joints par défaut mais pas tous les deux en même temps
+            // Logique : si pas d'adjacence détectée, créer au moins un joint du côté attendu
+            if (!adjacency.left && !adjacency.right) {
+                // Aucune adjacence détectée pour un bloc coupé - créer des joints par défaut
+                if (element.blockType.includes('_HALF')) {
+                    // Pour les demi-blocs, créer les deux joints (gauche et droite)
+                    shouldCreateLeft = true;
+                    shouldCreateRight = true;
+                    if (dbg) console.log('🧪[JOINT-DBG] Demi-bloc sans adjacence → création joints gauche ET droite par défaut');
+                }
+            }
+        }
+        
+        // Joint à l'extrémité droite
+        if (shouldCreateRight) {
+            if (dbg) console.log('🧪[JOINT-DBG] Création joint DROITE pour', element.id, 'raison:', adjacency.right ? 'adjacence détectée' : 'bloc coupé - défaut');
             jointPositions.push({
                 x: dims.length/2 + jointVertical/2, // À l'extérieur de la face droite
                 z: 0, // Centré sur la largeur
                 rotation: rotation + Math.PI/2, // Perpendiculaire à la brique (parallèle aux boutisses)
                 type: 'joint-debout-droite' 
             });
+        } else if (dbg) {
+            console.log('🧪[JOINT-DBG] PAS de joint droite - adjacency.right =', adjacency.right, 'shouldCreateRight =', shouldCreateRight);
         }
         
-        // Joint à l'extrémité gauche seulement si une brique est adjacente à gauche
-        if (adjacency.left) {
+        // Joint à l'extrémité gauche  
+        if (shouldCreateLeft) {
+            if (dbg) console.log('🧪[JOINT-DBG] Création joint GAUCHE pour', element.id, 'raison:', adjacency.left ? 'adjacence détectée' : 'bloc coupé - défaut');
             jointPositions.push({
                 x: -(dims.length/2 + jointVertical/2), // À l'extérieur de la face gauche
                 z: 0, // Centré sur la largeur
                 rotation: rotation + Math.PI/2, // Perpendiculaire à la brique (parallèle aux boutisses)
                 type: 'joint-debout-gauche' 
             });
+        } else if (dbg) {
+            console.log('🧪[JOINT-DBG] PAS de joint gauche - adjacency.left =', adjacency.left, 'shouldCreateLeft =', shouldCreateLeft);
         }
         
         // console.log(`🔧 Joints verticaux créés : ${jointPositions.length} sur ${adjacency.left ? 'gauche' : ''}${adjacency.left && adjacency.right ? '+' : ''}${adjacency.right ? 'droite' : ''}`);
@@ -5395,6 +5505,10 @@ class ConstructionTools {
                 index: index
             });
         });
+
+        // NOUVELLE FONCTIONNALITÉ: Mettre à jour les joints des blocs adjacents
+        // Quand on place un bloc (surtout un bloc coupé), il faut réactiver les joints des blocs voisins
+        this.updateAdjacentBlockJoints(element);
 
         // NOUVELLE FONCTIONNALITÉ: Ajouter automatiquement un joint horizontal sous la brique
         
@@ -5548,6 +5662,208 @@ class ConstructionTools {
         }
         
         // // console.log(`🔧 ${suggestions.length} suggestions de joints créées`);
+    }
+
+    /**
+     * Met à jour les joints des blocs adjacents quand un nouveau bloc est placé
+     * @param {Object} newElement - Le nouveau bloc qui vient d'être placé
+     */
+    updateAdjacentBlockJoints(newElement) {
+        if (!newElement || !window.SceneManager || !window.SceneManager.elements) return;
+        
+        const dbg = !!window.enableJointDebug;
+        if (dbg) console.log('🧪[JOINT-DBG] Mise à jour joints adjacents pour', newElement.id, newElement.blockType);
+        
+        // Parcourir tous les éléments existants pour trouver ceux qui sont adjacents au nouveau
+        for (const [id, existingElement] of window.SceneManager.elements.entries()) {
+            if (existingElement.id === newElement.id) continue;
+            if (existingElement.type !== 'brick' && existingElement.type !== 'block') continue;
+            
+            // Calculer si le bloc existant est adjacent au nouveau bloc
+            const adjacency = this.calculateAdjacencyBetween(existingElement, newElement);
+            
+            if (adjacency.left || adjacency.right) {
+                if (dbg) console.log('🧪[JOINT-DBG] Bloc adjacent trouvé:', existingElement.id, 'adjacency:', adjacency);
+                
+                // Créer les joints pour le bloc existant en mode silencieux
+                this.createAdditionalJointsForElement(existingElement, adjacency);
+            }
+        }
+    }
+
+    /**
+     * Calcule l'adjacence entre deux éléments spécifiques
+     * @param {Object} element1 - Premier élément  
+     * @param {Object} element2 - Deuxième élément
+     * @returns {Object} Adjacence de element1 par rapport à element2
+     */
+    calculateAdjacencyBetween(element1, element2) {
+        const pos1 = element1.position;
+        const dims1 = element1.dimensions;
+        const rotation1 = element1.rotation;
+        
+        const pos2 = element2.position;
+        const dims2 = element2.dimensions;
+        
+        // Calculer la distance maximale acceptable (épaisseur joint + tolérance)
+        const jointSettings = this.getJointSettingsForElement(element1);
+        let maxDistance = jointSettings.verticalThickness / 10; // Conversion mm vers cm
+        
+        // Ajuster pour les types coupés
+        const isCut1 = element1.blockType && /(_HALF|_1Q|_3Q)$/i.test(element1.blockType);
+        const isCut2 = element2.blockType && /(_HALF|_1Q|_3Q)$/i.test(element2.blockType);
+        
+        if (isCut1 || isCut2) {
+            maxDistance = Math.max(maxDistance * 1.5 + 1.0, 2.5); // Tolérance élargie pour types coupés
+        }
+        
+        // Calculer les positions des faces de element1
+        const cos1 = Math.cos(rotation1);
+        const sin1 = Math.sin(rotation1);
+        const halfLength1 = dims1.length / 2;
+        
+        const face1Positions = {
+            right: {
+                x: pos1.x + halfLength1 * cos1,
+                z: pos1.z + halfLength1 * sin1
+            },
+            left: {
+                x: pos1.x - halfLength1 * cos1,
+                z: pos1.z - halfLength1 * sin1
+            }
+        };
+        
+        // Calculer les distances vers element2 (centre)
+        const distanceRightTo2 = Math.sqrt(
+            Math.pow(face1Positions.right.x - pos2.x, 2) + 
+            Math.pow(face1Positions.right.z - pos2.z, 2)
+        );
+        
+        const distanceLeftTo2 = Math.sqrt(
+            Math.pow(face1Positions.left.x - pos2.x, 2) + 
+            Math.pow(face1Positions.left.z - pos2.z, 2)
+        );
+        
+        const tolerance = maxDistance + 0.5;
+        
+        return {
+            left: distanceLeftTo2 <= tolerance,
+            right: distanceRightTo2 <= tolerance,
+            front: false,
+            back: false
+        };
+    }
+
+    /**
+     * Crée des joints supplémentaires pour un élément existant
+     * @param {Object} element - L'élément pour lequel créer les joints
+     * @param {Object} adjacency - Information d'adjacence
+     */
+    createAdditionalJointsForElement(element, adjacency) {
+        const dbg = !!window.enableJointDebug;
+        
+        // Vérifier qu'il n'y a pas déjà des joints actifs pour cet élément
+        if (this.activeBrickForSuggestions && this.activeBrickForSuggestions.id === element.id) {
+            if (dbg) console.log('🧪[JOINT-DBG] Joints déjà actifs pour', element.id, '- mise à jour');
+            // Recréer les suggestions avec la nouvelle adjacence
+            this.clearSuggestions();
+            this.createJointOnlySuggestions(element);
+            return;
+        }
+        
+        // Créer des joints fantômes temporaires pour montrer la nouvelle possibilité
+        if (dbg) console.log('🧪[JOINT-DBG] Création joints supplémentaires pour', element.id);
+        
+        const jointVertical = this.getJointVerticalThickness(element);
+        if (jointVertical <= 0) return;
+        
+        const rotation = element.rotation;
+        const dims = element.dimensions;
+        
+        // Calculer le centre de l'élément
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+        const centerOffsetX = dims.length / 2;
+        const centerOffsetZ = -dims.width / 2;
+        const rotatedCenterOffsetX = centerOffsetX * cos - centerOffsetZ * sin;
+        const rotatedCenterOffsetZ = centerOffsetX * sin + centerOffsetZ * cos;
+        
+        const elementCenter = {
+            x: element.position.x + rotatedCenterOffsetX,
+            y: element.position.y,
+            z: element.position.z + rotatedCenterOffsetZ
+        };
+        
+        const jointDimensions = {
+            length: dims.width,
+            width: jointVertical,
+            height: dims.height
+        };
+        
+        // Créer joints selon l'adjacence détectée
+        if (adjacency.right) {
+            const jointPos = {
+                x: dims.length/2 + jointVertical/2,
+                z: 0,
+                rotation: rotation + Math.PI/2
+            };
+            
+            const rotatedOffsetX = jointPos.x * cos - jointPos.z * sin;
+            const rotatedOffsetZ = jointPos.x * sin + jointPos.z * cos;
+            
+            const worldX = elementCenter.x + rotatedOffsetX;
+            const worldZ = elementCenter.z + rotatedOffsetZ;
+            
+            if (dbg) console.log('🧪[JOINT-DBG] Joint droite supplémentaire créé pour', element.id);
+            
+            // Créer un fantôme temporaire et l'ajouter aux suggestions
+            const suggestion = this.createVerticalJointGhost(
+                worldX, elementCenter.y, worldZ,
+                jointPos.rotation,
+                'joint-debout-droite',
+                jointDimensions.length,
+                jointDimensions.width,
+                jointDimensions.height,
+                element
+            );
+            
+            if (suggestion) {
+                // Marquer comme joint supplémentaire pour différenciation visuelle
+                suggestion.isAdditionalJoint = true;
+                this.suggestionGhosts.push(suggestion);
+            }
+        }
+        
+        if (adjacency.left) {
+            const jointPos = {
+                x: -(dims.length/2 + jointVertical/2),
+                z: 0,
+                rotation: rotation + Math.PI/2
+            };
+            
+            const rotatedOffsetX = jointPos.x * cos - jointPos.z * sin;
+            const rotatedOffsetZ = jointPos.x * sin + jointPos.z * cos;
+            
+            const worldX = elementCenter.x + rotatedOffsetX;
+            const worldZ = elementCenter.z + rotatedOffsetZ;
+            
+            if (dbg) console.log('🧪[JOINT-DBG] Joint gauche supplémentaire créé pour', element.id);
+            
+            const suggestion = this.createVerticalJointGhost(
+                worldX, elementCenter.y, worldZ,
+                jointPos.rotation,
+                'joint-debout-gauche',
+                jointDimensions.length,
+                jointDimensions.width,
+                jointDimensions.height,
+                element
+            );
+            
+            if (suggestion) {
+                suggestion.isAdditionalJoint = true;
+                this.suggestionGhosts.push(suggestion);
+            }
+        }
     }
 
     // Créer un fantôme de joint avec des dimensions spécifiques
@@ -6853,10 +7169,11 @@ class ConstructionTools {
         // });
         
         if (!element || !this.isInitialized) {
+    const dbg = !!window.enableJointDebug;
             console.log('❌ calculateJointPositionsLikeManual: Élément ou ConstructionTools non initialisé');
-            return [];
+    if (dbg) console.log('🧪[JOINT-DBG] Adjacence', adjacency, 'hasAdjacent', hasAdjacentBricks, 'id', element.id, 'type', element.blockType || element.type);
         }
-        
+        if (dbg) console.log('🧪[JOINT-DBG] 0 adjacency → essayer joint horizontal');
         // Créer des joints pour les briques ET les blocs (copie exacte)
         if (element.type !== 'brick' && element.type !== 'block') {
             console.log('❌ calculateJointPositionsLikeManual: Élément de type non supporté:', element.type);
@@ -6869,12 +7186,12 @@ class ConstructionTools {
         const basePos = element.position;
         const rotation = element.rotation;
         const dims = element.dimensions;
-        
+            if (dbg) console.log('🧪[JOINT-DBG] Joint horizontal épais ignoré (CELLULAR assise >0)');
         // ===== CALCUL DU CENTRE DE LA BRIQUE (copie exacte) =====
         const cos = Math.cos(rotation);
         const sin = Math.sin(rotation);
         
-        // Offset du centre par rapport au coin inférieur gauche AVANT (comme dans updateMeshPosition)
+    if (dbg) console.log('🧪[JOINT-DBG] Adjacence détectée → création joints verticaux');
         let centerOffsetX = dims.length / 2;  // vers la droite
         let centerOffsetZ = -dims.width / 2;  // vers l'avant (face visible)
         
@@ -8017,6 +8334,16 @@ class ConstructionTools {
 
 // Instance globale
 window.ConstructionTools = new ConstructionTools();
+
+// Fonction d'aide pour debugging des joints
+window.enableJointDebug = false;
+window.debugJoints = function(enable = true) {
+    window.enableJointDebug = enable;
+    console.log(`🧪 Debug joints ${enable ? 'ACTIVÉ' : 'DÉSACTIVÉ'}`);
+    if (enable) {
+        console.log('🧪 Utilisez Ctrl+Clic sur un bloc 1/2 pour voir les logs de détection d\'adjacence');
+    }
+};
 
 // Exposer les fonctions de test globalement pour les tests depuis la console
 window.testGridSnapPoints = function() {

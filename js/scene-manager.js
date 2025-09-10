@@ -4080,37 +4080,70 @@ class SceneManager {
             expectedZ = refPos.z + sin * refDim.length;
         }
 
-        const tolerance = 5; // Tolérance augmentée à 5cm pour tenir compte des joints et rotations
+        const tolerance = 5; // Tolérance simple (méthode rapide)
+
+        const isCut = /(_HALF|_1Q|_3Q)$/i.test(referenceElement.blockType || referenceElement.type || '');
+
+        let bestCandidate = null;
+        let bestError = Infinity;
+
+        // Préparer vecteurs directionnels (local vers monde)
+        const dirRightX = cos;  // direction locale +X
+        const dirRightZ = sin;
+        const dirLeftX = -cos;
+        const dirLeftZ = -sin;
+        // Vecteur latéral (perp) pour mesurer l'écart orthogonal
+        const orthoX = -sin;
+        const orthoZ = cos;
 
         // Chercher parmi tous les éléments de construction
         for (const [id, element] of this.elements) {
-            if (element.id === referenceElement.id) continue; // Ignorer l'élément de référence
-            if (element.isHorizontalJoint || element.isVerticalJoint) continue; // Ignorer les joints
-            
-            const elementPos = element.position;
-            
-            // AMÉLIORATION: Détecter aussi les briques dans un rayon autour de la position attendue
-            const deltaX = Math.abs(expectedX - elementPos.x);
-            const deltaZ = Math.abs(expectedZ - elementPos.z);
-            const heightDifference = Math.abs(refPos.y - elementPos.y);
+            if (element.id === referenceElement.id) continue;
+            if (element.isHorizontalJoint || element.isVerticalJoint) continue;
+            if (!element.position || !element.dimensions) continue;
 
-            // Vérifier si les briques sont alignées et à proximité
-            if (deltaX < tolerance && deltaZ < tolerance && heightDifference < tolerance) {
-                /*
-                console.log('🔍 Brique adjacente trouvée (avec rotation):', {
-                    referenceId: referenceElement.id,
-                    adjacentId: element.id,
-                    side: side,
-                    refRotation: (refRotation * 180 / Math.PI).toFixed(1) + '°',
-                    expectedPosition: { x: expectedX.toFixed(2), z: expectedZ.toFixed(2) },
-                    actualPosition: { x: elementPos.x.toFixed(2), z: elementPos.z.toFixed(2) },
-                    deltaX: deltaX.toFixed(2),
-                    deltaZ: deltaZ.toFixed(2),
-                    heightDiff: heightDifference.toFixed(2)
-                });
-                */
-                return element;
+            const elementPos = element.position;
+            const heightDifference = Math.abs(refPos.y - elementPos.y);
+            if (heightDifference > tolerance) continue;
+
+            // Mode standard (non coupé): ancienne logique rapide
+            if (!isCut) {
+                const deltaX = Math.abs(expectedX - elementPos.x);
+                const deltaZ = Math.abs(expectedZ - elementPos.z);
+                if (deltaX < tolerance && deltaZ < tolerance) {
+                    return element; // premier match suffit
+                }
+                continue;
             }
+
+            // Mode coupé: calcul centre-à-centre projeté
+            const dx = elementPos.x - refPos.x;
+            const dz = elementPos.z - refPos.z;
+            // Projection longitudinale selon côté demandé
+            let proj = 0;
+            if (side === 'left') {
+                proj = dx * dirLeftX + dz * dirLeftZ; // distance positive attendue
+            } else if (side === 'right') {
+                proj = dx * dirRightX + dz * dirRightZ;
+            }
+            if (proj <= 0) continue; // élément n'est pas du bon côté
+
+            const lateral = Math.abs(dx * orthoX + dz * orthoZ);
+            if (lateral > 6) continue; // trop décalé latéralement
+
+            const otherLen = element.dimensions.length || 0;
+            const expectedGap = (refDim.length + otherLen) / 2; // centre-à-centre sans joint
+            // Autoriser un joint vertical éventuel ~1-2 cm
+            const error = Math.abs(proj - expectedGap);
+            if (error < 8 && error < bestError) { // marge large pour tolérer variations
+                bestError = error;
+                bestCandidate = element;
+            }
+        }
+
+        if (bestCandidate) {
+            // console.log('🔍 Adjacence (mode coupé) détectée:', { ref: referenceElement.id, adj: bestCandidate.id, side, error: bestError.toFixed(2) });
+            return bestCandidate;
         }
 
         return null;
@@ -4360,8 +4393,7 @@ class SceneManager {
                 const jointSettings = window.ConstructionTools.getJointSettingsForElement(referenceElement);
                 if (jointSettings && jointSettings.createJoints) {
                     jointHorizontal = jointSettings.horizontalThickness / 10; // Conversion mm vers cm
-                    console.log(`🔧 [SCENE-MANAGER] Joint horizontal automatique: ${jointSettings.horizontalThickness}mm (${jointHorizontal}cm) pour ${referenceElement.type} selon logique ConstructionTools (PRIORITÉ)`);
-                    console.log(`🔧 [SCENE-MANAGER] Element blockType: ${referenceElement.blockType}, category: ${referenceElement.category}`);
+                    // Logs détaillés retirés pour réduire le bruit
                 }
             }
             

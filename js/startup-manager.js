@@ -213,7 +213,48 @@ class StartupManager {
         }
 
         // Modifier la popup pour ajouter une colonne à droite
-        const popup = document.querySelector('.startup-popup');
+        // RÉSILIENCE: il est arrivé que '.startup-popup' soit introuvable (race condition ou suppression externe)
+        let popup = document.querySelector('.startup-popup');
+        if (!popup) {
+            console.warn('[StartupManager] .startup-popup introuvable lors de showAutoSaveOptions – tentative de reconstruction.');
+            // Si l'overlay existe encore on tente de régénérer uniquement l'intérieur
+            if (this.overlay) {
+                // Purge et reconstruit le contenu minimal
+                this.overlay.innerHTML = `
+                    <div class="startup-popup">
+                        <div class="startup-content">
+                            <img src="media/accueil.webp" alt="WallSim3D" class="startup-logo" />
+                            <div class="app-version">v1.0.3</div>
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progress-fill"></div>
+                                </div>
+                                <div class="progress-text" id="progress-text">Initialisation...</div>
+                            </div>
+                            <div class="startup-buttons">
+                                <button class="startup-button btn-nouveau" id="btn-nouveau"><i class="fas fa-plus-circle"></i> Nouveau</button>
+                                <button class="startup-button btn-ouvrir" id="btn-ouvrir"><i class="fas fa-folder-open"></i> Ouvrir</button>
+                            </div>
+                        </div>
+                    </div>`;
+                // Recréer références progress
+                this.progressBar = document.getElementById('progress-fill');
+                this.progressText = document.getElementById('progress-text');
+                // Rattacher events de base si perdus
+                this.attachEventListeners();
+                popup = this.overlay.querySelector('.startup-popup');
+            } else {
+                // Dernier recours: abandonner la restauration spéciale
+                console.warn('[StartupManager] Impossible de reconstruire la popup – fallback options normales.');
+                this.showNormalOptions();
+                return;
+            }
+        }
+        if (!popup) {
+            // Si toujours rien, on arrête proprement
+            this.showNormalOptions();
+            return;
+        }
         popup.classList.add('has-autosave');
         
         // Date formatée
@@ -279,15 +320,52 @@ class StartupManager {
             this.handleRestoreProject(projectData);
         });
 
-        document.getElementById('btn-delete-autosave').addEventListener('click', () => {
-            this.showDeleteConfirmation(() => {
-                localStorage.removeItem('wallsim3d_autosave');
-                // Masquer la colonne de restauration
-                autoSaveColumn.style.display = 'none';
-                popup.classList.remove('has-autosave');
-                this.showNotification('Sauvegarde automatique supprimée', 'info');
+        const deleteBtn = document.getElementById('btn-delete-autosave');
+        if (deleteBtn) {
+            let deleting = false;
+            deleteBtn.addEventListener('click', (ev) => {
+                console.debug('[StartupManager] Click btn-delete-autosave', ev);
+                if (deleteBtn.disabled) {
+                    console.debug('[StartupManager] Bouton désactivé, clic ignoré');
+                    return;
+                }
+                if (deleting) {
+                    console.debug('[StartupManager] Double clic ignoré');
+                    return; // Anti double-clic
+                }
+                deleting = true;
+                // Vérifier que showDeleteConfirmation existe
+                if (typeof this.showDeleteConfirmation === 'function') {
+                    this.showDeleteConfirmation(() => {
+                        console.debug('[StartupManager] Confirmation suppression acceptée');
+                        localStorage.removeItem('wallsim3d_autosave');
+                        autoSaveColumn.style.display = 'none';
+                        popup.classList.remove('has-autosave');
+                        this.showNotification('Sauvegarde automatique supprimée', 'info');
+                    });
+                    // Si la confirmation n'apparaît pas dans 300ms, fallback direct
+                    setTimeout(() => {
+                        const confirmOverlay = document.querySelector('.confirm-overlay');
+                        if (!confirmOverlay) {
+                            console.warn('[StartupManager] Overlay confirmation introuvable – fallback suppression directe');
+                            localStorage.removeItem('wallsim3d_autosave');
+                            autoSaveColumn.style.display = 'none';
+                            popup.classList.remove('has-autosave');
+                            this.showNotification('Sauvegarde auto supprimée (fallback)', 'info');
+                        }
+                    }, 300);
+                } else {
+                    console.warn('[StartupManager] showDeleteConfirmation indisponible – suppression directe');
+                    localStorage.removeItem('wallsim3d_autosave');
+                    autoSaveColumn.style.display = 'none';
+                    popup.classList.remove('has-autosave');
+                    this.showNotification('Sauvegarde automatique supprimée', 'info');
+                }
+                setTimeout(() => { deleting = false; }, 1000);
             });
-        });
+        } else {
+            console.warn('[StartupManager] Bouton btn-delete-autosave introuvable');
+        }
     }
 
     showNotification(message, type) {
