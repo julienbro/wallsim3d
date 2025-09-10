@@ -67,6 +67,8 @@
     
     <!-- MIGRATION ES6 LOCAL - Three.js r179 modules purs locaux -->
     <script src="js/three-es6-direct.js"></script>
+    <!-- Filtrage centralisé des logs (réduction bruit console) -->
+    <script src="js/log-filter.js"></script>
     
     <style>
         /* Masquage initial de l'interface principale pendant le chargement */
@@ -831,6 +833,14 @@
                         </button>
                     </div>
                     
+                    <!-- Bouton Impression 3D -->
+                    <div class="print3d-button">
+                        <button class="print3d-btn" id="print3dBtn" data-tooltip="Exporter pour impression 3D (STL)">
+                            <span class="btn-icon"><i class="fas fa-cube"></i></span>
+                            Impression 3D
+                        </button>
+                    </div>
+                    
                     <!-- Time Display -->
                     <div class="time-display">
                         <div class="current-time" id="currentTime"></div>
@@ -1300,6 +1310,8 @@
                                                 <button class="cut-btn-mini" data-cut="3/4" data-base-type="B14">3/4</button>
                                                 <button class="cut-btn-mini" data-cut="1/2" data-base-type="B14">1/2</button>
                                                 <button class="cut-btn-mini" data-cut="1/4" data-base-type="B14">1/4</button>
+                                                <button class="cut-btn-mini" data-cut="34cm" data-base-type="B14">34cm</button>
+                                                <button class="cut-btn-mini" data-cut="4cm" data-base-type="B14">4cm</button>
                                                 <button class="cut-btn-mini" data-cut="P" data-base-type="B14">P</button>
                                             </div>
                                         </div>
@@ -4146,6 +4158,14 @@
                                     <span class="fraction">1/4</span>
                                     <span class="dimension">9cm</span>
                                 </button>
+                                <button class="block-size-btn" data-type="B14_34CM" data-length="34">
+                                    <span class="fraction">34cm</span>
+                                    <span class="dimension">34cm</span>
+                                </button>
+                                <button class="block-size-btn" data-type="B14_4CM" data-length="4">
+                                    <span class="fraction">4cm</span>
+                                    <span class="dimension">4cm</span>
+                                </button>
                                 <button class="block-size-btn custom-cut-btn" data-type="B14" data-custom-cut="true">
                                     <span class="fraction">✂️</span>
                                     <span class="dimension">Personnalisée</span>
@@ -4777,6 +4797,7 @@
     <script src="js/tools-reusable-panel-fixed.js"></script>
     <script src="js/scene-manager.js?v=20250823-FIX-PLACEMENT-DIMENSIONS-V8"></script>
     <script src="js/scene-manager-extensions.js"></script>
+    <script src="js/stl-diagnostic.js"></script>
     <script src="js/brick-selector.js?v=20250823-FIX-M50-PRESERVATION-V9"></script>
     <script src="js/height-control-manager.js"></script>
     <script src="js/block-selector.js"></script>

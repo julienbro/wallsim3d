@@ -588,7 +588,8 @@
     height: 100%;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(8px);
-    z-index: 10001;
+    /* Doit être supérieure à .startup-overlay (99999) pour apparaître au premier plan */
+    z-index: 100200;
     display: flex;
     justify-content: center;
     align-items: center;
