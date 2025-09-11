@@ -219,7 +219,9 @@ class ConstructionTools {
 
         // Système d'animation des points snap sur la grille
         this.gridSnapPoints = []; // Array pour les points de snap animés
-        this.showGridSnap = true; // Afficher/masquer les points snap - ACTIVÉ PAR DÉFAUT
+    // Désactivation par défaut: évite l'affichage du curseur (anneau animé) immédiatement au démarrage
+    // L'utilisateur pourra l'activer via toggleGridSnapPoints() ou une action UI explicite
+    this.showGridSnap = false; // (était true) Afficher/masquer les points snap
         this.snapAnimationId = null; // ID de l'animation en cours
         this.snapGridSpacing = 19; // Espacement de la grille snap (19cm par défaut)
         this.cursorSnapPoint = null; // Point snap qui suit le curseur

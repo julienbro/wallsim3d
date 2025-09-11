@@ -2943,6 +2943,21 @@ class ToolsTabManager {
                         // Seconde mise à jour différée pour gérer les latences de layout
                         setTimeout(() => {
                             window.ConstructionTools.updateGhostElement();
+                            // ✅ GARANTIE: Si le fantôme a été perdu (supprimé ou invisible) après l'ajout d'assise, on le recrée/réactive
+                            try {
+                                if (window.ConstructionTools) {
+                                    const ct = window.ConstructionTools;
+                                    if ((!ct.ghostElement || !ct.ghostElement.mesh) && typeof ct.createGhostElement === 'function') {
+                                        ct.createGhostElement();
+                                    }
+                                    if (ct.ghostElement && ct.ghostElement.mesh) {
+                                        // Ne pas forcer si l'utilisateur a désactivé l'affichage volontairement
+                                        if (ct.showGhost && !ct.activeBrickForSuggestions) {
+                                            ct.ghostElement.mesh.visible = true; // le rendre à nouveau visible
+                                        }
+                                    }
+                                }
+                            } catch (e) { /* silencieux */ }
                         }, 150);
                     }
                     // console.log('🔧 Affichage mis à jour après ajout assise');

@@ -107,6 +107,7 @@ class ToolbarManager {
                 this.isToolActive = false;
                 this.hideInstruction();
                 this.enableNormalPlacement();
+                this.disableDeleteCursor && this.disableDeleteCursor();
                 // Désactiver complètement le mode placement et masquer l'élément fantôme
                 if (window.ConstructionTools) {
                     // Désactiver le mode placement
@@ -137,6 +138,7 @@ class ToolbarManager {
                 this.isToolActive = true;
                 this.showInstruction('Cliquez sur un élément pour le sélectionner et le déplacer');
                 this.disableNormalPlacement();
+                this.disableDeleteCursor && this.disableDeleteCursor();
                 break;
             case 'deleteTool':
                 this.currentTool = 'delete';
@@ -144,6 +146,26 @@ class ToolbarManager {
                 this.isToolActive = true;
                 this.showInstruction('Cliquez sur un élément pour le supprimer');
                 this.disableNormalPlacement();
+                // Masquer l'élément fantôme pendant le mode suppression
+                if (window.ConstructionTools) {
+                    window.ConstructionTools.isPlacementMode = false;
+                    window.ConstructionTools.showGhost = false;
+                    if (window.ConstructionTools.hideGhostElement) {
+                        window.ConstructionTools.hideGhostElement();
+                    }
+                    if (window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.mesh) {
+                        window.ConstructionTools.ghostElement.mesh.visible = false;
+                    }
+                    // Désactiver et nettoyer les suggestions de placement si présentes
+                    if (window.ConstructionTools.deactivateSuggestions) {
+                        window.ConstructionTools.deactivateSuggestions();
+                    }
+                    if (window.ConstructionTools.clearSuggestions) {
+                        window.ConstructionTools.clearSuggestions();
+                    }
+                }
+                // Activer le curseur corbeille personnalisé
+                this.enableDeleteCursor && this.enableDeleteCursor();
                 break;
             case 'duplicateTool':
                 this.currentTool = 'duplicate';
@@ -151,6 +173,7 @@ class ToolbarManager {
                 this.isToolActive = true;
                 this.showInstruction('Cliquez sur un élément pour le dupliquer');
                 this.disableNormalPlacement();
+                this.disableDeleteCursor && this.disableDeleteCursor();
                 break;
         }
         
@@ -614,7 +637,22 @@ class ToolbarManager {
                 // console.log(`✅ Element deletion completed: 1 element + ${jointCount} joints`);
                 
                 // 🔄 RETOUR AUTOMATIQUE: Revenir en mode pose de brique après suppression
-                this.returnToSelectMode();
+                // Ancien comportement: retour mode sélection. Nouveau: réactiver directement le mode placement avec fantôme.
+                if (window.ConstructionTools) {
+                    // Réactiver drapeau placement
+                    window.ConstructionTools.isPlacementMode = true;
+                    window.ConstructionTools.showGhost = true;
+                    // Si une méthode d'affichage existe, l'appeler
+                    if (window.ConstructionTools.showGhostElement) {
+                        window.ConstructionTools.showGhostElement();
+                    } else if (window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.mesh) {
+                        window.ConstructionTools.ghostElement.mesh.visible = true;
+                    }
+                }
+                // Adapter l'état interne de la toolbar: revenir en mode placement (aucun outil de sélection actif)
+                this.setInteractionMode && this.setInteractionMode('placement');
+                // Désactiver le curseur corbeille si encore actif
+                this.disableDeleteCursor && this.disableDeleteCursor();
                 
             } catch (error) {
                 // console.error('❌ Error during element deletion:', error);
@@ -1183,8 +1221,136 @@ class ToolbarManager {
         
         // Réactiver le placement normal
         this.enableNormalPlacement();
+        // Désactiver éventuellement le curseur corbeille
+        this.disableDeleteCursor && this.disableDeleteCursor();
         
         // console.log('🔄 Returned to select mode after deletion');
+    }
+
+    // =======================
+    // Curseur corbeille (mode suppression)
+    // =======================
+    enableDeleteCursor() {
+        if (this._deleteCursorActive) return;
+        const canvas = document.getElementById('threejs-canvas');
+        if (!canvas || !window.THREE || !window.SceneManager) return;
+        this._deleteCursorActive = true;
+
+        // Créer le style une seule fois
+        if (!document.getElementById('delete-cursor-style')) {
+            const style = document.createElement('style');
+            style.id = 'delete-cursor-style';
+            style.textContent = `
+                .delete-cursor-icon { position:fixed; width:26px; height:26px; pointer-events:none; z-index:10000; transform:translate(-50%, -50%); display:flex; align-items:center; justify-content:center; }
+                .delete-cursor-icon svg { width:100%; height:100%; filter: drop-shadow(0 0 2px rgba(0,0,0,0.6)); }
+                .delete-hover-target { outline: 2px solid #ff4444 !important; }
+                canvas.delete-hide-native-cursor { cursor: none !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Créer l'élément curseur si absent
+        if (!this.deleteCursorElement) {
+            const div = document.createElement('div');
+            div.className = 'delete-cursor-icon';
+            // SVG corbeille simple (data inline)
+            div.innerHTML = `
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#ff5555" d="M9 3l1-1h4l1 1h5v2H4V3h5zm-2 4h10l-1 12a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2L7 7zm3 2v8h2V9h-2zm4 0v8h2V9h-2z" />
+            </svg>`;
+            document.body.appendChild(div);
+            this.deleteCursorElement = div;
+        }
+        this.deleteCursorElement.style.display = 'flex';
+        canvas.classList.add('delete-hide-native-cursor');
+
+        // Préparer raycaster
+        this._deleteRaycaster = this._deleteRaycaster || new THREE.Raycaster();
+        this._deleteMouse = this._deleteMouse || new THREE.Vector2();
+
+        this._onDeleteMouseMove = (evt) => {
+            // Position curseur visuel
+            this.deleteCursorElement.style.left = evt.clientX + 'px';
+            this.deleteCursorElement.style.top = evt.clientY + 'px';
+
+            if (this.currentTool !== 'delete') return; // sécurité
+            const scene = window.SceneManager?.scene;
+            const camera = window.SceneManager?.camera;
+            if (!scene || !camera) return;
+            const rect = canvas.getBoundingClientRect();
+            this._deleteMouse.x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+            this._deleteMouse.y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
+            this._deleteRaycaster.setFromCamera(this._deleteMouse, camera);
+            const intersects = this._deleteRaycaster.intersectObjects(scene.children, true);
+
+            let hoveredElement = null;
+            for (let i = 0; i < intersects.length; i++) {
+                const candidate = this.findElementParent(intersects[i].object);
+                if (candidate) { hoveredElement = candidate; break; }
+            }
+            if (hoveredElement !== this._currentDeleteHover) {
+                this._clearDeleteHoverHighlight();
+                if (hoveredElement) this._applyDeleteHoverHighlight(hoveredElement);
+                this._currentDeleteHover = hoveredElement;
+            }
+        };
+
+        this._onDeleteMouseLeave = () => {
+            this._clearDeleteHoverHighlight();
+            this._currentDeleteHover = null;
+        };
+
+        canvas.addEventListener('mousemove', this._onDeleteMouseMove, { passive: true });
+        canvas.addEventListener('mouseleave', this._onDeleteMouseLeave, { passive: true });
+    }
+
+    disableDeleteCursor() {
+        if (!this._deleteCursorActive) return;
+        this._deleteCursorActive = false;
+        const canvas = document.getElementById('threejs-canvas');
+        if (canvas) {
+            canvas.classList.remove('delete-hide-native-cursor');
+            if (this._onDeleteMouseMove) canvas.removeEventListener('mousemove', this._onDeleteMouseMove);
+            if (this._onDeleteMouseLeave) canvas.removeEventListener('mouseleave', this._onDeleteMouseLeave);
+        }
+        if (this.deleteCursorElement) this.deleteCursorElement.style.display = 'none';
+        this._clearDeleteHoverHighlight();
+        this._currentDeleteHover = null;
+    }
+
+    _applyDeleteHoverHighlight(element) {
+        if (!element) return;
+        // Sauvegarder emissive
+        if (element.material && element.material.emissive) {
+            element.userData._deleteOriginalEmissive = element.material.emissive.clone();
+            element.material.emissive.setHex(0xff2222);
+        } else if (element.material && !element.material.emissive) {
+            // Matériau sans emissive: on peut ajuster la couleur originale
+            element.userData._deleteOriginalColor = element.material.color?.clone();
+            if (element.material.color) element.material.color.setHex(0xff5555);
+        }
+        // Optionnel: légère mise à l'échelle (éviter pour joints très petits)
+        if (!element.userData._originalScale && element.scale) {
+            element.userData._originalScale = element.scale.clone();
+            element.scale.multiplyScalar(1.02);
+        }
+    }
+
+    _clearDeleteHoverHighlight() {
+        const element = this._currentDeleteHover;
+        if (!element) return;
+        if (element.userData._deleteOriginalEmissive && element.material && element.material.emissive) {
+            element.material.emissive.copy(element.userData._deleteOriginalEmissive);
+            delete element.userData._deleteOriginalEmissive;
+        }
+        if (element.userData._deleteOriginalColor && element.material && element.material.color) {
+            element.material.color.copy(element.userData._deleteOriginalColor);
+            delete element.userData._deleteOriginalColor;
+        }
+        if (element.userData._originalScale && element.scale) {
+            element.scale.copy(element.userData._originalScale);
+            delete element.userData._originalScale;
+        }
     }
     
     // Méthodes pour gérer l'intégration avec les managers existants

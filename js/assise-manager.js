@@ -68,6 +68,8 @@ class AssiseManager {
         // Initialiser les structures pour chaque type
         this.initializeTypeStructures();
 
+    // NOTE: Suppression de toute logique de sauvegarde/restauration caméra lors du changement d'assise.
+
         // === DEBUG ISOLATION GHOST (instrumentation légère) ===
         // Activer/désactiver: window.DEBUG_ISOLATION_GHOST = true/false dans la console.
         if (typeof window !== 'undefined' && window.DEBUG_ISOLATION_GHOST === undefined) {
@@ -705,6 +707,9 @@ class AssiseManager {
         }
 
         const previousAssise = this.currentAssiseByType.get(type) || 0;
+
+    // Aucune interaction caméra (exigence: ne pas changer l'orientation, ne pas sauvegarder/restaurer)
+
         this.currentAssiseByType.set(type, index);
 
         // Si c'est le type actuel, mettre à jour l'affichage
@@ -745,6 +750,8 @@ class AssiseManager {
                     height: this.getAssiseHeight(index) 
                 }
             }));
+
+            // Aucune restauration caméra
             
             // Garder la synchronisation directe en fallback (au cas oà l'événement ne fonctionne pas)
             if (window.ToolsTabManager) {
@@ -2616,8 +2623,8 @@ class AssiseManager {
         // Mettre à jour l'interface
         this.updateUI();
         
-        // Optionnel: centrer la vue sur cette assise
-        this.focusOnAssise(type, index);
+    // Ne pas centrer la caméra: exigence utilisateur (aucun changement d'orientation lors du changement d'assise)
+    // this.focusOnAssise(type, index); // désactivé
     }
 
     // Centrer la vue sur une assise spécifique (optionnel)
