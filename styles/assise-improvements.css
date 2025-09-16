@@ -134,6 +134,22 @@
 .assise-type-badge.M60 { background: rgba(156, 39, 176, 0.8); color: white; }
 .assise-type-badge.M90 { background: rgba(244, 67, 54, 0.8); color: white; }
 .assise-type-badge.block { background: rgba(96, 125, 139, 0.8); color: white; }
+
+/* Styles pour les sous-types de blocs creux */
+.assise-type-badge.B9 { background: rgba(63, 81, 181, 0.8); color: white; }
+.assise-type-badge.B14 { background: rgba(103, 58, 183, 0.8); color: white; }
+.assise-type-badge.B19 { background: rgba(121, 85, 72, 0.8); color: white; }
+.assise-type-badge.B29 { background: rgba(84, 110, 122, 0.8); color: white; }
+
+/* Styles pour les sous-types béton cellulaire */
+.assise-type-badge.BC7 { background: rgba(0, 150, 136, 0.8); color: white; }
+.assise-type-badge.BC10 { background: rgba(0, 188, 212, 0.8); color: white; }
+.assise-type-badge.BC15 { background: rgba(3, 169, 244, 0.8); color: white; }
+.assise-type-badge.BC20 { background: rgba(33, 150, 243, 0.8); color: white; }
+.assise-type-badge.BC25 { background: rgba(63, 81, 181, 0.8); color: white; }
+.assise-type-badge.BC30 { background: rgba(103, 58, 183, 0.8); color: white; }
+.assise-type-badge.BC36 { background: rgba(156, 39, 176, 0.8); color: white; }
+
 .assise-type-badge.insulation { background: rgba(255, 193, 7, 0.8); color: black; }
 
 .assise-item-details {
