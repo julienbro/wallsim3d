@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Final - Assises B9/B14</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .test-section { border: 1px solid #ddd; margin: 15px 0; padding: 20px; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; color: #856404; }
+        button { margin: 5px; padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        h1, h2, h3 { margin-top: 0; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        .step-number { font-weight: bold; color: #007bff; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Test Final - Correction Assises B9/B14</h1>
+    
+    <div class="test-section info">
+        <h2>📋 Objectif du test</h2>
+        <p>Vérifier que la correction appliquée résout le problème :</p>
+        <ul>
+            <li>❌ <strong>AVANT :</strong> Blocs B9, B14, B19, B29 → Assise "CREUX"</li>
+            <li>✅ <strong>APRÈS :</strong> Bloc B9 → Assise "B9", Bloc B14 → Assise "B14", etc.</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>🧪 Tests de validation</h2>
+        <button onclick="runCompleteTest()">▶️ Lancer test complet</button>
+        <button onclick="testSpecificBlock('B9')">🧱 Tester B9</button>
+        <button onclick="testSpecificBlock('B14')">🧱 Tester B14</button>
+        <button onclick="testSpecificBlock('B19')">🧱 Tester B19</button>
+        <button onclick="testSpecificBlock('B29')">🧱 Tester B29</button>
+        <button onclick="clearResults()">🗑️ Effacer</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <!-- Scripts principaux -->
+    <script src="js/assise-manager.js"></script>
+    <script src="js/block-selector.js"></script>
+    
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-section ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function testSpecificBlock(blockType) {
+            addResult(`<h3>🧱 Test du bloc ${blockType}</h3>`);
+            
+            if (!window.AssiseManager || !window.BlockSelector) {
+                addResult(`❌ <strong>Erreur :</strong> AssiseManager ou BlockSelector non disponible`, 'error');
+                return;
+            }
+
+            try {
+                const am = window.AssiseManager;
+                const bs = new window.BlockSelector();
+                
+                // Test 1: Vérifier que le type est supporté
+                const isSupported = am.isSupportedType(blockType);
+                if (isSupported) {
+                    addResult(`✅ <span class="step-number">1.</span> Type ${blockType} supporté par AssiseManager`, 'success');
+                } else {
+                    addResult(`❌ <span class="step-number">1.</span> Type ${blockType} NON supporté par AssiseManager`, 'error');
+                    return;
+                }
+                
+                // Test 2: Vérifier la configuration du bloc
+                const blockInfo = bs.blockTypes[blockType];
+                if (blockInfo) {
+                    addResult(`✅ <span class="step-number">2.</span> Configuration bloc trouvée: ${blockInfo.name} (catégorie: ${blockInfo.category})`, 'success');
+                } else {
+                    addResult(`❌ <span class="step-number">2.</span> Configuration bloc ${blockType} introuvable`, 'error');
+                    return;
+                }
+                
+                // Test 3: Simuler la sélection du bloc
+                addResult(`<span class="step-number">3.</span> Simulation de la sélection du bloc ${blockType}...`);
+                
+                // Sauvegarder l'état initial
+                const initialType = am.currentType;
+                
+                // Sélectionner le bloc
+                bs.setBlock(blockType);
+                
+                // Vérifier le résultat
+                const finalType = am.currentType;
+                
+                if (finalType === blockType) {
+                    addResult(`✅ <span class="step-number">4.</span> <strong>SUCCÈS !</strong> AssiseManager.currentType = "${finalType}" ✨`, 'success');
+                } else {
+                    addResult(`❌ <span class="step-number">4.</span> <strong>ÉCHEC !</strong> AssiseManager.currentType = "${finalType}" (attendu: "${blockType}")`, 'error');
+                }
+                
+                // Test 5: Vérifier le label de l'assise
+                const assiseLabel = am.getAssiseTypeLabelForType(blockType, 0);
+                addResult(`<span class="step-number">5.</span> Label d'assise: "${assiseLabel}"`);
+                
+            } catch (error) {
+                addResult(`❌ <strong>Erreur durant le test :</strong> ${error.message}`, 'error');
+                console.error('Erreur test:', error);
+            }
+        }
+
+        function runCompleteTest() {
+            clearResults();
+            addResult(`<h2>🚀 Test complet démarré</h2>`);
+            
+            // Test tous les types de blocs
+            const blocksToTest = ['B9', 'B14', 'B19', 'B29'];
+            let passed = 0;
+            let total = blocksToTest.length;
+            
+            addResult(`<h3>📊 Résultats des tests</h3>`);
+            
+            const table = `
+                <table>
+                    <thead>
+                        <tr><th>Bloc</th><th>Résultat</th><th>Type final</th><th>Label assise</th></tr>
+                    </thead>
+                    <tbody id="test-table-body">
+                    </tbody>
+                </table>
+            `;
+            addResult(table);
+            
+            const tableBody = document.getElementById('test-table-body');
+            
+            blocksToTest.forEach(blockType => {
+                try {
+                    const am = window.AssiseManager;
+                    const bs = new window.BlockSelector();
+                    
+                    // Sélectionner le bloc
+                    bs.setBlock(blockType);
+                    
+                    // Vérifier le résultat
+                    const finalType = am.currentType;
+                    const success = finalType === blockType;
+                    const label = am.getAssiseTypeLabelForType(blockType, 0);
+                    
+                    if (success) passed++;
+                    
+                    const row = `
+                        <tr style="background-color: ${success ? '#d4edda' : '#f8d7da'}">
+                            <td><strong>${blockType}</strong></td>
+                            <td>${success ? '✅ SUCCÈS' : '❌ ÉCHEC'}</td>
+                            <td><code>${finalType}</code></td>
+                            <td>${label}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                    
+                } catch (error) {
+                    tableBody.innerHTML += `
+                        <tr style="background-color: #f8d7da">
+                            <td><strong>${blockType}</strong></td>
+                            <td>❌ ERREUR</td>
+                            <td>${error.message}</td>
+                            <td>-</td>
+                        </tr>
+                    `;
+                }
+            });
+            
+            // Résumé final
+            if (passed === total) {
+                addResult(`<h3>🎉 <strong>TOUS LES TESTS RÉUSSIS !</strong> (${passed}/${total})</h3>
+                          <p>✨ La correction fonctionne parfaitement. Les blocs B9, B14, B19, B29 vont maintenant dans leurs assises spécifiques.</p>`, 'success');
+            } else {
+                addResult(`<h3>⚠️ <strong>TESTS PARTIELS</strong> (${passed}/${total} réussis)</h3>
+                          <p>Certains blocs ne fonctionnent pas encore correctement. Vérification supplémentaire nécessaire.</p>`, 'warning');
+            }
+        }
+
+        // Lancement automatique au chargement
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                addResult(`<p>🔧 <strong>Interface de test prête.</strong> Cliquez sur "Lancer test complet" pour valider la correction.</p>`, 'info');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

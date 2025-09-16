@@ -6,8 +6,7 @@
 window.DEBUG_DELETE_ICON = {
     // Test de positionnement basique
     testIconPosition: function() {
-        console.log('🔍 Test de positionnement de l\'icône...');
-        
+
         // Créer une icône de test
         const testIcon = document.createElement('div');
         testIcon.style.cssText = `
@@ -66,16 +65,7 @@ window.DEBUG_DELETE_ICON = {
         const icon = document.getElementById('brickDeleteIcon');
         if (icon) {
             const styles = window.getComputedStyle(icon);
-            console.log('🔍 État de l\'icône:', {
-                position: styles.position,
-                top: styles.top,
-                left: styles.left,
-                display: styles.display,
-                zIndex: styles.zIndex,
-                transform: styles.transform,
-                visibility: styles.visibility,
-                opacity: styles.opacity
-            });
+            
         } else {
             console.log('❌ Aucune icône trouvée');
         }

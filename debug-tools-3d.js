@@ -72,8 +72,7 @@ function checkThreeJS() {
 
 // Fonction complète de diagnostic
 function diagnosticTools3D() {
-    console.log('🔍 === DIAGNOSTIC APERÇU 3D OUTILS ===');
-    
+
     checkThreeJS();
     const canvas = checkCanvasState();
     const activeElement = checkActiveElement();
@@ -93,8 +92,7 @@ function diagnosticTools3D() {
         if (!activeElement) console.log('  - Élément actif manquant');
         if (!isToolsTabActive) console.log('  - Onglet Outils non actif');
     }
-    
-    console.log('🔍 === FIN DIAGNOSTIC ===');
+
 }
 
 // Exporter les fonctions pour utilisation manuelle

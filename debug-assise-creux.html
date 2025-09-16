@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug B9/B14 vers CREUX</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .debug-section { border: 1px solid #ccc; margin: 10px 0; padding: 15px; border-radius: 5px; background: #f9f9f9; }
+        .step { margin: 10px 0; padding: 10px; background: #e9ecef; border-radius: 3px; }
+        button { margin: 5px; padding: 8px 12px; }
+        code { background: #f8f9fa; padding: 2px 4px; border-radius: 3px; }
+        .error { color: red; }
+        .success { color: green; }
+        .warning { color: orange; }
+    </style>
+</head>
+<body>
+    <h1>🐛 Debug: Pourquoi B9/B14 vont dans CREUX ?</h1>
+    
+    <div class="debug-section">
+        <h3>🔍 Tests de débogage</h3>
+        <button onclick="debugBlockSelection()">🧱 Debug sélection bloc B9</button>
+        <button onclick="debugBlockSelection('B14')">🧱 Debug sélection bloc B14</button>
+        <button onclick="debugAssiseManager()">⚙️ Debug AssiseManager</button>
+        <button onclick="debugBlockSelector()">🎛️ Debug BlockSelector</button>
+        <button onclick="clearResults()">🗑️ Effacer</button>
+    </div>
+
+    <div id="results"></div>
+
+    <!-- Charger les scripts nécessaires -->
+    <script src="js/assise-manager.js"></script>
+    <script src="js/block-selector.js"></script>
+    
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `step ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function debugAssiseManager() {
+            log("🔍 <strong>DEBUG AssiseManager</strong>");
+            
+            if (!window.AssiseManager) {
+                log("❌ AssiseManager non disponible", 'error');
+                return;
+            }
+
+            const am = window.AssiseManager;
+            
+            log(`📋 <strong>Types supportés:</strong>`);
+            log(`- allSupportedTypes: <code>${am.allSupportedTypes.join(', ')}</code>`);
+            log(`- blockSubTypes: <code>${am.blockSubTypes.join(', ')}</code>`);
+            
+            log(`🎯 <strong>Tests isSupportedType:</strong>`);
+            const testTypes = ['B9', 'B14', 'B19', 'B29', 'CREUX'];
+            testTypes.forEach(type => {
+                const supported = am.isSupportedType(type);
+                log(`- ${type}: <span class="${supported ? 'success' : 'error'}">${supported}</span>`);
+            });
+            
+            log(`📊 <strong>État actuel:</strong>`);
+            log(`- currentType: <code>${am.currentType}</code>`);
+            log(`- currentAssiseByType contient B9: ${am.currentAssiseByType.has('B9')}`);
+            log(`- currentAssiseByType contient B14: ${am.currentAssiseByType.has('B14')}`);
+        }
+
+        function debugBlockSelector() {
+            log("🔍 <strong>DEBUG BlockSelector</strong>");
+            
+            if (!window.BlockSelector) {
+                log("❌ BlockSelector non disponible", 'error');
+                return;
+            }
+
+            const bs = new window.BlockSelector();
+            
+            log(`📋 <strong>Configuration des blocs:</strong>`);
+            const testBlocks = ['B9', 'B14', 'B9_HALF', 'B14_3Q'];
+            testBlocks.forEach(blockId => {
+                const blockInfo = bs.blockTypes[blockId];
+                if (blockInfo) {
+                    log(`- ${blockId}: catégorie=<code>${blockInfo.category}</code>, nom=<code>${blockInfo.name}</code>`, 'success');
+                } else {
+                    log(`- ${blockId}: <span class="error">NON TROUVÉ</span>`, 'error');
+                }
+            });
+        }
+
+        function debugBlockSelection(blockType = 'B9') {
+            log(`🔍 <strong>DEBUG sélection bloc ${blockType}</strong>`);
+            
+            if (!window.AssiseManager || !window.BlockSelector) {
+                log("❌ AssiseManager ou BlockSelector non disponible", 'error');
+                return;
+            }
+
+            const am = window.AssiseManager;
+            const bs = new window.BlockSelector();
+            
+            log(`<strong>Étape 1:</strong> État initial`);
+            log(`- AssiseManager.currentType: <code>${am.currentType}</code>`);
+            
+            log(`<strong>Étape 2:</strong> Information du bloc`);
+            const blockInfo = bs.blockTypes[blockType];
+            if (blockInfo) {
+                log(`- Bloc ${blockType} trouvé: <code>${JSON.stringify(blockInfo)}</code>`, 'success');
+            } else {
+                log(`- Bloc ${blockType} non trouvé`, 'error');
+                return;
+            }
+            
+            log(`<strong>Étape 3:</strong> Test de la logique de mapping`);
+            const category = blockInfo.category;
+            let assiseType = null;
+            
+            switch (category) {
+                case 'hollow':
+                case 'cut':
+                    if (blockType.startsWith('B9')) {
+                        assiseType = 'B9';
+                    } else if (blockType.startsWith('B14')) {
+                        assiseType = 'B14';
+                    } else if (blockType.startsWith('B19')) {
+                        assiseType = 'B19';
+                    } else if (blockType.startsWith('B29')) {
+                        assiseType = 'B29';
+                    } else {
+                        assiseType = 'CREUX';
+                    }
+                    break;
+                default:
+                    assiseType = 'AUTRE';
+            }
+            
+            log(`- Catégorie: <code>${category}</code>`);
+            log(`- Type d'assise calculé: <code>${assiseType}</code>`);
+            log(`- Type supporté: <span class="${am.isSupportedType(assiseType) ? 'success' : 'error'}">${am.isSupportedType(assiseType)}</span>`);
+            
+            log(`<strong>Étape 4:</strong> Test setCurrentType`);
+            try {
+                const result = am.setCurrentType(assiseType, true);
+                log(`- Résultat setCurrentType: <span class="${result ? 'success' : 'error'}">${result}</span>`);
+                log(`- AssiseManager.currentType après: <code>${am.currentType}</code>`);
+            } catch (error) {
+                log(`- Erreur setCurrentType: <span class="error">${error.message}</span>`, 'error');
+            }
+            
+            log(`<strong>Étape 5:</strong> Test detectBlockSubType`);
+            try {
+                // Simuler un élément bloc
+                const fakeElement = { type: 'block', id: blockType };
+                
+                // Simuler le currentBlock dans BlockSelector
+                bs.currentBlock = blockType;
+                window.BlockSelector = bs; // S'assurer que l'instance globale est mise à jour
+                
+                const detectedType = am.detectBlockSubType(fakeElement);
+                log(`- Type détecté par detectBlockSubType: <code>${detectedType}</code>`);
+            } catch (error) {
+                log(`- Erreur detectBlockSubType: <span class="error">${error.message}</span>`, 'error');
+            }
+        }
+
+        // Test automatique au chargement
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                log("🚀 <strong>Debug automatique démarré</strong>");
+                debugAssiseManager();
+                debugBlockSelector();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
