@@ -781,8 +781,7 @@
         // ===============================================
         
         window.SceneManager.verifySceneIntegrity = function() {
-            console.log('🔍 Vérification de l\'intégrité de la scène...');
-            
+
             if (!this.elements || this.elements.size === 0) {
                 console.log('✅ Aucun élément à vérifier');
                 return true;

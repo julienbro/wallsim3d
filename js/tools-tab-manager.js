@@ -379,7 +379,7 @@ class ToolsTabManager {
 
     // Détecter le type de coupe actuel à partir du fantôme ou des sélecteurs
     detectCurrentCut(activeMode = null) {
-        // console.log('🔍 detectCurrentCut() appelée pour mode:', activeMode);
+        // 
         let cutInfo = { type: null, ratio: 1.0, suffix: '' };
 
         // 🔥 PRIORITÉ 1: Vérifier le type de brique actuel (ex: M50_HALF)
@@ -418,7 +418,7 @@ class ToolsTabManager {
         // 2. Vérifier via le fantôme si disponible (fallback)
         if (window.SceneManager && window.SceneManager.ghostElement && window.SceneManager.ghostElement.userData) {
             const ghostType = window.SceneManager.ghostElement.userData.elementType;
-            // console.log('🔍 Type fantôme détecté:', ghostType);
+            // 
             if (ghostType && ghostType.includes('_')) {
                 // Extraire le suffixe de coupe du type fantôme
                 if (ghostType.includes('_3Q')) {
@@ -433,13 +433,13 @@ class ToolsTabManager {
                 // console.log('🎨 Coupe détectée via fantôme:', cutInfo, 'pour type:', ghostType);
             }
         } else {
-            // console.log('🔍 Pas de fantôme disponible ou pas de userData');
+            // 
         }
 
         // 3. Si pas trouvé via fantôme, vérifier via TabManager.selectedCutType
         if (cutInfo.type === null && window.TabManager && window.TabManager.selectedCutType) {
             const cutType = window.TabManager.selectedCutType;
-            // console.log('🔍 selectedCutType trouvé:', cutType);
+            // 
             const ratios = { '3/4': 0.75, '1/2': 0.5, '1/4': 0.25, 'P': 0.1 };
             const suffixes = { '3/4': '_3Q', '1/2': '_HALF', '1/4': '_1Q', 'P': '_P' };
             
@@ -457,7 +457,7 @@ class ToolsTabManager {
         // 4. Si toujours pas trouvé, vérifier selectedLibraryItem dans TabManager (ex: "PUR5_HALF")
         if (cutInfo.type === null && window.TabManager && window.TabManager.selectedLibraryItem) {
             const selectedItem = window.TabManager.selectedLibraryItem;
-            // console.log('🔍 Analyse selectedLibraryItem pour coupe:', selectedItem);
+            // 
             
             // Analyser le nom de l'item pour extraire le suffixe de coupe
             if (selectedItem && typeof selectedItem === 'string') {
@@ -479,16 +479,13 @@ class ToolsTabManager {
         // 5. Si toujours pas trouvé, vérifier le dernier type synchronisé dans TabManager
         if (cutInfo.type === null && window.TabManager) {
             // Examiner les logs récents pour voir quel était le dernier itemType passé (ex: PUR5_HALF)
-            // console.log('🔍 Debug TabManager properties:', {
-            //     selectedLibraryItem: window.TabManager.selectedLibraryItem,
-            //     selectedCutType: window.TabManager.selectedCutType
-            // });
+            // 
         }
 
         // 6. Dernière tentative: analyser le type d'isolant actuel pour détecter un suffixe de coupe
         if (cutInfo.type === null && (activeMode === 'isolant' || activeMode === 'insulation') && window.InsulationSelector) {
             const currentType = window.InsulationSelector.getCurrentInsulation();
-            // console.log('🔍 Analyse type isolant pour coupe:', currentType);
+            // 
             
             // Si le type contient un suffixe, l'extraire (même si cela devrait pas arriver normalement)
             if (currentType && typeof currentType === 'string') {
@@ -507,7 +504,7 @@ class ToolsTabManager {
             }
         }
 
-        // console.log('🔍 detectCurrentCut() résultat final:', cutInfo);
+        // 
         
         // 🔥 FIX: Si aucune coupe n'a été détectée, retourner "1/1" par défaut
         if (cutInfo.type === null) {
@@ -577,7 +574,7 @@ class ToolsTabManager {
             return;
         }
 
-        // console.log('🔍 Éléments DOM trouvés, analyse des sélecteurs...');
+        // 
 
         // Déterminer l'élément actif
         let activeElement = null;
@@ -769,7 +766,7 @@ class ToolsTabManager {
         } else if ((activeMode === 'isolant' || activeMode === 'insulation') && window.InsulationSelector) {
             const insulationType = window.InsulationSelector.getCurrentInsulation();
             const insulationData = window.InsulationSelector.getCurrentInsulationData();
-            // console.log('🔍 Récupération données isolant:', insulationType, insulationData);
+            // 
             if (insulationData) {
                 activeElement = {
                     name: insulationData.name || insulationType,
@@ -780,20 +777,14 @@ class ToolsTabManager {
                 elementType = 'isolant';
             }
         } else if ((activeMode === 'linteau' || activeMode === 'lintel') && window.LinteauSelector && window.LinteauSelector.currentLinteau) {
-            // console.log('🔍 Récupération données linteau:', window.LinteauSelector.currentLinteau);
+            // 
             activeElement = window.LinteauSelector.currentLinteau;
             elementType = 'linteau';
         }
 
         // Debug: afficher les données des sélecteurs disponibles
         if (!activeElement && (activeMode === 'isolant' || activeMode === 'insulation')) {
-            // console.log('🔍 Debug InsulationSelector:', {
-            //     exists: !!window.InsulationSelector,
-            //     currentInsulation: window.InsulationSelector?.currentInsulation,
-            //     getCurrentInsulation: window.InsulationSelector?.getCurrentInsulation(),
-            //     getCurrentInsulationData: window.InsulationSelector?.getCurrentInsulationData(),
-            //     allProps: window.InsulationSelector ? Object.keys(window.InsulationSelector) : 'N/A'
-            // });
+            // 
         }
 
         if (activeElement) {       
@@ -2407,8 +2398,7 @@ class ToolsTabManager {
         this.currentMesh.receiveShadow = true;
         
         // Debug : Vérifier les dimensions de la géométrie créée
-        // console.log('🔍 Géométrie créée - Dimensions scalées:', scaledSize, 'Géométrie Three.js:', 
-        //     geometry.parameters.width, 'x', geometry.parameters.height, 'x', geometry.parameters.depth);
+        // 
         
         // Créer les arêtes de contour noires
         const edgesGeometry = new THREE.EdgesGeometry(geometry);
@@ -2911,29 +2901,17 @@ class ToolsTabManager {
 
     addAssise() {
         if (window.AssiseManager) {
-            // Synchroniser le type d'assise avec le mode actif de ConstructionTools si disponible
-            try {
-                if (window.ConstructionTools && typeof window.ConstructionTools.getElementTypeForMode === 'function') {
-                    const mode = window.ConstructionTools.currentMode;
-                    let targetType = window.ConstructionTools.getElementTypeForMode(mode);
-                    // Normaliser les types d'isolants (PUR5, XPS30, etc.) vers 'insulation'
-                    if (mode === 'insulation' || (typeof targetType === 'string' && ['PUR','LAINEROCHE','XPS','PSE','FB','LV'].some(p => targetType.toUpperCase().startsWith(p)))) {
-                        targetType = 'insulation';
-                    }
-                    if (targetType && window.AssiseManager.currentType !== targetType) {
-                        window.AssiseManager.setCurrentType(targetType, true);
-                    }
-                }
-            } catch (_) { /* no-op */ }
-
-            // console.log('🔧 Ajout d\'assise demandé...');
+            console.log('🎯 BOUTON AJOUT ASSISE - currentType avant action:', window.AssiseManager.currentType);
+            
+            // CORRECTION: Utiliser directement le currentType de AssiseManager
+            // au lieu de dériver le type depuis ConstructionTools
             const newAssise = window.AssiseManager.addAssise();
             
             if (newAssise) {
-                // console.log('🔧 Nouvelle assise créée:', newAssise);
+                console.log('🎯 BOUTON AJOUT ASSISE - Nouvelle assise créée:', newAssise);
                 // Basculer automatiquement vers la nouvelle assise en utilisant la méthode appropriée
                 const success = window.AssiseManager.setActiveAssise(newAssise.index);
-                // console.log('🔧 Activation assise:', success ? 'réussie' : 'échouée');
+                console.log('🎯 BOUTON AJOUT ASSISE - Activation assise:', success ? 'réussie' : 'échouée');
                 
                 // Force la mise à jour avec un délai
                 setTimeout(() => {
@@ -2943,21 +2921,6 @@ class ToolsTabManager {
                         // Seconde mise à jour différée pour gérer les latences de layout
                         setTimeout(() => {
                             window.ConstructionTools.updateGhostElement();
-                            // ✅ GARANTIE: Si le fantôme a été perdu (supprimé ou invisible) après l'ajout d'assise, on le recrée/réactive
-                            try {
-                                if (window.ConstructionTools) {
-                                    const ct = window.ConstructionTools;
-                                    if ((!ct.ghostElement || !ct.ghostElement.mesh) && typeof ct.createGhostElement === 'function') {
-                                        ct.createGhostElement();
-                                    }
-                                    if (ct.ghostElement && ct.ghostElement.mesh) {
-                                        // Ne pas forcer si l'utilisateur a désactivé l'affichage volontairement
-                                        if (ct.showGhost && !ct.activeBrickForSuggestions) {
-                                            ct.ghostElement.mesh.visible = true; // le rendre à nouveau visible
-                                        }
-                                    }
-                                }
-                            } catch (e) { /* silencieux */ }
                         }, 150);
                     }
                     // console.log('🔧 Affichage mis à jour après ajout assise');
@@ -3191,8 +3154,7 @@ class ToolsTabManager {
                 // Log retiré: debug GLB Element
             }
             // Log retiré: Canvas visible
-            console.log('🔍 [DEBUG] Canvas dimensions:', canvas.width, 'x', canvas.height);
-            
+
             // Vérifier si c'est l'aperçu de l'élément actif (priorité haute)
             const isActiveElementCanvas = canvas.id === 'toolsActiveElementCanvas';
             if (isActiveElementCanvas) {
@@ -3753,5 +3715,4 @@ document.addEventListener('DOMContentLoaded', () => {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ToolsTabManager;
 }
-
 

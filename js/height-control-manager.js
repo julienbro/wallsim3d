@@ -463,7 +463,7 @@ class HeightControlManager {
         
         // Vérifier ou récupérer le panneau
         if (!this.panel) {
-            console.log('🔍 Panel non défini, tentative de récupération...');
+            
             this.panel = document.getElementById('heightControlPanel');
         }
         
@@ -471,7 +471,7 @@ class HeightControlManager {
             console.error('❌ Panel non trouvé dans showPanel - getElementById returned:', this.panel);
             // Essai d'une recherche alternative
             const allDivs = document.getElementsByTagName('div');
-            console.log('🔍 Nombre total de divs:', allDivs.length);
+            
             for (let i = 0; i < allDivs.length; i++) {
                 if (allDivs[i].id === 'heightControlPanel') {
                     console.log('✅ Panel trouvé via recherche alternative!');
@@ -485,9 +485,7 @@ class HeightControlManager {
                 return;
             }
         }
-        
-        console.log('🔍 Panel trouvé:', this.panel);
-        
+
         // Définir une hauteur par défaut
         const defaultHeight = 0; // Au sol
         const input = document.getElementById('targetHeight');
@@ -559,5 +557,4 @@ setTimeout(() => {
 document.addEventListener('DOMContentLoaded', () => {
     // console.log('🎛️ HeightControlManager class ready');
 });
-
 

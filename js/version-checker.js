@@ -1,5 +1,5 @@
 // Script pour vérifier la version Three.js actuelle
-// console.log('🔍 Vérification version Three.js...');
+// 
 
 // Attendre que Three.js soit chargé
 function checkThreeVersion() {

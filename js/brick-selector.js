@@ -359,12 +359,9 @@ class BrickSelector {
         // Son supprimé
         
         // Vérifier si c'est une brique sur chant et afficher le panneau de contrôle
-        console.log('🔍 Vérification brique sur chant:', type);
-        const isOnChant = this.isBrickOnChant(type);
-        console.log('🔍 Est sur chant ?', isOnChant);
-        console.log('🔍 HeightControlManager disponible ?', !!window.heightControlManager);
-        console.log('🔍 Type de brique:', this.brickTypes[type]);
         
+        const isOnChant = this.isBrickOnChant(type);
+
         if (isOnChant) {
             console.log('🎯 Tentative d\'affichage du panneau de contrôle');
             // Afficher le panneau de contrôle de hauteur

@@ -230,8 +230,7 @@ class LibraryHelpSystem {
                              tabElement.getAttribute('data-subtab') ||
                              tabElement.getAttribute('data-tab-name') || 
                              tabElement.textContent?.trim();
-                
-                
+
                 // Fermer immédiatement si ce n'est pas un onglet lié à biblio
                 if (tabId && !tabId.includes('biblio') && !tabId.includes('bibliotheque')) {
                     this.forceHideHelp();
@@ -531,7 +530,6 @@ class LibraryHelpSystem {
             biblioContent.addEventListener('scroll', this.hideOnScrollHandler, { passive: true });
             biblioContent.addEventListener('wheel', this.hideOnScrollHandler, { passive: true });
         }
-        
 
         // Attendre un frame pour que le DOM soit mis à jour
         requestAnimationFrame(() => {

@@ -14,10 +14,6 @@ class SceneManager {
         this.selectedElement = null;
         this.isInitialized = false;
         this.gridSpacing = 0.1; // cm - Grille très fine de 0.1cm (1mm) pour placement précis
-    // Taille courante de la grille (bord à bord). Était figée à 500cm dans createGrid();
-    // On la rend dynamique pour pouvoir l'agrandir automatiquement.
-    // Taille initiale étendue (60m) pour offrir un espace plus large dès le départ
-    this.gridSize = 6000; // cm (60 mètres)
         this.showGrid = false;
         this.showAxes = false; // Les axes sont masqués par défaut
         
@@ -305,8 +301,8 @@ class SceneManager {
             this.scene.remove(this.grid);
         }
 
-        // Utiliser la taille dynamique stockée (fallback 500 si undefined)
-    const size = this.gridSize || 3000;
+    const size = 500; // Taille de la grille en cm
+    this.gridSize = size; // Conserver la taille pour d'autres modules (export, ligne de sol)
         const divisions = size / this.gridSpacing;
 
         this.grid = new THREE.GridHelper(size, divisions, 0xaaaaaa, 0x666666);
@@ -349,11 +345,8 @@ class SceneManager {
             description: 'Flèche du Nord - Boussole de navigation'
         };
 
-    // Position de la flèche (coin de la grille) dynamique selon la taille courante
-    // On la place à ~ (gridSize/2 - 100) pour éviter le chevauchement avec des éléments au bord
-    const half = (this.gridSize || 500) / 2;
-    const offset = 100; // marge intérieure
-    const arrowPosition = { x: half - offset, y: 1, z: half - offset };
+        // Position de la flèche (coin de la grille)
+        const arrowPosition = { x: 200, y: 1, z: 200 };
 
         // 1. Corps de la flèche (cylindre) - orienté horizontalement
         const shaftGeometry = new THREE.CylinderGeometry(2, 2, 30);
@@ -442,12 +435,8 @@ class SceneManager {
     }
 
     createGroundPlane() {
-        // Plan invisible pour les interactions – dimensionné selon la grille * 1.25 pour anticiper
-        const interactiveSize = (this.gridSize || 6000) * 1.25;
-        if (this.groundPlane) {
-            this.scene.remove(this.groundPlane);
-        }
-        const geometry = new THREE.PlaneGeometry(interactiveSize, interactiveSize);
+        // Plan invisible pour les interactions
+        const geometry = new THREE.PlaneGeometry(1000, 1000);
         const material = new THREE.MeshBasicMaterial({ 
             visible: false,
             side: THREE.DoubleSide
@@ -472,24 +461,9 @@ class SceneManager {
         this.createGroundFloor();
     }
 
-    // Garantit que le groundPlane couvre la zone nécessaire (appel optionnel si latence d’expansion ressentie)
-    ensureGroundPlaneCoverage() {
-        const needed = (this.gridSize || 6000) * 1.25;
-        if (!this.groundPlane) return this.createGroundPlane();
-        const currentGeom = this.groundPlane.geometry;
-        // Si largeur actuelle < needed - petit epsilon
-        const bboxSize = currentGeom.parameters?.width || 0;
-        if (bboxSize + 1 < needed) {
-            this.createGroundPlane();
-            console.log('🟦 groundPlane réajusté pour couvrir la zone élargie.');
-        }
-    }
-
     createSkyDome() {
-    // Créer une sphère pour le ciel avec un dégradé bleu (stockage radius dynamique)
-    // Rayon initial plus grand pour éviter tout clipping lors de zoom out extrême
-    this.skyDomeRadius = this.skyDomeRadius || 3000;
-    const skyGeometry = new THREE.SphereGeometry(this.skyDomeRadius, 64, 40);
+        // Créer une sphère pour le ciel avec un dégradé bleu
+        const skyGeometry = new THREE.SphereGeometry(1500, 32, 32);
         
         // Créer un matériau avec un dégradé vertical
         const skyMaterial = new THREE.ShaderMaterial({
@@ -518,80 +492,16 @@ class SceneManager {
                     gl_FragColor = vec4(color, 1.0);
                 }
             `,
-            side: THREE.BackSide, // On regarde l'intérieur de la sphère
-            depthWrite: false
+            side: THREE.BackSide
         });
         
         this.skyDome = new THREE.Mesh(skyGeometry, skyMaterial);
-        this.skyDome.frustumCulled = false;
-        this.skyDome.matrixAutoUpdate = true;
-        // Position horizontale centrée caméra (mise à jour dans updateEnvironmentScale / animate)
-        if (this.camera) {
-            this.skyDome.position.set(this.camera.position.x, 0, this.camera.position.z);
-        } else {
-            this.skyDome.position.set(0,0,0);
-        }
         this.scene.add(this.skyDome);
     }
 
-    // Mise à l'échelle du sky dome / caméra / fog quand la scène s'agrandit
-    updateEnvironmentScale() {
-        if (!this.scene) return;
-        // Calcul d'un rayon cible très large pour couvrir TOUTE la scène + marge
-        const baseGrid = (this.gridSize || 3000);
-        const cameraDist = this.camera ? this.camera.position.length() : 0;
-        // Facteurs d'expansion agressifs pour éliminer totalement la "sphère noire"
-        let targetRadius = Math.max(3000, baseGrid * 3, cameraDist * 1.5);
-
-        let updated = false;
-        if (this.skyDome) {
-            // Reconstruire seulement si l'on gagne >15%
-            if (targetRadius > this.skyDomeRadius * 1.15) {
-                this.skyDomeRadius = targetRadius;
-                const newGeo = new THREE.SphereGeometry(this.skyDomeRadius, 64, 40);
-                this.skyDome.geometry.dispose();
-                this.skyDome.geometry = newGeo;
-                updated = true;
-            }
-            // Suivre la caméra horizontalement pour que l'horizon semble infini
-            if (this.camera) {
-                this.skyDome.position.x = this.camera.position.x;
-                this.skyDome.position.z = this.camera.position.z;
-                // Garder un horizon stable (y=0). Si besoin futur: lisser avec lerp.
-                this.skyDome.position.y = 0;
-            }
-        } else {
-            this.skyDomeRadius = targetRadius;
-            this.createSkyDome();
-            updated = true;
-        }
-
-        // Adapter le fog pour qu'il ne coupe jamais avant le sky
-        if (this.scene.fog) {
-            const desiredFogFar = this.skyDomeRadius * 0.95;
-            if (desiredFogFar > this.scene.fog.far * 0.9) {
-                this.scene.fog.far = desiredFogFar;
-                updated = true;
-            }
-        }
-
-        // Adapter la caméra pour éviter tout clipping noir (far légèrement supérieur au sky)
-        if (this.camera) {
-            const neededFar = Math.max(4000, this.skyDomeRadius * 1.1);
-            if (neededFar > this.camera.far * 0.9) {
-                this.camera.far = neededFar;
-                this.camera.updateProjectionMatrix();
-                updated = true;
-            }
-        }
-        // (Log optionnel)
-        // if (updated) console.log(`🌌 Sky réajusté: radius=${this.skyDomeRadius.toFixed(0)} far=${this.camera?.far}`);
-    }
-
     createGroundFloor() {
-        // Taille du sol liée à la grille: on laisse une marge autour (+20%)
-        const baseSize = (this.gridSize || 3000) * 1.2; // marge visuelle
-        const floorGeometry = new THREE.PlaneGeometry(baseSize, baseSize);
+        // Créer un grand plan gris pour le sol
+        const floorGeometry = new THREE.PlaneGeometry(2000, 2000);
         const floorMaterial = new THREE.MeshLambertMaterial({ 
             color: 0xccccc9,  // Gris clair légèrement jaunâtre
             // CORRECTION: Rendre le plateau complètement opaque pour éviter les problèmes de masquage
@@ -599,10 +509,6 @@ class SceneManager {
             opacity: 1.0
         });
         
-        // Recréer si déjà présent
-        if (this.groundFloor) {
-            this.scene.remove(this.groundFloor);
-        }
         this.groundFloor = new THREE.Mesh(floorGeometry, floorMaterial);
         this.groundFloor.rotation.x = -Math.PI / 2;
         this.groundFloor.position.y = -0.1; // Légèrement en dessous du plan d'interaction
@@ -816,69 +722,24 @@ class SceneManager {
         this.groundPlane.position.y = currentAssiseHeight;
         
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        let intersects = this.raycaster.intersectObject(this.groundPlane);
-        let point = null;
-        if (intersects.length === 0) {
-            // Fallback: intersection manuelle avec un plan horizontal infini
-            const ray = this.raycaster.ray;
-            if (Math.abs(ray.direction.y) > 1e-6) {
-                const t = (this.groundPlane.position.y - ray.origin.y) / ray.direction.y;
-                if (t > 0) {
-                    point = ray.origin.clone().add(ray.direction.clone().multiplyScalar(t));
-                    // On assure la couverture même sans hit initial
-                    this.ensureCoverageForPoint(point.x, point.z, true);
-                }
-            }
-        } else {
-            point = intersects[0].point;
-        }
+        const intersects = this.raycaster.intersectObject(this.groundPlane);
 
-        if (!point) return;
-        const snapToGrid = (value) => Math.round(value / this.gridSpacing) * this.gridSpacing;
-        const x = snapToGrid(point.x);
-        const z = snapToGrid(point.z);
-        const halfSize = (this.gridSize || 6000) / 2;
-        const maxAbs = Math.max(Math.abs(x), Math.abs(z));
-        if (maxAbs > halfSize * 0.85) {
-            this.ensureCoverageForPoint(x, z, false);
-        }
-        this.safeUpdateElement('cursorX', x);
-        this.safeUpdateElement('cursorZ', z);
-        document.dispatchEvent(new CustomEvent('cursorMove', { detail: { x, z } }));
-    }
+        if (intersects.length > 0) {
+            const point = intersects[0].point;
+            const snapToGrid = (value) => Math.round(value / this.gridSpacing) * this.gridSpacing;
+            
+            const x = snapToGrid(point.x);
+            const z = snapToGrid(point.z);
 
-    /** Assure la couverture du point par la grille/plateau (déjà défini plus bas si dupliqué, ignorer). */
-    ensureCoverageForPoint(x, z, forceMarginIfNoHit = false) {
-        // Éviter double définition si déjà présente
-        if (this._ensureCoverageForPointDefined) {
-            // Appel vers l’implémentation existante (si redéfinie plus haut)
-            return this._ensureCoverageForPointImpl && this._ensureCoverageForPointImpl(x, z, forceMarginIfNoHit);
+            // Mise à jour de l'affichage
+            this.safeUpdateElement('cursorX', x);
+            this.safeUpdateElement('cursorZ', z);
+
+            // Émettre un événement pour d'autres composants
+            document.dispatchEvent(new CustomEvent('cursorMove', {
+                detail: { x, z }
+            }));
         }
-        this._ensureCoverageForPointDefined = true;
-        this._ensureCoverageForPointImpl = (X, Z, force) => {
-            const margin = force ? 1000 : 500;
-            const maxAbs = Math.max(Math.abs(X), Math.abs(Z));
-            const half = (this.gridSize || 6000) / 2;
-            if (maxAbs <= half * 0.9) return;
-            let needed = maxAbs * 2 + margin;
-            needed *= 1.05;
-            let newSize = Math.ceil(needed / 100) * 100;
-            if (newSize <= this.gridSize) return;
-            if (!this.disableGridCap) {
-                this.maxGridSizeCm = this.maxGridSizeCm || 1000000;
-                newSize = Math.min(newSize, this.maxGridSizeCm);
-            }
-            const old = this.gridSize;
-            this.gridSize = newSize;
-            this.createGrid();
-            this.createGroundFloor();
-            this.createNorthArrow();
-            if (this.ensureGroundPlaneCoverage) this.ensureGroundPlaneCoverage();
-            document.dispatchEvent(new CustomEvent('gridExpanded', { detail: { newSize, point:{x:X, z:Z}, hover:true, fallback:force } }));
-            console.log(`🟦 Expansion point-cible: ${(old/100).toFixed(1)}m → ${(newSize/100).toFixed(1)}m (point ${(X/100).toFixed(1)}m, ${(Z/100).toFixed(1)}m )`);
-        };
-        // Appel initial
-        this._ensureCoverageForPointImpl(x, z, forceMarginIfNoHit);
     }
 
     onMouseClick(event) {        
@@ -921,8 +782,7 @@ class SceneManager {
                 const suggestionIntersects = this.raycaster.intersectObjects(suggestionMeshes);
                 
                 if (suggestionIntersects.length > 0) {
-                    
-                    
+
                     // RESTAURATION 5: Logique complète des suggestions
                     const suggestion = suggestionIntersects[0].object.userData;
                     const ghost = window.ConstructionTools.suggestionGhosts.find(g => 
@@ -1032,12 +892,19 @@ class SceneManager {
                                     // console.log('🔧 Création automatique du joint horizontal pour chaque brique posée');
                                     this.createAutomaticHorizontalJoint(placedElement || this.getLastPlacedElement());
                                     
-                                    // NOUVELLE FONCTIONNALITÉ : Activation automatique du joint vertical pour les blocs coupés (1/2, 1/4, 3/4)
-                                    // Quand un bloc coupé est placé à partir d'une proposition, il doit être considéré comme adjacent
+                                    // NOUVELLE FONCTIONNALITÉ : Activation automatique du joint vertical pour les blocs coupés
+                                    // Quand un bloc coupé (1/4, 1/2, 3/4) est placé à partir d'une proposition, il doit être considéré comme adjacent
                                     if (placedElement && this.isCutBlock(placedElement) && capturedReferenceElement) {
-                                        const cutType = this.getCutType(placedElement);
-                                        console.log('🔧 Bloc coupé', cutType, 'détecté via système de proposition - Activation automatique du joint vertical');
-                                        this.activateVerticalJointForCutBlock(placedElement, capturedReferenceElement, suggestionType, ghost.mesh.userData.letter);
+                                        console.log('🔧 Bloc coupé détecté via système de proposition - Activation automatique du joint vertical');
+                                        this.activateVerticalJointForHalfBlock(placedElement, capturedReferenceElement, suggestionType, ghost.mesh.userData.letter);
+                                    }
+                                    
+                                    // NOUVELLE FONCTIONNALITÉ : Activation automatique du joint vertical quand on place une brique entière depuis une brique coupée
+                                    // Cas inverse: brique entière placée à partir d'une brique coupée de référence
+                                    if (placedElement && capturedReferenceElement && 
+                                        !this.isCutBlock(placedElement) && this.isCutBlock(capturedReferenceElement)) {
+                                        console.log('🔧 Brique entière placée depuis une brique coupée de référence - Activation automatique du joint vertical');
+                                        this.activateVerticalJointForHalfBlock(placedElement, capturedReferenceElement, suggestionType, ghost.mesh.userData.letter);
                                     }
                                     
                                     // LOGIQUE UNIVERSELLE DE JOINTS VERTICAUX AUTOMATIQUES
@@ -1242,10 +1109,18 @@ class SceneManager {
                                 // console.log('🔧 Création automatique du joint horizontal pour chaque brique posée (fallback)');
                                 this.createAutomaticHorizontalJoint(placedElement || this.getLastPlacedElement());
                                 
-                                // NOUVELLE FONCTIONNALITÉ : Activation automatique du joint vertical pour les blocs 1/2 (fallback)
-                                // Quand un bloc 1/2 est placé à partir d'une proposition, il doit être considéré comme adjacent
-                                if (placedElement && this.isHalfBlock(placedElement) && capturedReferenceElement) {
-                                    console.log('🔧 Bloc 1/2 détecté via système de proposition (fallback) - Activation automatique du joint vertical');
+                                // NOUVELLE FONCTIONNALITÉ : Activation automatique du joint vertical pour les blocs coupés (fallback)
+                                // Quand un bloc coupé (1/4, 1/2, 3/4) est placé à partir d'une proposition, il doit être considéré comme adjacent
+                                if (placedElement && this.isCutBlock(placedElement) && capturedReferenceElement) {
+                                    console.log('🔧 Bloc coupé détecté via système de proposition (fallback) - Activation automatique du joint vertical');
+                                    this.activateVerticalJointForHalfBlock(placedElement, capturedReferenceElement, suggestionType, ghost.mesh.userData.letter);
+                                }
+                                
+                                // NOUVELLE FONCTIONNALITÉ : Activation automatique du joint vertical quand on place une brique entière depuis une brique coupée (fallback)
+                                // Cas inverse: brique entière placée à partir d'une brique coupée de référence
+                                if (placedElement && capturedReferenceElement && 
+                                    !this.isCutBlock(placedElement) && this.isCutBlock(capturedReferenceElement)) {
+                                    console.log('🔧 Brique entière placée depuis une brique coupée de référence (fallback) - Activation automatique du joint vertical');
                                     this.activateVerticalJointForHalfBlock(placedElement, capturedReferenceElement, suggestionType, ghost.mesh.userData.letter);
                                 }
                                 
@@ -1460,9 +1335,7 @@ class SceneManager {
                                 window.ConstructionTools.ghostElement && 
                                 window.ConstructionTools.showGhost &&
                                 !isSelectionMode; // Empêcher le placement en mode sélection
-            
-            
-            
+
             // RESTAURATION 2: Vérifier les intersections avec les éléments existants
             const elementMeshes = [];
             
@@ -1519,10 +1392,7 @@ class SceneManager {
                 }
             });
             /*
-            console.log('🔍 DEBUG tous objets scène (excluant sol):', {
-                totalSceneObjects: allSceneObjects.length,
-                details: allSceneObjects
-            });
+            
             */
             
             // Étendre le raycast pour inclure les objets de mesure/annotation
@@ -1575,12 +1445,10 @@ class SceneManager {
                         intersect.object.userData.element.isGLBModel
                        );
             });
-            
-            
+
             // Si on clique sur un élément existant, gérer selon le mode d'interaction
             if (constructionIntersects.length > 0 || intersects.length > 0) {
-                
-                
+
                 // RESTAURATION 4: Logique de sélection d'éléments avec protection renforcée
                 let element = null;
                 let intersectObject = null;
@@ -1610,25 +1478,7 @@ class SceneManager {
                 // Vérifier que l'élément existe et a les propriétés requises
                 if (!element || !element.id) {
                     // console.warn('⚠️ Élément invalide détecté lors du clic:', element);
-                    // console.log('🔍 Debug intersection détaillé:', {
-                    //     intersectsLength: intersects.length,
-                    //     constructionIntersectsLength: constructionIntersects.length,
-                    //     allObjects: intersects.map((intersect, index) => ({
-                    //         index,
-                    //         name: intersect.object?.name || 'unnamed',
-                    //         type: intersect.object?.type || 'unknown',
-                    //         userData: intersect.object?.userData || {},
-                    //         hasElement: !!intersect.object?.userData?.element,
-                    //         elementId: intersect.object?.userData?.element?.id || 'none',
-                    //         elementType: intersect.object?.userData?.element?.type || 'unknown',
-                    //         isJoint: intersect.object?.userData?.element?.isVerticalJoint || intersect.object?.userData?.element?.isHorizontalJoint || false,
-                    //         distance: intersect.distance
-                    //     })),
-                    //     validElementMeshesUsed: validElementMeshes.length,
-                    //     wasObjectInValidMeshes: intersects.map(intersect => 
-                    //         validElementMeshes.includes(intersect.object)
-                    //     )
-                    // });
+                    // 
                     
                     // DEBUG: Vérifier s'il y a un outil de construction actif
                     const hasConstructionTool = window.ConstructionTools && window.ConstructionTools.currentMode;
@@ -1646,14 +1496,7 @@ class SceneManager {
                         
                         // DEBUG: Vérifier l'état exact du ghost
                         const ghost = window.ConstructionTools?.ghostElement;
-                        // console.log('🔍 DEBUG Ghost element état:', {
-                        //     hasGhost: !!ghost,
-                        //     hasGhostMesh: !!ghost?.mesh,
-                        //     ghostMeshVisible: ghost?.mesh?.visible,
-                        //     ghostVisible: ghost?.visible,
-                        //     showGhost: window.ConstructionTools?.showGhost,
-                        //     activeBrickForSuggestions: window.ConstructionTools?.activeBrickForSuggestions
-                        // });
+                        // 
                         
                         // Aller directement à la logique de placement depuis le sol
                         const isGhostActive = window.ConstructionTools && 
@@ -1661,7 +1504,7 @@ class SceneManager {
                                             window.ConstructionTools.ghostElement.mesh &&
                                             window.ConstructionTools.ghostElement.mesh.visible;
                         
-                        // console.log('🔍 DEBUG isGhostActive:', isGhostActive);
+                        // 
                         
                         if (isGhostActive) {
                             // Désactiver les suggestions avant placement
@@ -1764,22 +1607,6 @@ class SceneManager {
                                 console.warn('⚠️ activateVerticalJointMode non disponible');
                             }
                         } else {
-                            // 🔧 NOUVELLE FONCTIONNALITÉ: Vérifier si un bouton de découpe est actif
-                            let cutState = null;
-                            if (window.CutButtonManager && window.CutButtonManager.getCurrentState) {
-                                cutState = window.CutButtonManager.getCurrentState();
-                            }
-                            
-                            if (cutState && cutState.cutType && cutState.cutType !== 'full' && 
-                                (element.type === 'brick' || element.type === 'block') && 
-                                !element.blockType?.includes('_HALF') && !element.blockType?.includes('_1Q') && !element.blockType?.includes('_3Q')) {
-                                
-                                // Un bouton de découpe est actif et on clique sur un bloc entier -> remplacer par les parties découpées
-                                console.log('🔧 Découpe activée:', cutState.cutType, 'pour élément:', element.id);
-                                this.performBlockCut(element, cutState.cutType);
-                                return; // Sortir après la découpe
-                            }
-                            
                             // Vérifier si un plancher est en cours de placement
                             const isFloorBeingPlaced = window.tempGLBInfo && 
                                                      (window.tempGLBInfo.category === 'planchers' || 
@@ -1813,8 +1640,7 @@ class SceneManager {
                     }
                 } else {
                     // RESTAURATION 6: Gestion des assises inférieures
-                    
-                    
+
                     if (!isGhostActive || forceSelection || isSelectionMode) {
                         // Mode sélection ou sélection forcée - activer le mode construction à la position de la souris
                         
@@ -1906,8 +1732,7 @@ class SceneManager {
             }
             
             if (isGhostActive) {
-                
-                
+
                 // RESTAURATION 1: Désactiver les suggestions avant placement
                 if (window.ConstructionTools && window.ConstructionTools.deactivateSuggestions) {
                     window.ConstructionTools.deactivateSuggestions();
@@ -2069,7 +1894,25 @@ class SceneManager {
             material = document.getElementById('materialSelect').value;
         }
         
-        // CORRECTION: Récupérer le blockType spécifique pour les joints
+        // CORRECTION: Récupérer AVANT le blockType original (non nettoyé) pour préserver l'info de coupe
+        let originalBlockType = type; // Type original non nettoyé
+        
+        // Pour les blocs, récupérer le type original avec l'info de coupe depuis BlockSelector
+        if (type === 'block' && window.BlockSelector && window.BlockSelector.currentBlock) {
+            originalBlockType = window.BlockSelector.currentBlock;
+            console.log('🔧 DEBUG placeElementAt: originalBlockType depuis BlockSelector =', originalBlockType);
+        }
+        
+        // Pour les briques, récupérer le type original avec l'info de coupe
+        if (type === 'brick' && window.BrickSelector && window.BrickSelector.getCurrentBrick) {
+            const currentBrick = window.BrickSelector.getCurrentBrick();
+            if (currentBrick && currentBrick.type) {
+                originalBlockType = currentBrick.type;
+                console.log('🔧 DEBUG placeElementAt: originalBlockType depuis BrickSelector =', originalBlockType);
+            }
+        }
+        
+        // MAINTENANT récupérer le blockType nettoyé pour le reste de la logique
         let blockType = type; // Valeur par défaut
         if (window.ConstructionTools && window.ConstructionTools.getElementTypeForMode) {
             blockType = window.ConstructionTools.getElementTypeForMode(type);
@@ -2177,10 +2020,10 @@ class SceneManager {
             y = supportElement.position.y + supportElement.dimensions.height;
         }
 
-        // Créer le nouvel élément
-        const element = new WallElement({
+        // Créer le nouvel élément avec ajout des informations GLB
+        const elementOptions = {
             type,
-            blockType, // CORRECTION: Ajouter le blockType spécifique
+            blockType: originalBlockType, // CORRECTION: Utiliser le type ORIGINAL non nettoyé pour préserver l'info de coupe
             material,
             x: snapX,
             y: y,
@@ -2193,8 +2036,8 @@ class SceneManager {
             ...(type === 'beam' && window.ConstructionTools ? {
                 beamType: window.ConstructionTools.currentBeamType || 'IPE80',
                 beamLengthCm: window.ConstructionTools.currentBeamLengthCm || length
-            } : {})
-            ,assiseName: (function(){
+            } : {}),
+            assiseName: (function(){
                 // Ne pas générer de nom d'assise pour les poutres
                 if (type === 'beam') return null;
                 if (window.AssiseManager) {
@@ -2204,7 +2047,18 @@ class SceneManager {
                 }
                 return null;
             })()
-        });
+        };
+
+        // Ajouter les informations GLB si applicable
+        if (window.BrickSelector && window.BrickSelector.brickTypes && window.BrickSelector.brickTypes[type]) {
+            const brickData = window.BrickSelector.brickTypes[type];
+            if (brickData.category === 'glb' && brickData.glbPath) {
+                elementOptions.glbPath = brickData.glbPath;
+                console.log('🎯 Ajout informations GLB pour type:', type, 'Path:', brickData.glbPath);
+            }
+        }
+
+        const element = new WallElement(elementOptions);
 
         // CORRECTION SPÉCIALE: Forcer l'opacité complète pour les isolants placés
         if (element.type === 'insulation' && element.mesh && element.mesh.material) {
@@ -2331,21 +2185,37 @@ class SceneManager {
             this.createAutomaticHorizontalJoint(element);
         }
         
-        // NOUVELLE FONCTIONNALITÉ : Détection et traitement des blocs 1/2 lors du placement direct
-        if (!element.isVerticalJoint && !element.isHorizontalJoint && this.isHalfBlock(element)) {
-            console.log('🔧 Bloc 1/2 détecté lors du placement direct:', element.id);
+        // NOUVELLE FONCTIONNALITÉ : Détection et traitement des blocs coupés lors du placement direct
+        if (!element.isVerticalJoint && !element.isHorizontalJoint && this.isCutBlock(element)) {
+            console.log('🔧 Bloc coupé détecté lors du placement direct:', element.id);
             
             // Chercher un bloc adjacent potentiel pour activer les joints
             const adjacentBlock = this.findClosestAdjacentBlock(element);
             if (adjacentBlock) {
-                console.log('🔧 Bloc adjacent trouvé pour le bloc 1/2:', adjacentBlock.id);
+                console.log('🔧 Bloc adjacent trouvé pour le bloc coupé:', adjacentBlock.id);
                 // Activer les joints avec une lettre générique car pas de suggestion spécifique
                 this.activateVerticalJointForHalfBlock(element, adjacentBlock, 'direct-placement', 'A');
             } else {
-                console.log('🔧 Aucun bloc adjacent trouvé pour le bloc 1/2 - activation des joints par défaut');
-                // Activer les joints par défaut pour les blocs 1/2 isolés
+                console.log('🔧 Aucun bloc adjacent trouvé pour le bloc coupé - activation des joints par défaut');
+                // Activer les joints par défaut pour les blocs coupés isolés
                 this.createAutomaticLeftVerticalJoint(element);
                 this.createAutomaticRightVerticalJoint(element);
+            }
+        }
+        
+        // NOUVELLE FONCTIONNALITÉ : Détection et traitement des briques entières placées près d'un bloc coupé
+        if (!element.isVerticalJoint && !element.isHorizontalJoint && !this.isCutBlock(element) && 
+            (element.type === 'brick' || element.type === 'block')) {
+            
+            // Chercher un bloc coupé adjacent potentiel pour activer les joints
+            const adjacentCutBlock = this.findClosestAdjacentBlock(element);
+            if (adjacentCutBlock && this.isCutBlock(adjacentCutBlock)) {
+                console.log('🔧 Brique entière placée près d\'un bloc coupé lors du placement direct:', {
+                    placedElement: element.id,
+                    adjacentCutBlock: adjacentCutBlock.id
+                });
+                // Activer les joints avec une lettre générique car pas de suggestion spécifique
+                this.activateVerticalJointForHalfBlock(element, adjacentCutBlock, 'direct-placement', 'A');
             }
         }
         
@@ -2430,163 +2300,6 @@ class SceneManager {
         document.dispatchEvent(new CustomEvent('elementPlaced', {
             detail: { element }
         }));
-
-        // 🔄 Vérifier si la grille doit être agrandie après l'ajout effectif de l'élément
-        this.expandGridIfNeeded(element);
-    }
-
-    /**
-     * Agrandit automatiquement la grille si un élément approche les limites.
-     * Critère: si l'élément (son extrémité) dépasse 90% du demi-size courant.
-     * Stratégie: doubler progressivement (500 -> 750 -> 1000 -> 1500 -> 2000 ...)
-     * pour limiter les reconstructions fréquentes.
-     */
-    expandGridIfNeeded(element) {
-        if (!this.elements || this.elements.size === 0) return;
-
-        // Paramètres (configurables éventuellement via UI)
-        this._gridExtraMarginCm = this._gridExtraMarginCm ?? 600; // marge totale ajoutée (avant arrondi)
-        const triggerRatio = 0.8; // déclencher plus tôt (80% au lieu de 90%)
-        this.maxGridSizeCm = this.maxGridSizeCm || 1000000; // 10 km plafond configurable
-        this.disableGridCap = this.disableGridCap || false; // possibilité de supprimer tout plafond
-
-        const fp = this.computeSceneFootprint();
-        if (!fp) return;
-    const { spanX, spanZ, diameterCluster, diameterCentered } = fp;
-        const size = this.gridSize || 3000;
-        const half = size / 2;
-
-        // 1) Couverture directe de l'élément passé en paramètre (sécurité absolue)
-        if (element && element.position) {
-            const ex = Math.abs(element.position.x);
-            const ez = Math.abs(element.position.z);
-            const maxAbsElement = Math.max(ex, ez);
-            if (maxAbsElement > half * 0.99) { // quasi limite
-                // Calculer taille minimale couvrant l'élément + marge
-                let needed = maxAbsElement * 2 + this._gridExtraMarginCm;
-                // Ajout petit facteur pour éviter expansions successives trop rapprochées
-                needed *= 1.05;
-                let newForced = Math.ceil(needed / 100) * 100; // arrondi mètre
-                if (newForced > size) {
-                    if (!this.disableGridCap) newForced = Math.min(newForced, this.maxGridSizeCm);
-                    const old = this.gridSize;
-                    this.gridSize = newForced;
-                    this.createGrid();
-                    this.createNorthArrow();
-                    this.createGroundFloor();
-                    if (this.ensureGroundPlaneCoverage) this.ensureGroundPlaneCoverage();
-                    if (this.updateEnvironmentScale) this.updateEnvironmentScale();
-                    console.log(`🟦 Expansion forcée (élément hors couverture): ${(old/100).toFixed(1)}m → ${(newForced/100).toFixed(1)}m`);
-                    document.dispatchEvent(new CustomEvent('gridExpanded', { detail: { newSize: newForced, forced:true } }));
-                }
-                // Après une expansion forcée on peut continuer pour voir si une expansion globale supplémentaire est nécessaire
-            }
-        }
-
-    // Besoin réel = max(enveloppe cluster, couverture distance depuis origine)
-    const neededDiameter = Math.max(diameterCluster, diameterCentered);
-    if (neededDiameter <= size * triggerRatio) return; // assez grand pour l'instant
-
-    // Nouvelle taille: marge croissance 10%
-    const target = neededDiameter * 1.10;
-        let newSize = Math.ceil(target / 100) * 100; // multiple de 1m
-        // Sécurité upper bound 1km
-        if (!this.disableGridCap) newSize = Math.min(newSize, this.maxGridSizeCm);
-        if (newSize <= size) return;
-
-    const maxAbs = (Math.max(Math.abs(fp.minX), Math.abs(fp.maxX), Math.abs(fp.minZ), Math.abs(fp.maxZ)) / 100).toFixed(1);
-    console.log(`🟦 Expansion grille/sol: ${(size/100).toFixed(1)}m → ${(newSize/100).toFixed(1)}m (spanX=${(spanX/100).toFixed(1)}m spanZ=${(spanZ/100).toFixed(1)}m éloignementMax=${maxAbs}m)`);
-        this.gridSize = newSize;
-        this.createGrid();
-        this.createNorthArrow();
-    this.createGroundFloor();
-    if (this.updateEnvironmentScale) this.updateEnvironmentScale();
-    document.dispatchEvent(new CustomEvent('gridExpanded', { detail: { newSize, spanX, spanZ, auto:true } }));
-    }
-
-    /**
-     * Calcule l'enveloppe XY globale (projection) des briques/blocs/éléments dimensionnés en tenant compte de la rotation.
-     * Retourne null si rien.
-     */
-    computeSceneFootprint() {
-        if (!this.elements || this.elements.size === 0) return null;
-        let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-        let count = 0;
-        for (const el of this.elements.values()) {
-            if (!el || !el.position || !el.dimensions) continue;
-            // Inclure briques, blocs, poutres, éventuellement GLB possédant dimensions
-            if (!['brick','block','beam'].includes(el.type)) continue;
-            const halfL = el.dimensions.length / 2;
-            const halfW = el.dimensions.width / 2;
-            const rot = el.rotation || 0;
-            const cos = Math.cos(rot), sin = Math.sin(rot);
-            // Projection des demi-axes sur X/Z (AABB d'un rectangle tourné)
-            const projX = Math.abs(cos) * halfL + Math.abs(sin) * halfW;
-            const projZ = Math.abs(sin) * halfL + Math.abs(cos) * halfW;
-            const x1 = el.position.x - projX;
-            const x2 = el.position.x + projX;
-            const z1 = el.position.z - projZ;
-            const z2 = el.position.z + projZ;
-            if (x1 < minX) minX = x1;
-            if (x2 > maxX) maxX = x2;
-            if (z1 < minZ) minZ = z1;
-            if (z2 > maxZ) maxZ = z2;
-            count++;
-        }
-        if (count === 0) return null;
-    const spanX = maxX - minX;
-    const spanZ = maxZ - minZ;
-    const margin = (this._gridExtraMarginCm || 600);
-    const maxAbsExtent = Math.max(Math.abs(minX), Math.abs(maxX), Math.abs(minZ), Math.abs(maxZ));
-    const diameterCluster = Math.max(spanX, spanZ) + margin;      // pour couvrir juste le cluster
-    const diameterCentered = maxAbsExtent * 2 + margin;           // pour couvrir jusqu'à l'éloignement extrême
-    return { minX, maxX, minZ, maxZ, spanX, spanZ, margin, maxAbsExtent, diameterCluster, diameterCentered };
-    }
-
-    /** Ajuste immédiatement la grille au contenu (appel manuel) */
-    fitPlateauToScene(extraMarginMeters = 6) {
-        const fp = this.computeSceneFootprint();
-        if (!fp) return;
-        const marginCm = Math.max(0, extraMarginMeters * 100);
-        const needed = Math.max(fp.spanX, fp.spanZ) + marginCm;
-        let newSize = Math.ceil(needed / 100) * 100;
-        if (newSize <= (this.gridSize||0)) return;
-        console.log(`🟦 Ajustement manuel plateau: ${(this.gridSize/100).toFixed(1)}m → ${(newSize/100).toFixed(1)}m`);
-        this.gridSize = newSize;
-        this.createGrid();
-        this.createNorthArrow();
-    this.createGroundFloor();
-    if (this.updateEnvironmentScale) this.updateEnvironmentScale();
-    document.dispatchEvent(new CustomEvent('gridExpanded', { detail: { newSize, manualFit:true } }));
-    }
-
-    /**
-     * Définit explicitement la taille du plateau (grille + sol) en mètres (arrondi 50cm).
-     * newSizeMeters: nombre (ex: 80 pour 80m)
-     */
-    setPlateauSizeMeters(newSizeMeters) {
-        if (!newSizeMeters || newSizeMeters <= 0) return;
-        const newSizeCm = Math.ceil((newSizeMeters * 100) / 50) * 50; // arrondi multiple 50cm
-        if (newSizeCm <= this.gridSize) {
-            console.log(`ℹ️ Plateau déjà ≥ ${newSizeMeters}m (actuel ${(this.gridSize/100).toFixed(1)}m)`);
-            return;
-        }
-        const old = this.gridSize;
-        this.gridSize = newSizeCm;
-        this.createGrid();
-    this.createGroundFloor();
-    this.createNorthArrow();
-    if (this.updateEnvironmentScale) this.updateEnvironmentScale();
-        console.log(`🟦 Plateau redimensionné manuellement: ${(old/100).toFixed(1)}m → ${(this.gridSize/100).toFixed(1)}m`);
-        document.dispatchEvent(new CustomEvent('gridExpanded', { detail: { newSize: this.gridSize, manual: true } }));
-    }
-
-    /**
-     * Agrandit le plateau d'un delta en mètres (ex: +20m)
-     */
-    enlargePlateauByMeters(deltaMeters) {
-        if (!deltaMeters || deltaMeters <= 0) return;
-        this.setPlateauSizeMeters(this.gridSize/100 + deltaMeters);
     }
 
     // Méthode pour ajouter un élément à une assise spécifique sans détection automatique
@@ -2984,7 +2697,7 @@ class SceneManager {
             let parent = object.parent;
             let depth = 0;
             while (parent && depth < 5) { // Limite de profondeur pour éviter boucles infinies
-                // console.log('🔍 Vérification parent niveau', depth, ':', parent.name, parent.userData);
+                // 
                 
                 if (parent.userData.measurementId !== undefined || parent.userData.measurementType) {
                     console.log('📏 Cotation détectée via parent:', parent.userData);
@@ -3388,15 +3101,6 @@ class SceneManager {
             if (this.controls) {
                 this.controls.update();
             }
-
-            // Ajuster l'environnement dynamiquement (sky, fog, camera.far) en fonction de la grille et de la distance caméra
-            if (this.updateEnvironmentScale) {
-                // Limiter la fréquence: toutes les 15 frames
-                this._envFrame = (this._envFrame || 0) + 1;
-                if (this._envFrame % 10 === 0) { // un peu plus fréquent pour réactivité
-                    this.updateEnvironmentScale();
-                }
-            }
             
             // Throttling plus agressif pour les suggestions de survol - seulement tous les 10 frames
             this._suggestionFrame = (this._suggestionFrame || 0) + 1;
@@ -3694,8 +3398,7 @@ class SceneManager {
         
         // Si les performances sont faibles avec beaucoup d'éléments
         if (this.currentFPS < 30 && elementCount > 50) {
-            
-            
+
             // Réduire la qualité des ombres
             if (this.renderer.shadowMap.enabled) {
                 this.renderer.shadowMap.type = THREE.BasicShadowMap;
@@ -4362,11 +4065,7 @@ class SceneManager {
         for (const existingJoint of existingHorizontalJoints) {
             if (existingJoint.userData.parentElementId === referenceElement.id) {
                 /*
-                console.log('🔍 Joint horizontal existant détecté par ID parent:', {
-                    referenceElementId: referenceElement.id,
-                    existingJointId: existingJoint.userData.id || existingJoint.name,
-                    parentElementId: existingJoint.userData.parentElementId
-                });
+                
                 */
                 return true;
             }
@@ -4389,13 +4088,7 @@ class SceneManager {
             // Si le joint est à proximité horizontale et à une hauteur similaire
             if (horizontalDistance < tolerance && heightDifference < tolerance) {
                 /*
-                console.log('🔍 Joint horizontal existant détecté par position:', {
-                    referenceElementId: referenceElement.id,
-                    existingJointPosition: jointPos,
-                    elementPosition: refPos,
-                    horizontalDistance: horizontalDistance,
-                    heightDifference: heightDifference
-                });
+                
                 */
                 return true;
             }
@@ -4496,7 +4189,7 @@ class SceneManager {
         }
 
         if (bestCandidate) {
-            // console.log('🔍 Adjacence (mode coupé) détectée:', { ref: referenceElement.id, adj: bestCandidate.id, side, error: bestError.toFixed(2) });
+            // 
             return bestCandidate;
         }
 
@@ -4566,14 +4259,7 @@ class SceneManager {
 
             // Si le joint est à proximité de la position attendue
             if (horizontalDistance < tolerance && heightDifference < tolerance) {
-                console.log('🔍 Joint vertical existant détecté:', {
-                    referenceElementId: referenceElement.id,
-                    side: side,
-                    expectedJointPosition: { x: expectedJointX, y: refPos.y, z: refPos.z },
-                    existingJointPosition: jointPos,
-                    horizontalDistance: horizontalDistance,
-                    heightDifference: heightDifference
-                });
+                
                 return true;
             }
         }
@@ -4600,13 +4286,13 @@ class SceneManager {
         // NOUVELLE LOGIQUE: Vérifier s'il y a une brique adjacente à gauche
         const adjacentBrick = this.findAdjacentBrick(referenceElement, 'left');
         if (!adjacentBrick) {
-            console.log('🔍 Aucune brique adjacente à gauche trouvée, joint vertical non nécessaire pour:', referenceElement.id);
+            
             return;
         }
 
         // DÉDUPLICATION: Vérifier s'il existe déjà un joint vertical gauche pour cet élément
         if (this.hasExistingVerticalJoint(referenceElement, 'left')) {
-            console.log('🔍 Joint vertical gauche déjà existant pour cet élément, création ignorée:', referenceElement.id);
+            
             return;
         }
         
@@ -4647,13 +4333,7 @@ class SceneManager {
         // NOUVELLE LOGIQUE: Vérifier s'il y a une brique adjacente à droite
         const adjacentBrick = this.findAdjacentBrick(referenceElement, 'right');
         if (!adjacentBrick) {
-            console.log('🔍 Aucune brique adjacente à droite trouvée pour:', referenceElement.id);
-            console.log('🔍 DEBUG: Position référence:', {
-                x: referenceElement.position.x,
-                z: referenceElement.position.z,
-                rotation: (referenceElement.rotation * 180 / Math.PI).toFixed(1) + '°'
-            });
-            
+
             // DEBUG: Lister toutes les briques proches pour diagnostic
             const nearbyBricks = [];
             for (const [id, element] of this.elements) {
@@ -4674,13 +4354,13 @@ class SceneManager {
                     });
                 }
             }
-            console.log('🔍 DEBUG: Briques proches (rayon 30cm):', nearbyBricks);
+            
             return;
         }
 
         // DÉDUPLICATION: Vérifier s'il existe déjà un joint vertical droit pour cet élément
         if (this.hasExistingVerticalJoint(referenceElement, 'right')) {
-            console.log('🔍 Joint vertical droit déjà existant pour cet élément, création ignorée:', referenceElement.id);
+            
             return;
         }
         
@@ -4732,7 +4412,7 @@ class SceneManager {
 
         // DÉDUPLICATION: Vérifier s'il existe déjà un joint horizontal pour cet élément
         if (this.hasExistingHorizontalJoint(referenceElement)) {
-            // console.log('🔍 Joint horizontal déjà existant pour cet élément, création ignorée:', referenceElement.id);
+            // 
             return;
         }
         
@@ -4757,14 +4437,7 @@ class SceneManager {
                 const elementType = referenceElement.blockType || referenceElement.userData?.blockType || referenceElement.type;
                 
                 // DEBUG DÉTAILLÉ pour comprendre le problème de récupération du blockType
-                // console.log('🔍 [JOINT DEBUG] Analyse de l\'élément pour joint horizontal:', {
-                //     elementId: referenceElement.id,
-                //     'referenceElement.blockType': referenceElement.blockType,
-                //     'referenceElement.userData?.blockType': referenceElement.userData?.blockType,
-                //     'referenceElement.type': referenceElement.type,
-                //     'elementType final': elementType,
-                //     'userData complet': referenceElement.userData
-                // });
+                // 
                 
                 let assiseType = elementType;
                 
@@ -4805,7 +4478,6 @@ class SceneManager {
                 // FALLBACK: Utiliser getJointHeightForType seulement si rien d'autre n'est trouvé
                 if (!jointHorizontal) {
                     jointHorizontal = window.AssiseManager.getJointHeightForType(assiseType);
-                    console.warn(`⚠️ [JOINT CREATION] Hauteur par défaut depuis getJointHeightForType(${assiseType}): ${jointHorizontal} cm`);
                 }
             }
             
@@ -4998,53 +4670,46 @@ class SceneManager {
         return false;
     }
     
-    // Méthode utilitaire pour détecter si un élément est un bloc coupé (1/2, 1/4, 3/4)
+    // Méthode utilitaire pour détecter si un élément est un bloc coupé (1/4, 1/2, 3/4, etc.)
     isCutBlock(element) {
         if (!element) return false;
         
         // Vérifier par le blockType (le plus fiable)
-        if (element.blockType && /_(HALF|1Q|3Q)$/i.test(element.blockType)) {
+        if (element.blockType && (/_HALF$|_1Q$|_3Q$/i.test(element.blockType))) {
             console.log('🔧 Bloc coupé détecté par blockType:', element.blockType);
             return true;
         }
         
         // Vérifier par le type
-        if (element.type && /_(HALF|1Q|3Q)$/i.test(element.type)) {
+        if (element.type && (/_HALF$|_1Q$|_3Q$/i.test(element.type))) {
             console.log('🔧 Bloc coupé détecté par type:', element.type);
             return true;
         }
         
         // Vérifier par l'id/userData
-        if (element.id && /_(HALF|1Q|3Q)/i.test(element.id)) {
+        if (element.id && (/_HALF|_1Q|_3Q/i.test(element.id))) {
             console.log('🔧 Bloc coupé détecté par id:', element.id);
             return true;
         }
         
-        if (element.userData && element.userData.blockType && /_(HALF|1Q|3Q)$/i.test(element.userData.blockType)) {
+        if (element.userData && element.userData.blockType && (/_HALF$|_1Q$|_3Q$/i.test(element.userData.blockType))) {
             console.log('🔧 Bloc coupé détecté par userData.blockType:', element.userData.blockType);
             return true;
         }
         
-        // Vérifier par les dimensions caractéristiques des blocs coupés
-        if (element.dimensions) {
-            const length = element.dimensions.length;
-            // Bloc 1/2 = 19cm, Bloc 1/4 = 9.5cm, Bloc 3/4 = 29cm environ
-            if (length === 19 || length === 9.5 || (length >= 28 && length <= 30)) {
-                // Vérifier que ce n'est pas une brique normale
-                const isNormalBrick = element.type === 'brick' || 
-                                     (element.userData && element.userData.type === 'brick');
-                if (!isNormalBrick) {
-                    console.log('🔧 Bloc coupé détecté par dimensions (longueur:', length, 'cm)');
-                    return true;
-                }
+        // Vérifier via les sélecteurs actuels si disponibles
+        if (window.BlockSelector && window.BlockSelector.getCurrentBlock) {
+            const currentBlock = window.BlockSelector.getCurrentBlock();
+            if (currentBlock && (/_HALF$|_1Q$|_3Q$/i.test(currentBlock))) {
+                console.log('🔧 Bloc coupé détecté via BlockSelector actuel:', currentBlock);
+                return true;
             }
         }
         
-        // Vérifier via le BlockSelector actuel si disponible
-        if (window.BlockSelector && window.BlockSelector.getCurrentBlock) {
-            const currentBlock = window.BlockSelector.getCurrentBlock();
-            if (currentBlock && /_(HALF|1Q|3Q)$/i.test(currentBlock)) {
-                console.log('🔧 Bloc coupé détecté via BlockSelector actuel:', currentBlock);
+        if (window.BrickSelector && window.BrickSelector.currentBrick) {
+            const currentBrick = window.BrickSelector.currentBrick;
+            if (currentBrick && (/_HALF$|_1Q$|_3Q$/i.test(currentBrick))) {
+                console.log('🔧 Bloc coupé détecté via BrickSelector actuel:', currentBrick);
                 return true;
             }
         }
@@ -5052,100 +4717,101 @@ class SceneManager {
         return false;
     }
     
-    // Méthode utilitaire pour détecter si un élément est un bloc 1/2 (rétrocompatibilité)
+    // Méthode utilitaire pour détecter si un élément est un bloc 1/2 (maintenue pour compatibilité)
     isHalfBlock(element) {
-        return this.isCutBlock(element);
-    }
-    
-    // Méthode pour obtenir le type de coupe d'un bloc
-    getCutType(element) {
-        if (!element) return null;
+        if (!element) return false;
         
-        // Vérifier dans le blockType
-        if (element.blockType) {
-            if (/_HALF$/i.test(element.blockType)) return 'HALF';
-            if (/_1Q$/i.test(element.blockType)) return '1Q';
-            if (/_3Q$/i.test(element.blockType)) return '3Q';
+        // Vérifier par le blockType (le plus fiable)
+        if (element.blockType && /_HALF$/i.test(element.blockType)) {
+            console.log('🔧 Bloc 1/2 détecté par blockType:', element.blockType);
+            return true;
         }
         
-        // Vérifier dans le type
-        if (element.type) {
-            if (/_HALF$/i.test(element.type)) return 'HALF';
-            if (/_1Q$/i.test(element.type)) return '1Q';
-            if (/_3Q$/i.test(element.type)) return '3Q';
+        // Vérifier par le type
+        if (element.type && /_HALF$/i.test(element.type)) {
+            console.log('🔧 Bloc 1/2 détecté par type:', element.type);
+            return true;
         }
         
-        // Vérifier dans l'id
-        if (element.id) {
-            if (/_HALF/i.test(element.id)) return 'HALF';
-            if (/_1Q/i.test(element.id)) return '1Q';
-            if (/_3Q/i.test(element.id)) return '3Q';
+        // Vérifier par l'id/userData
+        if (element.id && /_HALF/i.test(element.id)) {
+            console.log('🔧 Bloc 1/2 détecté par id:', element.id);
+            return true;
         }
         
-        // Vérifier par les dimensions
-        if (element.dimensions) {
-            const length = element.dimensions.length;
-            if (length === 19) return 'HALF';
-            if (length === 9.5) return '1Q';
-            if (length >= 28 && length <= 30) return '3Q';
+        if (element.userData && element.userData.blockType && /_HALF$/i.test(element.userData.blockType)) {
+            console.log('🔧 Bloc 1/2 détecté par userData.blockType:', element.userData.blockType);
+            return true;
         }
         
-        // Vérifier via le BlockSelector
-        if (window.BlockSelector && window.BlockSelector.getCurrentBlock) {
-            const currentBlock = window.BlockSelector.getCurrentBlock();
-            if (currentBlock) {
-                if (/_HALF$/i.test(currentBlock)) return 'HALF';
-                if (/_1Q$/i.test(currentBlock)) return '1Q';
-                if (/_3Q$/i.test(currentBlock)) return '3Q';
+        // Vérifier par les dimensions (bloc 1/2 a généralement une longueur de 19cm)
+        if (element.dimensions && element.dimensions.length === 19) {
+            // Vérifier que ce n'est pas une brique normale de 19cm
+            const isNormalBrick = element.type === 'brick' || 
+                                 (element.userData && element.userData.type === 'brick');
+            if (!isNormalBrick) {
+                console.log('🔧 Bloc 1/2 détecté par dimensions (longueur 19cm)');
+                return true;
             }
         }
         
-        return null;
+        // Vérifier via le BlockSelector actuel si disponible
+        if (window.BlockSelector && window.BlockSelector.getCurrentBlock) {
+            const currentBlock = window.BlockSelector.getCurrentBlock();
+            if (currentBlock && /_HALF$/i.test(currentBlock)) {
+                console.log('🔧 Bloc 1/2 détecté via BlockSelector actuel:', currentBlock);
+                return true;
+            }
+        }
+        
+        return false;
     }
     
-    // Nouvelle méthode pour activer automatiquement le joint vertical pour les blocs coupés (1/2, 1/4, 3/4)
-    activateVerticalJointForCutBlock(cutBlock, originalBlock, suggestionType, suggestionLetter) {
-        if (!cutBlock || !originalBlock || !window.ConstructionTools) return;
+    // Méthode pour activer automatiquement le joint vertical pour les éléments adjacents
+    // Gère tous les cas: blocs coupés (1/4, 1/2, 3/4) placés près de blocs entiers, et vice versa
+    activateVerticalJointForHalfBlock(placedElement, referenceElement, suggestionType, suggestionLetter) {
+        if (!placedElement || !referenceElement || !window.ConstructionTools) return;
         
-        const cutType = this.getCutType(cutBlock);
-        
-        console.log('🔧 Activation joint vertical pour bloc coupé:', {
-            cutBlockId: cutBlock.id,
-            originalBlockId: originalBlock.id,
-            cutType: cutType,
+        console.log('🔧 Activation joint vertical pour éléments adjacents:', {
+            placedElementId: placedElement.id,
+            placedElementType: placedElement.blockType || placedElement.type,
+            isPlacedCut: this.isCutBlock(placedElement),
+            referenceElementId: referenceElement.id,
+            referenceElementType: referenceElement.blockType || referenceElement.type,
+            isReferenceCut: this.isCutBlock(referenceElement),
             suggestionType: suggestionType,
             suggestionLetter: suggestionLetter
         });
         
         // Déterminer le côté du joint à activer basé sur la position relative
-        const cutBlockPos = cutBlock.position;
-        const originalBlockPos = originalBlock.position;
+        const placedElementPos = placedElement.position;
+        const referenceElementPos = referenceElement.position;
         
-        if (!cutBlockPos || !originalBlockPos) {
+        if (!placedElementPos || !referenceElementPos) {
             console.warn('⚠️ Positions non disponibles pour calculer le côté du joint');
             return;
         }
         
         // Calculer la différence de position
-        const dx = cutBlockPos.x - originalBlockPos.x;
-        const dz = cutBlockPos.z - originalBlockPos.z;
+        const dx = placedElementPos.x - referenceElementPos.x;
+        const dz = placedElementPos.z - referenceElementPos.z;
         
-        // Déterminer la rotation du bloc original pour calculer la direction locale
-        const originalRotation = originalBlock.rotation || 0;
-        const cos = Math.cos(originalRotation);
-        const sin = Math.sin(originalRotation);
+        // Déterminer la rotation du bloc de référence pour calculer la direction locale
+        const referenceRotation = referenceElement.rotation || 0;
+        const cos = Math.cos(referenceRotation);
+        const sin = Math.sin(referenceRotation);
         
-        // Projeter la différence dans le système local du bloc original
+        // Projeter la différence dans le système local du bloc de référence
         const localDx = dx * cos + dz * sin;  // direction X locale (longueur)
         const localDz = -dx * sin + dz * cos; // direction Z locale (largeur)
         
         // Déterminer le côté du joint à activer
         let jointSide = null;
         if (Math.abs(localDx) > Math.abs(localDz)) {
-            // Le bloc coupé est plutôt sur le côté (gauche/droite)
+            // L'élément placé est plutôt sur le côté (gauche/droite)
             jointSide = localDx > 0 ? 'right' : 'left';
         } else {
-            // Le bloc coupé est plutôt devant/derrière, utiliser la lettre de suggestion
+            // L'élément placé est plutôt devant/derrière, utiliser la lettre de suggestion
             if (suggestionLetter) {
                 // Mapper les lettres aux côtés basé sur la logique existante
                 const leftSideLetters = ['C', 'D', 'H', 'M', 'P', 'V']; // Lettres qui correspondent à des joints gauches
@@ -5165,37 +4831,32 @@ class SceneManager {
             }
         }
         
-        console.log('🔧 Côté de joint déterminé pour bloc', cutType + ':', jointSide, {
+        console.log('🔧 Côté de joint déterminé:', jointSide, {
             localDx: localDx.toFixed(2),
             localDz: localDz.toFixed(2),
             suggestionLetter: suggestionLetter
         });
         
-        // Activer le joint vertical du côté approprié sur le bloc original
+        // Activer le joint vertical du côté approprié sur le bloc de référence
         if (jointSide === 'right') {
-            this.createAutomaticRightVerticalJoint(originalBlock);
-            console.log('✅ Joint vertical droit activé sur le bloc original');
+            this.createAutomaticRightVerticalJoint(referenceElement);
+            console.log('✅ Joint vertical droit activé sur le bloc de référence');
         } else {
-            this.createAutomaticLeftVerticalJoint(originalBlock);
-            console.log('✅ Joint vertical gauche activé sur le bloc original');
+            this.createAutomaticLeftVerticalJoint(referenceElement);
+            console.log('✅ Joint vertical gauche activé sur le bloc de référence');
         }
         
-        // Également activer le joint correspondant sur le bloc coupé nouvellement placé
+        // Également activer le joint correspondant sur l'élément nouvellement placé
         if (jointSide === 'right') {
-            this.createAutomaticLeftVerticalJoint(cutBlock); // Côté opposé pour le bloc coupé
-            console.log('✅ Joint vertical gauche activé sur le bloc', cutType);
+            this.createAutomaticLeftVerticalJoint(placedElement); // Côté opposé pour l'élément placé
+            console.log('✅ Joint vertical gauche activé sur l\'élément placé');
         } else {
-            this.createAutomaticRightVerticalJoint(cutBlock); // Côté opposé pour le bloc coupé
-            console.log('✅ Joint vertical droit activé sur le bloc', cutType);
+            this.createAutomaticRightVerticalJoint(placedElement); // Côté opposé pour l'élément placé
+            console.log('✅ Joint vertical droit activé sur l\'élément placé');
         }
         
         // Activer l'interface de contrôle du joint si disponible
         this.activateJointControlInterface(jointSide);
-    }
-    
-    // Méthode pour rétrocompatibilité avec les blocs 1/2
-    activateVerticalJointForHalfBlock(halfBlock, originalBlock, suggestionType, suggestionLetter) {
-        return this.activateVerticalJointForCutBlock(halfBlock, originalBlock, suggestionType, suggestionLetter);
     }
     
     // Méthode pour activer l'interface de contrôle du joint (équivalent au toggle switch)
@@ -5212,9 +4873,11 @@ class SceneManager {
                     toggleSwitch.classList.add('active');
                     console.log(`✅ Interface de contrôle du joint ${side} activée`);
                     
-                    // Déclencher l'événement d'application des changements si disponible
-                    if (window.TabManager && window.TabManager.applyJointVisibilityChanges) {
+                    // Déclencher l'événement d'application des changements si disponible et si un élément est sélectionné
+                    if (window.TabManager && window.TabManager.applyJointVisibilityChanges && window.TabManager.currentSelectedElement) {
                         window.TabManager.applyJointVisibilityChanges();
+                    } else if (window.TabManager && window.TabManager.applyJointVisibilityChanges) {
+                        console.log('🔧 Interface joint activée mais aucun élément sélectionné, skip applyJointVisibilityChanges');
                     }
                     
                     // Déclencher un événement personnalisé pour notifier l'activation
@@ -5254,50 +4917,49 @@ class SceneManager {
         }
     }
     
-        // Méthode pour trouver le bloc adjacent le plus proche d'un bloc coupé (1/2, 1/4, 3/4)
-    findClosestAdjacentBlock(cutBlock) {
-        if (!cutBlock || !cutBlock.position) return null;
+    // Méthode pour trouver le bloc adjacent le plus proche d'un élément donné
+    findClosestAdjacentBlock(element) {
+        if (!element || !element.position) return null;
         
         let closestBlock = null;
         let closestDistance = Infinity;
-        const cutBlockPos = cutBlock.position;
+        const elementPos = element.position;
         
         // Parcourir tous les éléments pour trouver le plus proche
-        for (const [id, element] of this.elements) {
+        for (const [id, otherElement] of this.elements) {
             // Ignorer l'élément lui-même et les joints
-            if (element.id === cutBlock.id || 
-                element.isVerticalJoint || 
-                element.isHorizontalJoint ||
-                element.type === 'insulation') {
+            if (otherElement.id === element.id || 
+                otherElement.isVerticalJoint || 
+                otherElement.isHorizontalJoint ||
+                otherElement.type === 'insulation') {
                 continue;
             }
             
-            // Ignorer les autres blocs coupés
-            if (this.isCutBlock(element)) {
-                continue;
-            }
+            // Note: Ne pas ignorer d'autres types spécifiques car on veut détecter
+            // tous les éléments adjacents potentiels
             
             // Calculer la distance
-            if (element.position) {
-                const dx = element.position.x - cutBlockPos.x;
-                const dz = element.position.z - cutBlockPos.z;
+            if (otherElement.position) {
+                const dx = otherElement.position.x - elementPos.x;
+                const dz = otherElement.position.z - elementPos.z;
                 const distance = Math.sqrt(dx * dx + dz * dz);
                 
                 // Seuil de proximité : max 50cm pour être considéré comme adjacent
                 if (distance < 50 && distance < closestDistance) {
                     closestDistance = distance;
-                    closestBlock = element;
+                    closestBlock = otherElement;
                 }
             }
         }
         
         if (closestBlock) {
-            const cutType = this.getCutType(cutBlock);
-            console.log('🔧 Bloc adjacent trouvé pour bloc', cutType, 'à distance:', closestDistance.toFixed(2), 'cm');
+            console.log('🔧 Bloc adjacent trouvé à distance:', closestDistance.toFixed(2), 'cm');
         }
         
         return closestBlock;
-    }    // Méthode utilitaire pour récupérer le dernier élément placé
+    }
+
+    // Méthode utilitaire pour récupérer le dernier élément placé
     getLastPlacedElement() {
         const elementsArray = Array.from(this.elements.values());
         // Filtrer les joints pour ne récupérer que les briques/blocs
@@ -5484,127 +5146,6 @@ class SceneManager {
 
         // Par défaut, considérer comme brique
         return 'brick';
-    }
-
-    // Méthode pour découper un bloc existant en remplaçant par ses parties
-    performBlockCut(originalElement, cutType) {
-        if (!originalElement || !cutType) {
-            console.warn('⚠️ performBlockCut: paramètres invalides');
-            return;
-        }
-
-        console.log('🔧 Début de la découpe:', {
-            elementId: originalElement.id,
-            cutType: cutType,
-            originalPosition: originalElement.position,
-            originalDimensions: originalElement.dimensions
-        });
-
-        try {
-            // Sauvegarder les informations de l'élément original
-            const originalPos = { ...originalElement.position };
-            const originalRot = originalElement.rotation || 0;
-            const originalMaterial = originalElement.material;
-            const originalType = originalElement.type;
-            const originalBlockType = originalElement.blockType;
-            const originalDimensions = originalElement.dimensions;
-
-            // Calculer les dimensions des parties découpées
-            let leftPartType, rightPartType;
-            let leftLength, rightLength;
-            let leftOffset, rightOffset;
-
-            const originalLength = originalDimensions?.length || 38; // Longueur par défaut
-
-            // Déterminer les types et dimensions selon la découpe
-            switch (cutType) {
-                case '1/4':
-                    // Découpe 1/4 : 1/4 à gauche (9.5cm), 3/4 à droite (28.5cm)
-                    leftPartType = originalBlockType + '_1Q';
-                    rightPartType = originalBlockType + '_3Q';
-                    leftLength = Math.round(originalLength * 0.25);
-                    rightLength = Math.round(originalLength * 0.75);
-                    // Correction : rapprocher l'élément de gauche (le 1/4) 
-                    leftOffset = -(originalLength / 2) - (leftLength / 2); // Collé à gauche
-                    rightOffset = rightLength / 2 - originalLength / 2;    // Remplace l'original
-                    break;
-                case '1/2':
-                    // Découpe 1/2 : 1/2 à gauche, 1/2 à droite
-                    leftPartType = originalBlockType + '_HALF';
-                    rightPartType = originalBlockType + '_HALF';
-                    leftLength = rightLength = Math.round(originalLength * 0.5);
-                    leftOffset = -(originalLength / 2) - (leftLength / 2);
-                    rightOffset = rightLength / 2 - originalLength / 2;
-                    break;
-                case '3/4':
-                    // Découpe 3/4 : 3/4 à gauche (28.5cm), 1/4 à droite (9.5cm)
-                    leftPartType = originalBlockType + '_3Q';
-                    rightPartType = originalBlockType + '_1Q';
-                    leftLength = Math.round(originalLength * 0.75);
-                    rightLength = Math.round(originalLength * 0.25);
-                    leftOffset = -(originalLength / 2) - (leftLength / 2);
-                    rightOffset = rightLength / 2 - originalLength / 2;
-                    break;
-                default:
-                    console.warn('⚠️ Type de découpe non supporté:', cutType);
-                    return;
-            }
-
-            console.log('🔧 Calculs de découpe:', {
-                leftPartType, rightPartType,
-                leftLength, rightLength,
-                leftOffset, rightOffset,
-                originalLength
-            });
-
-            // Supprimer l'élément original
-            this.removeElement(originalElement.id);
-
-            // Créer les deux parties avec les bonnes positions
-            const leftX = originalPos.x + leftOffset * Math.cos(originalRot);
-            const leftZ = originalPos.z + leftOffset * Math.sin(originalRot);
-            
-            const rightX = originalPos.x + rightOffset * Math.cos(originalRot);
-            const rightZ = originalPos.z + rightOffset * Math.sin(originalRot);
-
-            // Créer l'élément de gauche (plus petit pour 1/4)
-            const leftElement = this.addElement(
-                originalType,
-                { x: leftX, y: originalPos.y, z: leftZ },
-                originalMaterial,
-                leftPartType,
-                originalRot
-            );
-
-            // Créer l'élément de droite (plus grand pour 1/4)
-            const rightElement = this.addElement(
-                originalType,
-                { x: rightX, y: originalPos.y, z: rightZ },
-                originalMaterial,
-                rightPartType,
-                originalRot
-            );
-
-            console.log('🔧 Découpe terminée:', {
-                leftElementId: leftElement?.id,
-                rightElementId: rightElement?.id,
-                leftPosition: { x: leftX, z: leftZ },
-                rightPosition: { x: rightX, z: rightZ }
-            });
-
-            // Désactiver le bouton de découpe après usage
-            if (window.CutButtonManager && window.CutButtonManager.deactivateAllCutButtons) {
-                window.CutButtonManager.deactivateAllCutButtons();
-            }
-
-            // Optionnel : sélectionner un des éléments créés
-            if (leftElement) {
-                this.selectElement(leftElement);
-            }
-
-        } catch (error) {
-            console.error('❌ Erreur lors de la découpe:', error);
-        }
     }
 }
 

@@ -85,9 +85,9 @@ class MetreTabManager {
 
         // Rafraîchir quand un élément est placé (ex: Diba)
         document.addEventListener('elementPlaced', () => {
-            if (this.isTabActive()) {
-                this.refreshData();
-            }
+            
+            // TEMPORAIRE: Toujours rafraîchir pour débogage
+            this.refreshData();
         });
     }
 
@@ -113,13 +113,12 @@ class MetreTabManager {
     }
 
     refreshData() {
-        // console.log('🔄 Actualisation des données du métré');
-        
         this.elements.clear();
         
         // Récupérer tous les éléments de la scène
         if (window.SceneManager && window.SceneManager.elements) {
             const coll = window.SceneManager.elements;
+            
             // Log détaillé supprimé
             if (typeof coll.forEach === 'function') {
                 // Map ou structure avec forEach
@@ -359,24 +358,26 @@ class MetreTabManager {
     }
 
     extractCutInfo(element) {
-        // Extraire l'information de coupe d'un élément
         let cutType = 'full';
         let cutDisplay = 'Entier';
         
-        // 1. Vérifier si l'élément a un cutType explicite
-        if (element.cutType) {
-            cutType = element.cutType;
+        // 1. Vérifier la propriété cut de l'élément
+        if (element.cut && element.cut !== '1/1') {
+            cutType = element.cut;
+            cutDisplay = element.cut;
         }
-        // 2. Vérifier les suffixes dans brickType ou blockType
-        else if (element.brickType) {
-            if (element.brickType.includes('_3Q')) {
+        // 2. Vérifier l'ID de l'élément pour les suffixes de coupe
+        else if (element.id && (element.id.includes('_3Q') || element.id.includes('_HALF') || element.id.includes('_1Q'))) {
+            if (element.id.includes('_3Q')) {
                 cutType = '3/4';
-            } else if (element.brickType.includes('_HALF')) {
+            } else if (element.id.includes('_HALF')) {
                 cutType = '1/2';
-            } else if (element.brickType.includes('_1Q')) {
+            } else if (element.id.includes('_1Q')) {
                 cutType = '1/4';
             }
-        } else if (element.blockType) {
+        }
+        // 3. Vérifier les suffixes dans blockType ou brickType
+        else if (element.blockType) {
             if (element.blockType.includes('_3Q')) {
                 cutType = '3/4';
             } else if (element.blockType.includes('_HALF')) {
@@ -384,24 +385,13 @@ class MetreTabManager {
             } else if (element.blockType.includes('_1Q')) {
                 cutType = '1/4';
             }
-        }
-        // 3. Vérifier les dimensions réduites (pour les éléments coupés)
-        else if (element.dimensions) {
-            const standardLengths = [20, 22.5, 25, 30, 37.5]; // Longueurs standards
-            const currentLength = element.dimensions.length;
-            
-            // Chercher si la longueur correspond à une coupe
-            for (let standardLength of standardLengths) {
-                if (Math.abs(currentLength - standardLength * 0.75) < 0.1) {
-                    cutType = '3/4';
-                    break;
-                } else if (Math.abs(currentLength - standardLength * 0.5) < 0.1) {
-                    cutType = '1/2';
-                    break;
-                } else if (Math.abs(currentLength - standardLength * 0.25) < 0.1) {
-                    cutType = '1/4';
-                    break;
-                }
+        } else if (element.brickType) {
+            if (element.brickType.includes('_3Q')) {
+                cutType = '3/4';
+            } else if (element.brickType.includes('_HALF')) {
+                cutType = '1/2';
+            } else if (element.brickType.includes('_1Q')) {
+                cutType = '1/4';
             }
         }
         
@@ -440,6 +430,25 @@ class MetreTabManager {
             return element.brickType;
         }
 
+                if (element.id) {
+            // Chercher les patterns comme M50_HALF, M57_3Q, etc. dans l'ID
+            const cutPatterns = ['_3Q', '_HALF', '_1Q'];
+            const basePatterns = ['M50', 'M57', 'M60', 'M65', 'M90'];
+            
+            for (const basePattern of basePatterns) {
+                if (element.id.includes(basePattern)) {
+                    // Chercher si il y a un suffixe de coupe
+                    for (const cutPattern of cutPatterns) {
+                        if (element.id.includes(basePattern + cutPattern)) {
+                            return basePattern + cutPattern;
+                        }
+                    }
+                    // Si pas de suffixe de coupe trouvé, retourner le type de base
+                    return basePattern;
+                }
+            }
+        }
+
         // Mapper les hauteurs aux types de briques
         if (Math.abs(height - 5) < tolerance) return 'M50';
         if (Math.abs(height - 5.7) < tolerance) return 'M57';
@@ -470,9 +479,32 @@ class MetreTabManager {
 
         const { length, width, height } = element.dimensions;
 
+                if (element.blockType && element.blockType.includes('HALF')) {
+            
+        }
+
         // Essayer de récupérer depuis blockType si présent
         if (element.blockType) {
             return element.blockType;
+        }
+
+                if (element.id) {
+            // Chercher les patterns comme B9_HALF, BC_60x5_3Q, etc. dans l'ID
+            const cutPatterns = ['_3Q', '_HALF', '_1Q'];
+            const basePatterns = ['B9', 'B14', 'B19', 'B29', 'BC_60x5', 'BC_60x7', 'BC_60x10', 'BC_60x15', 'BC_60x17', 'BC_60x20', 'BC_60x24', 'BC_60x30', 'BC_60x36', 'ARGEX_39x9', 'ARGEX_39x14', 'ARGEX_39x19', 'TC_50x10', 'TC_50x14', 'TC_50x19'];
+            
+            for (const basePattern of basePatterns) {
+                if (element.id.includes(basePattern)) {
+                    // Chercher si il y a un suffixe de coupe
+                    for (const cutPattern of cutPatterns) {
+                        if (element.id.includes(basePattern + cutPattern)) {
+                            return basePattern + cutPattern;
+                        }
+                    }
+                    // Si pas de suffixe de coupe trouvé, retourner le type de base
+                    return basePattern;
+                }
+            }
         }
 
         // Identification par dimensions pour les blocs standards

@@ -27,7 +27,6 @@ class PresentationManager {
         this.availablePages = new Map(); // Map des pages disponibles
         this.selectedPagesForExport = new Set(); // Set des pages sélectionnées pour export
         this.draggedPageItem = null; // Page actuellement en cours de drag
-        
 
     }
 
@@ -89,7 +88,6 @@ class PresentationManager {
                 }
             }
 
-
         } catch (error) {
 
         }
@@ -121,9 +119,7 @@ class PresentationManager {
         // Utiliser la configuration réinitialisée si disponible
         const defaultScale = window.ScaleFactorsConfig ? 
             window.ScaleFactorsConfig.SCALE_CONFIG.DEFAULT_SCALES.top : '1:20';
-        
 
-        
         // Log de validation
         if (window.ScaleFactorsConfig) {
 
@@ -231,7 +227,6 @@ class PresentationManager {
         // Plus besoin de gérer l'affichage des menus d'échelles car ils ont été supprimés
         // Toutes les vues utilisent maintenant l'échelle fixe 1:20
 
-
     }
 
     /**
@@ -239,7 +234,6 @@ class PresentationManager {
      */
     setupAssiseCutsLogic() {
 
-        
         // Boutons de transfert
         const addBtn = document.getElementById('addAssiseToExport');
         const removeBtn = document.getElementById('removeAssiseFromExport');
@@ -260,7 +254,6 @@ class PresentationManager {
      */
     setupPagesLogic() {
 
-        
         // Boutons de transfert pour les pages
         const addPagesBtn = document.getElementById('addPagesToExport');
         const removePagesBtn = document.getElementById('removePagesFromExport');
@@ -281,7 +274,6 @@ class PresentationManager {
      */
     loadAvailablePages() {
 
-        
         this.availablePages.clear();
 
         // Définir toutes les pages disponibles
@@ -351,7 +343,6 @@ class PresentationManager {
                 this.selectedPagesForExport.add(page.id);
             }
         });
-
 
         this.renderPagesLists();
     }
@@ -543,7 +534,6 @@ class PresentationManager {
      */
     loadAvailableAssises() {
 
-        
         if (!window.AssiseManager) {
 
             return;
@@ -575,7 +565,6 @@ class PresentationManager {
                 }
             }
         }
-
 
         this.renderAssiseLists();
     }
@@ -780,7 +769,6 @@ class PresentationManager {
 
     openModal() {
 
-        
         const modal = document.getElementById('presentationModal');
         if (modal) {
             // Afficher la modale avec z-index élevé pour dépasser les extensions de navigateur
@@ -793,9 +781,7 @@ class PresentationManager {
             modal.style.zIndex = '2147483648';  // Z-index élevé pour dépasser les extensions
             modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)'; // Fond noir visible
             modal.style.visibility = 'visible';
-            
 
-            
             // S'assurer que le contenu est visible
             const modalContent = modal.querySelector('.modal-content');
             if (modalContent) {
@@ -829,9 +815,7 @@ class PresentationManager {
             
             // Charger les pages disponibles
             this.loadAvailablePages();
-            
 
-            
             // Diagnostic rapide
             setTimeout(() => {
                 const rect = modal.getBoundingClientRect();
@@ -845,10 +829,6 @@ class PresentationManager {
 
     checkLibraries() {
 
-
-
-
-        
         if (!this.checkJsPDFAvailable()) {
 
             this.loadRequiredLibraries().then(() => {
@@ -947,7 +927,6 @@ class PresentationManager {
      */
     disableVisualAidsForExport() {
 
-        
         if (window.AssiseManager) {
             // Désactiver les points d'accroche s'ils sont activés
             if (window.AssiseManager.showAttachmentMarkers) {
@@ -980,7 +959,6 @@ class PresentationManager {
                     }
                 }
             }
-            
 
         } else {
 
@@ -995,7 +973,6 @@ class PresentationManager {
 
             return;
         }
-        
 
         const visualAids = initialState.visualAids;
         
@@ -1046,7 +1023,6 @@ class PresentationManager {
             if (window.FloatingAssiseMenu && window.FloatingAssiseMenu.updateVisualAidsButtons) {
                 window.FloatingAssiseMenu.updateVisualAidsButtons();
             }
-            
 
         } else {
 
@@ -1066,7 +1042,6 @@ class PresentationManager {
         try {
             this.isExporting = true;
 
-            
             // Désactiver le bouton pendant l'export
             const generateBtn = document.getElementById('generatePdfBtn');
             if (generateBtn) {
@@ -1105,9 +1080,7 @@ class PresentationManager {
 
                 throw new Error('Impossible de créer le document PDF');
             }
-            
 
-            
             // Dimensions A4 paysage : 297 x 210 mm
             const pageWidth = 297;
             const pageHeight = 210;
@@ -1173,7 +1146,6 @@ class PresentationManager {
             this.exportCount++;
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
             const fileName = `${settings.projectTitle.replace(/[^a-zA-Z0-9]/g, '_')}_Presentation_${timestamp}.pdf`;
-            
 
             pdf.save(fileName);
 
@@ -1183,7 +1155,6 @@ class PresentationManager {
             this.restoreInitialSceneState(initialSceneState);
             this.restoreVisualAidsAfterExport(initialSceneState);
 
-            
             // Fermer la modale après un délai
             setTimeout(() => {
                 this.closeModal();
@@ -1208,7 +1179,6 @@ class PresentationManager {
                 generateBtn.disabled = false;
                 generateBtn.textContent = 'Générer le PDF';
             }
-            
 
         }
     }
@@ -1219,7 +1189,6 @@ class PresentationManager {
      */
     quickDiagnoseCuts() {
 
-        
         // Vérifications de base
         const checks = {
             'AssiseManager': !!window.AssiseManager,
@@ -1241,9 +1210,7 @@ class PresentationManager {
                 totalAssises += assisesForType.size;
             }
         }
-        
 
-        
         // État des assises sélectionnées pour export
         
         return {
@@ -1379,8 +1346,7 @@ class PresentationManager {
             // Sauvegarder l'état actuel des calques
             originalCotationsVisible = window.LayerManager.layers.cotations ? window.LayerManager.layers.cotations.visible : null;
             originalTextesVisible = window.LayerManager.layers.textes ? window.LayerManager.layers.textes.visible : null;
-            
-            
+
             // Désactiver les calques pour une vue d'élévation plus propre
             if (window.LayerManager.layers.cotations && window.LayerManager.layers.cotations.visible) {
 
@@ -1396,17 +1362,13 @@ class PresentationManager {
 
         // Générer une vraie élévation technique 2D au lieu d'une capture 3D
 
-        
         // Test simple des calques pour debugging
         if (isElevationView && window.LayerManager) {
-
-
 
         }
         
         const exportScale = viewType === 'top' ? settings.scales.top : settings.scales.elevation;
 
-        
         const canvas = await this.generateTechnicalElevation(viewType, exportScale);
         
         if (canvas && canvas.width > 0 && canvas.height > 0) {
@@ -1501,7 +1463,6 @@ class PresentationManager {
      */
     async addAssiseCutPages(pdf, pageWidth, pageHeight, currentPageCount, totalPages, settings) {
 
-        
         let pageCount = currentPageCount;
         let successCount = 0;
         let errorCount = 0;
@@ -1516,7 +1477,6 @@ class PresentationManager {
             } catch (error) {
                 errorCount++;
 
-                
                 // Ajouter une page d'erreur au lieu de faire planter tout le PDF
                 try {
                     pdf.addPage();
@@ -1603,7 +1563,6 @@ class PresentationManager {
             // FORCER L'ÉCHELLE IDENTIQUE À LA VUE DU DESSUS - Utiliser la même configuration
             const forcedScale = '1:20'; // Échelle fixe identique à la vue du dessus
 
-            
             // Attendre un moment supplémentaire pour s'assurer que la vue est stabilisée
             await new Promise(resolve => setTimeout(resolve, 200));
             
@@ -1645,16 +1604,8 @@ class PresentationManager {
 
         } catch (error) {
 
-
-            
             // Diagnostics supplémentaires
 
-
-
-
-
-
-            
             // Ajouter un message d'erreur dans le PDF
             try {
                 pdf.setFontSize(12);
@@ -1714,7 +1665,6 @@ class PresentationManager {
      */
     async setupAssiseCutView(assise) {
 
-        
         // Masquer les éléments des autres hauteurs pour une vraie coupe horizontale
         const hiddenElements = this.hideElementsBelowAssise(assise);
         
@@ -1766,13 +1716,11 @@ class PresentationManager {
             if (controls && controls.update) {
                 controls.update();
             }
-            
 
         }
 
         // Définir la position Y de coupe au milieu des briques de l'assise
         const cutY = assise.height; // Hauteur de l'assise
-
 
         // Retourner les éléments masqués pour pouvoir les restaurer
         return hiddenElements;
@@ -1783,7 +1731,6 @@ class PresentationManager {
      */
     calculateAssiseCenter(assise) {
 
-        
         if (!window.AssiseManager || !window.SceneManager) {
 
             return null;
@@ -1792,21 +1739,17 @@ class PresentationManager {
         const assisesForType = window.AssiseManager.assisesByType.get(assise.type);
         if (!assisesForType) {
 
-
             return null;
         }
         
         if (!assisesForType.has(assise.index)) {
-
 
             return null;
         }
 
         const assiseData = assisesForType.get(assise.index);
         const elements = Array.from(assiseData.elements);
-        
 
-        
         if (elements.length === 0) {
 
             return null;
@@ -1845,8 +1788,6 @@ class PresentationManager {
             y: assise.height,
             z: totalZ / validCount
         };
-        
-
 
         return center;
     }
@@ -1903,7 +1844,6 @@ class PresentationManager {
      */
     hidePlateauAndGridsForCut() {
 
-        
         // Masquer le plateau (groundFloor)
         if (window.SceneManager && window.SceneManager.groundFloor) {
             window.SceneManager.groundFloor.visible = false;
@@ -1930,7 +1870,6 @@ class PresentationManager {
                 }
             }
 
-            
             // Masquer les points d'accroche d'assises
             if (window.AssiseManager.snapPoint) {
                 window.AssiseManager.snapPoint.visible = false;
@@ -1980,7 +1919,6 @@ class PresentationManager {
      */
     restorePlateauAndGridsAfterCut() {
 
-        
         // Restaurer le plateau (groundFloor)
         if (window.SceneManager && window.SceneManager.groundFloor) {
             window.SceneManager.groundFloor.visible = true;
@@ -2003,7 +1941,6 @@ class PresentationManager {
         if (window.AssiseManager && window.AssiseManager.showAssiseGrids) {
             window.AssiseManager.updateAllGridVisibility();
 
-            
             // Restaurer le point d'accroche si activé
             if (window.AssiseManager.snapPoint && window.AssiseManager.showSnapPoint) {
                 window.AssiseManager.snapPoint.visible = true;
@@ -2052,7 +1989,6 @@ class PresentationManager {
      */
     hideElementsBelowAssise(targetAssise) {
 
-        
         if (!window.SceneManager || !window.SceneManager.scene || !window.AssiseManager) {
 
             return [];
@@ -2061,8 +1997,6 @@ class PresentationManager {
         const hiddenElements = [];
         const targetHeight = targetAssise.height;
         const tolerance = 1.0; // Tolérance de 1cm pour les variations de hauteur
-
-
 
         // Méthode 1: Masquage par assise via AssiseManager - MASQUER PAR HAUTEUR
         if (window.AssiseManager.assisesByType) {
@@ -2076,7 +2010,6 @@ class PresentationManager {
                     
                     if (shouldHide) {
 
-                        
                         // Masquer tous les éléments de cette assise
                         for (const elementId of assiseData.elements) {
                             const element = window.SceneManager.elements.get(elementId);
@@ -2101,7 +2034,6 @@ class PresentationManager {
             }
         }
 
-
         return hiddenElements;
     }
 
@@ -2111,8 +2043,6 @@ class PresentationManager {
     restoreHiddenElements(hiddenElements) {
         if (!hiddenElements || hiddenElements.length === 0) return;
 
-
-        
         let restoredCount = 0;
         hiddenElements.forEach((hiddenInfo) => {
             if (hiddenInfo.object && hiddenInfo.wasVisible) {
@@ -2127,7 +2057,6 @@ class PresentationManager {
 
         // Restaurer aussi le plateau et les grilles après coupe
         this.restorePlateauAndGridsAfterCut();
-
 
     }
 
@@ -2734,10 +2663,7 @@ class PresentationManager {
                 // Calculer la largeur basée sur le ratio réel de l'image
                 const aspectRatio = tempImg.width / tempImg.height;
                 const logoWidth = logoHeight * aspectRatio; // Proportion réelle pour éviter la déformation
-                
 
-
-                
                 // Position du logo alignée avec le texte du pied de page (remontée de 3mm)
                 const logoY = y - 3; // Centrer verticalement avec le texte
                 pdf.addImage(logoDataUrl, 'PNG', x, logoY, logoWidth, logoHeight);
@@ -2799,7 +2725,6 @@ class PresentationManager {
 
     async captureCurrentView(viewType) {
 
-        
         // DÉSACTIVER L'APPROCHE SPÉCIALE - Utiliser generateTechnicalElevation pour cohérence
         // Les élévations left/right utilisent maintenant generateTechnicalElevation 
         // avec la même logique d'échelle que les autres vues
@@ -2833,11 +2758,9 @@ class PresentationManager {
             if (!canvas) {
                 const canvases = document.querySelectorAll('canvas');
 
-                
                 for (let i = 0; i < canvases.length; i++) {
                     const c = canvases[i];
 
-                    
                     // Vérifier si c'est un canvas WebGL sans créer un nouveau contexte
                     try {
                         // Priorité 1: Canvas du SceneManager
@@ -2866,21 +2789,10 @@ class PresentationManager {
 
                 // Diagnostic final
 
-
-
-
-
-
                 return null;
             }
 
             // Diagnostic détaillé du canvas trouvé
-
-
-
-
-
-
 
             // Masquer l'indication du Nord pour toutes les vues dans les exports PDF
             let northArrowVisible = undefined;
@@ -3638,15 +3550,12 @@ class PresentationManager {
                             // Masquer complètement l'objet
                             object.visible = false;
                             phantomCount++;
-                            
 
                         }
                     }
                 });
             }
-            
 
-            
             // Masquer la grille de la scène et les axes pour la vue perspective
             if (viewType === 'perspective' && window.SceneManager) {
                 if (window.SceneManager.grid) {
@@ -3716,13 +3625,11 @@ class PresentationManager {
 
             // NOUVELLE MÉTHODE : Capture directe via toDataURL (maintenant possible avec preserveDrawingBuffer)
 
-            
             try {
                 const dataURL = canvas.toDataURL('image/png', 1.0);
                 
                 if (dataURL && dataURL !== 'data:,' && !dataURL.startsWith('data:,')) {
 
-                    
                     // Convertir en canvas pour compatibilité
                     const img = new Image();
                     const resultCanvas = document.createElement('canvas');
@@ -3733,9 +3640,7 @@ class PresentationManager {
                             resultCanvas.width = img.width;
                             resultCanvas.height = img.height;
                             ctx.drawImage(img, 0, 0);
-                            
 
-                            
                             // Restaurer les éléments fantômes masqués
                             if (ghostObjectsState.length > 0) {
                                 ghostObjectsState.forEach((state, index) => {
@@ -3803,10 +3708,8 @@ class PresentationManager {
                 }
             } catch (directError) {
 
-                
                 // FALLBACK : html2canvas avec options optimisées pour WebGL
 
-                
                 const captureOptions = {
                     backgroundColor: null,
                     scale: 1,
@@ -3826,7 +3729,6 @@ class PresentationManager {
 
                 const capturedCanvas = await html2canvas(canvas, captureOptions);
 
-                
                 // Restaurer les éléments fantômes masqués après fallback
                 if (ghostObjectsState.length > 0) {
                     ghostObjectsState.forEach((state, index) => {
@@ -3890,10 +3792,6 @@ class PresentationManager {
             
         } catch (error) {
 
-
-
-
-            
             // Tentative de capture d'urgence
 
             try {
@@ -3903,7 +3801,6 @@ class PresentationManager {
                     logging: true
                 });
 
-                
                 // Restaurer les éléments fantômes masqués même en cas d'urgence
                 if (ghostObjectsState.length > 0) {
                     ghostObjectsState.forEach((state, index) => {
@@ -3965,7 +3862,6 @@ class PresentationManager {
                 return emergencyCanvas;
             } catch (emergencyError) {
 
-                
                 // Restaurer les éléments fantômes masqués même en cas d'échec total
                 if (ghostObjectsState.length > 0) {
                     ghostObjectsState.forEach((state, index) => {
@@ -4087,7 +3983,6 @@ class PresentationManager {
      */
     async generateLateralElevation(viewType, scaleString = '1:50') {
 
-        
         if (viewType !== 'left' && viewType !== 'right') {
 
             return null;
@@ -4131,20 +4026,9 @@ class PresentationManager {
             
             // NOUVEAU: Utiliser calculateOptimalFrustumSize pour cohérence d'échelle
             const frustumSize = this.calculateOptimalFrustumSize(scaleFactor, viewType, buildingAnalysis);
-            
 
-
-
-
-
-            
             // Diagnostic de cohérence d'échelle
 
-
-
-
-
-            
             // Créer la caméra orthographique
             orthographicCamera = new window.THREE.OrthographicCamera(
                 -frustumSize * aspect / 2, 
@@ -4332,14 +4216,11 @@ class PresentationManager {
                         // Masquer complètement l'objet
                         object.visible = false;
                         phantomCount++;
-                        
 
                     }
                 }
             });
-            
 
-            
             // Masquer les grilles des assises
             if (window.AssiseManager) {
                 originalAssiseGridsVisible = window.AssiseManager.showAssiseGrids;
@@ -4450,7 +4331,6 @@ class PresentationManager {
                 // Rendu final
                 sceneManager.renderer.render(sceneManager.scene, originalCamera);
             }
-            
 
         }
     }
@@ -4461,7 +4341,6 @@ class PresentationManager {
      */
     async generateTechnicalElevation(viewType, scaleString = '1:50') {
 
-        
         if (!window.SceneManager || !window.SceneManager.scene || !window.SceneManager.renderer) {
 
             return null;
@@ -4498,7 +4377,6 @@ class PresentationManager {
             // Calculer la taille du frustum basée sur l'échelle
             const scaleFactor = this.parseScale(scaleString);
 
-            
             // Créer une caméra orthographique temporaire pour une vraie projection 2D
             const canvas = sceneManager.renderer.domElement;
             const aspect = canvas.clientWidth / canvas.clientHeight;
@@ -4509,13 +4387,9 @@ class PresentationManager {
             // Utiliser l'échelle choisie par l'utilisateur pour tous les types de vues
             const effectiveScaleFactor = scaleFactor;
 
-            
             // Calculer la taille optimale du frustum basée sur l'échelle choisie
             const frustumSize = this.calculateOptimalFrustumSize(effectiveScaleFactor, viewType, buildingAnalysis);
-            
 
-
-            
             orthographicCamera = new window.THREE.OrthographicCamera(
                 -frustumSize * aspect / 2, 
                 frustumSize * aspect / 2,
@@ -4527,8 +4401,6 @@ class PresentationManager {
             
             // DÉBOGAGE: Log avant positionnement de la caméra
 
-
-            
             // Positionner la caméra orthographique selon la vue demandée
             this.setOrthographicCameraPosition(orthographicCamera, viewType, sceneManager);
 
@@ -4557,9 +4429,6 @@ class PresentationManager {
             
             // DÉBOGAGE: Log après positionnement de la caméra
 
-
-
-            
             // Positionner la caméra orthographique selon la vue demandée
             this.setOrthographicCameraPosition(orthographicCamera, viewType, sceneManager);
             
@@ -4725,14 +4594,11 @@ class PresentationManager {
                         // Masquer complètement l'objet
                         object.visible = false;
                         phantomCount++;
-                        
 
                     }
                 }
             });
-            
 
-            
             // Masquer temporairement les grilles des assises
             if (window.AssiseManager) {
                 originalAssiseGridsVisible = window.AssiseManager.showAssiseGrids;
@@ -4779,7 +4645,6 @@ class PresentationManager {
                             const detectionMethod = object.name?.startsWith('WallSim3D_') ? 'name' :
                                                   object.userData.isGround ? 'userData' :
                                                   object.userData.type === 'ground' ? 'type' : 'fallback';
-                            
 
                             hiddenPlaneObjects.push({
                                 object: object,
@@ -4789,12 +4654,8 @@ class PresentationManager {
                         }
                     }
                 });
-                
 
-
-                
                 if (hiddenPlaneObjects.length === 0) {
-
 
                 }
             }
@@ -4811,7 +4672,6 @@ class PresentationManager {
             originalShadowMapEnabled = sceneManager.renderer.shadowMap.enabled;
             sceneManager.renderer.shadowMap.enabled = false;
 
-            
             // Changer temporairement les matériaux des briques en blanc avec contours noirs
             this.setTechnicalMaterials(originalMaterials, sceneManager);
             
@@ -4851,7 +4711,6 @@ class PresentationManager {
                         
                         // Ajouter des éléments techniques si nécessaire
                         this.addTechnicalAnnotations(ctx, canvas2D.width, canvas2D.height, viewType, scaleString);
-                        
 
                         resolve(canvas2D);
                     };
@@ -5053,7 +4912,6 @@ class PresentationManager {
                 // pour garantir un frustum identique à échelle égale = cohérence visuelle parfaite
                 maxDimension = Math.max(actualBuildingSize.width, actualBuildingSize.depth);
 
-
                 break;
             default:
                 maxDimension = Math.max(actualBuildingSize.width, actualBuildingSize.height);
@@ -5088,25 +4946,12 @@ class PresentationManager {
         
         // Diagnostic de l'échelle calculée
 
-
-
-
-
-
-
-
-
-
-
-
-        
         // Limiter pour éviter des frustums trop grands ou trop petits
         const finalFrustumSize = Math.max(30, Math.min(1000, frustumSize));
         
         if (finalFrustumSize !== frustumSize) {
 
         }
-        
 
         return finalFrustumSize;
     }
@@ -5182,12 +5027,7 @@ class PresentationManager {
         if (elementCount > 0) {
             const center = boundingBox.getCenter(new window.THREE.Vector3());
             const size = boundingBox.getSize(new window.THREE.Vector3());
-            
 
-
-
-
-            
             // Log des premières positions pour debug + vérification du centre
             if (brickPositions.length > 0) {
 
@@ -5207,10 +5047,7 @@ class PresentationManager {
                     y: sumY / brickPositions.length,
                     z: sumZ / brickPositions.length
                 };
-                
 
-
-                
                 // Utiliser le centre moyen si la différence est significative (améliore le cadrage)
                 if (Math.abs(center.x - avgCenter.x) > 10 || Math.abs(center.z - avgCenter.z) > 10) {
 
@@ -5221,8 +5058,6 @@ class PresentationManager {
             return { center, size, boundingBox, elementCount };
         } else {
 
-
-            
             // Analyse détaillée des objets de la scène
             let totalMeshes = 0;
             let visibleMeshes = 0;
@@ -5254,13 +5089,7 @@ class PresentationManager {
                     }
                 }
             }
-            
 
-
-
-
-
-            
             // Suggérer des solutions selon le diagnostic
             if (totalMeshes === 0) {
 
@@ -5307,11 +5136,7 @@ class PresentationManager {
             // Log spécial pour les élévations latérales
             if (viewType === 'left' || viewType === 'right') {
 
-
-
-
                 if (analysis.boundingBox) {
-
 
                 }
             }
@@ -5319,11 +5144,7 @@ class PresentationManager {
             // Log spécial pour la vue du dessus
             if (viewType === 'top') {
 
-
-
-
                 if (analysis.boundingBox) {
-
 
                 }
             }
@@ -5347,9 +5168,6 @@ class PresentationManager {
                 // CORRECTION: S'assurer que l'orientation est correcte pour l'élévation
                 camera.up.set(0, 1, 0); // Y vers le haut pour vue d'élévation
 
-
-
-
                 break;
                 
             case 'left':
@@ -5361,10 +5179,6 @@ class PresentationManager {
                 camera.up.set(0, 1, 0); // Y vers le haut - orientation standard élévation
                 // CORRECTION: Forcer la mise à jour de la matrice pour éviter les problèmes d'orientation
                 camera.updateMatrixWorld(true);
-
-
-
-
 
                 break;
                 
@@ -5378,10 +5192,6 @@ class PresentationManager {
                 // CORRECTION: Forcer la mise à jour de la matrice pour éviter les problèmes d'orientation
                 camera.updateMatrixWorld(true);
 
-
-
-
-
                 break;
                 
             case 'top':
@@ -5394,11 +5204,6 @@ class PresentationManager {
                 camera.lookAt(buildingCenter.x, buildingCenter.y, buildingCenter.z);
                 // CORRECTION: Orientation standard pour vue orthographique du dessus
                 camera.up.set(0, 0, 1); // Z vers le haut - orientation standard
-                
-
-
-
-
 
                 break;
                 
@@ -5526,10 +5331,7 @@ class PresentationManager {
 
         // Ajouter le groupe à la scène
         sceneManager.scene.add(lineGroup);
-        
 
-
-        
         return lineGroup;
     }
 
@@ -5549,7 +5351,6 @@ class PresentationManager {
                 if (child.geometry) child.geometry.dispose();
                 if (child.material) child.material.dispose();
             });
-            
 
             return true;
         }
@@ -5614,13 +5415,7 @@ class PresentationManager {
         const SCALE_CORRECTION_FACTOR = 4.8; // Facteur correctif fixé à 4.8
         
         const pixelsPerCm = (height / frustumSize) * SCALE_CORRECTION_FACTOR; // Pixels par cm dans le rendu avec correction
-        
 
-
-
-
-
-        
         // Longueur de l'échelle graphique en pixels - CALCUL RÉINITIALISÉ
         // Distance réelle (cm) * (1/scaleFactor) = distance papier (cm)
         // Distance papier (cm) * pixelsPerCm = distance pixels
@@ -5634,19 +5429,7 @@ class PresentationManager {
         const scaleRealLength = targetRealDistance >= 100 ? 
             `${(targetRealDistance / 100).toFixed(targetRealDistance % 100 === 0 ? 0 : 1)}m` : 
             `${targetRealDistance}cm`;
-        
 
-
-
-
-
-
-
-
-
-
-
-        
         const scaleX = 20;
         const scaleY = height - 30;
         
@@ -5829,7 +5612,6 @@ class PresentationManager {
                     
                     // Appliquer des marges de 10% en haut et bas
                     groundY = height * (0.1 + relativeGroundPosition * 0.8);
-                    
 
                 }
             } else {
@@ -5887,7 +5669,6 @@ class PresentationManager {
         ctx.lineWidth = originalLineWidth;
         ctx.fillStyle = originalFillStyle;
         ctx.font = originalFont;
-        
 
     }
 
@@ -5910,9 +5691,7 @@ class PresentationManager {
      */
     setTechnicalMaterials(originalMaterialsArray, sceneManager) {
         if (!window.THREE || !sceneManager) return;
-        
 
-        
         // Créer le matériau blanc technique
         const whiteMaterial = new window.THREE.MeshBasicMaterial({ 
             color: 0xffffff,
@@ -5925,7 +5704,6 @@ class PresentationManager {
             if (object.isMesh && object.material) {
                 // Debug : afficher les informations de l'objet
 
-                
                 // Détection élargie des briques/blocs
                 const userData = object.userData;
                 const objectName = object.name || '';
@@ -6015,7 +5793,6 @@ class PresentationManager {
                 if (shouldTransform) {
                     const elementType = (isJointByUserData || isJointByName || isJointByMaterial) ? 'Joint' : 'Brique';
 
-                    
                     // Sauvegarder le matériau original
                     originalMaterialsArray.push({
                         object: object,
@@ -6072,7 +5849,6 @@ class PresentationManager {
                         if (!userData.isJoint && userData.assiseId === undefined && userData.courseIndex === undefined && userData.placed !== true) {
                             rejectionReasons.push('not integrated in assise');
                         }
-                        
 
                     } else {
                         // Log des objets non transformés pour debug
@@ -6083,7 +5859,6 @@ class PresentationManager {
                 }
             }
         });
-        
 
     }
 
@@ -6092,7 +5867,6 @@ class PresentationManager {
      */
     restoreOriginalMaterials(originalMaterialsArray, sceneManager) {
 
-        
         // Restaurer les matériaux originaux
         originalMaterialsArray.forEach(({ object, originalMaterial, originalCastShadow, originalReceiveShadow }) => {
             if (object && originalMaterial) {
@@ -6126,7 +5900,6 @@ class PresentationManager {
                     wireframe.parent.remove(wireframe);
                 }
             });
-            
 
         }
         
@@ -6471,7 +6244,6 @@ class PresentationManager {
                 controls.update();
             }
 
-
         } catch (error) {
 
         }
@@ -6486,11 +6258,9 @@ class PresentationManager {
             return;
         }
 
-
         try {
             // === ÉTAPE 1: FORÇAGE IMMÉDIAT DE LA CAMÉRA PERSPECTIVE ===
 
-            
             // Accéder au SceneManager
             const sceneManager = window.SceneManager;
             if (!sceneManager) {
@@ -6502,7 +6272,6 @@ class PresentationManager {
             let camera = sceneManager.camera;
             if (!camera || !camera.isPerspectiveCamera) {
 
-                
                 // Créer une nouvelle caméra perspective avec les paramètres sauvegardés
                 const canvas = sceneManager.renderer.domElement;
                 const aspect = canvas.clientWidth / canvas.clientHeight;
@@ -6517,7 +6286,6 @@ class PresentationManager {
                 // Assigner la nouvelle caméra
                 sceneManager.camera = camera;
                 window.camera = camera; // Référence globale si elle existe
-                
 
             }
 
@@ -6553,7 +6321,6 @@ class PresentationManager {
                 // Si la caméra a changé, recréer les contrôles
                 if (controls.object !== camera) {
 
-                    
                     // Détruire les anciens contrôles
                     if (controls.dispose) controls.dispose();
                     
@@ -6661,7 +6428,6 @@ class PresentationManager {
                     window.MaterialManager.refreshAllMaterials();
 
                 }
-                
 
             }
 
@@ -6741,7 +6507,6 @@ class PresentationManager {
                 if (initialState.renderer.physicallyCorrectLights !== undefined) {
                     renderer.physicallyCorrectLights = initialState.renderer.physicallyCorrectLights;
                 }
-                
 
             }
 
@@ -6879,7 +6644,6 @@ class PresentationManager {
                 } else if (window.animate && typeof window.animate === 'function') {
                     window.animate();
                 }
-                
 
             }
 
@@ -6888,17 +6652,6 @@ class PresentationManager {
             const finalCamera = sceneManager.camera;
             const finalControls = sceneManager.controls;
             const finalScene = sceneManager.scene;
-            
-
-
-
-
-
-
-
-
-
-
 
             // Forcer une mise à jour de l'interface si nécessaire
             if (window.modernInterface && window.modernInterface.updateCameraInfo) {
@@ -6963,7 +6716,6 @@ class PresentationManager {
                         setTimeout(performRender, renderCount <= 3 ? 100 : 50);
                     } else {
 
-                        
                         // Déclencher une animation si disponible pour maintenir les ombres
                         if (sceneManager.animate && typeof sceneManager.animate === 'function') {
                             sceneManager.animate();
@@ -6975,13 +6727,8 @@ class PresentationManager {
                 performRender();
             }
 
-
-
         } catch (error) {
 
-
-
-            
             // Tentative de restauration d'urgence en cliquant sur le bouton perspective
             try {
 
@@ -7019,7 +6766,6 @@ if (document.readyState === 'loading') {
 // Fonction d'urgence pour forcer l'affichage de la modale
 window.forceShowModal = function() {
 
-    
     const modal = document.getElementById('presentationModal');
     if (!modal) {
 
@@ -7058,9 +6804,7 @@ window.forceShowModal = function() {
             margin: auto !important;
         `;
     }
-    
 
-    
     // Diagnostic
     setTimeout(() => {
         const rect = modal.getBoundingClientRect();
@@ -7081,7 +6825,6 @@ window.testPresentationModal = function() {
 // Fonction de test BASIQUE pour créer une modale visible
 window.createTestModal = function() {
 
-    
     // Supprimer toute modale de test existante
     const existingTest = document.getElementById('testModal');
     if (existingTest) {
@@ -7128,7 +6871,6 @@ window.createTestModal = function() {
     
     document.body.appendChild(testModal);
 
-    
     // Vérifier si elle est visible
     setTimeout(() => {
         const rect = testModal.getBoundingClientRect();
@@ -7139,7 +6881,6 @@ window.createTestModal = function() {
 // Fonction pour diagnostiquer les z-index élevés
 window.findHighZIndex = function() {
 
-    
     const allElements = document.querySelectorAll('*');
     const highZElements = [];
     
@@ -7163,11 +6904,8 @@ window.findHighZIndex = function() {
     
     // Trier par z-index décroissant
     highZElements.sort((a, b) => b.zIndex - a.zIndex);
-    
 
     highZElements.forEach((item, i) => {
-
-
 
     });
     
@@ -7175,12 +6913,6 @@ window.findHighZIndex = function() {
     const presentationModal = document.getElementById('presentationModal');
     if (presentationModal) {
         const modalStyle = window.getComputedStyle(presentationModal);
-
-
-
-
-
-
 
     }
     
@@ -7190,10 +6922,6 @@ window.findHighZIndex = function() {
 // Fonction de test pour jsPDF
 window.testJsPDF = function() {
 
-
-
-
-    
     // S'assurer que jsPDF est configuré
     if (window.presentationManager) {
         window.presentationManager.setupJsPDF();
@@ -7210,16 +6938,12 @@ window.testJsPDF = function() {
         
         pdf.text('Test jsPDF - WallSim3D', 10, 10);
 
-
-        
         return {
             pdf: pdf,
             save: (filename) => pdf.save(filename || 'test-jspdf.pdf')
         };
     } catch (error) {
 
-
-        
         if (window.presentationManager) {
             window.presentationManager.loadRequiredLibraries().then(() => {
 
@@ -7233,12 +6957,10 @@ window.testJsPDF = function() {
 // Fonction de test pour capturer une vue
 window.testCaptureView = function(viewType = 'perspective') {
 
-    
     if (window.presentationManager) {
         window.presentationManager.captureCurrentView(viewType).then(canvas => {
             if (canvas && canvas.width > 0 && canvas.height > 0) {
 
-                
                 // Créer un lien pour télécharger l'image de test
                 const link = document.createElement('a');
                 link.download = `test-capture-${viewType}.png`;
@@ -7246,7 +6968,6 @@ window.testCaptureView = function(viewType = 'perspective') {
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                
 
             } else {
 
@@ -7262,28 +6983,15 @@ window.testCaptureView = function(viewType = 'perspective') {
 // Fonction de diagnostic avancé
 window.diagnosticComplet = function() {
 
-    
     // 1. État de l'application
 
-
-
-
-    
     if (window.SceneManager) {
 
-
-
-        
         if (window.SceneManager.renderer) {
             const renderer = window.SceneManager.renderer;
 
-
-            
             if (renderer.domElement) {
                 const canvas = renderer.domElement;
-
-
-
 
             }
         }
@@ -7295,11 +7003,9 @@ window.diagnosticComplet = function() {
         window.presentationManager.captureCurrentView('perspective').then(canvas => {
             if (canvas && canvas.width > 0) {
 
-                
                 // Créer un aperçu dans la console
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
 
-                
                 // Télécharger automatiquement
                 const link = document.createElement('a');
                 link.download = 'diagnostic-capture.jpg';
@@ -7308,7 +7014,6 @@ window.diagnosticComplet = function() {
                 link.click();
                 document.body.removeChild(link);
 
-                
             } else {
 
             }
@@ -7319,17 +7024,12 @@ window.diagnosticComplet = function() {
     
     // 3. Test des bibliothèques
 
-
-
-
-    
     return 'Diagnostic en cours... vérifiez les résultats ci-dessus';
 };
 
 // Fonction pour tester une capture avec tous les paramètres
 window.testCaptureAvecParametres = async function() {
 
-    
     if (!window.SceneManager || !window.SceneManager.renderer) {
 
         return;
@@ -7337,7 +7037,6 @@ window.testCaptureAvecParametres = async function() {
     
     const canvas = window.SceneManager.renderer.domElement;
 
-    
     // Test avec différentes options
     const optionsTest = [
         {
@@ -7377,7 +7076,6 @@ window.testCaptureAvecParametres = async function() {
             
             if (result && result.width > 0) {
 
-                
                 // Télécharger le résultat
                 const link = document.createElement('a');
                 link.download = `test-${test.name.replace(/\s/g, '-')}.png`;
@@ -7397,14 +7095,12 @@ window.testCaptureAvecParametres = async function() {
         // Pause entre les tests
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    
 
 };
 
 // Fonction de diagnostic du canvas
 window.diagnosticCanvas = function() {
 
-    
     // Vérifier SceneManager
 
     if (window.SceneManager) {
@@ -7414,10 +7110,6 @@ window.diagnosticCanvas = function() {
 
             if (canvas) {
 
-
-
-
-
             }
         }
     }
@@ -7425,7 +7117,6 @@ window.diagnosticCanvas = function() {
     // Vérifier par ID
     const canvasById = document.getElementById('threejs-canvas');
 
-    
     // Chercher tous les canvas
     const allCanvas = document.querySelectorAll('canvas');
 
@@ -7443,14 +7134,11 @@ window.diagnosticCanvas = function() {
 
 // Log pour confirmer le chargement
 
-
-
 /**
  * Fonction de test pour vérifier le fond blanc des élévations
  */
 window.testElevationBackground = async function(viewType = 'front') {
 
-    
     if (!window.presentationManager) {
 
         return;
@@ -7463,9 +7151,7 @@ window.testElevationBackground = async function(viewType = 'front') {
 
             return;
         }
-        
 
-        
         // Analyser les couleurs
         const ctx = canvas.getContext('2d');
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -7493,11 +7179,7 @@ window.testElevationBackground = async function(viewType = 'front') {
         
         const whitePercent = ((whitePixels / totalPixels) * 100).toFixed(1);
         const blackPercent = ((blackPixels / totalPixels) * 100).toFixed(1);
-        
 
-
-
-        
         if (whitePixels > blackPixels && whitePercent > 50) {
 
         } else {
@@ -7511,18 +7193,11 @@ window.testElevationBackground = async function(viewType = 'front') {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
 
-        
     } catch (error) {
 
     }
 };
-
-
-
-
-
 
 // Fonction de test pour les élévations techniques
 window.testTechnicalElevation = function(viewType = 'front') {
@@ -7531,7 +7206,6 @@ window.testTechnicalElevation = function(viewType = 'front') {
         window.presentationManager.generateTechnicalElevation(viewType).then(canvas => {
             if (canvas) {
 
-                
                 // Télécharger l'image de test
                 const link = document.createElement('a');
                 link.href = canvas.toDataURL('image/png');
@@ -7539,8 +7213,6 @@ window.testTechnicalElevation = function(viewType = 'front') {
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                
-
 
             } else {
 
@@ -7560,9 +7232,6 @@ window.testTechnicalMaterials = function() {
         const testMaterials = [];
         window.presentationManager.setTechnicalMaterials(testMaterials, window.SceneManager);
 
-
-
-        
         // Stocker dans window pour accès global
         window.testMaterialsArray = testMaterials;
     } else {
@@ -7589,7 +7258,6 @@ window.restoreTechnicalMaterials = function() {
  */
 function testScaleCalculations() {
 
-    
     if (!window.presentationManager) {
 
         return;
@@ -7600,19 +7268,15 @@ function testScaleCalculations() {
     
     testScales.forEach(scaleString => {
 
-        
         const scaleFactor = window.presentationManager.parseScale(scaleString);
 
-        
         const expectedPaperSize = brickSize / scaleFactor;
 
-        
         // Test du calcul de frustum
         const buildingAnalysis = { elementCount: 1, size: { x: 100, y: 50, z: 150 } };
         const frustumSize = window.presentationManager.calculateOptimalFrustumSize(scaleFactor, 'front', buildingAnalysis);
 
     });
-    
 
 }
 
@@ -7621,17 +7285,10 @@ function testScaleCalculations() {
  */
 function testScale1to20() {
 
-    
     const brickRealSize = 19; // cm
     const scale = 20;
     const expectedPaperSize = brickRealSize / scale; // 19/20 = 0.95cm
-    
 
-
-
-
-
-    
     // Exposer la fonction pour test dans la console
 
 }

@@ -991,6 +991,23 @@ class LibraryPreview3D {
     // Méthode principale pour rendre l'aperçu GLB
     renderGLBPreview(canvas, glbPath, glbName) {
         try {
+            // Vérifier si le canvas a déjà un contexte et le nettoyer si nécessaire
+            if (canvas.getContext) {
+                const existingContext = canvas.getContext('2d') || canvas.getContext('webgl') || canvas.getContext('webgl2');
+                if (existingContext && existingContext.constructor.name !== 'WebGLRenderingContext' && existingContext.constructor.name !== 'WebGL2RenderingContext') {
+                    // Le canvas a un contexte 2D, créer un nouveau canvas pour WebGL
+                    const newCanvas = document.createElement('canvas');
+                    newCanvas.width = canvas.width || 150;
+                    newCanvas.height = canvas.height || 150;
+                    newCanvas.style.cssText = canvas.style.cssText;
+                    if (canvas.dataset.glbPath) newCanvas.dataset.glbPath = canvas.dataset.glbPath;
+                    if (canvas.dataset.glbName) newCanvas.dataset.glbName = canvas.dataset.glbName;
+                    
+                    canvas.parentNode.replaceChild(newCanvas, canvas);
+                    canvas = newCanvas;
+                }
+            }
+
             // Créer la scène Three.js
             const scene = new THREE.Scene();
             scene.background = new THREE.Color(0x2a2a2a);
@@ -1010,8 +1027,16 @@ class LibraryPreview3D {
             const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
             camera.position.set(2, 2, 2);
 
-            // Renderer avec taille ajustée
-            const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            // Renderer avec gestion d'erreur améliorée
+            let renderer;
+            try {
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            } catch (error) {
+                console.warn('❌ Impossible de créer le renderer WebGL:', error);
+                this.showGLBPlaceholder(canvas, glbName);
+                return;
+            }
+            
             renderer.setSize(size, size);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1036,6 +1061,13 @@ class LibraryPreview3D {
 
     // Charger le modèle GLB
     loadGLBModel(scene, camera, renderer, glbPath, glbName, canvas) {
+        // Vérifier si le chemin GLB est accessible
+        if (!glbPath) {
+            console.warn('❌ Chemin GLB manquant pour:', glbName);
+            this.showGLBPlaceholder(canvas, glbName);
+            return;
+        }
+
         // Attendre que GLTFLoader soit disponible
         this.waitForGLTFLoader().then((GLTFLoader) => {
             const loader = new GLTFLoader();

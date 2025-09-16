@@ -282,7 +282,7 @@ class BlockSelector {
         // ✅ SÉCURITÉ: Vérifier que le bloc de base existe
         if (!baseBlock) {
             console.error(`❌ BlockSelector: Type de base "${baseType}" non trouvé dans blockTypes`);
-            console.log('🔍 Types disponibles:', Object.keys(this.blockTypes));
+            
             this.hideCustomCutModal();
             return;
         }
@@ -308,6 +308,75 @@ class BlockSelector {
         
         this.selectedType = type;
         this.updateSelection();
+        
+        // NOUVEAU: Basculement automatique d'assise DÈS la sélection
+        try {
+            if (window.AssiseManager && this.blockTypes[type]) {
+                const block = this.blockTypes[type];
+                let assiseType = null;
+                
+                switch (block.category) {
+                    case 'cellular':
+                    case 'cellular-assise':
+                        // Détection du sous-type BC*
+                        if (type.includes('60x5')) {
+                            assiseType = 'BC5';
+                        } else if (type.includes('60x7')) {
+                            assiseType = 'BC7';
+                        } else if (type.includes('60x10') || type.includes('60x9')) {
+                            assiseType = 'BC10';
+                        } else if (type.includes('60x15') || type.includes('60x14')) {
+                            assiseType = 'BC15';
+                        } else if (type.includes('60x17')) {
+                            assiseType = 'BC17';
+                        } else if (type.includes('60x20') || type.includes('60x19')) {
+                            assiseType = 'BC20';
+                        } else if (type.includes('60x24')) {
+                            assiseType = 'BC24';
+                        } else if (type.includes('60x30')) {
+                            assiseType = 'BC30';
+                        } else if (type.includes('60x36')) {
+                            assiseType = 'BC36';
+                        } else {
+                            // Fallback vers le type générique
+                            assiseType = 'CELLULAIRE';
+                        }
+                        break;
+                    case 'argex':
+                        // Détection du sous-type ARGEX selon la largeur
+                        if (type.includes('39x9')) {
+                            assiseType = 'ARGEX9';
+                        } else if (type.includes('39x14')) {
+                            assiseType = 'ARGEX14';
+                        } else if (type.includes('39x19')) {
+                            assiseType = 'ARGEX19';
+                        } else {
+                            assiseType = 'ARGEX'; // Fallback générique
+                        }
+                        break;
+                    case 'terracotta':
+                        // Détection du sous-type terre cuite selon la largeur
+                        if (type.includes('50x10')) {
+                            assiseType = 'TC10';
+                        } else if (type.includes('50x14')) {
+                            assiseType = 'TC14';
+                        } else if (type.includes('50x19')) {
+                            assiseType = 'TC19';
+                        } else {
+                            assiseType = 'TERRE_CUITE'; // Fallback générique
+                        }
+                        break;
+                }
+                
+                if (assiseType) {
+                    console.log('BASCULEMENT-SELECT: Basculement automatique vers', assiseType, 'pour bloc', type);
+                    // Basculement automatique vers l'assise dès la sélection
+                    window.AssiseManager.setCurrentType(assiseType, false); // SANS skipToolChange pour mise à jour complète
+                }
+            }
+        } catch (error) {
+            console.warn('Erreur lors du basculement automatique d\'assise pour bloc:', error);
+        }
         
         // Animation de sélection
         const sizeButton = document.querySelector(`.block-size-btn[data-type="${type}"]`);
@@ -405,40 +474,6 @@ class BlockSelector {
         
         // Mettre à jour les dimensions AVANT tout changement de mode
         this.updateBlockDimensions(type);
-        
-        // Basculer automatiquement vers l'assise correspondante si AssiseManager est disponible
-        if (window.AssiseManager) {
-            try {
-                const blockInfo = this.blockTypes[type];
-                if (blockInfo && blockInfo.category) {
-                    let assiseType = null;
-                    
-                    // Mapper les catégories aux types d'assises
-                    switch (blockInfo.category) {
-                        case 'hollow':
-                        case 'cut': // Les blocs coupés sont des variantes des blocs creux
-                            assiseType = 'CREUX';
-                            break;
-                        case 'cellular':
-                            assiseType = 'CELLULAIRE';
-                            break;
-                        case 'argex':
-                            assiseType = 'ARGEX';
-                            break;
-                        case 'terracotta':
-                            assiseType = 'TERRE_CUITE';
-                            break;
-                    }
-                    
-                    if (assiseType) {
-                        // Basculement automatique vers l'assise
-                        window.AssiseManager.setCurrentType(assiseType, true); // skipToolChange = true
-                    }
-                }
-            } catch (error) {
-                console.warn('Erreur lors du basculement automatique d\'assise pour bloc:', error);
-            }
-        }
         
         // Changer de mode seulement si nécessaire, en préservant les dimensions
         if (window.ConstructionTools && window.ConstructionTools.currentMode !== 'block') {

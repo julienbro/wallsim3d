@@ -250,7 +250,7 @@ class MeasurementTool {
 
     // Méthode de debug pour tester le snap
     debugSnapPoints() {
-        console.log('🔍 DEBUG SNAP POINTS:');
+        
         console.log('- SceneManager disponible:', !!window.SceneManager);
         console.log('- Elements disponibles:', !!window.SceneManager?.elements);
         console.log('- Nombre d\'éléments:', window.SceneManager?.elements?.size || 0);
@@ -363,8 +363,7 @@ class MeasurementTool {
 
     // Diagnostic avancé pour analyser les éléments et leurs positions
     diagnoseBrickPositions() {
-        console.log('🔍 DIAGNOSTIC DES POSITIONS DE BRIQUES');
-        
+
         if (!window.SceneManager || !window.SceneManager.elements) {
             console.error('❌ SceneManager ou elements non disponible');
             return;

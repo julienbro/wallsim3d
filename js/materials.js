@@ -1019,13 +1019,7 @@ class MaterialLibrary {
                     const userData = object.userData || {};
                     const materialType = userData.material;
                     
-                    // console.log('🔍 Objet trouvé:', {
-                    //     uuid: object.uuid.substring(0, 8),
-                    //     material: materialType,
-                    //     transparent: object.material.transparent,
-                    //     opacity: object.material.opacity,
-                    //     userData: userData
-                    // });
+                    // 
                     
                     // Vérifier si c'est un élément avec un matériau isolant
                     const isInsulation = materialType === 'rock-wool' || 

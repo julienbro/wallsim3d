@@ -1970,12 +1970,7 @@ class FileMenuHandler {
                 resolve();
             } else {
                 console.error('❌ GLTFLoader non trouvé après chargement');
-                console.log('🔍 Debug - objets disponibles:', {
-                    'window.THREE': !!window.THREE,
-                    'window.GLTFLoader': !!window.GLTFLoader,
-                    'window.Three': !!window.Three,
-                    'THREE.keys': window.THREE ? Object.keys(window.THREE).filter(k => k.includes('Loader')) : 'N/A'
-                });
+                
                 reject(new Error('GLTFLoader not found after loading'));
             }
         }, 1000); // Délai plus long pour l'initialisation

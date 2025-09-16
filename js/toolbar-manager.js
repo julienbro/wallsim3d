@@ -9,6 +9,12 @@ class ToolbarManager {
         this.selectedElement = null;
         this.originalPlacementSuggestions = null;
         
+        // Variables pour la gestion du survol et des grilles en mode suppression
+        this.hoveredElement = null;
+        this.originalEmissive = null;
+        this.previousGridState = undefined;
+        this.previousGhostState = undefined;
+        
         // Attendre que le DOM et les autres managers soient prêts
         setTimeout(() => {
             this.initElements();
@@ -107,7 +113,6 @@ class ToolbarManager {
                 this.isToolActive = false;
                 this.hideInstruction();
                 this.enableNormalPlacement();
-                this.disableDeleteCursor && this.disableDeleteCursor();
                 // Désactiver complètement le mode placement et masquer l'élément fantôme
                 if (window.ConstructionTools) {
                     // Désactiver le mode placement
@@ -138,7 +143,6 @@ class ToolbarManager {
                 this.isToolActive = true;
                 this.showInstruction('Cliquez sur un élément pour le sélectionner et le déplacer');
                 this.disableNormalPlacement();
-                this.disableDeleteCursor && this.disableDeleteCursor();
                 break;
             case 'deleteTool':
                 this.currentTool = 'delete';
@@ -146,26 +150,54 @@ class ToolbarManager {
                 this.isToolActive = true;
                 this.showInstruction('Cliquez sur un élément pour le supprimer');
                 this.disableNormalPlacement();
-                // Masquer l'élément fantôme pendant le mode suppression
+                
+                // Cacher les grilles des assises en mode suppression
+                if (window.AssiseManager) {
+                    // Sauvegarder l'état actuel des grilles
+                    this.previousGridState = window.AssiseManager.showAssiseGrids;
+                    
+                    // Cacher toutes les grilles
+                    window.AssiseManager.showAssiseGrids = false;
+                    
+                    // Appliquer le masquage pour tous les types si gridHelpersByType existe
+                    if (window.AssiseManager.gridHelpersByType) {
+                        for (const [type, gridHelpersMap] of window.AssiseManager.gridHelpersByType.entries()) {
+                            if (gridHelpersMap) {
+                                for (const [assiseIndex, grids] of gridHelpersMap.entries()) {
+                                    if (grids) {
+                                        if (grids.main && grids.main.visible !== undefined) {
+                                            grids.main.visible = false;
+                                        }
+                                        if (grids.joint && grids.joint.visible !== undefined) {
+                                            grids.joint.visible = false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    console.log('🗑️ Grilles d\'assises masquées pour le mode suppression');
+                }
+                
+                // Masquer la brique fantôme en mode suppression
                 if (window.ConstructionTools) {
-                    window.ConstructionTools.isPlacementMode = false;
+                    // Sauvegarder l'état du fantôme
+                    this.previousGhostState = window.ConstructionTools.showGhost;
+                    
+                    // Désactiver le fantôme
                     window.ConstructionTools.showGhost = false;
+                    window.ConstructionTools.isPlacementMode = false;
+                    
+                    // Masquer immédiatement le fantôme
                     if (window.ConstructionTools.hideGhostElement) {
                         window.ConstructionTools.hideGhostElement();
                     }
-                    if (window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.mesh) {
-                        window.ConstructionTools.ghostElement.mesh.visible = false;
-                    }
-                    // Désactiver et nettoyer les suggestions de placement si présentes
-                    if (window.ConstructionTools.deactivateSuggestions) {
-                        window.ConstructionTools.deactivateSuggestions();
-                    }
-                    if (window.ConstructionTools.clearSuggestions) {
-                        window.ConstructionTools.clearSuggestions();
-                    }
                 }
-                // Activer le curseur corbeille personnalisé
-                this.enableDeleteCursor && this.enableDeleteCursor();
+                
+                // Changer le curseur en corbeille
+                document.body.style.cursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' fill=\'%23dc2626\' viewBox=\'0 0 24 24\'><path d=\'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z\'/></svg>") 12 12, auto';
+                
                 break;
             case 'duplicateTool':
                 this.currentTool = 'duplicate';
@@ -173,7 +205,6 @@ class ToolbarManager {
                 this.isToolActive = true;
                 this.showInstruction('Cliquez sur un élément pour le dupliquer');
                 this.disableNormalPlacement();
-                this.disableDeleteCursor && this.disableDeleteCursor();
                 break;
         }
         
@@ -191,6 +222,61 @@ class ToolbarManager {
             this.isToolActive = false;
             this.hideInstruction();
             this.enableNormalPlacement();
+            
+            // Nettoyer la surbrillance de survol si elle existe
+            this.clearHoverHighlight();
+            
+            // Restaurer l'état des grilles si on quitte le mode suppression
+            if (this.currentTool === 'delete' && window.AssiseManager && this.previousGridState !== undefined) {
+                window.AssiseManager.showAssiseGrids = this.previousGridState;
+                
+                // Restaurer la visibilité des grilles selon l'état précédent
+                if (this.previousGridState) {
+                    window.AssiseManager.updateAllGridVisibility();
+                } else {
+                    // Si les grilles étaient cachées, s'assurer qu'elles le restent
+                    if (window.AssiseManager.gridHelpersByType) {
+                        for (const [type, gridHelpersMap] of window.AssiseManager.gridHelpersByType.entries()) {
+                            if (gridHelpersMap) {
+                                for (const [assiseIndex, grids] of gridHelpersMap.entries()) {
+                                    if (grids) {
+                                        if (grids.main && grids.main.visible !== undefined) {
+                                            grids.main.visible = false;
+                                        }
+                                        if (grids.joint && grids.joint.visible !== undefined) {
+                                            grids.joint.visible = false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                this.previousGridState = undefined;
+                console.log('🔄 Grilles d\'assises restaurées');
+            }
+            
+            // Restaurer l'état du fantôme si on quitte le mode suppression
+            if (this.currentTool === 'delete' && window.ConstructionTools && this.previousGhostState !== undefined) {
+                window.ConstructionTools.showGhost = this.previousGhostState;
+                window.ConstructionTools.isPlacementMode = this.previousGhostState;
+                
+                // Réafficher le fantôme si nécessaire
+                if (this.previousGhostState && window.ConstructionTools.showGhostElement) {
+                    window.ConstructionTools.showGhostElement();
+                }
+                
+                this.previousGhostState = undefined;
+            }
+            
+            // Restaurer le curseur normal
+            document.body.style.cursor = '';
+            const canvas = document.getElementById('threejs-canvas');
+            if (canvas) {
+                canvas.style.cursor = '';
+            }
+            
             // Réactiver l'élément fantôme pour le mode placement seulement s'il n'y a pas de suggestions
             if (window.ConstructionTools) {
                 window.ConstructionTools.showGhost = true;
@@ -212,13 +298,7 @@ class ToolbarManager {
             const hasCamera = window.SceneManager?.camera;
             const hasRenderer = window.SceneManager?.renderer;
             
-            // console.log('🔍 Checking Three.js objects:', {
-            //     hasThreeJS: !!hasThreeJS,
-            //     hasScene: !!hasScene,
-            //     hasCamera: !!hasCamera,
-            //     hasRenderer: !!hasRenderer,
-            //     SceneManager: !!window.SceneManager
-            // });
+            // 
             
             if (hasThreeJS && hasScene && hasCamera && hasRenderer) {
                 // console.log('🎯 Three.js found, setting up raycasting');
@@ -257,6 +337,65 @@ class ToolbarManager {
         }
         
         // console.log('✅ Scene and camera found, raycasting ready');
+        
+        // Ajouter gestionnaire de survol pour l'outil de suppression
+        canvas.addEventListener('mousemove', (event) => {
+            if (!this.isToolActive || this.currentTool !== 'delete') return;
+            
+            // Appliquer le curseur corbeille sur le canvas
+            canvas.style.cursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' fill=\'%23dc2626\' viewBox=\'0 0 24 24\'><path d=\'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z\'/></svg>") 12 12, auto';
+            
+            // Calculer la position de la souris
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Raycasting pour détecter les éléments survolés
+            raycaster.setFromCamera(mouse, camera);
+            const allIntersects = raycaster.intersectObjects(scene.children, true);
+            
+            // Filtrer pour les éléments valides (même logique que pour les clics)
+            const validIntersects = allIntersects.filter(intersect => {
+                const obj = intersect.object;
+                
+                // Ignorer les objets système
+                if (obj.name === 'WallSim3D_InteractionPlane' || 
+                    obj.name === 'WallSim3D_GroundFloor' ||
+                    obj.userData?.isGround ||
+                    obj.userData?.isSystem ||
+                    obj.type === 'GridHelper' || 
+                    obj.type === 'AxesHelper') {
+                    return false;
+                }
+                
+                // Accepter les éléments avec userData valides
+                return obj.userData?.elementId || obj.userData?.id || obj.userData?.type ||
+                       obj.userData?.measurementId || obj.userData?.annotationId || obj.userData?.textLeaderId;
+            });
+            
+            // Gérer la surbrillance au survol
+            if (validIntersects.length > 0) {
+                const newHoveredElement = this.findElementParent(validIntersects[0].object);
+                
+                if (newHoveredElement !== this.hoveredElement) {
+                    // Désactiver la surbrillance précédente
+                    this.clearHoverHighlight();
+                    
+                    // Activer la nouvelle surbrillance
+                    this.hoveredElement = newHoveredElement;
+                    this.applyHoverHighlight();
+                }
+            } else {
+                // Aucun élément survolé, supprimer la surbrillance
+                this.clearHoverHighlight();
+            }
+        });
+        
+        // Restaurer le curseur normal quand on quitte le canvas
+        canvas.addEventListener('mouseleave', () => {
+            canvas.style.cursor = '';
+            this.clearHoverHighlight();
+        });
         
         // Intercepter les clics sur le canvas
         canvas.addEventListener('click', (event) => {
@@ -343,7 +482,7 @@ class ToolbarManager {
             // Débugger les premières intersections pour comprendre la structure
             if (allIntersects.length > 0) {
                 /*
-                console.log('🔍 First 3 intersects details:');
+                
                 allIntersects.slice(0, 3).forEach((intersect, i) => {
                     const obj = intersect.object;
                     console.log(`  ${i}:`, {
@@ -629,30 +768,15 @@ class ToolbarManager {
                     this.removeElementFromManagers(joint, jointId);
                 });
                 
-                this.hideInstruction();
                 const message = jointCount > 0 
                     ? `${elementType} et ${jointCount} joints supprimés`
                     : `${elementType} supprimé(e)`;
-                this.showTemporaryMessage(message);
+                this.showTemporaryMessage(message, 1500); // Message plus court
+                
                 // console.log(`✅ Element deletion completed: 1 element + ${jointCount} joints`);
                 
-                // 🔄 RETOUR AUTOMATIQUE: Revenir en mode pose de brique après suppression
-                // Ancien comportement: retour mode sélection. Nouveau: réactiver directement le mode placement avec fantôme.
-                if (window.ConstructionTools) {
-                    // Réactiver drapeau placement
-                    window.ConstructionTools.isPlacementMode = true;
-                    window.ConstructionTools.showGhost = true;
-                    // Si une méthode d'affichage existe, l'appeler
-                    if (window.ConstructionTools.showGhostElement) {
-                        window.ConstructionTools.showGhostElement();
-                    } else if (window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.mesh) {
-                        window.ConstructionTools.ghostElement.mesh.visible = true;
-                    }
-                }
-                // Adapter l'état interne de la toolbar: revenir en mode placement (aucun outil de sélection actif)
-                this.setInteractionMode && this.setInteractionMode('placement');
-                // Désactiver le curseur corbeille si encore actif
-                this.disableDeleteCursor && this.disableDeleteCursor();
+                // 🔄 RETOUR IMMÉDIAT AU MODE PLACEMENT: Revenir tout de suite au mode pose d'éléments
+                this.setInteractionMode('placement');
                 
             } catch (error) {
                 // console.error('❌ Error during element deletion:', error);
@@ -1185,29 +1309,141 @@ class ToolbarManager {
         
         // Ajouter une surbrillance
         if (element.material) {
-            // Sauvegarder l'état original
-            element.userData.originalEmissive = element.material.emissive ? 
-                element.material.emissive.clone() : new THREE.Color(0x000000);
-            
-            // Appliquer la surbrillance
-            element.material.emissive = new THREE.Color(0x0066ff);
+            try {
+                // Sauvegarder l'état original
+                element.userData.originalEmissive = element.material.emissive ? 
+                    element.material.emissive.clone() : new THREE.Color(0x000000);
+                
+                // Vérifier que le matériau est valide avant modification
+                if (element.material.emissive && element.material.emissive.setHex) {
+                    // Appliquer la surbrillance
+                    element.material.emissive.setHex(0x0066ff);
+                    // Forcer la mise à jour du matériau
+                    element.material.needsUpdate = true;
+                }
+            } catch (error) {
+                console.warn('⚠️ Erreur lors de la surbrillance de l\'élément:', error);
+            }
         }
     }
     
     clearHighlights() {
         if (this.selectedElement && this.selectedElement.material) {
-            if (this.selectedElement.userData.originalEmissive) {
-                this.selectedElement.material.emissive = this.selectedElement.userData.originalEmissive;
+            try {
+                if (this.selectedElement.userData.originalEmissive) {
+                    if (this.selectedElement.material.emissive && this.selectedElement.material.emissive.copy) {
+                        this.selectedElement.material.emissive.copy(this.selectedElement.userData.originalEmissive);
+                        // Forcer la mise à jour du matériau
+                        this.selectedElement.material.needsUpdate = true;
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Erreur lors de la suppression de la surbrillance:', error);
             }
         }
     }
     
+    // Méthodes pour la surbrillance au survol en mode suppression
+    applyHoverHighlight() {
+        if (!this.hoveredElement || !this.hoveredElement.material) return;
+        
+        try {
+            // Sauvegarder l'émissive original seulement si ce n'est pas déjà fait
+            if (!this.originalEmissive) {
+                this.originalEmissive = this.hoveredElement.material.emissive ? 
+                    this.hoveredElement.material.emissive.clone() : new THREE.Color(0x000000);
+            }
+            
+            // Vérifier que le matériau est valide avant modification
+            if (this.hoveredElement.material.emissive && this.hoveredElement.material.emissive.setHex) {
+                // Appliquer une surbrillance rouge pour indiquer la suppression
+                this.hoveredElement.material.emissive.setHex(0xff4444);
+                // Forcer la mise à jour du matériau
+                this.hoveredElement.material.needsUpdate = true;
+            }
+        } catch (error) {
+            console.warn('⚠️ Erreur lors de l\'application de la surbrillance:', error);
+        }
+    }
+    
+    clearHoverHighlight() {
+        if (this.hoveredElement && this.hoveredElement.material && this.originalEmissive) {
+            try {
+                // Vérifier que le matériau est toujours valide
+                if (this.hoveredElement.material.emissive && this.hoveredElement.material.emissive.copy) {
+                    this.hoveredElement.material.emissive.copy(this.originalEmissive);
+                    // Forcer la mise à jour du matériau
+                    this.hoveredElement.material.needsUpdate = true;
+                }
+            } catch (error) {
+                console.warn('⚠️ Erreur lors de la suppression de la surbrillance:', error);
+            }
+        }
+        this.hoveredElement = null;
+        this.originalEmissive = null;
+    }
+    
     resetSelection() {
         this.clearHighlights();
+        this.clearHoverHighlight();
         this.selectedElement = null;
     }
     
     returnToSelectMode() {
+        // Nettoyer la surbrillance de survol si elle existe
+        this.clearHoverHighlight();
+        
+        // Restaurer l'état des grilles si on quitte le mode suppression
+        if (this.currentTool === 'delete' && window.AssiseManager && this.previousGridState !== undefined) {
+            window.AssiseManager.showAssiseGrids = this.previousGridState;
+            
+            // Restaurer la visibilité des grilles selon l'état précédent
+            if (this.previousGridState) {
+                window.AssiseManager.updateAllGridVisibility();
+            } else {
+                // Si les grilles étaient cachées, s'assurer qu'elles le restent
+                if (window.AssiseManager.gridHelpersByType) {
+                    for (const [type, gridHelpersMap] of window.AssiseManager.gridHelpersByType.entries()) {
+                        if (gridHelpersMap) {
+                            for (const [assiseIndex, grids] of gridHelpersMap.entries()) {
+                                if (grids) {
+                                    if (grids.main && grids.main.visible !== undefined) {
+                                        grids.main.visible = false;
+                                    }
+                                    if (grids.joint && grids.joint.visible !== undefined) {
+                                        grids.joint.visible = false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            this.previousGridState = undefined;
+            console.log('🔄 Grilles d\'assises restaurées depuis returnToSelectMode');
+        }
+        
+        // Restaurer l'état du fantôme si on quitte le mode suppression
+        if (this.currentTool === 'delete' && window.ConstructionTools && this.previousGhostState !== undefined) {
+            window.ConstructionTools.showGhost = this.previousGhostState;
+            window.ConstructionTools.isPlacementMode = this.previousGhostState;
+            
+            // Réafficher le fantôme si nécessaire
+            if (this.previousGhostState && window.ConstructionTools.showGhostElement) {
+                window.ConstructionTools.showGhostElement();
+            }
+            
+            this.previousGhostState = undefined;
+        }
+        
+        // Restaurer le curseur normal
+        document.body.style.cursor = '';
+        const canvas = document.getElementById('threejs-canvas');
+        if (canvas) {
+            canvas.style.cursor = '';
+        }
+        
         // Réactiver le bouton de sélection
         this.toolButtons.forEach(btn => btn.classList.remove('active'));
         const selectButton = document.getElementById('selectTool');
@@ -1221,136 +1457,8 @@ class ToolbarManager {
         
         // Réactiver le placement normal
         this.enableNormalPlacement();
-        // Désactiver éventuellement le curseur corbeille
-        this.disableDeleteCursor && this.disableDeleteCursor();
         
         // console.log('🔄 Returned to select mode after deletion');
-    }
-
-    // =======================
-    // Curseur corbeille (mode suppression)
-    // =======================
-    enableDeleteCursor() {
-        if (this._deleteCursorActive) return;
-        const canvas = document.getElementById('threejs-canvas');
-        if (!canvas || !window.THREE || !window.SceneManager) return;
-        this._deleteCursorActive = true;
-
-        // Créer le style une seule fois
-        if (!document.getElementById('delete-cursor-style')) {
-            const style = document.createElement('style');
-            style.id = 'delete-cursor-style';
-            style.textContent = `
-                .delete-cursor-icon { position:fixed; width:26px; height:26px; pointer-events:none; z-index:10000; transform:translate(-50%, -50%); display:flex; align-items:center; justify-content:center; }
-                .delete-cursor-icon svg { width:100%; height:100%; filter: drop-shadow(0 0 2px rgba(0,0,0,0.6)); }
-                .delete-hover-target { outline: 2px solid #ff4444 !important; }
-                canvas.delete-hide-native-cursor { cursor: none !important; }
-            `;
-            document.head.appendChild(style);
-        }
-
-        // Créer l'élément curseur si absent
-        if (!this.deleteCursorElement) {
-            const div = document.createElement('div');
-            div.className = 'delete-cursor-icon';
-            // SVG corbeille simple (data inline)
-            div.innerHTML = `
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path fill="#ff5555" d="M9 3l1-1h4l1 1h5v2H4V3h5zm-2 4h10l-1 12a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2L7 7zm3 2v8h2V9h-2zm4 0v8h2V9h-2z" />
-            </svg>`;
-            document.body.appendChild(div);
-            this.deleteCursorElement = div;
-        }
-        this.deleteCursorElement.style.display = 'flex';
-        canvas.classList.add('delete-hide-native-cursor');
-
-        // Préparer raycaster
-        this._deleteRaycaster = this._deleteRaycaster || new THREE.Raycaster();
-        this._deleteMouse = this._deleteMouse || new THREE.Vector2();
-
-        this._onDeleteMouseMove = (evt) => {
-            // Position curseur visuel
-            this.deleteCursorElement.style.left = evt.clientX + 'px';
-            this.deleteCursorElement.style.top = evt.clientY + 'px';
-
-            if (this.currentTool !== 'delete') return; // sécurité
-            const scene = window.SceneManager?.scene;
-            const camera = window.SceneManager?.camera;
-            if (!scene || !camera) return;
-            const rect = canvas.getBoundingClientRect();
-            this._deleteMouse.x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
-            this._deleteMouse.y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
-            this._deleteRaycaster.setFromCamera(this._deleteMouse, camera);
-            const intersects = this._deleteRaycaster.intersectObjects(scene.children, true);
-
-            let hoveredElement = null;
-            for (let i = 0; i < intersects.length; i++) {
-                const candidate = this.findElementParent(intersects[i].object);
-                if (candidate) { hoveredElement = candidate; break; }
-            }
-            if (hoveredElement !== this._currentDeleteHover) {
-                this._clearDeleteHoverHighlight();
-                if (hoveredElement) this._applyDeleteHoverHighlight(hoveredElement);
-                this._currentDeleteHover = hoveredElement;
-            }
-        };
-
-        this._onDeleteMouseLeave = () => {
-            this._clearDeleteHoverHighlight();
-            this._currentDeleteHover = null;
-        };
-
-        canvas.addEventListener('mousemove', this._onDeleteMouseMove, { passive: true });
-        canvas.addEventListener('mouseleave', this._onDeleteMouseLeave, { passive: true });
-    }
-
-    disableDeleteCursor() {
-        if (!this._deleteCursorActive) return;
-        this._deleteCursorActive = false;
-        const canvas = document.getElementById('threejs-canvas');
-        if (canvas) {
-            canvas.classList.remove('delete-hide-native-cursor');
-            if (this._onDeleteMouseMove) canvas.removeEventListener('mousemove', this._onDeleteMouseMove);
-            if (this._onDeleteMouseLeave) canvas.removeEventListener('mouseleave', this._onDeleteMouseLeave);
-        }
-        if (this.deleteCursorElement) this.deleteCursorElement.style.display = 'none';
-        this._clearDeleteHoverHighlight();
-        this._currentDeleteHover = null;
-    }
-
-    _applyDeleteHoverHighlight(element) {
-        if (!element) return;
-        // Sauvegarder emissive
-        if (element.material && element.material.emissive) {
-            element.userData._deleteOriginalEmissive = element.material.emissive.clone();
-            element.material.emissive.setHex(0xff2222);
-        } else if (element.material && !element.material.emissive) {
-            // Matériau sans emissive: on peut ajuster la couleur originale
-            element.userData._deleteOriginalColor = element.material.color?.clone();
-            if (element.material.color) element.material.color.setHex(0xff5555);
-        }
-        // Optionnel: légère mise à l'échelle (éviter pour joints très petits)
-        if (!element.userData._originalScale && element.scale) {
-            element.userData._originalScale = element.scale.clone();
-            element.scale.multiplyScalar(1.02);
-        }
-    }
-
-    _clearDeleteHoverHighlight() {
-        const element = this._currentDeleteHover;
-        if (!element) return;
-        if (element.userData._deleteOriginalEmissive && element.material && element.material.emissive) {
-            element.material.emissive.copy(element.userData._deleteOriginalEmissive);
-            delete element.userData._deleteOriginalEmissive;
-        }
-        if (element.userData._deleteOriginalColor && element.material && element.material.color) {
-            element.material.color.copy(element.userData._deleteOriginalColor);
-            delete element.userData._deleteOriginalColor;
-        }
-        if (element.userData._originalScale && element.scale) {
-            element.scale.copy(element.userData._originalScale);
-            delete element.userData._originalScale;
-        }
     }
     
     // Méthodes pour gérer l'intégration avec les managers existants
@@ -1366,7 +1474,7 @@ class ToolbarManager {
     }
     
     findAssociatedJoints(element) {
-        // console.log('🔍 Searching for joints associated with element:', element.userData);
+        // 
         
         const scene = window.SceneManager?.scene;
         if (!scene) return [];
@@ -1389,7 +1497,7 @@ class ToolbarManager {
         }
         
         // console.log(`🔍 Looking for joints associated with element ID: "${elementId}"`);
-        // console.log('🔍 Element userData structure:', JSON.stringify(element.userData, null, 2));
+        // 
         
         if (!elementId) {
             // console.log('❌ No element ID found - cannot find associated joints');
@@ -1573,6 +1681,61 @@ class ToolbarManager {
     }
     
     enableNormalPlacement() {
+        // Nettoyer la surbrillance de survol si elle existe
+        this.clearHoverHighlight();
+        
+        // Restaurer l'état des grilles si on quitte le mode suppression
+        if (this.currentTool === 'delete' && window.AssiseManager && this.previousGridState !== undefined) {
+            window.AssiseManager.showAssiseGrids = this.previousGridState;
+            
+            // Restaurer la visibilité des grilles selon l'état précédent
+            if (this.previousGridState) {
+                window.AssiseManager.updateAllGridVisibility();
+            } else {
+                // Si les grilles étaient cachées, s'assurer qu'elles le restent
+                if (window.AssiseManager.gridHelpersByType) {
+                    for (const [type, gridHelpersMap] of window.AssiseManager.gridHelpersByType.entries()) {
+                        if (gridHelpersMap) {
+                            for (const [assiseIndex, grids] of gridHelpersMap.entries()) {
+                                if (grids) {
+                                    if (grids.main && grids.main.visible !== undefined) {
+                                        grids.main.visible = false;
+                                    }
+                                    if (grids.joint && grids.joint.visible !== undefined) {
+                                        grids.joint.visible = false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            this.previousGridState = undefined;
+            console.log('🔄 Grilles d\'assises restaurées depuis enableNormalPlacement');
+        }
+        
+        // Restaurer l'état du fantôme si on quitte le mode suppression
+        if (this.currentTool === 'delete' && window.ConstructionTools && this.previousGhostState !== undefined) {
+            window.ConstructionTools.showGhost = this.previousGhostState;
+            window.ConstructionTools.isPlacementMode = this.previousGhostState;
+            
+            // Réafficher le fantôme si nécessaire
+            if (this.previousGhostState && window.ConstructionTools.showGhostElement) {
+                window.ConstructionTools.showGhostElement();
+            }
+            
+            this.previousGhostState = undefined;
+            console.log('🔄 Fantôme restauré depuis enableNormalPlacement');
+        }
+        
+        // Restaurer le curseur normal
+        document.body.style.cursor = '';
+        const canvas = document.getElementById('threejs-canvas');
+        if (canvas) {
+            canvas.style.cursor = '';
+        }
+        
         // Réactiver les suggestions de placement
         if (window.constructionTools && typeof window.constructionTools.enablePlacementSuggestions === 'function') {
             window.constructionTools.enablePlacementSuggestions();

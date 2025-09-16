@@ -48,39 +48,172 @@ class WallElement {
         this.blockType = options.blockType || null;
         this.brickType = options.brickType || null;
         
+        // Nouveau: Détecter si c'est un élément GLB
+        this.isGLBElement = this.checkIfGLBElement(options);
+        this.glbPath = options.glbPath || null;
+        
         if (window.DEBUG_WALL_ELEMENT) {
             console.log('🏗️ WallElement: Types stockés - blockType:', this.blockType, 'brickType:', this.brickType);
+            console.log('🏗️ WallElement: Élément GLB:', this.isGLBElement, 'Path:', this.glbPath);
         }
         
         // Déterminer la coupe à partir du blockType
-        this.cut = this.extractCutFromBlockType(this.blockType) || '1/1';
+        console.log('🔧 CUT EXTRACTION - blockType reçu dans constructeur:', this.blockType);
+        console.log('🔧 CUT EXTRACTION - ID de l\'élément:', this.id);
+        this.cut = this.extractCutFromBlockType(this.blockType, this.id) || '1/1';
+        console.log('🔧 CUT EXTRACTION - cut finale attribuée:', this.cut);
         
-    this.createMesh();
+        // Créer le mesh approprié (GLB ou géométrie standard)
+        if (this.isGLBElement) {
+            this.createGLBMesh();
+        } else {
+            this.createMesh();
+        }
     }
 
-    // Méthode pour extraire la coupe à partir du blockType
-    extractCutFromBlockType(blockType) {
-        if (!blockType || typeof blockType !== 'string') {
-            return '1/1';
-        }
+    // Méthode pour extraire la coupe à partir du blockType ou de l'ID
+    extractCutFromBlockType(blockType, elementId) {
+        console.log('🔧 CUT EXTRACTION - Analyse démarrée pour blockType:', blockType, 'elementId:', elementId);
         
         // Correspondances des suffixes avec les coupes
         const cutMappings = {
+            '_HALF': '1/2',
+            '_1Q': '1/4', 
+            '_3Q': '3/4',
+            'HALF': '1/2',
             '1Q': '1/4',
             '1/2L': '1/2L',
             '1/2': '1/2',
             '3Q': '3/4'
         };
         
-        // Chercher si le blockType se termine par un des suffixes de coupe
-        for (const [suffix, cut] of Object.entries(cutMappings)) {
-            if (blockType.endsWith(suffix)) {
-                return cut;
+        // 1. Essayer d'abord avec le blockType
+        if (blockType && typeof blockType === 'string') {
+            for (const [suffix, cut] of Object.entries(cutMappings)) {
+                if (blockType.includes(suffix)) {
+                    console.log('🔧 CUT EXTRACTION - Trouvé suffixe dans blockType:', suffix, '→ coupe:', cut);
+                    return cut;
+                }
             }
         }
         
+        // 2. Si blockType ne donne rien, essayer avec l'ID de l'élément
+        if (elementId && typeof elementId === 'string') {
+            console.log('🔧 CUT EXTRACTION - Tentative avec ID:', elementId);
+            for (const [suffix, cut] of Object.entries(cutMappings)) {
+                if (elementId.includes(suffix)) {
+                    console.log('🔧 CUT EXTRACTION - Trouvé suffixe dans ID:', suffix, '→ coupe:', cut);
+                    return cut;
+                }
+            }
+        }
+        
+        // 3. Vérifier si le sélecteur actuel a des informations de coupe
+        if (window.BlockSelector && window.BlockSelector.getCurrentBlockData) {
+            try {
+                const blockData = window.BlockSelector.getCurrentBlockData();
+                console.log('🔧 CUT EXTRACTION - Données BlockSelector:', blockData);
+                if (blockData && blockData.type && typeof blockData.type === 'string') {
+                    for (const [suffix, cut] of Object.entries(cutMappings)) {
+                        if (blockData.type.includes(suffix)) {
+                            console.log('🔧 CUT EXTRACTION - Trouvé suffixe dans BlockSelector.type:', suffix, '→ coupe:', cut);
+                            return cut;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('🔧 CUT EXTRACTION - Erreur lors de l\'accès à BlockSelector:', error);
+            }
+        }
+        
+        console.log('🔧 CUT EXTRACTION - Aucun suffixe trouvé, retour 1/1');
         // Si aucun suffixe trouvé, c'est une brique/bloc entier
         return '1/1';
+    }
+
+    // Méthode pour détecter si l'élément devrait être un GLB
+    checkIfGLBElement(options) {
+        // Vérifier si le type est explicitement GLB
+        if (options.type && (options.type.includes('hourdis') || options.type.includes('poutrain') || options.type.includes('claveau'))) {
+            return true;
+        }
+        
+        // Vérifier dans BrickSelector si le type a une catégorie GLB
+        if (options.type && window.BrickSelector && window.BrickSelector.brickTypes) {
+            const brickData = window.BrickSelector.brickTypes[options.type];
+            if (brickData && brickData.category === 'glb') {
+                // Stocker le chemin GLB depuis BrickSelector
+                this.glbPath = brickData.glbPath;
+                return true;
+            }
+        }
+        
+        // Vérifier si un chemin GLB est fourni directement
+        if (options.glbPath) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    // Méthode pour créer un mesh GLB
+    createGLBMesh() {
+        console.log('🎯 Création GLB mesh pour:', this.type, 'Path:', this.glbPath);
+        
+        if (!this.glbPath) {
+            console.warn('❌ Pas de chemin GLB défini, fallback vers géométrie standard');
+            this.createMesh();
+            return;
+        }
+        
+        // Vérifier que GLTFLoader est disponible
+        let GLTFLoaderClass = null;
+        
+        if (window.THREE && window.THREE.GLTFLoader) {
+            GLTFLoaderClass = window.THREE.GLTFLoader;
+        } else if (window.GLTFLoader) {
+            GLTFLoaderClass = window.GLTFLoader;
+        } else {
+            console.warn('❌ GLTFLoader non disponible, fallback vers géométrie standard');
+            this.createMesh();
+            return;
+        }
+        
+        try {
+            const loader = new GLTFLoaderClass();
+            loader.load(
+                this.glbPath,
+                (gltf) => {
+                    console.log('✅ GLB chargé avec succès:', this.type);
+                    
+                    // Utiliser le modèle GLB comme mesh
+                    this.mesh = gltf.scene;
+                    this.mesh.userData = { 
+                        element: this,
+                        blockType: this.blockType,
+                        type: this.type,
+                        isGLB: true,
+                        glbPath: this.glbPath
+                    };
+                    
+                    // Positionner le mesh
+                    this.updateMeshPosition();
+                    
+                    console.log('🎯 GLB mesh créé et positionné pour:', this.type);
+                },
+                (progress) => {
+                    // console.log(`📊 Chargement GLB: ${(progress.loaded / progress.total * 100)}%`);
+                },
+                (error) => {
+                    console.error('❌ Erreur chargement GLB:', error);
+                    console.log('🔄 Fallback vers géométrie standard');
+                    this.createMesh();
+                }
+            );
+        } catch (error) {
+            console.error('❌ Erreur création loader GLB:', error);
+            this.createMesh();
+        }
     }
 
     // Méthode pour déterminer le matériau par défaut selon les règles spécifiées

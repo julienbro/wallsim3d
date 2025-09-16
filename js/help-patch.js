@@ -315,7 +315,7 @@ window.addEventListener('load', () => {
             };
             
             const helpInfo = helpTexts[toolId];
-            // console.log('🔍 Recherche aide pour', toolId, ':', helpInfo ? 'TROUVÉ' : 'NON TROUVÉ'); // désactivé
+            //  // désactivé
             if (!helpInfo) {
                 // console.error('❌ Aucun texte d\'aide trouvé pour:', toolId);
                 // console.log('📝 Textes disponibles:', Object.keys(helpTexts));

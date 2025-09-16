@@ -74,10 +74,7 @@ class MaterialPainter {
                 this.togglePaintingMode();
                 
                 // DÉCLENCHER L'AIDE CONTEXTUELLE LORS DU CLIC SUR LE BOUTON
-                // console.log('🔍 Vérification disponibilité aide:', {
-                //     showToolHelpExists: typeof window.showToolHelp,
-                //     helpPatchExists: typeof window.helpPatchLastTool
-                // });
+                // 
                 
                 if (window.showToolHelp && typeof window.showToolHelp === 'function') {
                     setTimeout(() => {
@@ -231,7 +228,7 @@ class MaterialPainter {
             this.enterPaintingMode();
             
             // DÉCLENCHER L'AIDE CONTEXTUELLE QUAND ON SÉLECTIONNE UN MATÉRIAU
-            // console.log('🔍 Tentative déclenchement aide via matériau');
+            // 
             if (window.showToolHelp && typeof window.showToolHelp === 'function') {
                 setTimeout(() => {
                     try {

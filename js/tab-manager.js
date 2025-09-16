@@ -3348,8 +3348,7 @@ class TabManager {
      */
     setupMeasurementPropertyListeners(element) {
         const propertyInputs = document.querySelectorAll('.property-input');
-        
-                
+
         propertyInputs.forEach(input => {
             input.addEventListener('change', (e) => {
                 const property = e.target.getAttribute('data-property');
@@ -3410,8 +3409,7 @@ class TabManager {
         // Écouteurs pour les champs texte
         const textInputs = document.querySelectorAll('.property-input-text');
         const selectInputs = document.querySelectorAll('.property-input-select');
-        
-                
+
         // Gérer les champs texte (pour le contenu)
         textInputs.forEach(input => {
             input.addEventListener('change', (e) => {
@@ -3476,8 +3474,7 @@ class TabManager {
         // Écouteurs pour les champs texte et sélecteurs
         const textInputs = document.querySelectorAll('.property-input-text');
         const selectInputs = document.querySelectorAll('.property-input-select');
-        
-                
+
         // Gérer les champs texte (pour le contenu)
         textInputs.forEach(input => {
             input.addEventListener('change', (e) => {

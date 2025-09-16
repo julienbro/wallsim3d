@@ -214,4 +214,3 @@ let libraryVisibilityManager;
 window.LibraryVisibilityManager = LibraryVisibilityManager;
 window.libraryVisibilityManager = libraryVisibilityManager;
 
-

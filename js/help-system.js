@@ -503,7 +503,7 @@ class HelpSystem {
             } else {
                 // Si ce n'est pas un bouton d'outil, afficher des infos de debug
                 if (e.target.closest('.tool-button')) {
-                    console.log('🔍 Clic sur bouton sans ID:', e.target.closest('.tool-button'));
+                    
                 }
             }
         });
@@ -698,7 +698,7 @@ class HelpSystem {
 
     // Test de diagnostic pour l'aide
     testHelpSystem() {
-        console.log('🔍 DIAGNOSTIC SYSTÈME D\'AIDE');
+        
         console.log('Panel créé:', !!this.helpPanel);
         console.log('Panel dans DOM:', document.body.contains(this.helpPanel));
         console.log('Données d\'aide disponibles:', Object.keys(this.helpData));

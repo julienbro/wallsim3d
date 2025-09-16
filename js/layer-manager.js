@@ -220,7 +220,7 @@ class LayerManager {
     }
 
     getLayerIdFromElementType(elementType, element = null) {
-        // console.log('🔍 getLayerIdFromElementType appelée avec:', elementType);
+        // 
         
         // CORRECTION: Détection intelligente des joints selon leurs propriétés
         if (elementType === 'joint' && element) {
@@ -233,10 +233,10 @@ class LayerManager {
                               element.userData?.elementType === 'vertical-joint';
             
             if (isVertical) {
-                // console.log('🔍 Joint vertical détecté - assignation au calque joints-verticaux');
+                // 
                 return 'joints-verticaux';
             } else if (isHorizontal) {
-                // console.log('🔍 Joint horizontal détecté - assignation au calque joints-horizontaux');
+                // 
                 return 'joints-horizontaux';
             }
         }
@@ -277,7 +277,7 @@ class LayerManager {
             }
         }
 
-        // console.log('🔍 Mapping résultat:', { elementType, layerId });
+        // 
         return layerId;
     }
 
@@ -602,7 +602,7 @@ class LayerManager {
 
     // === SCAN ET ACTUALISATION ===
     scanExistingElements() {
-        // console.log('🔍 Scan des éléments existants...');
+        // 
         
         // Scanner la scène pour trouver les éléments existants
         if (!window.sceneManager && !window.SceneManager) {
@@ -626,7 +626,7 @@ class LayerManager {
             'linteaux': 0
         };
 
-        // console.log('🔍 Parcours de la scène...');
+        // 
         
         // Scanner aussi les éléments via SceneManager.elements si disponible
         if (sceneManager.elements) {
@@ -634,7 +634,7 @@ class LayerManager {
             sceneManager.elements.forEach((element, elementId) => {
                 if (element && element.mesh) {
                     const elementType = element.type || element.mesh.userData?.type;
-                    // console.log('🔍 Élément trouvé:', { elementId, elementType, element });
+                    // 
                     
                     if (elementType) {
                         const layerId = this.getLayerIdFromElementType(elementType);
@@ -651,7 +651,7 @@ class LayerManager {
         scene.traverse(child => {
             if (child.userData && child.userData.type) {
                 const elementType = child.userData.type;
-                // console.log('🔍 Objet Three.js trouvé:', { id: child.id, elementType, userData: child.userData });
+                // 
                 
                 const layerId = this.getLayerIdFromElementType(elementType);
                 if (layerId && this.layers[layerId]) {
@@ -661,7 +661,7 @@ class LayerManager {
             }
         });
 
-        // console.log('🔍 Éléments trouvés:', elementsFound);
+        // 
         this.updateLayerCounts();
         this.updateLayerStats();
     }
@@ -876,12 +876,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Scanner les éléments existants après un délai supplémentaire
             setTimeout(() => {
                 if (window.LayerManager) {
-                    // console.log('🔍 Démarrage du scan des éléments existants...');
+                    // 
                     window.LayerManager.scanExistingElements();
                     
                     // Rendre disponible une fonction de debug globale
                     window.debugLayers = () => {
-                        console.log('🔍 DEBUG LAYERS STATE:');
+                        
                         console.log('LayerManager:', window.LayerManager);
                         console.log('Layers:', window.LayerManager.layers);
                         console.log('SceneManager:', window.SceneManager || window.sceneManager);
@@ -891,7 +891,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.LayerManager.refreshLayers();
                     };
                     
-                    // console.log('🔍 Tapez debugLayers() dans la console pour déboguer les calques');
+                    // 
                 }
             }, 2000);
         }

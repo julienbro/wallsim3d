@@ -824,8 +824,7 @@ class InsulationSelector {
             baseType = parts[0];
             cutSuffix = '_' + parts.slice(1).join('_');
         }
-        
-        console.log('🔍 InsulationSelector.setInsulation:', { originalType: type, baseType, cutSuffix });
+
         if (window._isoGhostLog) {
             window._isoGhostLog('SET_INSULATION_CALL', { originalType: type, baseType, cutSuffix });
         }
