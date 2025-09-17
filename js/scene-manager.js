@@ -158,6 +158,29 @@ class SceneManager {
             this.controls.enablePan = true;
             this.controls.panSpeed = 1.0;
             this.controls.keyPanSpeed = 7.0;
+
+            // Zoom sous le curseur si disponible nativement (three >= r137)
+            try {
+                if ('zoomToCursor' in this.controls) {
+                    this.controls.zoomToCursor = true;
+                } else {
+                    // Fallback: implémentation maison du zoom sous le curseur
+                    // Désactiver le zoom natif pour éviter un double-zoom
+                    this.controls.enableZoom = false;
+                    // Lier le handler une seule fois
+                    if (!this.onWheelZoomToCursor) {
+                        this.onWheelZoomToCursor = this.handleWheelZoomToCursor.bind(this);
+                    }
+                    this.renderer.domElement.addEventListener('wheel', this.onWheelZoomToCursor, { passive: false });
+                }
+            } catch (e) {
+                // En cas d'erreur, activer le fallback également
+                this.controls.enableZoom = false;
+                if (!this.onWheelZoomToCursor) {
+                    this.onWheelZoomToCursor = this.handleWheelZoomToCursor.bind(this);
+                }
+                this.renderer.domElement.addEventListener('wheel', this.onWheelZoomToCursor, { passive: false });
+            }
             
             // ✨ NOUVEAU: Configuration du bouton du milieu pour le pannage
             this.controls.mouseButtons = {
@@ -3451,21 +3474,11 @@ class SceneManager {
             }
         });
         
-        // Zoom avec la molette
-        this.renderer.domElement.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const zoomSpeed = 0.1;
-            const direction = new THREE.Vector3();
-            this.camera.getWorldDirection(direction);
-            
-            if (e.deltaY > 0) {
-                // Zoom out
-                this.camera.position.add(direction.multiplyScalar(-10));
-            } else {
-                // Zoom in
-                this.camera.position.add(direction.multiplyScalar(10));
-            }
-        });
+        // Zoom avec la molette (sous le curseur)
+        if (!this.onWheelZoomToCursor) {
+            this.onWheelZoomToCursor = this.handleWheelZoomToCursor.bind(this);
+        }
+        this.renderer.domElement.addEventListener('wheel', this.onWheelZoomToCursor, { passive: false });
         
         // Objet controls simulé pour compatibilité
         this.controls = {
@@ -3474,6 +3487,69 @@ class SceneManager {
             enableDamping: true,
             dampingFactor: 0.05
         };
+    }
+
+    // Gestion du zoom à la molette sous le curseur (fallback universel)
+    handleWheelZoomToCursor(e) {
+        // Empêcher le comportement par défaut (scroll) et la propagation pour éviter le double-zoom
+        e.preventDefault();
+        e.stopPropagation();
+
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        // Calculer le point du monde sous le curseur avant zoom (sur le plan de sol)
+        this.raycaster.setFromCamera(mouse, this.camera);
+        let pointBefore = null;
+        if (this.groundPlane) {
+            const hits = this.raycaster.intersectObject(this.groundPlane);
+            if (hits && hits.length > 0) {
+                pointBefore = hits[0].point.clone();
+            }
+        }
+
+        // Déterminer la direction et l'amplitude du zoom
+        const target = (this.controls && this.controls.target) ? this.controls.target : (this.cameraTarget || new THREE.Vector3());
+        const focusPoint = pointBefore || target;
+        const toFocus = new THREE.Vector3().subVectors(focusPoint, this.camera.position);
+        const distance = toFocus.length();
+        if (distance === 0) return;
+
+        toFocus.normalize();
+        const step = Math.max(0.1, distance * 0.1); // 10% de la distance
+        const directionFactor = e.deltaY < 0 ? 1 : -1; // molette vers nous = zoom in
+
+        // Déplacer la caméra vers/loin du point de focus
+        this.camera.position.addScaledVector(toFocus, step * directionFactor);
+
+        // Recalculer le point sous le curseur après le déplacement
+        this.raycaster.setFromCamera(mouse, this.camera);
+        let pointAfter = null;
+        if (this.groundPlane) {
+            const hitsAfter = this.raycaster.intersectObject(this.groundPlane);
+            if (hitsAfter && hitsAfter.length > 0) {
+                pointAfter = hitsAfter[0].point.clone();
+            }
+        }
+
+        // Appliquer un décalage pour garder le point sous le curseur stable
+        if (pointBefore && pointAfter) {
+            const offset = new THREE.Vector3().subVectors(pointBefore, pointAfter);
+            this.camera.position.add(offset);
+            if (this.controls && this.controls.target) {
+                this.controls.target.add(offset);
+                this.controls.update();
+            } else if (this.cameraTarget) {
+                this.cameraTarget.add(offset);
+                this.camera.lookAt(this.cameraTarget);
+            }
+        } else {
+            // Pas d'intersection fiable: simple mise à jour des contrôles
+            if (this.controls) this.controls.update();
+        }
     }
 
     handleSuggestionHover() {
