@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Sauvegarde/Chargement - Mesures, Annotations, Textes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #007acc; margin-bottom: 30px; }
+        h2 { color: #333; border-bottom: 2px solid #007acc; padding-bottom: 10px; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: 2px solid #007acc;
+            background: #007acc;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button:hover { background: #005a9e; }
+        button.secondary {
+            background: white;
+            color: #007acc;
+        }
+        button.secondary:hover {
+            background: #f0f8ff;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #007acc;
+            background: #f8f9fa;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .data-preview {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 200px;
+            margin: 5px;
+        }
+        .counter {
+            display: inline-block;
+            background: #007acc;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test - Sauvegarde Complète avec Mesures, Annotations et Textes</h1>
+    
+    <div class="container">
+        <h2>📊 État du Système</h2>
+        <div id="systemStatus">
+            <div class="status info" id="measurementStatus">🔄 Vérification du MeasurementAnnotationManager...</div>
+            <div class="status info" id="fileHandlerStatus">🔄 Vérification du FileMenuHandler...</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📋 Simulation de Données de Test</h2>
+        <div class="test-section">
+            <h3>Créer des données de test :</h3>
+            <button onclick="createTestMeasurements()">📏 Créer mesures test <span class="counter" id="measurementCount">0</span></button>
+            <button onclick="createTestAnnotations()">📝 Créer annotations test <span class="counter" id="annotationCount">0</span></button>
+            <button onclick="createTestTextLeaders()">📋 Créer textes test <span class="counter" id="textLeaderCount">0</span></button>
+            <br>
+            <button class="secondary" onclick="clearAllData()">🗑️ Vider toutes les données</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>💾 Test de Sauvegarde</h2>
+        <div class="test-section">
+            <h3>Projet :</h3>
+            <input type="text" id="projectName" placeholder="Nom du projet" value="Projet Test Complet">
+            <br>
+            <button onclick="testSave()">💾 Test Sauvegarde (export JSON)</button>
+            <button onclick="testUpdateProjectData()">🔄 Test updateProjectData()</button>
+            <div id="saveStatus"></div>
+            <div class="data-preview" id="exportPreview"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📂 Test de Chargement</h2>
+        <div class="test-section">
+            <h3>Charger données sauvegardées :</h3>
+            <button onclick="testLoad()">📂 Test Chargement depuis export</button>
+            <input type="file" id="fileInput" accept=".json,.wsm" style="display: none;" onchange="loadFromFile(this)">
+            <button class="secondary" onclick="document.getElementById('fileInput').click()">📁 Charger fichier</button>
+            <div id="loadStatus"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📈 Données Actuelles</h2>
+        <div id="currentDataStatus">
+            <button onclick="refreshDataStatus()">🔄 Actualiser l'état</button>
+            <div id="dataDisplay"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simulation du système pour les tests
+        let testProjectData = null;
+        let mockMeasurements = [];
+        let mockAnnotations = [];
+        let mockTextLeaders = [];
+
+        // Mock du MeasurementAnnotationManager
+        if (!window.MeasurementAnnotationManager) {
+            window.MeasurementAnnotationManager = {
+                getMeasurementData: () => mockMeasurements,
+                getAnnotationData: () => mockAnnotations,
+                getTextLeaderData: () => mockTextLeaders,
+                loadMeasurementData: (data) => {
+                    mockMeasurements = Array.isArray(data) ? [...data] : [];
+                    updateCounters();
+                },
+                loadAnnotationData: (data) => {
+                    mockAnnotations = Array.isArray(data) ? [...data] : [];
+                    updateCounters();
+                },
+                loadTextLeaderData: (data) => {
+                    mockTextLeaders = Array.isArray(data) ? [...data] : [];
+                    updateCounters();
+                }
+            };
+        }
+
+        // Mock du FileMenuHandler
+        if (!window.FileMenuHandler) {
+            window.FileMenuHandler = {
+                currentProject: {
+                    name: 'Projet Test',
+                    version: '1.0',
+                    created: new Date().toISOString(),
+                    modified: new Date().toISOString(),
+                    elements: [],
+                    settings: { gridSpacing: 10, showGrid: true }
+                },
+                
+                updateProjectData() {
+                    if (!this.currentProject) return;
+
+                    this.currentProject.modified = new Date().toISOString();
+                    
+                    // Récupérer les données des mesures, annotations et textes
+                    if (window.MeasurementAnnotationManager) {
+                        this.currentProject.measurements = window.MeasurementAnnotationManager.getMeasurementData();
+                        this.currentProject.annotations = window.MeasurementAnnotationManager.getAnnotationData();
+                        this.currentProject.textLeaders = window.MeasurementAnnotationManager.getTextLeaderData();
+                    }
+                },
+                
+                exportProjectData() {
+                    if (!this.currentProject) return null;
+
+                    const projectData = {
+                        ...this.currentProject,
+                        modified: new Date().toISOString(),
+                        measurements: this.currentProject.measurements || [],
+                        annotations: this.currentProject.annotations || [],
+                        textLeaders: this.currentProject.textLeaders || []
+                    };
+
+                    return JSON.stringify(projectData, null, 2);
+                },
+                
+                loadProjectData(projectData) {
+                    this.currentProject = { ...projectData };
+                    
+                    // Restaurer les mesures, annotations et textes
+                    if (window.MeasurementAnnotationManager) {
+                        if (projectData.measurements) {
+                            window.MeasurementAnnotationManager.loadMeasurementData(projectData.measurements);
+                        }
+                        if (projectData.annotations) {
+                            window.MeasurementAnnotationManager.loadAnnotationData(projectData.annotations);
+                        }
+                        if (projectData.textLeaders) {
+                            window.MeasurementAnnotationManager.loadTextLeaderData(projectData.textLeaders);
+                        }
+                    }
+                }
+            };
+        }
+
+        function updateCounters() {
+            document.getElementById('measurementCount').textContent = mockMeasurements.length;
+            document.getElementById('annotationCount').textContent = mockAnnotations.length;
+            document.getElementById('textLeaderCount').textContent = mockTextLeaders.length;
+        }
+
+        function createTestMeasurements() {
+            const newMeasurements = [
+                { id: `m${Date.now()}_1`, startPoint: {x: 0, y: 0, z: 0}, endPoint: {x: 100, y: 0, z: 0}, distance: 100, units: 'cm' },
+                { id: `m${Date.now()}_2`, startPoint: {x: 0, y: 0, z: 0}, endPoint: {x: 0, y: 150, z: 0}, distance: 150, units: 'cm' },
+                { id: `m${Date.now()}_3`, startPoint: {x: 100, y: 150, z: 0}, endPoint: {x: 0, y: 0, z: 0}, distance: 180.28, units: 'cm' }
+            ];
+            mockMeasurements.push(...newMeasurements);
+            updateCounters();
+            showStatus('success', `✅ Ajouté ${newMeasurements.length} mesures test`, 'saveStatus');
+        }
+
+        function createTestAnnotations() {
+            const newAnnotations = [
+                { id: `a${Date.now()}_1`, position: {x: 50, y: 50, z: 0}, text: 'Mur principal', type: 'point' },
+                { id: `a${Date.now()}_2`, position: {x: 25, y: 75, z: 0}, text: 'Zone critique', type: 'warning' },
+                { id: `a${Date.now()}_3`, position: {x: 75, y: 25, z: 0}, text: 'Contrôler alignement', type: 'info' }
+            ];
+            mockAnnotations.push(...newAnnotations);
+            updateCounters();
+            showStatus('success', `✅ Ajouté ${newAnnotations.length} annotations test`, 'saveStatus');
+        }
+
+        function createTestTextLeaders() {
+            const newTexts = [
+                { id: `t${Date.now()}_1`, position: {x: 30, y: 30, z: 0}, text: 'Entrée principale', leaderEnd: {x: 40, y: 40, z: 0} },
+                { id: `t${Date.now()}_2`, position: {x: 70, y: 80, z: 0}, text: 'Ouverture 120cm', leaderEnd: {x: 80, y: 70, z: 0} }
+            ];
+            mockTextLeaders.push(...newTexts);
+            updateCounters();
+            showStatus('success', `✅ Ajouté ${newTexts.length} textes avec guide test`, 'saveStatus');
+        }
+
+        function clearAllData() {
+            mockMeasurements = [];
+            mockAnnotations = [];
+            mockTextLeaders = [];
+            updateCounters();
+            showStatus('info', '🗑️ Toutes les données ont été vidées', 'saveStatus');
+        }
+
+        function testUpdateProjectData() {
+            const projectName = document.getElementById('projectName').value || 'Projet Test';
+            window.FileMenuHandler.currentProject.name = projectName;
+            window.FileMenuHandler.updateProjectData();
+            
+            const project = window.FileMenuHandler.currentProject;
+            const status = `✅ updateProjectData() exécuté:
+            - Mesures: ${project.measurements?.length || 0}
+            - Annotations: ${project.annotations?.length || 0}
+            - Textes: ${project.textLeaders?.length || 0}`;
+            
+            showStatus('success', status, 'saveStatus');
+            refreshDataStatus();
+        }
+
+        function testSave() {
+            try {
+                testUpdateProjectData();
+                const exportedData = window.FileMenuHandler.exportProjectData();
+                testProjectData = JSON.parse(exportedData);
+                
+                document.getElementById('exportPreview').textContent = exportedData;
+                
+                const status = `✅ Sauvegarde réussie !
+                - Fichier JSON généré (${exportedData.length} caractères)
+                - Mesures: ${testProjectData.measurements?.length || 0}
+                - Annotations: ${testProjectData.annotations?.length || 0}
+                - Textes: ${testProjectData.textLeaders?.length || 0}`;
+                
+                showStatus('success', status, 'saveStatus');
+            } catch (error) {
+                showStatus('error', `❌ Erreur lors de la sauvegarde: ${error.message}`, 'saveStatus');
+            }
+        }
+
+        function testLoad() {
+            if (!testProjectData) {
+                showStatus('warning', '⚠️ Aucune donnée sauvegardée à charger. Effectuez d\'abord une sauvegarde.', 'loadStatus');
+                return;
+            }
+            
+            try {
+                // Vider les données actuelles
+                clearAllData();
+                
+                // Charger les données
+                window.FileMenuHandler.loadProjectData(testProjectData);
+                
+                const status = `✅ Chargement réussi !
+                - Mesures chargées: ${mockMeasurements.length}
+                - Annotations chargées: ${mockAnnotations.length}
+                - Textes chargés: ${mockTextLeaders.length}`;
+                
+                showStatus('success', status, 'loadStatus');
+                refreshDataStatus();
+            } catch (error) {
+                showStatus('error', `❌ Erreur lors du chargement: ${error.message}`, 'loadStatus');
+            }
+        }
+
+        function loadFromFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const projectData = JSON.parse(e.target.result);
+                    clearAllData();
+                    window.FileMenuHandler.loadProjectData(projectData);
+                    
+                    const status = `✅ Fichier "${file.name}" chargé !
+                    - Mesures: ${mockMeasurements.length}
+                    - Annotations: ${mockAnnotations.length}
+                    - Textes: ${mockTextLeaders.length}`;
+                    
+                    showStatus('success', status, 'loadStatus');
+                    refreshDataStatus();
+                } catch (error) {
+                    showStatus('error', `❌ Erreur de parsing: ${error.message}`, 'loadStatus');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function refreshDataStatus() {
+            const measurements = window.MeasurementAnnotationManager.getMeasurementData();
+            const annotations = window.MeasurementAnnotationManager.getAnnotationData();
+            const textLeaders = window.MeasurementAnnotationManager.getTextLeaderData();
+            
+            const html = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <div class="status info">
+                        <strong>📏 Mesures:</strong> ${measurements.length}<br>
+                        ${measurements.slice(0, 2).map(m => `• ${m.distance || 'N/A'}${m.units || 'cm'}`).join('<br>')}
+                        ${measurements.length > 2 ? `<br>... et ${measurements.length - 2} autres` : ''}
+                    </div>
+                    <div class="status info">
+                        <strong>📝 Annotations:</strong> ${annotations.length}<br>
+                        ${annotations.slice(0, 2).map(a => `• ${a.text || 'Sans texte'}`).join('<br>')}
+                        ${annotations.length > 2 ? `<br>... et ${annotations.length - 2} autres` : ''}
+                    </div>
+                    <div class="status info">
+                        <strong>📋 Textes:</strong> ${textLeaders.length}<br>
+                        ${textLeaders.slice(0, 2).map(t => `• ${t.text || 'Sans texte'}`).join('<br>')}
+                        ${textLeaders.length > 2 ? `<br>... et ${textLeaders.length - 2} autres` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('dataDisplay').innerHTML = html;
+        }
+
+        function showStatus(type, message, containerId) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = `<div class="status ${type}">${message}</div>`;
+            }
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            // Vérifier les systèmes
+            if (window.MeasurementAnnotationManager) {
+                showStatus('success', '✅ MeasurementAnnotationManager disponible', 'measurementStatus');
+            } else {
+                showStatus('warning', '⚠️ MeasurementAnnotationManager simulé (mode test)', 'measurementStatus');
+            }
+            
+            if (window.FileMenuHandler) {
+                showStatus('success', '✅ FileMenuHandler disponible', 'fileHandlerStatus');
+            } else {
+                showStatus('warning', '⚠️ FileMenuHandler simulé (mode test)', 'fileHandlerStatus');
+            }
+            
+            updateCounters();
+            refreshDataStatus();
+        });
+    </script>
+</body>
+</html>

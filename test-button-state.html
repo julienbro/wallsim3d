@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Button State</title>
+    <style>
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: 2px solid #ccc;
+            background: white;
+            cursor: pointer;
+        }
+        button.active {
+            background: #007acc;
+            color: white;
+            border-color: #005a9e;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test de l'état du bouton de mesure</h1>
+    <button id="measureTool">Outil Mesure</button>
+    <button onclick="testActivate()">Activer</button>
+    <button onclick="testDeactivate()">Désactiver</button>
+    
+    <div id="status">Status: -</div>
+
+    <script>
+        // Simulation simple de MeasurementTool avec updateButtonState
+        class MeasurementTool {
+            constructor() {
+                this.isActive = false;
+            }
+            
+            activate() {
+                console.log('🔧 Activation de l\'outil de mesure');
+                this.isActive = true;
+                this.updateButtonState(true);
+            }
+            
+            deactivate() {
+                console.log('🔧 Désactivation de l\'outil de mesure');
+                this.isActive = false;
+                this.updateButtonState(false);
+            }
+            
+            // Méthode pour mettre à jour l'état du bouton dans l'interface
+            updateButtonState(active) {
+                const button = document.getElementById('measureTool');
+                if (button) {
+                    if (active) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                }
+                
+                // Mettre à jour le status
+                document.getElementById('status').textContent = 
+                    `Status: ${active ? 'ACTIVÉ' : 'DÉSACTIVÉ'}`;
+            }
+        }
+        
+        // Initialisation
+        const tool = new MeasurementTool();
+        
+        function testActivate() {
+            tool.activate();
+        }
+        
+        function testDeactivate() {
+            tool.deactivate();
+        }
+        
+        // Test avec la touche Escape
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && tool.isActive) {
+                console.log('🔑 Échap pressé - désactivation');
+                tool.deactivate();
+            }
+        });
+    </script>
+</body>
+</html>
