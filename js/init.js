@@ -79,7 +79,7 @@ function initializeApplication() {
 function initializeApplicationCore() {
     // Initialiser l'application une fois que Three.js ES6 est prêt
     
-    // Utiliser requestIdleCallback pour une meilleure performance
+    // Utiliser requestIdleCallback pour une meilleure performance avec timeout
     const initApp = () => {
         if (typeof WallSimApp !== 'undefined' && typeof window.SceneManager !== 'undefined') {
             const app = new WallSimApp();
@@ -88,18 +88,24 @@ function initializeApplicationCore() {
                 StartupManager.updateExternalProgress(90, 'Initialisation de l\'interface...');
             }
             
-            app.init().then(() => {
-                // Ne plus fermer automatiquement la popup
-                // L'utilisateur doit choisir "Nouveau" ou "Ouvrir"
-                if (window.StartupManager) {
-                    StartupManager.updateExternalProgress(100, 'Prêt ! Choisissez une action.');
-                }
-                
-                // Initialiser le bouton d'onboarding
-                initializeOnboardingButton();
-            }).catch(error => {
-                console.error('❌ Erreur lors de l\'initialisation:', error);
-            });
+            // 🚀 OPTIMISATION: Initialiser avec un délai pour éviter les blocages
+            setTimeout(() => {
+                app.init().then(() => {
+                    // Ne plus fermer automatiquement la popup
+                    // L'utilisateur doit choisir "Nouveau" ou "Ouvrir"
+                    if (window.StartupManager) {
+                        StartupManager.updateExternalProgress(100, 'Prêt ! Choisissez une action.');
+                    }
+                    
+                    // Initialiser le bouton d'onboarding
+                    initializeOnboardingButton();
+                }).catch(error => {
+                    console.error('Erreur lors de l\'initialisation de l\'application:', error);
+                    if (window.StartupManager) {
+                        StartupManager.updateExternalProgress(100, 'Erreur d\'initialisation');
+                    }
+                });
+            }, 1); // Délai minimal pour éviter le blocage
         } else {
             console.error('❌ Dépendances manquantes - WallSimApp:', typeof WallSimApp, 'SceneManager:', typeof window.SceneManager);
             // Réessayer dans 500ms

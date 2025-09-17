@@ -367,13 +367,21 @@ class MetreTabManager {
             cutDisplay = element.cut;
         }
         // 2. Vérifier l'ID de l'élément pour les suffixes de coupe
-        else if (element.id && (element.id.includes('_3Q') || element.id.includes('_HALF') || element.id.includes('_1Q'))) {
+        else if (element.id && (element.id.includes('_3Q') || element.id.includes('_HALF') || element.id.includes('_1Q') || element.id.includes('_CUSTOM_'))) {
             if (element.id.includes('_3Q')) {
                 cutType = '3/4';
             } else if (element.id.includes('_HALF')) {
                 cutType = '1/2';
             } else if (element.id.includes('_1Q')) {
                 cutType = '1/4';
+            } else if (element.id.includes('_CUSTOM_')) {
+                // Extraire la longueur personnalisée du suffixe _CUSTOM_XX
+                const customMatch = element.id.match(/_CUSTOM_(\d+(?:_\d+)?)/);
+                if (customMatch) {
+                    const customLength = customMatch[1].replace('_', '.');
+                    cutType = 'custom';
+                    cutDisplay = `${customLength}cm`;
+                }
             }
         }
         // 3. Vérifier les suffixes dans blockType ou brickType
@@ -384,6 +392,14 @@ class MetreTabManager {
                 cutType = '1/2';
             } else if (element.blockType.includes('_1Q')) {
                 cutType = '1/4';
+            } else if (element.blockType.includes('_CUSTOM_')) {
+                // Extraire la longueur personnalisée du suffixe _CUSTOM_XX
+                const customMatch = element.blockType.match(/_CUSTOM_(\d+(?:_\d+)?)/);
+                if (customMatch) {
+                    const customLength = customMatch[1].replace('_', '.');
+                    cutType = 'custom';
+                    cutDisplay = `${customLength}cm`;
+                }
             }
         } else if (element.brickType) {
             if (element.brickType.includes('_3Q')) {
@@ -392,6 +408,14 @@ class MetreTabManager {
                 cutType = '1/2';
             } else if (element.brickType.includes('_1Q')) {
                 cutType = '1/4';
+            } else if (element.brickType.includes('_CUSTOM_')) {
+                // Extraire la longueur personnalisée du suffixe _CUSTOM_XX
+                const customMatch = element.brickType.match(/_CUSTOM_(\d+(?:_\d+)?)/);
+                if (customMatch) {
+                    const customLength = customMatch[1].replace('_', '.');
+                    cutType = 'custom';
+                    cutDisplay = `${customLength}cm`;
+                }
             }
         }
         
@@ -406,6 +430,9 @@ class MetreTabManager {
             case '1/4':
                 cutDisplay = '1/4';
                 break;
+            case 'custom':
+                // cutDisplay déjà défini ci-dessus avec la longueur personnalisée
+                break;
             default:
                 cutDisplay = 'Entier';
                 cutType = 'full';
@@ -415,6 +442,23 @@ class MetreTabManager {
             type: cutType,
             display: cutDisplay
         };
+    }
+
+    /**
+     * Calcule la quantité équivalente en tenant compte des coupes personnalisées
+     * @param {Array} elements - Liste des éléments du même type
+     * @returns {number} - Quantité équivalente en blocs entiers
+     */
+    calculateEquivalentQuantity(elements) {
+        let totalEquivalent = 0;
+        
+        for (const element of elements) {
+            // 🆕 CORRECTION: Tous les blocs placés comptent comme 1 unité
+            // Peu importe leur type (entier, 1/2, 3/4, 1/4, personnalisé)
+            totalEquivalent += 1;
+        }
+        
+        return totalEquivalent;
     }
 
     getBrickType(element) {
@@ -795,7 +839,7 @@ class MetreTabManager {
         row.className = 'summary-row';
         
         // Calculer les totaux pour ce groupe
-        const quantity = elements.length;
+        const quantity = this.calculateEquivalentQuantity(elements);
         const totalVolume = elements.reduce((sum, el) => sum + el.volume, 0);
         const totalMass = elements.reduce((sum, el) => sum + el.mass, 0);
         
@@ -910,9 +954,25 @@ class MetreTabManager {
         // Badge spécial pour les objets manuels
         const manualBadge = element.isManual ? '<span class="manual-item-badge">Manuel</span>' : '';
         
-        // Affichage spécial pour les objets manuels
+        // Affichage spécial pour les objets manuels et calcul de quantité équivalente
         const displayName = element.isManual ? element.name : typeDisplay;
-        const quantityDisplay = element.isManual ? `${element.quantity} ${element.unit}` : '1';
+        
+        let quantityDisplay;
+        if (element.isManual) {
+            quantityDisplay = `${element.quantity} ${element.unit}`;
+        } else {
+            // Calculer la quantité équivalente pour cet élément spécifique
+            const equivalentQty = this.calculateEquivalentQuantity([element]);
+            const cutInfo = this.extractCutInfo(element);
+            
+            if (cutInfo.type === 'custom') {
+                quantityDisplay = `${equivalentQty} (${cutInfo.display})`;
+            } else if (['3/4', '1/2', '1/4'].includes(cutInfo.type)) {
+                quantityDisplay = `${equivalentQty} (${cutInfo.display})`;
+            } else {
+                quantityDisplay = '1';
+            }
+        }
         
         row.innerHTML = `
             <td class="element-id">${element.id.substring(0, 8)}...</td>

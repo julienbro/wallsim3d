@@ -22,6 +22,17 @@ class MeasurementAnnotationManager {
     }
 
     waitForTools() {
+        // 🔧 PROTECTION: Limiter les tentatives pour éviter les boucles infinies
+        if (!this.retryCount) this.retryCount = 0;
+        this.retryCount++;
+        
+        if (this.retryCount > 50) { // Limite à 50 tentatives (10 secondes)
+            console.warn('⚠️ MeasurementAnnotationManager: Arrêt des tentatives après 50 essais - outils non trouvés');
+            // Créer les instances des outils même s'ils ne sont pas complètement initialisés
+            this.createToolInstances();
+            return;
+        }
+        
         // Vérifier que les outils sont disponibles et correctement initialisés
         const measurementReady = window.MeasurementTool && 
                                  window.MeasurementTool.measurementGroup;
@@ -41,6 +52,29 @@ class MeasurementAnnotationManager {
             // console.log('✅ Gestionnaire des outils de mesure, annotation et texte initialisé');
         } else {
             setTimeout(() => this.waitForTools(), 200);
+        }
+    }
+
+    createToolInstances() {
+        // Si les classes existent mais ne sont pas encore totalement initialisées,
+        // créer les instances pour les rendre disponibles
+        if (!window.MeasurementTool && typeof MeasurementTool !== 'undefined') {
+            window.MeasurementTool = new MeasurementTool();
+        }
+        if (!window.AnnotationTool && typeof AnnotationTool !== 'undefined') {
+            window.AnnotationTool = new AnnotationTool();
+        }
+        if (!window.TextLeaderTool && typeof TextLeaderTool !== 'undefined') {
+            window.TextLeaderTool = new TextLeaderTool();
+        }
+        
+        // Essayer une dernière fois de s'initialiser
+        if (window.MeasurementTool || window.AnnotationTool || window.TextLeaderTool) {
+            this.measurementTool = window.MeasurementTool;
+            this.annotationTool = window.AnnotationTool;
+            this.textLeaderTool = window.TextLeaderTool;
+            this.isInitialized = true;
+            console.log('✅ Gestionnaire des outils initialisé avec instances de base');
         }
     }
 
@@ -146,7 +180,8 @@ class MeasurementAnnotationManager {
     }
 
     setupToolbarIntegration() {
-        // Ajouter les gestionnaires pour les nouveaux boutons d'outils
+        // 🔧 PROTECTION: Ne plus afficher de warnings pour les boutons manquants
+        // Ces outils sont optionnels et leur absence n'est pas critique
         const measureBtn = document.getElementById('measureTool');
         const annotationBtn = document.getElementById('annotationTool');
         const textLeaderBtn = document.getElementById('textLeaderTool');
@@ -155,24 +190,18 @@ class MeasurementAnnotationManager {
             measureBtn.addEventListener('click', () => {
                 this.toggleMeasurementTool();
             });
-        } else {
-            console.warn('⚠️ Bouton measureTool non trouvé');
         }
 
         if (annotationBtn) {
             annotationBtn.addEventListener('click', () => {
                 this.toggleAnnotationTool();
             });
-        } else {
-            console.warn('⚠️ Bouton annotationTool non trouvé');
         }
 
         if (textLeaderBtn) {
             textLeaderBtn.addEventListener('click', () => {
                 this.toggleTextLeaderTool();
             });
-        } else {
-            console.warn('⚠️ Bouton textLeaderTool non trouvé');
         }
 
         // Intégrer avec le ToolbarManager existant si disponible

@@ -89,6 +89,9 @@ class MeasurementTool {
         
         // Désactiver les autres outils
         this.deactivateOtherTools();
+        
+        // Mettre à jour l'état du bouton dans l'interface
+        this.updateButtonState(true);
     }
 
     deactivate() {
@@ -122,6 +125,9 @@ class MeasurementTool {
         
         // Masquer les instructions
         this.hideInstructions();
+        
+        // Mettre à jour l'état du bouton dans l'interface
+        this.updateButtonState(false);
     }
 
     setupEventListeners() {
@@ -1925,6 +1931,18 @@ class MeasurementTool {
             // console.log('✅ Mode construction activé');
         } else {
             console.warn('⚠️ ConstructionTools non disponible');
+        }
+    }
+
+    // Méthode pour mettre à jour l'état du bouton dans l'interface
+    updateButtonState(active) {
+        const button = document.getElementById('measureTool');
+        if (button) {
+            if (active) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
         }
     }
 }

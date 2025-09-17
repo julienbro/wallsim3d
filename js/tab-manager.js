@@ -54,48 +54,67 @@ class TabManager {
             if (window.DEBUG_TAB_MANAGER) {
                 console.warn('⚠️ THREE.js not loaded yet, deferring renderer initialization');
             }
-            // Utiliser requestAnimationFrame pour éviter les violations de performance
-            requestAnimationFrame(() => this.initSharedRenderer());
+            // Utiliser setTimeout pour éviter les violations de performance
+            setTimeout(() => this.initSharedRenderer(), 16); // ~1 frame à 60fps
             return;
         }
 
         try {
-            // Créer un canvas off-screen pour le renderer partagé
-            const canvas = document.createElement('canvas');
-            canvas.width = 160;
-            canvas.height = 120;
-
-            // Créer les composants Three.js partagés
-            this.sharedScene = new THREE.Scene();
-            this.sharedCamera = new THREE.PerspectiveCamera(45, 160/120, 0.1, 1000);
-            this.sharedRenderer = new THREE.WebGLRenderer({ 
-                canvas: canvas,
-                antialias: true, 
-                alpha: true,
-                preserveDrawingBuffer: true
-            });
-            
-            this.sharedRenderer.setSize(160, 120);
-            this.sharedRenderer.setClearColor(0x000000, 0);
-
-            // Éclairage partagé
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
-            this.sharedScene.add(ambientLight);
-
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 5, 5);
-            this.sharedScene.add(directionalLight);
-
-            // Position de la caméra
-            this.sharedCamera.position.set(3.5, 2.5, 4);
-            this.sharedCamera.lookAt(0, 0, 0);
-
-            this.rendererInitialized = true;
-            // console.log('✅ Renderer WebGL partagé initialisé avec succès');
+            // 🚀 OPTIMISATION: Diviser l'initialisation en étapes pour éviter les blocages
+            this._initRendererStep1();
         } catch (error) {
             console.error('❌ Erreur lors de l\'initialisation du renderer partagé:', error);
             this.rendererInitialized = false;
         }
+    }
+
+    // Étape 1: Créer le canvas et les composants de base
+    _initRendererStep1() {
+        // Créer un canvas off-screen pour le renderer partagé
+        const canvas = document.createElement('canvas');
+        canvas.width = 160;
+        canvas.height = 120;
+
+        // Créer les composants Three.js partagés
+        this.sharedScene = new THREE.Scene();
+        this.sharedCamera = new THREE.PerspectiveCamera(45, 160/120, 0.1, 1000);
+        
+        // Utiliser setTimeout pour la prochaine étape (éviter le blocage)
+        setTimeout(() => this._initRendererStep2(canvas), 1);
+    }
+
+    // Étape 2: Créer le renderer (opération coûteuse)
+    _initRendererStep2(canvas) {
+        this.sharedRenderer = new THREE.WebGLRenderer({ 
+            canvas: canvas,
+            antialias: true, 
+            alpha: true,
+            preserveDrawingBuffer: true
+        });
+        
+        this.sharedRenderer.setSize(160, 120);
+        this.sharedRenderer.setClearColor(0x000000, 0);
+
+        // Utiliser setTimeout pour la prochaine étape
+        setTimeout(() => this._initRendererStep3(), 1);
+    }
+
+    // Étape 3: Ajouter l'éclairage et finaliser
+    _initRendererStep3() {
+        // Éclairage partagé
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        this.sharedScene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        this.sharedScene.add(directionalLight);
+
+        // Position de la caméra
+        this.sharedCamera.position.set(3.5, 2.5, 4);
+        this.sharedCamera.lookAt(0, 0, 0);
+
+        this.rendererInitialized = true;
+        // console.log('✅ Renderer WebGL partagé initialisé avec succès');
     }
 
     /**
@@ -1450,7 +1469,7 @@ class TabManager {
                             <label for="customCutHeight">Hauteur personnalisée (cm) :</label>
                             <input type="number" id="customCutHeight"
                                    min="1" max="${baseDimensions.height}"
-                                   value="${Math.round(baseDimensions.height * 0.85)}"
+                                   value="${baseDimensions.height}"
                                    step="0.1">
                             <span class="unit">cm</span>
                         </div>` : ''}
@@ -5442,6 +5461,120 @@ TabManager.prototype.clearLibraryHelpHighlights = function() {
     }
     
     // console.log('🧹 Cadres d\'aide de la bibliothèque supprimés');
+};
+
+/**
+ * 🆕 NOUVELLE MÉTHODE: Mettre à jour la surbrillance de la bibliothèque selon l'assise active
+ * Cette méthode est appelée lors des changements d'assise pour maintenir la cohérence visuelle
+ */
+TabManager.prototype.updateLibraryHighlighting = function() {
+    // 🆕 PROTECTION: Éviter les appels trop fréquents avec un débounce
+    if (this._updateHighlightingTimeout) {
+        clearTimeout(this._updateHighlightingTimeout);
+    }
+    
+    this._updateHighlightingTimeout = setTimeout(() => {
+        this._performLibraryHighlightingUpdate();
+    }, 150); // 150ms de débounce
+};
+
+/**
+ * 🆕 MÉTHODE INTERNE: Effectuer la mise à jour réelle de la surbrillance
+ */
+TabManager.prototype._performLibraryHighlightingUpdate = function() {
+    console.log('🎨 Mise à jour surbrillance bibliothèque après changement assise');
+    
+    // Vérifier que les composants nécessaires sont disponibles
+    if (!window.AssiseManager || !window.ConstructionTools) {
+        console.warn('   - ⚠️ AssiseManager ou ConstructionTools non disponible');
+        return;
+    }
+    
+    // Obtenir le type d'assise actuel et le mode de construction
+    const currentType = window.AssiseManager.currentType;
+    const currentMode = window.ConstructionTools.currentMode;
+    
+    console.log(`   - Type assise actuel: ${currentType}, Mode: ${currentMode}`);
+    
+    // Mettre à jour l'élément sélectionné selon le mode et l'assise
+    let targetElement = null;
+    
+    if (currentMode === 'brick' && currentType && currentType.startsWith('M')) {
+        // Pour les briques, utiliser le type d'assise comme base
+        if (window.BrickSelector && window.BrickSelector.getCurrentBrick) {
+            const currentBrick = window.BrickSelector.getCurrentBrick();
+            if (currentBrick && currentBrick.type === currentType) {
+                targetElement = currentBrick.type;
+            }
+        }
+    } else if (currentMode === 'block' && ['CREUX', 'CELLULAIRE', 'ARGEX', 'TERRE_CUITE', 'B9', 'B14', 'B19', 'B29', 'BC5', 'BC7', 'BC10', 'BC15', 'BC17', 'BC20', 'BC24', 'BC30', 'BC36', 'ARGEX9', 'ARGEX14', 'ARGEX19', 'TC10', 'TC14', 'TC19'].includes(currentType)) {
+        // Pour les blocs, vérifier s'il s'agit d'un bloc personnalisé
+        if (window.BlockSelector && window.BlockSelector.getCurrentBlockData) {
+            const currentBlock = window.BlockSelector.getCurrentBlockData();
+            const currentBlockType = window.BlockSelector.currentBlock;
+            
+            if (currentBlock) {
+                // Bloc personnalisé
+                if (currentBlock.isCustom && currentBlock.baseBlock) {
+                    console.log(`   - Bloc personnalisé détecté: ${currentBlockType} basé sur ${currentBlock.baseBlock}`);
+                    
+                    // Pour les blocs personnalisés, mettre en surbrillance le bloc de base dans la bibliothèque
+                    targetElement = currentBlock.baseBlock;
+                    
+                    // Mettre à jour selectedLibraryItem avec le bloc personnalisé actuel
+                    this.selectedLibraryItem = currentBlockType;
+                } else {
+                    // Bloc normal
+                    targetElement = currentBlockType;
+                }
+            }
+        }
+    }
+    
+    // Si on a trouvé un élément cible, le mettre en surbrillance
+    if (targetElement) {
+        console.log(`   - Mise en surbrillance de l'élément: ${targetElement}`);
+        
+        // Chercher l'élément dans la bibliothèque et le mettre en surbrillance
+        const libraryElements = document.querySelectorAll('.library-item, .element-item, .block-size-btn');
+        libraryElements.forEach(element => {
+            const elementId = element.dataset.id || element.dataset.elementId || element.dataset.type;
+            
+            // Supprimer la surbrillance existante
+            element.classList.remove('active', 'selected', 'highlighted');
+            
+            // Ajouter la surbrillance si c'est l'élément cible
+            if (elementId && (elementId === targetElement || elementId.startsWith(targetElement))) {
+                element.classList.add('active', 'highlighted');
+                console.log(`   - ✅ Élément ${elementId} mis en surbrillance`);
+                
+                // Pour les blocs personnalisés, ajouter une indication visuelle spéciale
+                if (this.selectedLibraryItem && this.selectedLibraryItem.includes('_CUSTOM_')) {
+                    element.style.borderColor = '#ff6b35'; // Couleur spéciale pour les blocs personnalisés
+                    element.style.borderWidth = '2px';
+                }
+            } else {
+                // Réinitialiser le style pour les autres éléments
+                element.style.borderColor = '';
+                element.style.borderWidth = '';
+            }
+        });
+        
+        // Si pas de selectedLibraryItem défini, l'initialiser
+        if (!this.selectedLibraryItem) {
+            this.selectedLibraryItem = targetElement;
+        }
+    } else {
+        console.log('   - Aucun élément cible trouvé pour la surbrillance');
+        
+        // Supprimer toutes les surbrillances
+        const libraryElements = document.querySelectorAll('.library-item, .element-item, .block-size-btn');
+        libraryElements.forEach(element => {
+            element.classList.remove('active', 'selected', 'highlighted');
+            element.style.borderColor = '';
+            element.style.borderWidth = '';
+        });
+    }
 };
 
 // === MÉTHODES GLB POUR LA BIBLIOTHÈQUE ===

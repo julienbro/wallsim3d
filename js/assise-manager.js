@@ -25,7 +25,10 @@ class AssiseManager {
         // Extension des types supportés avec les sous-types de briques, blocs, linteaux et GLB
         this.allSupportedTypes = [...this.supportedTypes, ...this.brickSubTypes, ...this.blockSubTypes, ...this.linteauSubTypes, ...this.glbSubTypes];
         
-        // àtat actuel
+        // 🔧 NOUVELLE MÉTHODE: Vérification dynamique des types personnalisés
+        this.customTypeCache = new Set();
+
+        // État actuel
         this.currentType = 'M65'; // Type d'assise actif (M65 par défaut)
         this.currentAssiseByType = new Map(); // Map<type, assiseIndex> - assise active par type
         
@@ -109,6 +112,42 @@ class AssiseManager {
         }
     }
 
+    /**
+     * Vérifie si un type est supporté (incluant les types personnalisés dynamiques)
+     */
+    isTypeSupported(type) {
+        // Types de base dans la liste officielle
+        if (this.allSupportedTypes.includes(type)) {
+            return true;
+        }
+        
+        // Types personnalisés avec pattern _CUSTOM_
+        if (type.includes('_CUSTOM_')) {
+            const baseType = type.split('_CUSTOM_')[0];
+            if (this.allSupportedTypes.includes(baseType)) {
+                // Ajouter au cache pour éviter les recalculs
+                this.customTypeCache.add(type);
+                return true;
+            }
+        }
+        
+        // Types personnalisés avec pattern _P
+        if (type.endsWith('_P')) {
+            const baseType = type.slice(0, -2);
+            if (this.allSupportedTypes.includes(baseType)) {
+                this.customTypeCache.add(type);
+                return true;
+            }
+        }
+        
+        // Types déjà validés en cache
+        if (this.customTypeCache.has(type)) {
+            return true;
+        }
+        
+        return false;
+    }
+
     // ? UTILITAIRE: Vàrifier si un type est supporté (incluant les types personnalisàs)
     isSupportedType(type) {
         // Types de base supportés
@@ -180,8 +219,13 @@ class AssiseManager {
     // Getter pour la hauteur du joint d'un type donné
     getJointHeightForType(type) {
         // 🔧 ISOLANTS: Toujours retourner 0 pour les isolants (pas de joints horizontaux)
-    if (type === 'insulation' || type === 'beam') {
+        if (type === 'insulation' || type === 'beam') {
             return 0;
+        }
+        
+        // 🔧 PROTECTION: S'assurer que jointHeightByType est initialisé
+        if (!this.jointHeightByType) {
+            this.jointHeightByType = new Map();
         }
         
         return this.jointHeightByType.get(type) || 1.2;
@@ -271,8 +315,23 @@ class AssiseManager {
             return 0;
         }
         
-        const jointsByType = this.jointHeightByAssise.get(type);
-        if (!jointsByType) return this.getJointHeightForType(type);
+        // 🔧 PROTECTION: S'assurer que jointHeightByAssise est initialisé
+        if (!this.jointHeightByAssise) {
+            this.jointHeightByAssise = new Map();
+        }
+        
+        // 🔧 PROTECTION: Pour les types personnalisés, utiliser le type de base
+        let effectiveType = type;
+        if (type.includes('_CUSTOM_')) {
+            effectiveType = type.split('_CUSTOM_')[0];
+        } else if (type.endsWith('_P')) {
+            effectiveType = type.slice(0, -2);
+        } else if (type.includes('_HALF') || type.includes('_3Q') || type.includes('_1Q')) {
+            effectiveType = type.split('_')[0];
+        }
+        
+        const jointsByType = this.jointHeightByAssise.get(effectiveType);
+        if (!jointsByType) return this.getJointHeightForType(effectiveType);
         
         // Si hauteur spécifique définie pour cette assise, l'utiliser
         const specificHeight = jointsByType.get(assiseIndex);
@@ -281,7 +340,7 @@ class AssiseManager {
         }
         
         // Sinon, utiliser la hauteur par défaut du type
-        return this.getJointHeightForType(type);
+        return this.getJointHeightForType(effectiveType);
     }
     
     // Dàfinir la hauteur de joint d'une assise spécifique
@@ -294,18 +353,33 @@ class AssiseManager {
 
         const h = Math.max(0.1, height); // Minimum 0.1 cm
         
-        if (!this.jointHeightByAssise.has(type)) {
-            this.jointHeightByAssise.set(type, new Map());
+        // 🔧 PROTECTION: S'assurer que jointHeightByAssise est initialisé
+        if (!this.jointHeightByAssise) {
+            this.jointHeightByAssise = new Map();
+        }
+        
+        // 🔧 PROTECTION: Pour les types personnalisés, utiliser le type de base
+        let effectiveType = type;
+        if (type.includes('_CUSTOM_')) {
+            effectiveType = type.split('_CUSTOM_')[0];
+        } else if (type.endsWith('_P')) {
+            effectiveType = type.slice(0, -2);
+        } else if (type.includes('_HALF') || type.includes('_3Q') || type.includes('_1Q')) {
+            effectiveType = type.split('_')[0];
+        }
+        
+        if (!this.jointHeightByAssise.has(effectiveType)) {
+            this.jointHeightByAssise.set(effectiveType, new Map());
         }
         
         // Vàrifier si la valeur a ràellement changà
-        const currentHeight = this.jointHeightByAssise.get(type).get(assiseIndex);
+        const currentHeight = this.jointHeightByAssise.get(effectiveType).get(assiseIndex);
         if (currentHeight !== undefined && Math.abs(currentHeight - h) < 0.001) {
-            // // console.log(`🔧 Joint de l'assise ${assiseIndex} (${type}) déjà à ${h} cm, pas de modification`);
+            // // console.log(`🔧 Joint de l'assise ${assiseIndex} (${effectiveType}) déjà à ${h} cm, pas de modification`);
             return false;
         }
         
-        this.jointHeightByAssise.get(type).set(assiseIndex, h);
+        this.jointHeightByAssise.get(effectiveType).set(assiseIndex, h);
         
         // Recalculer les hauteurs de TOUTES les assises de ce type 
         // (car changer une assise affecte la position de toutes les suivantes)
@@ -452,12 +526,30 @@ class AssiseManager {
         const previousType = this.currentType;
         this.currentType = type;
 
-        // Masquer les grilles du type pràcàdent
-        if (previousType !== type) {
+        // 🔧 CORRECTION: Pour les types personnalisés, déterminer le type de base pour la grille
+        const getBaseTypeForGrid = (type) => {
+            if (type.includes('_CUSTOM_')) {
+                return type.split('_CUSTOM_')[0];
+            }
+            if (type.endsWith('_P')) {
+                return type.slice(0, -2);
+            }
+            if (type.includes('_HALF') || type.includes('_3Q') || type.includes('_1Q')) {
+                return type.split('_')[0];
+            }
+            return type;
+        };
+
+        const previousBaseType = getBaseTypeForGrid(previousType);
+        const currentBaseType = getBaseTypeForGrid(type);
+
+        // Masquer les grilles du type précédent seulement si le type de base change vraiment
+        // 🔧 CORRECTION: Ne pas cacher si les types sont compatibles (ex: M65 vers M65_CUSTOM_16)
+        if (previousType !== type && previousBaseType !== currentBaseType && !this.areTypesCompatible(previousType, type)) {
             this.hideGridsForType(previousType);
         }
 
-        // Afficher les grilles du nouveau type
+        // Afficher les grilles du nouveau type (type de base pour les personnalisés)
         this.updateAllGridVisibility();
         
         // Mettre à jour l'interface
@@ -525,15 +617,31 @@ class AssiseManager {
     this.currentType = baseType;
         
         // S'assurer qu'une assise par défaut existe pour ce type
-        if (!this.currentAssiseByType.has(baseType)) {
+        if (!this.currentAssiseByType || !this.currentAssiseByType.has(baseType)) {
+            // 🆕 PROTECTION: Vérifier que currentAssiseByType est initialisé
+            if (!this.currentAssiseByType) {
+                console.warn('⚠️ currentAssiseByType non initialisé, initialisation...');
+                this.currentAssiseByType = new Map();
+            }
+            
             // Pour les basculements automatiques (skipToolChange = true), 
             // hériter de l'assise active du type précédent
             let targetAssiseIndex = 0;
-            if (skipToolChange && this.currentAssiseByType.has(this.currentType)) {
+            if (skipToolChange && this.currentType && this.currentAssiseByType.has(this.currentType)) {
                 targetAssiseIndex = this.currentAssiseByType.get(this.currentType);
                 console.log(`🔄 Héritage assise ${targetAssiseIndex} du type ${this.currentType} vers ${baseType}`);
             } else {
-                console.log(`🔄 Pas d'héritage - skipToolChange:${skipToolChange}, has(${this.currentType}):${this.currentAssiseByType.has(this.currentType)}`);
+                const hasCurrentType = this.currentType && this.currentAssiseByType.has(this.currentType);
+                console.log(`🔄 Pas d'héritage - skipToolChange:${skipToolChange}, has(${this.currentType}):${hasCurrentType}`);
+            }
+            
+            // 🆕 PROTECTION: Vérifier que assisesByType existe et a le type
+            if (!this.assisesByType || !this.assisesByType.get(baseType)) {
+                console.warn(`⚠️ assisesByType non initialisé pour ${baseType}, initialisation...`);
+                if (!this.assisesByType) {
+                    this.assisesByType = new Map();
+                }
+                this.assisesByType.set(baseType, new Map());
             }
             
             // Créer l'assise cible si elle n'existe pas
@@ -889,9 +997,30 @@ class AssiseManager {
 
     // Ajouter une assise pour un type spécifique
     addAssiseForType(type, index = null) {
-        if (!this.allSupportedTypes.includes(type)) {
+        // 🔧 CORRECTION: Gestion dynamique des types personnalisés
+        if (!this.isTypeSupported(type)) {
             console.warn(`Type non supporté: ${type}`);
             return null;
+        }
+
+        // 🔧 PROTECTION: S'assurer que les Maps sont initialisées pour ce type
+        if (!this.assisesByType.has(type)) {
+            this.assisesByType.set(type, new Map());
+        }
+        if (!this.elementsByType.has(type)) {
+            this.elementsByType.set(type, new Map());
+        }
+        if (!this.gridHelpersByType.has(type)) {
+            this.gridHelpersByType.set(type, new Map());
+        }
+        if (!this.attachmentMarkersByType.has(type)) {
+            this.attachmentMarkersByType.set(type, new Map());
+        }
+        
+        // 🛡️ PROTECTION: S'assurer que currentAssiseByType est initialisée
+        if (!this.currentAssiseByType) {
+            console.warn('⚠️ currentAssiseByType non initialisée, réinitialisation');
+            this.currentAssiseByType = new Map();
         }
 
         const assisesForType = this.assisesByType.get(type);
@@ -1389,8 +1518,14 @@ class AssiseManager {
 
     // Dàtecter le sous-type de bloc à partir de ses propriétés
     detectBlockSubType(element) {
+        console.log('🔍 [DEBUG-DETECT] detectBlockSubType appelé avec element:', {
+            id: element?.id,
+            type: element?.type,
+            blockType: element?.blockType
+        });
+        
         if (!element || element.type !== 'block') {
-            
+            console.log('🔍 [DEBUG-DETECT] Element invalide ou pas un bloc, retour null');
             return null;
         }
         
@@ -1399,15 +1534,59 @@ class AssiseManager {
             try {
                 const currentBlock = window.BlockSelector.getCurrentBlockData();
                 const blockType = window.BlockSelector.currentBlock;
+                
+                console.log('🔍 [DEBUG-DETECT] BlockSelector data:', {
+                    currentBlock: currentBlock,
+                    blockType: blockType,
+                    category: currentBlock?.category
+                });
 
                 if (currentBlock && currentBlock.category === 'hollow') {
-                    // Utiliser blockType pour identifier le sous-type spécifique
-                    if (blockType === 'B9') return 'B9';
-                    if (blockType === 'B14') return 'B14';
-                    if (blockType === 'B19') return 'B19';
-                    if (blockType === 'B29') return 'B29';
+                    console.log('🔍 [DEBUG-DETECT] Bloc détecté comme hollow, blockType:', blockType);
                     
-                    // Fallback vers le type générique
+                    // Utiliser blockType pour identifier le sous-type spécifique
+                    // Gérer les suffixes de coupe (_3Q, _HALF, _1Q, _CUSTOM_)
+                    let baseBlockType = blockType;
+                    if (blockType && typeof blockType === 'string') {
+                        const cutSuffixes = ['_3Q', '_HALF', '_1Q'];
+                        for (const suffix of cutSuffixes) {
+                            if (blockType.endsWith(suffix)) {
+                                baseBlockType = blockType.replace(suffix, '');
+                                console.log('🔍 [DEBUG-DETECT] Suffixe de coupe détecté:', suffix, 'baseBlockType:', baseBlockType);
+                                break;
+                            }
+                        }
+                        // Gérer les suffixes custom (_CUSTOM_XX_W_XX_H_XX)
+                        if (blockType.includes('_CUSTOM_')) {
+                            baseBlockType = blockType.split('_CUSTOM_')[0];
+                            console.log('🔍 [DEBUG-DETECT] Suffixe custom détecté, baseBlockType:', baseBlockType);
+                        }
+                    }
+                    
+                    console.log('🔍 [DEBUG-DETECT] Test du baseBlockType:', baseBlockType);
+                    
+                    if (baseBlockType === 'B9') {
+                        console.log('🔍 [DEBUG-DETECT] ✅ Identifié comme B9');
+                        return 'B9';
+                    }
+                    if (baseBlockType === 'B14') {
+                        console.log('🔍 [DEBUG-DETECT] ✅ Identifié comme B14');
+                        return 'B14';
+                    }
+                    if (baseBlockType === 'B19') {
+                        console.log('🔍 [DEBUG-DETECT] ✅ Identifié comme B19');
+                        return 'B19';
+                    }
+                    if (baseBlockType === 'B29') {
+                        console.log('🔍 [DEBUG-DETECT] ✅ Identifié comme B29');
+                        return 'B29';
+                    }
+                    
+                    // Fallback vers le type générique - MAIS AVEC PLUS DE DEBUG
+                    console.log('🔍 [DEBUG-DETECT] ⚠️ Aucun type spécifique trouvé pour baseBlockType:', baseBlockType);
+                    console.log('🔍 [DEBUG-DETECT] ⚠️ blockType original:', blockType);
+                    console.log('🔍 [DEBUG-DETECT] ⚠️ currentBlock:', currentBlock);
+                    console.log('🔍 [DEBUG-DETECT] ⚠️ Fallback vers CREUX');
                     return 'CREUX';
                 }
                 
@@ -1624,9 +1803,15 @@ class AssiseManager {
     }
 
     addElementToAssise(elementId, assiseIndex = null) {        
+        console.log('🏗️ [DEBUG-ASSISE] addElementToAssise appelé pour:', elementId);
         
         // Déterminer le type de l'élément et le sous-type pour les briques
         const element = window.SceneManager.elements.get(elementId);
+        console.log('🏗️ [DEBUG-ASSISE] Element trouvé:', {
+            id: element?.id,
+            type: element?.type,
+            currentType: this.currentType
+        });
         
     // Poutres désormais gérées (assise dédiée 'beam')
         let elementType = this.currentType; // Par défaut
@@ -1658,15 +1843,29 @@ class AssiseManager {
             }
             // Pour les blocs, détecter le sous-type spécifique
             else if (element.type === 'block') {
+                console.log('🏗️ [DEBUG-ASSISE] Bloc détecté, appel detectBlockSubType...');
+                
                 // Log réduit pour éviter le spam
                 if (!this._lastDetectedBlock || this._lastDetectedBlock !== element.id) {
                     this._lastDetectedBlock = element.id;
                 }
 
-                // Bloc détecté, tentative de détection du sous-type
-                const blockSubType = this.detectBlockSubType(element);
+                // CORRECTION IMPORTANTE : Si on est déjà sur un type spécifique (B9, B14, etc.)
+                // et que l'élément est un bloc, garder ce type au lieu de détecter "CREUX"
+                const currentSpecificTypes = ['B9', 'B14', 'B19', 'B29'];
+                let blockSubType = null;
+                
+                if (currentSpecificTypes.includes(this.currentType)) {
+                    console.log('🏗️ [DEBUG-ASSISE] Déjà sur un type spécifique:', this.currentType, '- Conservation du type');
+                    blockSubType = this.currentType;
+                } else {
+                    // Bloc détecté, tentative de détection du sous-type
+                    blockSubType = this.detectBlockSubType(element);
+                    console.log('🏗️ [DEBUG-ASSISE] detectBlockSubType retourné:', blockSubType);
+                }
 
                 if (blockSubType) {
+                    console.log('🏗️ [DEBUG-ASSISE] blockSubType trouvé:', blockSubType);
                     elementType = blockSubType;
 
                     // CORRECTION : Mapper les sous-types vers le type d'assise approprié
@@ -1681,16 +1880,27 @@ class AssiseManager {
                     
                     // CORRECTION IMPORTANTE : utiliser targetAssiseType pour elementType aussi
                     elementType = targetAssiseType;
+                    console.log('🏗️ [DEBUG-ASSISE] elementType final:', elementType, 'targetAssiseType:', targetAssiseType);
 
                     // Basculer automatiquement vers ce type d'assise
                     if (this.currentType !== targetAssiseType) {
+                        console.log('🏗️ [DEBUG-ASSISE] Basculement vers assise type:', targetAssiseType, 'depuis:', this.currentType);
+                        
+                        // CORRECTION : Conserver l'index d'assise actuel lors du changement de type
+                        const currentAssiseIndex = this.currentAssiseByType.get(this.currentType) || 0;
+                        console.log('🏗️ [DEBUG-ASSISE] Conservation de l\'index d\'assise:', currentAssiseIndex);
                         
                         this.setCurrentType(targetAssiseType, true); // skipToolChange = true
                         
-                    } else {
+                        // Définir le même index pour le nouveau type
+                        this.currentAssiseByType.set(targetAssiseType, currentAssiseIndex);
+                        console.log('🏗️ [DEBUG-ASSISE] Index conservé pour le nouveau type:', targetAssiseType, 'index:', currentAssiseIndex);
                         
+                    } else {
+                        console.log('🏗️ [DEBUG-ASSISE] Déjà sur le bon type d\'assise:', targetAssiseType);
                     }
                 } else {
+                    console.log('🏗️ [DEBUG-ASSISE] ⚠️ Aucun blockSubType trouvé, utilisation type générique "block"');
                     elementType = 'block';
                     
                 }
@@ -1753,10 +1963,12 @@ class AssiseManager {
             }
         }
         
+        console.log('🏗️ [DEBUG-ASSISE] Type final déterminé:', elementType, 'assiseIndex:', assiseIndex);
+        
         // Utiliser la nouvelle màthode multi-type avec le bon type
         this.addElementToAssiseForType(elementType, elementId, assiseIndex);
         
-        console.log('   - ✅ Élément ajouté avec succès à l\'assise', assiseIndex, 'de type', elementType);
+        console.log('🏗️ [DEBUG-ASSISE] ✅ Élément ajouté avec succès à l\'assise', assiseIndex, 'de type', elementType);
 
         // LOG SPÉCIFIQUE ISOLANT
         if (elementType === 'insulation') {
@@ -2216,8 +2428,23 @@ class AssiseManager {
 
     // Cràer la grille pour une assise d'un type spécifique
     createAssiseGridForType(type, index) {
+        // 🛡️ PROTECTION: Vérifier que les Maps sont initialisées
+        if (!this.assisesByType || !this.gridHelpersByType || !this.currentAssiseByType) {
+            console.warn('⚠️ createAssiseGridForType: Maps non initialisées', {
+                assisesByType: !!this.assisesByType,
+                gridHelpersByType: !!this.gridHelpersByType,
+                currentAssiseByType: !!this.currentAssiseByType
+            });
+            return;
+        }
+        
         const assisesForType = this.assisesByType.get(type);
         const gridHelpersForType = this.gridHelpersByType.get(type);
+        
+        if (!assisesForType || !gridHelpersForType) {
+            console.warn(`⚠️ createAssiseGridForType: Maps pour type '${type}' non initialisées`);
+            return;
+        }
         
         const assise = assisesForType.get(index);
         if (!assise) return;
@@ -2231,8 +2458,11 @@ class AssiseManager {
         gridHelper.position.y = height;
         gridHelper.material.transparent = true;
         gridHelper.material.opacity = index === this.currentAssiseByType.get(type) ? this.activeGridOpacity : this.gridOpacity;
-        // Seule la grille de l'assise active du type actuel est visible
-        gridHelper.visible = this.showAssiseGrids && (type === this.currentType) && (index === this.currentAssiseByType.get(type));
+        // 🔧 CORRECTION: Utiliser la même logique que updateAllGridVisibility pour la cohérence
+        const isCurrentAssise = (index === this.currentAssiseByType.get(type));
+        const isCompatibleType = this.areTypesCompatible(type, this.currentType);
+        const shouldShowGrid = this.showAssiseGrids && (isCompatibleType && isCurrentAssise || (type === this.currentType && isCurrentAssise));
+        gridHelper.visible = shouldShowGrid;
         
         // Grille du joint (plan supàrieur)
         const jointHeight = height + this.getMaxElementHeightInAssise(index) + this.getJointHeightForType(type);
@@ -2332,7 +2562,11 @@ class AssiseManager {
                 gridHelper.position.y = height;
                 gridHelper.material.transparent = true;
                 gridHelper.material.opacity = index === this.currentAssiseByType.get(type) ? this.activeGridOpacity : this.gridOpacity;
-                gridHelper.visible = this.showAssiseGrids && (type === this.currentType) && (index === this.currentAssiseByType.get(type));
+                // 🔧 CORRECTION: Utiliser la même logique que updateAllGridVisibility pour la cohérence
+                const isCurrentAssise = (index === this.currentAssiseByType.get(type));
+                const isCompatibleType = this.areTypesCompatible(type, this.currentType);
+                const shouldShowGrid = this.showAssiseGrids && (isCompatibleType && isCurrentAssise || (type === this.currentType && isCurrentAssise));
+                gridHelper.visible = shouldShowGrid;
                 
                 // Nouvelle grille du joint
                 const jointHeight = height + this.getMaxElementHeightInAssise(index) + this.getJointHeightForType(type);
@@ -2841,12 +3075,19 @@ class AssiseManager {
         // Mettre à jour les statistiques (pour le type actuel)
         const assiseCountSpan = document.getElementById('assiseCount');
         if (assiseCountSpan) {
+            // 🆕 PROTECTION: Vérifier que currentType est valide
+            if (!this.currentType || !this.assisesByType || !this.elementsByType) {
+                console.warn('⚠️ updateUI: AssiseManager pas complètement initialisé');
+                return;
+            }
+            
             const assisesForCurrentType = this.assisesByType.get(this.currentType);
             const elementsForCurrentType = this.elementsByType.get(this.currentType);
             
-            // Vàrifier que les collections existent
+            // Vérifier que les collections existent
             if (!assisesForCurrentType || !elementsForCurrentType) {
-                return; // Sortir silencieusement si les types ne sont pas initialisàs
+                console.warn(`⚠️ updateUI: Collections non initialisées pour type ${this.currentType}`);
+                return; // Sortir silencieusement si les types ne sont pas initialisés
             }
             
             // Compter les éléments par assise pour le type actuel (sans les joints)
@@ -2866,11 +3107,16 @@ class AssiseManager {
             assiseCountSpan.textContent = `${label}: ${assisesForCurrentType.size} assises${detailText}`;
         }
         
-        // Mettre à jour l'àtat des boutons
+        // Mettre à jour l'état des boutons
         const removeAssiseBtn = document.getElementById('removeAssise');
         if (removeAssiseBtn) {
-            const assisesForCurrentType = this.assisesByType.get(this.currentType);
-            removeAssiseBtn.disabled = (assisesForCurrentType.size <= 1);
+            // 🆕 PROTECTION: Vérifier avant l'accès
+            if (this.currentType && this.assisesByType && this.assisesByType.has(this.currentType)) {
+                const assisesForCurrentType = this.assisesByType.get(this.currentType);
+                removeAssiseBtn.disabled = (assisesForCurrentType.size <= 1);
+            } else {
+                removeAssiseBtn.disabled = true; // Désactiver par sécurité
+            }
         }
         
         const toggleGridsBtn = document.getElementById('toggleAssiseGrids');
@@ -3077,8 +3323,8 @@ class AssiseManager {
         // Mettre à jour l'interface
         this.updateUI();
         
-        // Optionnel: centrer la vue sur cette assise
-        this.focusOnAssise(type, index);
+        // DÉSACTIVÉ: Ne plus centrer automatiquement la vue pour éviter de changer l'angle de la caméra
+        // this.focusOnAssise(type, index);
     }
 
     // Centrer la vue sur une assise spécifique (optionnel)
@@ -3341,6 +3587,35 @@ class AssiseManager {
         this.clear();
     }
 
+    /**
+     * Vérifie si deux types sont compatibles (même type de base)
+     * Ex: M65 et M65_CUSTOM_16 sont compatibles
+     */
+    areTypesCompatible(type1, type2) {
+        if (type1 === type2) return true;
+        
+        // Extraire le type de base pour les deux types
+        const getBaseType = (type) => {
+            if (type.includes('_CUSTOM_')) {
+                return type.split('_CUSTOM_')[0];
+            }
+            if (type.endsWith('_P')) {
+                return type.slice(0, -2);
+            }
+            if (type.includes('_')) {
+                const cutSuffixes = ['_3Q', '_HALF', '_1Q'];
+                for (const suffix of cutSuffixes) {
+                    if (type.endsWith(suffix)) {
+                        return type.replace(suffix, '');
+                    }
+                }
+            }
+            return type;
+        };
+        
+        return getBaseType(type1) === getBaseType(type2);
+    }
+
     updateAllGridVisibility() {
         // Mettre à jour la visibilità pour tous les types (incluant les sous-types de briques)
         for (const type of this.allSupportedTypes) {
@@ -3350,11 +3625,16 @@ class AssiseManager {
             const currentAssiseForType = this.currentAssiseByType.get(type);
             
             for (const [index, grids] of gridHelpersForType.entries()) {
-                // Seule la grille de l'assise active du type actuel est visible
-                const isActiveForCurrentType = (type === this.currentType) && (index === currentAssiseForType);
-                grids.main.visible = this.showAssiseGrids && isActiveForCurrentType;
+                // 🔧 CORRECTION: Toujours afficher la grille de l'assise active même avec des blocs personnalisés
+                const isCurrentAssise = (index === currentAssiseForType);
+                const isCompatibleType = this.areTypesCompatible(type, this.currentType);
+                const isActiveForCurrentType = isCompatibleType && isCurrentAssise;
                 
-                // Masquer complàtement tous les plans supàrieurs
+                // Afficher la grille si compatible OU si c'est l'assise active du type actuel
+                const shouldShowGrid = this.showAssiseGrids && (isActiveForCurrentType || (type === this.currentType && isCurrentAssise));
+                grids.main.visible = shouldShowGrid;
+                
+                // Masquer complètement tous les plans supérieurs
                 grids.joint.visible = false;
             }
         }

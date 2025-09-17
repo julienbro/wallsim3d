@@ -288,6 +288,11 @@ class UIController {
 
         this.showNotification('Nouveau projet créé', 'success');
         this.updateProjectInfo();
+        
+        // Rafraîchir la page pour démarrer complètement à neuf
+        setTimeout(() => {
+            location.reload();
+        }, 1000); // Délai pour que la notification soit visible
     }
 
     saveProject() {

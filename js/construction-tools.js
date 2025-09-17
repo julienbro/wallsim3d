@@ -3,194 +3,198 @@
 // NOUVEAU: Variable globale pour contrôler l'affichage des lettres de proposition adjacente
 window.showAdjacentProposalLetters = false;
 
-// Test de vérification des corrections
-window.testJointCorrections = function() {
+// 🔧 CORRECTION: Encapsuler les fonctions de test dans une IIFE pour éviter les conflits de syntaxe
+(function() {
+    // Test de vérification des corrections
+    window.testJointCorrections = function() {
         if (window.AssiseManager && window.AssiseManager.calculateAssiseHeightForType) {
-        const test1 = window.AssiseManager.calculateAssiseHeightForType('M65', 1);
-        const test2 = window.AssiseManager.calculateAssiseHeightForType('M65', 2); 
-        const test3 = window.AssiseManager.calculateAssiseHeightForType('M65', 3);
-        console.log('🧪 calculateAssiseHeightForType M65:', {
-            'index 1': test1 + ' cm',
-            'index 2': test2 + ' cm', 
-            'index 3': test3 + ' cm (devrait être 24.3)'
-        });
-        return test3 === 24.3;
-    } else {
-                return false;
-    }
-};
-
-// Test complet de placement et vérification des joints
-window.testJointPlacement = function() {
-        
-    // 1. Compter les joints existants
-    const jointsBefore = Array.from(window.SceneManager.elements.values()).filter(el => el.type === 'joint');
-    
-    // 2. Vérifier qu'on est sur l'assise 3
-    if (window.AssiseManager.currentAssiseByType.get('M65') !== 2) {
-        console.log('⚠️  Activez d\'abord l\'assise 3 pour tester !');
-        return false;
-    }
-    
-    // 3. Placer une brique test
-    console.log('🧱 Placement d\'une brique test sur assise 3...');
-    const testBrick = new WallElement({
-        type: 'brick',
-        material: 'brique-rouge-classique',
-        x: Math.random() * 20 - 10, // Position aléatoire
-        y: 19.85, // Position calculée pour assise 3
-        z: Math.random() * 20 - 10,
-        length: 19,
-        width: 9,
-        height: 6.5
-    });
-    
-    window.SceneManager.addElement(testBrick);
-    console.log('✅ Brique test placée:', testBrick.id);
-    
-    // 4. Attendre et vérifier les nouveaux joints
-    setTimeout(() => {
-        const jointsAfter = Array.from(window.SceneManager.elements.values()).filter(el => el.type === 'joint');
-        const newJointsCount = jointsAfter.length - jointsBefore.length;
-        
-        if (newJointsCount > 0) {
-            const newJoints = jointsAfter.slice(-newJointsCount);
-            let correctJoints = 0;
-            
-            newJoints.forEach((joint, i) => {
-                const expectedY = 24.3; // Hauteur attendue pour assise 3
-                const actualY = joint.position.y;
-                const isCorrect = Math.abs(actualY - expectedY) < 0.5; // Tolérance 5mm
-                
-                if (isCorrect) correctJoints++;
-                
-                console.log(`🆕 Joint ${i+1}: Y=${actualY}cm`, isCorrect ? '✅' : `❌ (attendu: ${expectedY}cm)`);
+            const test1 = window.AssiseManager.calculateAssiseHeightForType('M65', 1);
+            const test2 = window.AssiseManager.calculateAssiseHeightForType('M65', 2); 
+            const test3 = window.AssiseManager.calculateAssiseHeightForType('M65', 3);
+            console.log('🧪 calculateAssiseHeightForType M65:', {
+                'index 1': test1 + ' cm',
+                'index 2': test2 + ' cm', 
+                'index 3': test3 + ' cm (devrait être 24.3)'
             });
-            
-            const success = correctJoints === newJointsCount;
-            console.log(success ? '🎉 TEST RÉUSSI ! Tous les joints sont correctement positionnés' : 
-                                 `❌ TEST ÉCHOUÉ ! ${correctJoints}/${newJointsCount} joints corrects`);
-            return success;
+            return test3 === 24.3;
         } else {
-            console.log('❌ Aucun joint créé - vérifiez que les joints automatiques sont activés');
             return false;
         }
-    }, 1000);
-    
-    return true;
-};
+    };
 
-// Test rapide pour vérifier le nombre de joints
-window.countJoints = function() {
-    const joints = Array.from(window.SceneManager.elements.values()).filter(el => el.type === 'joint');
-    joints.forEach((joint, i) => {
-        console.log(`  Joint ${i+1}: Y=${joint.position.y.toFixed(1)}cm (${joint.id})`);
-    });
-    return joints.length;
-};
-
-// Test de nettoyage pour supprimer tous les joints
-window.clearAllJoints = function() {
-    const joints = Array.from(window.SceneManager.elements.values()).filter(el => el.type === 'joint');
-    console.log(`🧹 Suppression de ${joints.length} joints...`);
-    joints.forEach(joint => {
-        window.SceneManager.removeElement(joint.id);
-    });
-    console.log('✅ Tous les joints supprimés');
-    return true;
-};
-
-// INTERCEPTEUR GLOBAL pour traquer toutes les créations de joints
-window.originalCreateElement = null;
-window.originalAddElement = null;
-window.originalElements = new Map(); // Stocker les éléments originaux
-window.trackJointCreation = function() {
+    // Test complet de placement et vérification des joints
+    window.testJointPlacement = function() {
         
-    // Intercepter SceneManager.createElement
-    if (window.SceneManager && window.SceneManager.createElement && !window.originalCreateElement) {
-        window.originalCreateElement = window.SceneManager.createElement;
-        window.SceneManager.createElement = function(type, position, rotation, dimensions, material, layerId) {
-            if ((layerId && layerId.includes('joint')) || type === 'joint') {
-                console.log('🕵️ JOINT CRÉÉ via createElement:', {
-                    type: type,
-                    layerId: layerId,
-                    position: position,
-                    dimensions: dimensions,
-                    stack: new Error().stack.split('\n')[2].trim()
+        // 1. Compter les joints existants
+        const jointsBefore = Array.from(window.SceneManager.elements.values()).filter(el => el.type === 'joint');
+        
+        // 2. Vérifier qu'on est sur l'assise 3
+        if (window.AssiseManager.currentAssiseByType.get('M65') !== 2) {
+            console.log('⚠️  Activez d\'abord l\'assise 3 pour tester !');
+            return false;
+        }
+        
+        // 3. Placer une brique test
+        console.log('🧱 Placement d\'une brique test sur assise 3...');
+        const testBrick = new WallElement({
+            type: 'brick',
+            material: 'brique-rouge-classique',
+            x: Math.random() * 20 - 10, // Position aléatoire
+            y: 19.85, // Position calculée pour assise 3
+            z: Math.random() * 20 - 10,
+            length: 19,
+            width: 9,
+            height: 6.5
+        });
+        
+        window.SceneManager.addElement(testBrick);
+        console.log('✅ Brique test placée:', testBrick.id);
+        
+        // 4. Attendre et vérifier les nouveaux joints
+        setTimeout(() => {
+            const jointsAfter = Array.from(window.SceneManager.elements.values()).filter(el => el.type === 'joint');
+            const newJointsCount = jointsAfter.length - jointsBefore.length;
+            
+            if (newJointsCount > 0) {
+                const newJoints = jointsAfter.slice(-newJointsCount);
+                let correctJoints = 0;
+                
+                newJoints.forEach((joint, i) => {
+                    const expectedY = 24.3; // Hauteur attendue pour assise 3
+                    const actualY = joint.position.y;
+                    const isCorrect = Math.abs(actualY - expectedY) < 0.5; // Tolérance 5mm
+                    
+                    if (isCorrect) correctJoints++;
+                    
+                    console.log(`🆕 Joint ${i+1}: Y=${actualY}cm`, isCorrect ? '✅' : `❌ (attendu: ${expectedY}cm)`);
                 });
+                
+                const success = correctJoints === newJointsCount;
+                console.log(success ? '🎉 TEST RÉUSSI ! Tous les joints sont correctement positionnés' : 
+                                     `❌ TEST ÉCHOUÉ ! ${correctJoints}/${newJointsCount} joints corrects`);
+                return success;
+            } else {
+                console.log('❌ Aucun joint créé - vérifiez que les joints automatiques sont activés');
+                return false;
             }
-            return window.originalCreateElement.call(this, type, position, rotation, dimensions, material, layerId);
-        };
-    }
-    
-    // Intercepter SceneManager.addElement
-    if (window.SceneManager && window.SceneManager.addElement && !window.originalAddElement) {
-        window.originalAddElement = window.SceneManager.addElement;
-        window.SceneManager.addElement = function(element) {
-            if (element && ((element.id && element.id.includes('joint')) || element.type === 'joint')) {
-                console.log('🕵️ JOINT CRÉÉ via addElement:', {
-                    id: element.id,
-                    type: element.type || element.userData?.type,
-                    position: element.position,
-                    dimensions: element.dimensions,
-                    y: element.position ? element.position.y : 'undefined',
-                    stack: new Error().stack.split('\n')[2].trim()
-                });
-            }
-            return window.originalAddElement.call(this, element);
-        };
-    }
-    
-    // Intercepter WallElement constructor si possible
-    if (window.WallElement && !window.WallElement._tracked) {
-        const originalWallElement = window.WallElement;
-        window.WallElement = function(config) {
-            if (config && config.type === 'joint') {
-                console.log('🕵️ JOINT CRÉÉ via WallElement constructor:', {
-                    config: config,
-                    y: config.y,
-                    stack: new Error().stack.split('\n')[2].trim()
-                });
-            }
-            const element = new originalWallElement(config);
-            return element;
-        };
-        // Copier toutes les propriétés statiques
-        Object.setPrototypeOf(window.WallElement, originalWallElement);
-        Object.assign(window.WallElement, originalWallElement);
-        window.WallElement._tracked = true;
-    }
-    
-    console.log('🕵️ Intercepteurs installés - WallElement, SceneManager.createElement et addElement');
-    
-    // NOUVEAU: Intercepter aussi les ajouts directs aux éléments SceneManager
-    if (window.SceneManager && window.SceneManager.elements && !window.SceneManager._elementsIntercepted) {
-        const originalSet = window.SceneManager.elements.set;
-        window.SceneManager.elements.set = function(key, element) {
-            if (element && element.type === 'joint') {
-                console.log('🕵️ JOINT CRÉÉ via SceneManager.elements.set:', {
-                    id: key,
-                    element: element,
-                    position: element.position,
-                    y: element.position ? element.position.y : 'undefined',
-                    stack: new Error().stack.split('\n')[2].trim()
-                });
-            }
-            return originalSet.call(this, key, element);
-        };
-        window.SceneManager._elementsIntercepted = true;
-    }
-    
-    // Afficher l'aide des fonctions de test disponibles
-    console.log('');
-    console.log('🧪 FONCTIONS DE TEST DISPONIBLES:');
-    console.log('  window.testJointCorrections()  - Teste les calculs de hauteur d\'assise');
-    console.log('  window.testJointPlacement()    - Teste le placement automatique des joints');
-    console.log('  window.countJoints()           - Compte et liste tous les joints');
-    console.log('  window.clearAllJoints()        - Supprime tous les joints existants');
-    console.log('  window.trackJointCreation()    - Active le suivi des créations de joints');
-    console.log('');
-};
+        }, 1000);
+        
+        return true;
+    };
+
+    // Test rapide pour vérifier le nombre de joints
+    window.countJoints = function() {
+        const joints = Array.from(window.SceneManager.elements.values()).filter(el => el.type === 'joint');
+        joints.forEach((joint, i) => {
+            console.log(`  Joint ${i+1}: Y=${joint.position.y.toFixed(1)}cm (${joint.id})`);
+        });
+        return joints.length;
+    };
+
+    // Test de nettoyage pour supprimer tous les joints
+    window.clearAllJoints = function() {
+        const joints = Array.from(window.SceneManager.elements.values()).filter(el => el.type === 'joint');
+        console.log(`🧹 Suppression de ${joints.length} joints...`);
+        joints.forEach(joint => {
+            window.SceneManager.removeElement(joint.id);
+        });
+        console.log('✅ Tous les joints supprimés');
+        return true;
+    };
+
+    // INTERCEPTEUR GLOBAL pour traquer toutes les créations de joints
+    window.originalCreateElement = null;
+    window.originalAddElement = null;
+    window.originalElements = new Map(); // Stocker les éléments originaux
+    window.trackJointCreation = function() {
+        
+        // Intercepter SceneManager.createElement
+        if (window.SceneManager && window.SceneManager.createElement && !window.originalCreateElement) {
+            window.originalCreateElement = window.SceneManager.createElement;
+            window.SceneManager.createElement = function(type, position, rotation, dimensions, material, layerId) {
+                if ((layerId && layerId.includes('joint')) || type === 'joint') {
+                    console.log('🕵️ JOINT CRÉÉ via createElement:', {
+                        type: type,
+                        layerId: layerId,
+                        position: position,
+                        dimensions: dimensions,
+                        stack: new Error().stack.split('\n')[2].trim()
+                    });
+                }
+                return window.originalCreateElement.call(this, type, position, rotation, dimensions, material, layerId);
+            };
+        }
+        
+        // Intercepter SceneManager.addElement
+        if (window.SceneManager && window.SceneManager.addElement && !window.originalAddElement) {
+            window.originalAddElement = window.SceneManager.addElement;
+            window.SceneManager.addElement = function(element) {
+                if (element && ((element.id && element.id.includes('joint')) || element.type === 'joint')) {
+                    console.log('🕵️ JOINT CRÉÉ via addElement:', {
+                        id: element.id,
+                        type: element.type || element.userData?.type,
+                        position: element.position,
+                        dimensions: element.dimensions,
+                        y: element.position ? element.position.y : 'undefined',
+                        stack: new Error().stack.split('\n')[2].trim()
+                    });
+                }
+                return window.originalAddElement.call(this, element);
+            };
+        }
+        
+        // Intercepter WallElement constructor si possible
+        if (window.WallElement && !window.WallElement._tracked) {
+            const originalWallElement = window.WallElement;
+            window.WallElement = function(config) {
+                if (config && config.type === 'joint') {
+                    console.log('🕵️ JOINT CRÉÉ via WallElement constructor:', {
+                        config: config,
+                        y: config.y,
+                        stack: new Error().stack.split('\n')[2].trim()
+                    });
+                }
+                const element = new originalWallElement(config);
+                return element;
+            };
+            // Copier toutes les propriétés statiques
+            Object.setPrototypeOf(window.WallElement, originalWallElement);
+            Object.assign(window.WallElement, originalWallElement);
+            window.WallElement._tracked = true;
+        }
+        
+        console.log('🕵️ Intercepteurs installés - WallElement, SceneManager.createElement et addElement');
+        
+        // NOUVEAU: Intercepter aussi les ajouts directs aux éléments SceneManager
+        if (window.SceneManager && window.SceneManager.elements && !window.SceneManager._elementsIntercepted) {
+            const originalSet = window.SceneManager.elements.set;
+            window.SceneManager.elements.set = function(key, element) {
+                if (element && element.type === 'joint') {
+                    console.log('🕵️ JOINT CRÉÉ via SceneManager.elements.set:', {
+                        id: key,
+                        element: element,
+                        position: element.position,
+                        y: element.position ? element.position.y : 'undefined',
+                        stack: new Error().stack.split('\n')[2].trim()
+                    });
+                }
+                return originalSet.call(this, key, element);
+            };
+            window.SceneManager._elementsIntercepted = true;
+        }
+        
+        // Afficher l'aide des fonctions de test disponibles
+        console.log('');
+        console.log('🧪 FONCTIONS DE TEST DISPONIBLES:');
+        console.log('  window.testJointCorrections()  - Teste les calculs de hauteur d\'assise');
+        console.log('  window.testJointPlacement()    - Teste le placement automatique des joints');
+        console.log('  window.countJoints()           - Compte et liste tous les joints');
+        console.log('  window.clearAllJoints()        - Supprime tous les joints existants');
+        console.log('  window.trackJointCreation()    - Active le suivi des créations de joints');
+        console.log('');
+    };
+})();
+
 class ConstructionTools {
     constructor() {
         this.currentMode = 'brick';
@@ -407,7 +411,7 @@ class ConstructionTools {
 
             // IMPORTANT: ne pas réappliquer un ratio ici, la méthode getCurrentInsulationWithCutObject l'a déjà fait.
             // (Ancienne logique supprimée pour éviter une double réduction donnant 1/4 au lieu de 1/2.)
-    } else if (this.currentMode === 'linteau' && window.LinteauSelector) {
+        } else if (this.currentMode === 'linteau' && window.LinteauSelector) {
             // Pour les linteaux, utiliser LinteauSelector avec détection de coupe
             const currentLinteau = window.LinteauSelector.getCurrentLinteauData();
             length = currentLinteau.length;
@@ -544,13 +548,25 @@ class ConstructionTools {
             } else {
                 this.ghostElement.position.y = newY; // centre pour les autres
             }
+        }
             
+        // 🔧 PROTECTION: Vérifier que l'AssiseManager est disponible et initialisé
+        if (window.AssiseManager && window.AssiseManager.isInitialized) {
             // Mettre à jour la position du mesh
             if (this.ghostElement.updateMeshPosition) {
                 this.ghostElement.updateMeshPosition();
             }
         } else {
-            console.warn('   - ⚠️ Pas d\'AssiseManager disponible, fantôme positionné à y=0');
+            // 🔧 AMÉLIORATION: Réessayer après un délai si AssiseManager n'est pas prêt
+            if (window.AssiseManager) {
+                setTimeout(() => {
+                    if (this.ghostElement && window.AssiseManager.isInitialized && this.ghostElement.updateMeshPosition) {
+                        this.ghostElement.updateMeshPosition();
+                    }
+                }, 100);
+            } else {
+                console.warn('   - ⚠️ AssiseManager non disponible, fantôme positionné à y=0');
+            }
         }
         
         if (window.DEBUG_CONSTRUCTION) {
@@ -592,9 +608,14 @@ class ConstructionTools {
         // console.log('Élément fantôme créé');
     }
 
-    // 🆕 NOUVEAU: Méthode dédiée pour repositionner le fantôme sur la bonne assise
     repositionGhostToCurrentAssise() {
         if (!this.ghostElement || !window.AssiseManager) {
+            return false;
+        }
+        
+        // 🆕 PROTECTION: Vérifier que AssiseManager est complètement initialisé
+        if (!window.AssiseManager.currentAssiseByType || !window.AssiseManager.assisesByType) {
+            console.warn('⚠️ AssiseManager non complètement initialisé, repositionnement fantôme ignoré');
             return false;
         }
         
@@ -616,6 +637,89 @@ class ConstructionTools {
                 const currentBrick = window.BrickSelector.getCurrentBrick();
                 if (currentBrick && currentBrick.type) {
                     assiseType = currentBrick.type;
+                }
+            }
+        }
+        
+        // 🆕 NOUVEAU: Pour les blocs personnalisés, utiliser le baseBlock pour l'assise
+        if (this.currentMode === 'block' && window.BlockSelector) {
+            const currentBlock = window.BlockSelector.getCurrentBlockData();
+            if (currentBlock && currentBlock.isCustom && currentBlock.baseBlock) {
+                console.log(`👻 Repositionnement fantôme bloc personnalisé: ${window.BlockSelector.currentBlock} basé sur ${currentBlock.baseBlock}`);
+                
+                // Utiliser le bloc de base pour déterminer le type d'assise correct
+                const baseBlock = window.BlockSelector.blockTypes[currentBlock.baseBlock];
+                if (baseBlock && baseBlock.category) {
+                    // Récupérer le type d'assise correct pour le bloc de base
+                    switch (baseBlock.category) {
+                        case 'hollow':
+                            if (currentBlock.baseBlock.startsWith('B9')) {
+                                assiseType = 'B9';
+                            } else if (currentBlock.baseBlock.startsWith('B14')) {
+                                assiseType = 'B14';
+                            } else if (currentBlock.baseBlock.startsWith('B19')) {
+                                assiseType = 'B19';
+                            } else if (currentBlock.baseBlock.startsWith('B29')) {
+                                assiseType = 'B29';
+                            } else {
+                                assiseType = 'CREUX';
+                            }
+                            break;
+                        case 'cellular':
+                        case 'cellular-assise':
+                            // Déterminer le sous-type cellulaire à partir du bloc de base
+                            if (currentBlock.baseBlock.includes('60x5')) {
+                                assiseType = 'BC5';
+                            } else if (currentBlock.baseBlock.includes('60x7')) {
+                                assiseType = 'BC7';
+                            } else if (currentBlock.baseBlock.includes('60x10') || currentBlock.baseBlock.includes('60x9')) {
+                                assiseType = 'BC10';
+                            } else if (currentBlock.baseBlock.includes('60x15') || currentBlock.baseBlock.includes('60x14')) {
+                                assiseType = 'BC15';
+                            } else if (currentBlock.baseBlock.includes('60x17')) {
+                                assiseType = 'BC17';
+                            } else if (currentBlock.baseBlock.includes('60x20') || currentBlock.baseBlock.includes('60x19')) {
+                                assiseType = 'BC20';
+                            } else if (currentBlock.baseBlock.includes('60x24')) {
+                                assiseType = 'BC24';
+                            } else if (currentBlock.baseBlock.includes('60x30')) {
+                                assiseType = 'BC30';
+                            } else if (currentBlock.baseBlock.includes('60x36')) {
+                                assiseType = 'BC36';
+                            } else {
+                                assiseType = 'CELLULAIRE';
+                            }
+                            break;
+                        case 'argex':
+                            if (currentBlock.baseBlock.includes('39x9')) {
+                                assiseType = 'ARGEX9';
+                            } else if (currentBlock.baseBlock.includes('39x14')) {
+                                assiseType = 'ARGEX14';
+                            } else if (currentBlock.baseBlock.includes('39x19')) {
+                                assiseType = 'ARGEX19';
+                            } else {
+                                assiseType = 'ARGEX';
+                            }
+                            break;
+                        case 'terracotta':
+                            if (currentBlock.baseBlock.includes('50x10')) {
+                                assiseType = 'TC10';
+                            } else if (currentBlock.baseBlock.includes('50x14')) {
+                                assiseType = 'TC14';
+                            } else if (currentBlock.baseBlock.includes('50x19')) {
+                                assiseType = 'TC19';
+                            } else {
+                                assiseType = 'TERRE_CUITE';
+                            }
+                            break;
+                        default:
+                            assiseType = 'CREUX'; // Fallback pour les blocs personnalisés
+                            break;
+                    }
+                    
+                    console.log(`   - Type d'assise déterminé pour bloc personnalisé: ${assiseType}`);
+                } else {
+                    console.log(`   - ⚠️ Bloc de base ${currentBlock.baseBlock} non trouvé, utilisation du type détecté`);
                 }
             }
         }
@@ -1538,6 +1642,24 @@ class ConstructionTools {
                 // console.log('🎯 Type d\'assise changé, recréation des points snap');
                 this.createGridSnapPoints();
             }
+            
+            // 🆕 CORRECTION: Mettre à jour le fantôme lors du changement de type d'assise avec débounce
+            if (this._assiseTypeChangedTimeout) {
+                clearTimeout(this._assiseTypeChangedTimeout);
+            }
+            
+            this._assiseTypeChangedTimeout = setTimeout(() => {
+                if (this.ghostElement) {
+                    console.log('👻 Mise à jour fantôme après changement type assise:', e.detail?.newType);
+                    this.repositionGhostToCurrentAssise();
+                    this.updateGhostElement();
+                }
+                
+                // 🆕 CORRECTION: Mettre à jour la surbrillance de la bibliothèque
+                if (window.TabManager && window.TabManager.updateLibraryHighlighting) {
+                    window.TabManager.updateLibraryHighlighting();
+                }
+            }, 200); // Débounce de 200ms
         });
 
         // Écouter les changements d'assise active
@@ -1546,6 +1668,24 @@ class ConstructionTools {
                 // console.log('🎯 Assise active changée, recréation des points snap');
                 this.createGridSnapPoints();
             }
+            
+            // 🆕 CORRECTION: Mettre à jour le fantôme lors du changement d'assise active avec débounce
+            if (this._assiseChangedTimeout) {
+                clearTimeout(this._assiseChangedTimeout);
+            }
+            
+            this._assiseChangedTimeout = setTimeout(() => {
+                if (this.ghostElement) {
+                    console.log('👻 Mise à jour fantôme après changement assise active:', e.detail);
+                    this.repositionGhostToCurrentAssise();
+                    this.updateGhostElement();
+                }
+                
+                // 🆕 CORRECTION: Mettre à jour la surbrillance de la bibliothèque
+                if (window.TabManager && window.TabManager.updateLibraryHighlighting) {
+                    window.TabManager.updateLibraryHighlighting();
+                }
+            }, 200); // Débounce de 200ms
         });
 
         // Écouter l'activation/désactivation des grilles d'assise
@@ -2696,6 +2836,7 @@ class ConstructionTools {
         }
         
         // console.log('🎯 createPlacementSuggestions appelée pour élément:', hoveredElement.type, hoveredElement.id);
+        console.log('🎯 [DEBUG-SUGGESTIONS] createPlacementSuggestions appelée pour élément:', hoveredElement.type, hoveredElement.id);
         
         this.clearSuggestions();
         
@@ -2734,15 +2875,39 @@ class ConstructionTools {
         const perpAdjustment = Math.max(14, dims.length * 0.74); // Minimum 14cm ou 74% de la longueur
         
         // SYSTÈME ADAPTATIF: Calculs et numérotation selon le type de brique
-        // IMPORTANT: Utiliser les dimensions de l'élément ACTUELLEMENT SÉLECTIONNÉ, pas celui survolé
+        // CORRECTION: Utiliser le type de l'élément survolé/cliqué pour déterminer les suggestions
+        // plutôt que le mode actuel qui peut avoir changé lors du clic
         let currentElementLength = 19; // Valeur par défaut pour briques
         let elementFullLength = 19; // Longueur standard pour briques
         let brickType = 'entiere'; // Type de brique pour numérotation
+        let suggestionMode = hoveredElement.type; // Utiliser le type de l'élément cliqué/survolé
         
-        if (this.currentMode === 'brick' && window.BrickSelector) {
-            // Pour les briques, utiliser BrickSelector
-            const currentBrick = window.BrickSelector.getCurrentBrick();
-            currentElementLength = currentBrick.length;
+        // NOUVEAU: Détection précise du type de bloc basée sur les dimensions
+        if (hoveredElement.type === 'block') {
+            const blockWidth = hoveredElement.dimensions.width;
+            const blockHeight = hoveredElement.dimensions.height;
+            
+            // Déterminer le type de bloc selon ses dimensions (largeur principalement)
+            if (blockWidth >= 8.5 && blockWidth <= 9.5) {
+                suggestionMode = 'B9'; // Bloc de 9cm
+            } else if (blockWidth >= 13.5 && blockWidth <= 14.5) {
+                suggestionMode = 'B14'; // Bloc de 14cm
+            } else if (blockWidth >= 18.5 && blockWidth <= 19.5) {
+                suggestionMode = 'B19'; // Bloc de 19cm
+            } else if (blockWidth >= 28.5 && blockWidth <= 29.5) {
+                suggestionMode = 'B29'; // Bloc de 29cm
+            } else {
+                suggestionMode = 'block'; // Bloc générique
+            }
+            
+            console.log(`🔧 DÉTECTION TYPE BLOC: largeur=${blockWidth}cm, hauteur=${blockHeight}cm → type détecté: ${suggestionMode}`);
+        } // Force reload cache
+        
+        
+        // Déterminer le mode de suggestion basé sur l'élément survolé/cliqué
+        if (suggestionMode === 'brick' && window.BrickSelector) {
+            // Pour les briques, utiliser les dimensions de l'élément cliqué plutôt que BrickSelector
+            currentElementLength = hoveredElement.dimensions.length;
             elementFullLength = 19; // Longueur d'une brique entière standard (19cm)
             
             // Déterminer le type de brique selon sa longueur
@@ -2757,15 +2922,15 @@ class ConstructionTools {
             } else {
                 brickType = 'custom'; // Brique dimension personnalisée
             }
-        } else if (this.currentMode === 'block') {
-            // Pour les blocs, utiliser les champs HTML
-            currentElementLength = parseInt(document.getElementById('elementLength').value) || 39;
+        } else if (suggestionMode === 'block' || suggestionMode === 'B9' || suggestionMode === 'B14' || suggestionMode === 'B19' || suggestionMode === 'B29') {
+            // Pour les blocs, utiliser les dimensions de l'élément cliqué
+            currentElementLength = hoveredElement.dimensions.length;
             elementFullLength = 39; // Longueur d'un bloc entier standard (39cm)
             brickType = 'block';
         } else {
-            // Fallback sur les champs HTML pour autres types
-            currentElementLength = parseInt(document.getElementById('elementLength').value) || 19;
-            elementFullLength = this.currentMode === 'block' ? 39 : 19;
+            // Fallback pour autres types
+            currentElementLength = hoveredElement.dimensions.length;
+            elementFullLength = suggestionMode === 'block' ? 39 : 19;
             brickType = 'other';
         }
         
@@ -2820,7 +2985,10 @@ class ConstructionTools {
         }
         
         // Log informatif sur le type et ajustements appliqués
-        const elementType = this.currentMode === 'brick' ? 'BRIQUE' : this.currentMode === 'block' ? 'BLOC' : this.currentMode.toUpperCase();
+        const elementType = (suggestionMode === 'brick') ? 'BRIQUE' : 
+                           (suggestionMode === 'B9' || suggestionMode === 'B14' || suggestionMode === 'B19' || suggestionMode === 'B29') ? `BLOC ${suggestionMode}` :
+                           (suggestionMode === 'block') ? 'BLOC' : suggestionMode.toUpperCase();
+        console.log(`🔧 SUGGESTIONS basées sur élément cliqué: ${elementType}: longueur=${currentElementLength}cm, mode original=${this.currentMode}, mode suggestion=${suggestionMode}`);
         // console.log(`🔧 ${elementType} ${brickType.toUpperCase()}: longueur=${currentElementLength}cm, ajustements E/F=${positionOffsets.E}cm, I/J=${positionOffsets.I}cm`);
         
         // SYSTÈME DE COMPATIBILITÉ: Déterminer les types de brique de référence et à placer
@@ -3403,7 +3571,7 @@ class ConstructionTools {
                     localPos.color,
                     index,
                     localPos.letter,
-                    localPos.type // Passer le type de suggestion
+                    localPos.type // IMPORTANT: stocker le type de suggestion réel ('continuation', 'perpendiculaire-...', etc.)
                 );
                 if (suggestion) {
                     suggestions.push(suggestion);
@@ -3418,20 +3586,22 @@ class ConstructionTools {
     // Créer un fantôme de suggestion
     createSuggestionGhost(x, y, z, rotation, color, index, letter = null, suggestionType = null) {
         // CORRECTION: Utiliser les dimensions de l'élément actif en mode suggestions
-        let length, width, height;
+        let length, width, height, elementType;
         
-        // Si on est en mode suggestions et qu'on a un élément actif, utiliser ses dimensions
+        // Si on est en mode suggestions et qu'on a un élément actif, utiliser ses dimensions ET son type
         if (this.activeBrickForSuggestions) {
             const activeElement = this.activeBrickForSuggestions;
             length = activeElement.dimensions.length;
             width = activeElement.dimensions.width;
             height = activeElement.dimensions.height;
+            elementType = activeElement.type; // Utiliser le type de l'élément actif
         } else if (this.currentMode === 'brick' && window.BrickSelector) {
             // Pour les briques, utiliser BrickSelector
             const currentBrick = window.BrickSelector.getCurrentBrick();
             length = currentBrick.length;
             width = currentBrick.width;
             height = currentBrick.height;
+            elementType = 'brick';
         } else if (this.currentMode === 'beam' && window.BeamProfiles) {
             const p = window.BeamProfiles.getProfile ? window.BeamProfiles.getProfile(this.currentBeamType || 'IPE80') : null;
             length = this.currentBeamLengthCm || parseInt(document.getElementById('elementLength').value) || 100;
@@ -3442,15 +3612,25 @@ class ConstructionTools {
                 width = parseInt(document.getElementById('elementWidth').value);
                 height = parseInt(document.getElementById('elementHeight').value);
             }
+            elementType = 'beam';
         } else {
             // Pour les blocs et isolants, ou si BrickSelector n'est pas disponible, utiliser les champs HTML
             length = parseInt(document.getElementById('elementLength').value);
             width = parseInt(document.getElementById('elementWidth').value);
             height = parseInt(document.getElementById('elementHeight').value);
+            elementType = this.currentMode;
         }
         
+        // Utiliser le type de l'élément actif ou le type de suggestion au lieu de currentMode
+        const ghostElementType = elementType || suggestionType || this.currentMode;
+        
+        // Pour les blocs spécifiques (B9, B14, etc.), utiliser 'block' comme type de base
+        // mais garder l'information du sous-type pour l'affichage
+        const actualElementType = (ghostElementType === 'B9' || ghostElementType === 'B14' || 
+                                  ghostElementType === 'B19' || ghostElementType === 'B29') ? 'block' : ghostElementType;
+        
         const ghost = new WallElement({
-            type: this.currentMode,
+            type: actualElementType,
             material: this.getAutoMaterial(),
             x: x,
             y: y,
@@ -3459,9 +3639,13 @@ class ConstructionTools {
             width: width,
             height: height,
             rotation: rotation,
-            ...(this.currentMode === 'beam' ? {
+            ...(actualElementType === 'beam' ? {
                 beamType: this.currentBeamType || 'IPE80',
                 beamLengthCm: length
+            } : {}),
+            // Ajouter l'information du sous-type pour les blocs
+            ...(ghostElementType !== actualElementType ? {
+                blockSubType: ghostElementType
             } : {})
         });
         
@@ -4326,16 +4510,28 @@ class ConstructionTools {
                     if (cutSuffixes[cutState.cutType]) {
                         const oldType = type;
                         const cutBrickType = cutState.baseType + cutSuffixes[cutState.cutType];
-                        if (oldType !== cutBrickType) {
-                            type = cutBrickType;
-                            console.log('   - Type brique avec coupe changé de', oldType, 'vers', type);
+                        
+                        // 🔧 PROTECTION: Éviter la boucle infinie en vérifiant les changements répétitifs
+                        if (!this.lastTypeChange || this.lastTypeChange.from !== oldType || this.lastTypeChange.to !== cutBrickType || (Date.now() - this.lastTypeChange.timestamp) > 1000) {
+                            if (oldType !== cutBrickType) {
+                                type = cutBrickType;
+                                console.log('   - Type brique avec coupe changé de', oldType, 'vers', type);
+                                
+                                // Mémoriser le changement pour éviter les répétitions
+                                this.lastTypeChange = {
+                                    from: oldType,
+                                    to: cutBrickType,
+                                    timestamp: Date.now()
+                                };
+                            } else {
+                                type = cutBrickType;
+                            }
                         } else {
+                            // Ignorer le changement répétitif
                             type = cutBrickType;
                         }
                     }
-                } else {
                 }
-            } else {
             }
             
             // 🆕 PROTECTION: Vérifier que TabManager ne contient pas un type incompatible
@@ -4368,119 +4564,203 @@ class ConstructionTools {
                 if (currentBlock && currentBlock.category) {
                     const category = currentBlock.category;
                     
-                    // Mapper les catégories aux types d'assises (même logique que detectBlockSubType)
-                    switch (category) {
-                        case 'hollow':
-                            // Déterminer le type spécifique selon l'ID du bloc
-                            if (currentBlockType && currentBlockType.startsWith('B9')) {
-                                type = 'B9';
-                            } else if (currentBlockType && currentBlockType.startsWith('B14')) {
-                                type = 'B14';
-                            } else if (currentBlockType && currentBlockType.startsWith('B19')) {
-                                type = 'B19';
-                            } else if (currentBlockType && currentBlockType.startsWith('B29')) {
-                                type = 'B29';
-                            } else {
-                                type = 'CREUX'; // Fallback pour les blocs creux non spécifiques
+                    // 🆕 NOUVEAU: Gestion spéciale des blocs personnalisés
+                    if (currentBlock.isCustom && currentBlock.baseBlock) {
+                        console.log(`🎨 Bloc personnalisé détecté: ${currentBlockType} basé sur ${currentBlock.baseBlock}`);
+                        
+                        // Utiliser le bloc de base pour déterminer le type d'assise
+                        const baseBlock = window.BlockSelector.blockTypes[currentBlock.baseBlock];
+                        if (baseBlock && baseBlock.category) {
+                            console.log(`   - Utilisation catégorie du bloc de base: ${baseBlock.category}`);
+                            
+                            // Traiter le bloc personnalisé comme son bloc de base
+                            switch (baseBlock.category) {
+                                case 'hollow':
+                                    if (currentBlock.baseBlock.startsWith('B9')) {
+                                        type = 'B9';
+                                    } else if (currentBlock.baseBlock.startsWith('B14')) {
+                                        type = 'B14';
+                                    } else if (currentBlock.baseBlock.startsWith('B19')) {
+                                        type = 'B19';
+                                    } else if (currentBlock.baseBlock.startsWith('B29')) {
+                                        type = 'B29';
+                                    } else {
+                                        type = 'CREUX';
+                                    }
+                                    break;
+                                case 'cellular':
+                                case 'cellular-assise':
+                                    // Utiliser le bloc de base pour déterminer le sous-type cellulaire
+                                    if (currentBlock.baseBlock.includes('60x5')) {
+                                        type = 'BC5';
+                                    } else if (currentBlock.baseBlock.includes('60x7')) {
+                                        type = 'BC7';
+                                    } else if (currentBlock.baseBlock.includes('60x10') || currentBlock.baseBlock.includes('60x9')) {
+                                        type = 'BC10';
+                                    } else if (currentBlock.baseBlock.includes('60x15') || currentBlock.baseBlock.includes('60x14')) {
+                                        type = 'BC15';
+                                    } else if (currentBlock.baseBlock.includes('60x17')) {
+                                        type = 'BC17';
+                                    } else if (currentBlock.baseBlock.includes('60x20') || currentBlock.baseBlock.includes('60x19')) {
+                                        type = 'BC20';
+                                    } else if (currentBlock.baseBlock.includes('60x24')) {
+                                        type = 'BC24';
+                                    } else if (currentBlock.baseBlock.includes('60x30')) {
+                                        type = 'BC30';
+                                    } else if (currentBlock.baseBlock.includes('60x36')) {
+                                        type = 'BC36';
+                                    } else {
+                                        type = 'CELLULAIRE';
+                                    }
+                                    break;
+                                case 'argex':
+                                    if (currentBlock.baseBlock.includes('39x9')) {
+                                        type = 'ARGEX9';
+                                    } else if (currentBlock.baseBlock.includes('39x14')) {
+                                        type = 'ARGEX14';
+                                    } else if (currentBlock.baseBlock.includes('39x19')) {
+                                        type = 'ARGEX19';
+                                    } else {
+                                        type = 'ARGEX';
+                                    }
+                                    break;
+                                case 'terracotta':
+                                    if (currentBlock.baseBlock.includes('50x10')) {
+                                        type = 'TC10';
+                                    } else if (currentBlock.baseBlock.includes('50x14')) {
+                                        type = 'TC14';
+                                    } else if (currentBlock.baseBlock.includes('50x19')) {
+                                        type = 'TC19';
+                                    } else {
+                                        type = 'TERRE_CUITE';
+                                    }
+                                    break;
+                                default:
+                                    type = 'block';
+                                    break;
                             }
-                            break;
-                        case 'cut':
-                            // Pour les blocs coupés, déterminer le type selon l'origine
-                            if (currentBlockType && currentBlockType.startsWith('B9')) {
-                                type = 'B9';
-                            } else if (currentBlockType && currentBlockType.startsWith('B14')) {
-                                type = 'B14';
-                            } else if (currentBlockType && currentBlockType.startsWith('B19')) {
-                                type = 'B19';
-                            } else if (currentBlockType && currentBlockType.startsWith('B29')) {
-                                type = 'B29';
-                            } else if (currentBlockType && (currentBlockType.startsWith('BC_') || currentBlockType.startsWith('BCA_'))) {
-                                type = 'CELLULAIRE'; // Les blocs béton cellulaire coupés restent CELLULAIRE
-                                console.log(`🔧 Bloc béton cellulaire coupé détecté: ${currentBlockType} → type CELLULAIRE conservé`);
-                            } else if (currentBlockType && currentBlockType.startsWith('ARGEX_')) {
-                                // Détecter le sous-type ARGEX pour les blocs coupés
-                                if (currentBlockType.includes('39x9')) {
+                            
+                            console.log(`   - Type final pour bloc personnalisé: ${type}`);
+                        } else {
+                            console.log(`   - ⚠️ Bloc de base ${currentBlock.baseBlock} non trouvé, utilisation type générique`);
+                            type = 'block';
+                        }
+                    } else {
+                        // Logique normale pour les blocs non personnalisés
+                        // Mapper les catégories aux types d'assises (même logique que detectBlockSubType)
+                        switch (category) {
+                            case 'hollow':
+                                // Déterminer le type spécifique selon l'ID du bloc
+                                if (currentBlockType && currentBlockType.startsWith('B9')) {
+                                    type = 'B9';
+                                } else if (currentBlockType && currentBlockType.startsWith('B14')) {
+                                    type = 'B14';
+                                } else if (currentBlockType && currentBlockType.startsWith('B19')) {
+                                    type = 'B19';
+                                } else if (currentBlockType && currentBlockType.startsWith('B29')) {
+                                    type = 'B29';
+                                } else {
+                                    type = 'CREUX'; // Fallback pour les blocs creux non spécifiques
+                                }
+                                break;
+                            case 'cut':
+                                // Pour les blocs coupés, déterminer le type selon l'origine
+                                if (currentBlockType && currentBlockType.startsWith('B9')) {
+                                    type = 'B9';
+                                } else if (currentBlockType && currentBlockType.startsWith('B14')) {
+                                    type = 'B14';
+                                } else if (currentBlockType && currentBlockType.startsWith('B19')) {
+                                    type = 'B19';
+                                } else if (currentBlockType && currentBlockType.startsWith('B29')) {
+                                    type = 'B29';
+                                } else if (currentBlockType && (currentBlockType.startsWith('BC_') || currentBlockType.startsWith('BCA_'))) {
+                                    type = 'CELLULAIRE'; // Les blocs béton cellulaire coupés restent CELLULAIRE
+                                    console.log(`🔧 Bloc béton cellulaire coupé détecté: ${currentBlockType} → type CELLULAIRE conservé`);
+                                } else if (currentBlockType && currentBlockType.startsWith('ARGEX_')) {
+                                    // Détecter le sous-type ARGEX pour les blocs coupés
+                                    if (currentBlockType.includes('39x9')) {
+                                        type = 'ARGEX9';
+                                    } else if (currentBlockType.includes('39x14')) {
+                                        type = 'ARGEX14';
+                                    } else if (currentBlockType.includes('39x19')) {
+                                        type = 'ARGEX19';
+                                    } else {
+                                        type = 'ARGEX'; // Fallback générique
+                                    }
+                                    console.log(`🔧 Bloc ARGEX coupé détecté: ${currentBlockType} → type ${type} conservé`);
+                                } else if (currentBlockType && currentBlockType.startsWith('TC_')) {
+                                    // Détecter le sous-type terre cuite pour les blocs coupés
+                                    if (currentBlockType.includes('50x10')) {
+                                        type = 'TC10';
+                                    } else if (currentBlockType.includes('50x14')) {
+                                        type = 'TC14';
+                                    } else if (currentBlockType.includes('50x19')) {
+                                        type = 'TC19';
+                                    } else {
+                                        type = 'TERRE_CUITE'; // Fallback générique
+                                    }
+                                    console.log(`🔧 Bloc terre cuite coupé détecté: ${currentBlockType} → type ${type} conservé`);
+                                } else {
+                                    type = 'CREUX'; // Les autres blocs découpés deviennent CREUX
+                                }
+                                break;
+                            case 'cellular':
+                            case 'cellular-assise':
+                                // CORRECTION: Détecter le sous-type BC* au lieu de CELLULAIRE générique
+                                if (currentBlockType && currentBlockType.includes('60x5')) {
+                                    type = 'BC5';
+                                } else if (currentBlockType && currentBlockType.includes('60x7')) {
+                                    type = 'BC7';
+                                } else if (currentBlockType && (currentBlockType.includes('60x10') || currentBlockType.includes('60x9'))) {
+                                    type = 'BC10';
+                                } else if (currentBlockType && (currentBlockType.includes('60x15') || currentBlockType.includes('60x14'))) {
+                                    type = 'BC15';
+                                } else if (currentBlockType && currentBlockType.includes('60x17')) {
+                                    type = 'BC17';
+                                } else if (currentBlockType && (currentBlockType.includes('60x20') || currentBlockType.includes('60x19'))) {
+                                    type = 'BC20';
+                                } else if (currentBlockType && currentBlockType.includes('60x24')) {
+                                    type = 'BC24';
+                                } else if (currentBlockType && currentBlockType.includes('60x30')) {
+                                    type = 'BC30';
+                                } else if (currentBlockType && currentBlockType.includes('60x36')) {
+                                    type = 'BC36';
+                                } else {
+                                    type = 'CELLULAIRE'; // Fallback vers le type générique
+                                }
+                                console.log(`🔧 Bloc béton cellulaire détecté: ${currentBlockType} → type: ${type}`);
+                                break;
+                            case 'argex':
+                                // CORRECTION: Détecter le sous-type ARGEX* au lieu de ARGEX générique
+                                if (currentBlockType && currentBlockType.includes('39x9')) {
                                     type = 'ARGEX9';
-                                } else if (currentBlockType.includes('39x14')) {
+                                } else if (currentBlockType && currentBlockType.includes('39x14')) {
                                     type = 'ARGEX14';
-                                } else if (currentBlockType.includes('39x19')) {
+                                } else if (currentBlockType && currentBlockType.includes('39x19')) {
                                     type = 'ARGEX19';
                                 } else {
-                                    type = 'ARGEX'; // Fallback générique
+                                    type = 'ARGEX'; // Fallback vers le type générique
                                 }
-                                console.log(`🔧 Bloc ARGEX coupé détecté: ${currentBlockType} → type ${type} conservé`);
-                            } else if (currentBlockType && currentBlockType.startsWith('TC_')) {
-                                // Détecter le sous-type terre cuite pour les blocs coupés
-                                if (currentBlockType.includes('50x10')) {
+                                console.log(`🔧 Bloc ARGEX détecté: ${currentBlockType} → type: ${type}`);
+                                break;
+                            case 'terracotta':
+                                // CORRECTION: Détecter le sous-type TC* au lieu de TERRE_CUITE générique
+                                if (currentBlockType && currentBlockType.includes('50x10')) {
                                     type = 'TC10';
-                                } else if (currentBlockType.includes('50x14')) {
+                                } else if (currentBlockType && currentBlockType.includes('50x14')) {
                                     type = 'TC14';
-                                } else if (currentBlockType.includes('50x19')) {
+                                } else if (currentBlockType && currentBlockType.includes('50x19')) {
                                     type = 'TC19';
                                 } else {
-                                    type = 'TERRE_CUITE'; // Fallback générique
+                                    type = 'TERRE_CUITE'; // Fallback vers le type générique
                                 }
-                                console.log(`🔧 Bloc terre cuite coupé détecté: ${currentBlockType} → type ${type} conservé`);
-                            } else {
-                                type = 'CREUX'; // Les autres blocs découpés deviennent CREUX
-                            }
-                            break;
-                        case 'cellular':
-                        case 'cellular-assise':
-                            // CORRECTION: Détecter le sous-type BC* au lieu de CELLULAIRE générique
-                            if (currentBlockType && currentBlockType.includes('60x5')) {
-                                type = 'BC5';
-                            } else if (currentBlockType && currentBlockType.includes('60x7')) {
-                                type = 'BC7';
-                            } else if (currentBlockType && (currentBlockType.includes('60x10') || currentBlockType.includes('60x9'))) {
-                                type = 'BC10';
-                            } else if (currentBlockType && (currentBlockType.includes('60x15') || currentBlockType.includes('60x14'))) {
-                                type = 'BC15';
-                            } else if (currentBlockType && currentBlockType.includes('60x17')) {
-                                type = 'BC17';
-                            } else if (currentBlockType && (currentBlockType.includes('60x20') || currentBlockType.includes('60x19'))) {
-                                type = 'BC20';
-                            } else if (currentBlockType && currentBlockType.includes('60x24')) {
-                                type = 'BC24';
-                            } else if (currentBlockType && currentBlockType.includes('60x30')) {
-                                type = 'BC30';
-                            } else if (currentBlockType && currentBlockType.includes('60x36')) {
-                                type = 'BC36';
-                            } else {
-                                type = 'CELLULAIRE'; // Fallback vers le type générique
-                            }
-                            console.log(`🔧 Bloc béton cellulaire détecté: ${currentBlockType} → type: ${type}`);
-                            break;
-                        case 'argex':
-                            // CORRECTION: Détecter le sous-type ARGEX* au lieu de ARGEX générique
-                            if (currentBlockType && currentBlockType.includes('39x9')) {
-                                type = 'ARGEX9';
-                            } else if (currentBlockType && currentBlockType.includes('39x14')) {
-                                type = 'ARGEX14';
-                            } else if (currentBlockType && currentBlockType.includes('39x19')) {
-                                type = 'ARGEX19';
-                            } else {
-                                type = 'ARGEX'; // Fallback vers le type générique
-                            }
-                            console.log(`🔧 Bloc ARGEX détecté: ${currentBlockType} → type: ${type}`);
-                            break;
-                        case 'terracotta':
-                            // CORRECTION: Détecter le sous-type TC* au lieu de TERRE_CUITE générique
-                            if (currentBlockType && currentBlockType.includes('50x10')) {
-                                type = 'TC10';
-                            } else if (currentBlockType && currentBlockType.includes('50x14')) {
-                                type = 'TC14';
-                            } else if (currentBlockType && currentBlockType.includes('50x19')) {
-                                type = 'TC19';
-                            } else {
-                                type = 'TERRE_CUITE'; // Fallback vers le type générique
-                            }
-                            console.log(`🔧 Bloc terre cuite détecté: ${currentBlockType} → type: ${type}`);
-                            break;
-                        default:
-                            console.log(`⚠️ Catégorie de bloc inconnue: ${category}, utilisation du type générique 'block'`);
-                            // Garder type = 'block'
-                            break;
+                                console.log(`🔧 Bloc terre cuite détecté: ${currentBlockType} → type: ${type}`);
+                                break;
+                            default:
+                                console.log(`⚠️ Catégorie de bloc inconnue: ${category}, utilisation du type générique 'block'`);
+                                // Garder type = 'block'
+                                break;
+                        }
                     }
                     
                     // // console.log(`🔧 Type d'élément détecté pour le fantôme: ${type} (catégorie: ${category})`);
@@ -7438,9 +7718,8 @@ class ConstructionTools {
      * @param {WallElement} element - L'élément pour lequel créer des joints automatiques
      */
     addAutomaticJoints(element) {
-        // 🔧 FONCTION DÉSACTIVÉE: La détection automatique d'adjacence n'est plus nécessaire
-        // Le système de joints automatiques est maintenant géré par les positions des lettres dans scene-manager.js
-        return;
+        // Réactivation des joints automatiques (VERTICAUX uniquement)
+        // Note: Les joints horizontaux sont gérés par SceneManager.createAutomaticHorizontalJoint()
 
         // Récupérer les paramètres de joints pour cet élément spécifique
         const jointSettings = this.getJointSettingsForElement(element);
@@ -7484,7 +7763,7 @@ class ConstructionTools {
         // console.log(`🔧 Ajout automatique de joints pour ${element.type === 'brick' ? 'brique' : 'bloc'}:`, element.id);
 
         // Utiliser la nouvelle approche basée sur les calculs du système manuel
-        const jointPositions = this.calculateJointPositionsLikeManual(element);
+    const jointPositions = this.calculateJointPositionsLikeManual(element);
         // console.log(`🔧 DEBUG addAutomaticJoints - Positions calculées:`, {
         //     elementId: element.id,
         //     jointPositionsCount: jointPositions?.length || 0,
@@ -7496,11 +7775,13 @@ class ConstructionTools {
             return;
         }
 
-        // console.log(`🔧 ${jointPositions.length} positions de joints calculées pour ${element.type === 'brick' ? 'brique' : 'bloc'}`);
+        // Éviter les doublons de joints horizontaux (gérés ailleurs)
+        const verticalJointPositions = jointPositions.filter(j => j.isVerticalJoint);
+        // console.log(`🔧 ${verticalJointPositions.length} joints VERTICAUX calculés pour ${element.type === 'brick' ? 'brique' : 'bloc'}`);
 
         // Créer les joints automatiques pour chaque position
         let jointsCreated = 0;
-        jointPositions.forEach((jointData, index) => {
+    verticalJointPositions.forEach((jointData, index) => {
             // console.log(`🔧 Création joint ${index + 1}/${jointPositions.length}:`, {
             //     type: jointData.type,
             //     position: jointData.position,
@@ -7513,13 +7794,13 @@ class ConstructionTools {
             
             if (this.createAutomaticJointFromSuggestion(jointData, element)) {
                 jointsCreated++;
-                console.log(`✅ Joint ${index + 1} créé avec succès`);
+                console.log(`✅ Joint vertical ${index + 1} créé avec succès`);
             } else {
-                console.log(`❌ Échec création joint ${index + 1}`);
+                console.log(`❌ Échec création joint vertical ${index + 1}`);
             }
         });
 
-        // console.log(`🔧 Résultat final: ${jointsCreated} joints automatiques créés sur ${jointPositions.length} calculés pour ${element.type === 'brick' ? 'brique' : 'bloc'} ${element.id}`);
+        // console.log(`🔧 Résultat final: ${jointsCreated} joints VERTICAUX créés sur ${verticalJointPositions.length} calculés pour ${element.type === 'brick' ? 'brique' : 'bloc'} ${element.id}`);
     }
 
     /**
@@ -7536,12 +7817,11 @@ class ConstructionTools {
         //     isInitialized: this.isInitialized
         // });
         
+        const dbg = !!window.enableJointDebug;
         if (!element || !this.isInitialized) {
-    const dbg = !!window.enableJointDebug;
             console.log('❌ calculateJointPositionsLikeManual: Élément ou ConstructionTools non initialisé');
-    if (dbg) console.log('🧪[JOINT-DBG] Adjacence', adjacency, 'hasAdjacent', hasAdjacentBricks, 'id', element.id, 'type', element.blockType || element.type);
+            return [];
         }
-        if (dbg) console.log('🧪[JOINT-DBG] 0 adjacency → essayer joint horizontal');
         // Créer des joints pour les briques ET les blocs (copie exacte)
         if (element.type !== 'brick' && element.type !== 'block') {
             console.log('❌ calculateJointPositionsLikeManual: Élément de type non supporté:', element.type);
@@ -7554,7 +7834,7 @@ class ConstructionTools {
         const basePos = element.position;
         const rotation = element.rotation;
         const dims = element.dimensions;
-            if (dbg) console.log('🧪[JOINT-DBG] Joint horizontal épais ignoré (CELLULAR assise >0)');
+        // if (dbg) console.log('🧪[JOINT-DBG] Joint horizontal épais ignoré (CELLULAR assise >0)');
         // ===== CALCUL DU CENTRE DE LA BRIQUE (copie exacte) =====
         const cos = Math.cos(rotation);
         const sin = Math.sin(rotation);
@@ -7579,10 +7859,9 @@ class ConstructionTools {
         // ===== CALCUL DES POSITIONS DES JOINTS VERTICAUX (copie exacte) =====
         
         // 🆕 NOUVELLE LOGIQUE: Détecter les briques adjacentes pour les joints automatiques avec distance adaptée
-        const adjacency = this.detectAdjacentBricks(element); // Distance calculée automatiquement selon le type
-        const hasAdjacentBricks = adjacency.left || adjacency.right || adjacency.front || adjacency.back;
-        
-        console.log(`🔧 Adjacence détectée pour joints automatiques:`, adjacency);
+    const adjacency = this.detectAdjacentBricks(element); // Distance calculée automatiquement selon le type
+    const hasAdjacentBricks = adjacency.left || adjacency.right || adjacency.front || adjacency.back;
+    if (dbg) console.log('🧪[JOINT-DBG] Adjacence:', adjacency, 'hasAdjacent:', hasAdjacentBricks, 'id:', element.id, 'type:', element.blockType || element.type);
         
         // Récupérer les paramètres de joints spécifiques pour cet élément
         const jointSettings = this.getJointSettingsForElement(element);
@@ -7598,7 +7877,9 @@ class ConstructionTools {
         // CORRECTION: Ne pas créer de joints verticaux si l'épaisseur est 0 (béton cellulaire assises 2+)
         if (jointVertical <= 0) {
             console.log('🚫 Pas de joints verticaux automatiques - Épaisseur nulle pour cet élément (béton cellulaire assises 2+)');
-            return; // Sortir de la fonction sans créer de joints
+            // Continuer pour permettre le calcul du joint horizontal si nécessaire, mais comme
+            // les joints horizontaux sont gérés par SceneManager, on peut retourner un tableau vide ici.
+            return [];
         }
         
         // Détecter si l'élément est une boutisse (tourné à 90°)

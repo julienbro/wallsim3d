@@ -889,9 +889,21 @@ class ModernInterface {
     // ===============================================
     
     newProject() {
-        // La notification sera gérée par FileMenuHandler
-        if (typeof window.createNewProject === 'function') {
+        // Déléguer vers FileMenuHandler qui gère le rafraîchissement
+        if (window.FileMenuHandler && typeof window.FileMenuHandler.newProject === 'function') {
+            window.FileMenuHandler.newProject();
+        } else if (typeof window.createNewProject === 'function') {
             window.createNewProject();
+            // Rafraîchir la page pour démarrer complètement à neuf
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            // Fallback : rafraîchir directement
+            console.log('📄 Nouveau projet (fallback) - rafraîchissement de la page');
+            setTimeout(() => {
+                location.reload();
+            }, 500);
         }
     }
 
@@ -1040,7 +1052,19 @@ class ModernInterface {
     openTextureManager() { this.showNotification('Gestionnaire de textures ouvert', 'info'); }
     openColorPalette() { this.showNotification('Palette de couleurs ouverte', 'info'); }
     openThemeManager() { this.showNotification('Gestionnaire de thèmes ouvert', 'info'); }
-    activateMeasureTool() { this.showNotification('Outil de mesure activé', 'info'); }
+    activateMeasureTool() { 
+        // Activer l'outil de mesure via le gestionnaire
+        if (window.MeasurementAnnotationManager) {
+            window.MeasurementAnnotationManager.toggleMeasurementTool();
+            this.showNotification('Outil de mesure activé', 'info');
+        } else if (window.MeasurementTool) {
+            // Si le gestionnaire n'est pas disponible, activer directement l'outil
+            window.MeasurementTool.activate();
+            this.showNotification('Outil de mesure activé', 'info');
+        } else {
+            this.showNotification('Outil de mesure non disponible', 'error');
+        }
+    }
     openCalculator() { this.showNotification('Calculatrice ouverte', 'info'); }
     runValidation() { this.showNotification('Validation en cours...', 'info'); }
     openSettings() { this.showNotification('Préférences ouvertes', 'info'); }

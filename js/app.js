@@ -378,7 +378,30 @@ class WallSimApp {
             }
         }, 1000); // Attendre que tout soit vraiment charg�
 
-        // 10. R�initialiser les �v�nements de biblioth�que pour les nouveaux �l�ments GLB
+        // 10. Initialiser les outils de mesure, annotation et texte avec ligne de rappel
+        setTimeout(() => {
+            // Créer les instances des outils de mesure/annotation si les classes sont disponibles
+            if (typeof MeasurementTool !== 'undefined' && !window.MeasurementTool) {
+                window.MeasurementTool = new MeasurementTool();
+                // console.log('✅ MeasurementTool initialisé');
+            }
+            if (typeof AnnotationTool !== 'undefined' && !window.AnnotationTool) {
+                window.AnnotationTool = new AnnotationTool();
+                // console.log('✅ AnnotationTool initialisé');
+            }
+            if (typeof TextLeaderTool !== 'undefined' && !window.TextLeaderTool) {
+                window.TextLeaderTool = new TextLeaderTool();
+                // console.log('✅ TextLeaderTool initialisé');
+            }
+            
+            // Créer le gestionnaire d'intégration des outils
+            if (typeof MeasurementAnnotationManager !== 'undefined' && !window.MeasurementAnnotationManager) {
+                window.MeasurementAnnotationManager = new MeasurementAnnotationManager();
+                // console.log('✅ MeasurementAnnotationManager initialisé');
+            }
+        }, 800); // Attendre que SceneManager soit complètement initialisé
+
+        // 11. Réinitialiser les événements de bibliothèque pour les nouveaux éléments GLB
         setTimeout(() => {
             if (window.TabManager && window.TabManager.reinitializeLibraryEvents) {
                 if (window.DEBUG_APP) {

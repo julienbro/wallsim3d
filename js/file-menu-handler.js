@@ -204,6 +204,12 @@ class FileMenuHandler {
             this.updateProjectInfo();
             this.showNotification('Nouveau projet créé', 'success');
             console.log('✅ Nouveau projet créé avec succès');
+            
+            // Rafraîchir la page pour démarrer complètement à neuf
+            setTimeout(() => {
+                location.reload();
+            }, 1000); // Délai pour que la notification soit visible
+            
         } finally {
             // Réinitialiser le flag après un délai court
             setTimeout(() => {
@@ -576,6 +582,27 @@ class FileMenuHandler {
             if (pr) pr.value = projectData.procedureRecommendations;
         }
         
+        // Restaurer les mesures, annotations et textes si présents
+        if (window.MeasurementAnnotationManager) {
+            // Charger les mesures
+            if (projectData.measurements && typeof window.MeasurementAnnotationManager.loadMeasurementData === 'function') {
+                console.log(`📏 Chargement de ${projectData.measurements.length} mesures`);
+                window.MeasurementAnnotationManager.loadMeasurementData(projectData.measurements);
+            }
+            
+            // Charger les annotations
+            if (projectData.annotations && typeof window.MeasurementAnnotationManager.loadAnnotationData === 'function') {
+                console.log(`📝 Chargement de ${projectData.annotations.length} annotations`);
+                window.MeasurementAnnotationManager.loadAnnotationData(projectData.annotations);
+            }
+            
+            // Charger les textes avec guide
+            if (projectData.textLeaders && typeof window.MeasurementAnnotationManager.loadTextLeaderData === 'function') {
+                console.log(`📋 Chargement de ${projectData.textLeaders.length} textes avec guide`);
+                window.MeasurementAnnotationManager.loadTextLeaderData(projectData.textLeaders);
+            }
+        }
+        
         this.hasUnsavedChanges = false;
         this.updateProjectInfo();
     }
@@ -600,7 +627,11 @@ class FileMenuHandler {
                 ...sceneData.settings
             },
             detailedProcedure: (document.getElementById('detailedProcedure')?.value || '').trim(),
-            procedureRecommendations: (document.getElementById('procedureRecommendations')?.value || '').trim()
+            procedureRecommendations: (document.getElementById('procedureRecommendations')?.value || '').trim(),
+            // Inclure les données des mesures, annotations et textes sauvegardées
+            measurements: this.currentProject.measurements || [],
+            annotations: this.currentProject.annotations || [],
+            textLeaders: this.currentProject.textLeaders || []
         };
 
         return JSON.stringify(projectData, null, 2);
@@ -624,9 +655,27 @@ class FileMenuHandler {
             };
         }
 
-    // Mettre à jour les champs textuels Mode Opératoire
-    this.currentProject.detailedProcedure = (document.getElementById('detailedProcedure')?.value || '').trim();
-    this.currentProject.procedureRecommendations = (document.getElementById('procedureRecommendations')?.value || '').trim();
+        // Récupérer les données des mesures, annotations et textes
+        if (window.MeasurementAnnotationManager) {
+            // Sauvegarder les mesures
+            if (typeof window.MeasurementAnnotationManager.getMeasurementData === 'function') {
+                this.currentProject.measurements = window.MeasurementAnnotationManager.getMeasurementData();
+            }
+            
+            // Sauvegarder les annotations
+            if (typeof window.MeasurementAnnotationManager.getAnnotationData === 'function') {
+                this.currentProject.annotations = window.MeasurementAnnotationManager.getAnnotationData();
+            }
+            
+            // Sauvegarder les textes avec guide
+            if (typeof window.MeasurementAnnotationManager.getTextLeaderData === 'function') {
+                this.currentProject.textLeaders = window.MeasurementAnnotationManager.getTextLeaderData();
+            }
+        }
+
+        // Mettre à jour les champs textuels Mode Opératoire
+        this.currentProject.detailedProcedure = (document.getElementById('detailedProcedure')?.value || '').trim();
+        this.currentProject.procedureRecommendations = (document.getElementById('procedureRecommendations')?.value || '').trim();
     }
 
     /**

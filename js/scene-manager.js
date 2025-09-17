@@ -1424,9 +1424,70 @@ class SceneManager {
             }
             
             // Combiner tous les objets pour le raycast
-            const allRaycastObjects = [...validElementMeshes, ...measurementObjects, ...annotationObjects, ...textLeaderObjects];
+            
+            // 🆕 NOUVEAU: Ajouter les marqueurs d'accrochage au raycasting
+            const attachmentMarkerObjects = [];
+            if (window.AssiseManager && window.AssiseManager.attachmentMarkers) {
+                const currentType = window.AssiseManager.currentType;
+                const currentAssise = window.AssiseManager.currentAssiseByType.get(currentType);
+                const markersForAssise = window.AssiseManager.attachmentMarkers.get(currentAssise);
+                
+                if (markersForAssise) {
+                    markersForAssise.forEach(markerInfo => {
+                        if (markerInfo.group) {
+                            // Ajouter tous les objets du groupe de marqueurs
+                            markerInfo.group.traverse(child => {
+                                if (child.isMesh && child.userData && 
+                                    (child.userData.isProjectedAttachmentPoint || 
+                                     child.userData.isAssiseProjectionMarker)) {
+                                    attachmentMarkerObjects.push(child);
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+            
+            const allRaycastObjects = [...validElementMeshes, ...measurementObjects, ...annotationObjects, ...textLeaderObjects, ...attachmentMarkerObjects];
             
             const intersects = this.raycaster.intersectObjects(allRaycastObjects);
+            
+            // 🆕 NOUVEAU: Vérifier d'abord les clics sur les marqueurs d'accrochage
+            const attachmentMarkerIntersects = intersects.filter(intersect => {
+                return intersect.object && 
+                       intersect.object.userData && 
+                       (intersect.object.userData.isProjectedAttachmentPoint || 
+                        intersect.object.userData.isAssiseProjectionMarker);
+            });
+            
+            // Si on clique sur un marqueur d'accrochage, placer directement à cette position
+            if (attachmentMarkerIntersects.length > 0) {
+                const attachmentIntersect = attachmentMarkerIntersects[0];
+                const markerObject = attachmentIntersect.object;
+                
+                console.log('🎯 Clic sur marqueur d\'accrochage détecté:', markerObject.userData);
+                
+                // Utiliser la position exacte du marqueur
+                const markerPosition = markerObject.position.clone();
+                
+                // Calculer la hauteur de placement appropriée
+                let placementY = null;
+                if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
+                    const ghostHeight = window.ConstructionTools.ghostElement.dimensions?.height || 6.5;
+                    placementY = markerPosition.y + ghostHeight / 2;
+                }
+                
+                console.log('🎯 Placement sur marqueur à la position:', markerPosition.x, markerPosition.z, 'hauteur:', placementY);
+                
+                // Placer l'élément à la position exacte du marqueur
+                if (placementY !== null) {
+                    this.placeElementAt(markerPosition.x, markerPosition.z, null, null, placementY);
+                } else {
+                    this.placeElementAt(markerPosition.x, markerPosition.z);
+                }
+                
+                return; // Sortir pour éviter le traitement normal
+            }
             
             // Séparer les éléments de construction et les objets d'annotation
             const constructionIntersects = intersects.filter(intersect => {
@@ -1625,12 +1686,71 @@ class SceneManager {
                                 }
                                 
                                 // Clic normal → suggestions complètes pour poser des briques adjacentes (seulement si pas de plancher)
-                                // console.log('🎯 Mode pose - Création de suggestions adjacentes');
-                                if (window.ConstructionTools.activateSuggestionsForBrick) {
-                                    window.ConstructionTools.activateSuggestionsForBrick(element);
-                                    // 🔧 CAPTURE: Sauvegarder la brique de référence pour les joints automatiques
-                                    this.lastReferenceBrick = element;
-                                    // console.log('🔧 SAUVEGARDE: Brique de référence =', this.lastReferenceBrick?.id || 'none');
+                                
+                                // 🆕 VÉRIFICATION: Ne créer des suggestions que pour les éléments de l'assise courante
+                                let canCreateSuggestions = true;
+                                if (window.AssiseManager && element.type && ['brick', 'block', 'insulation'].includes(element.type)) {
+                                    // Vérifier si l'élément appartient à l'assise courante
+                                    const currentType = window.AssiseManager.currentType;
+                                    const currentAssiseIndex = window.AssiseManager.currentAssiseByType.get(currentType);
+                                    
+                                    // Chercher dans quelle assise se trouve cet élément
+                                    let elementAssiseType = null;
+                                    let elementAssiseIndex = null;
+                                    
+                                    for (const [type, assises] of window.AssiseManager.assisesByType.entries()) {
+                                        for (const [index, assise] of assises.entries()) {
+                                            if (assise && assise.elements.has(element.id)) {
+                                                elementAssiseType = type;
+                                                elementAssiseIndex = index;
+                                                break;
+                                            }
+                                        }
+                                        if (elementAssiseType) break;
+                                    }
+                                    
+                                    // CORRECTION: Détecter le vrai type de l'élément cliqué pour les suggestions
+                                    let detectedElementType = null;
+                                    if (element.type === 'block' && element.dimensions) {
+                                        const blockWidth = element.dimensions.width;
+                                        if (blockWidth >= 8.5 && blockWidth <= 9.5) {
+                                            detectedElementType = 'B9';
+                                        } else if (blockWidth >= 13.5 && blockWidth <= 14.5) {
+                                            detectedElementType = 'B14';
+                                        } else if (blockWidth >= 18.5 && blockWidth <= 19.5) {
+                                            detectedElementType = 'B19';
+                                        } else if (blockWidth >= 28.5 && blockWidth <= 29.5) {
+                                            detectedElementType = 'B29';
+                                        }
+                                        console.log(`🔍 [DEBUG-SCENE] Détection type bloc: largeur=${blockWidth}cm → type détecté=${detectedElementType}, currentType=${currentType}`);
+                                    }
+                                    
+                                    // Ne créer des suggestions que si l'élément est dans l'assise courante
+                                    // EXCEPTION: Permettre les suggestions si le type détecté correspond au type actuel
+                                    const typeMatches = detectedElementType === currentType;
+                                    if ((elementAssiseType !== currentType || elementAssiseIndex !== currentAssiseIndex) && !typeMatches) {
+                                        canCreateSuggestions = false;
+                                        console.log('🚫 Suggestions bloquées - Élément', element.id, 
+                                                  'dans assise', elementAssiseType, elementAssiseIndex, 
+                                                  'mais assise courante:', currentType, currentAssiseIndex,
+                                                  'type détecté:', detectedElementType);
+                                    } else {
+                                        if (typeMatches && elementAssiseType !== currentType) {
+                                            console.log('✅ Suggestions autorisées par type détecté - Élément type:', detectedElementType, 'assise courante:', currentType);
+                                        } else {
+                                            console.log('✅ Suggestions autorisées - Élément dans assise courante:', currentType, currentAssiseIndex);
+                                        }
+                                    }
+                                }
+                                
+                                if (canCreateSuggestions) {
+                                    // console.log('🎯 Mode pose - Création de suggestions adjacentes');
+                                    if (window.ConstructionTools.activateSuggestionsForBrick) {
+                                        window.ConstructionTools.activateSuggestionsForBrick(element);
+                                        // 🔧 CAPTURE: Sauvegarder la brique de référence pour les joints automatiques
+                                        this.lastReferenceBrick = element;
+                                        // console.log('🔧 SAUVEGARDE: Brique de référence =', this.lastReferenceBrick?.id || 'none');
+                                    }
                                 }
                             } else {
                                 // Plancher en cours de placement - ne pas activer les suggestions adjacentes
@@ -1644,10 +1764,57 @@ class SceneManager {
                     if (!isGhostActive || forceSelection || isSelectionMode) {
                         // Mode sélection ou sélection forcée - activer le mode construction à la position de la souris
                         
-                        const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
-                        if (groundIntersects.length > 0) {
-                            const point = groundIntersects[0].point;
+                        // 🆕 NOUVELLE LOGIQUE: Vérifier d'abord les intersections avec les faces des blocs
+                        let placementPoint = null;
+                        let placementY = null;
+                        
+                        // Chercher des intersections avec tous les blocs (même d'autres assises)
+                        for (let i = 0; i < constructionIntersects.length; i++) {
+                            const intersect = constructionIntersects[i];
+                            const intersectElement = intersect.object.userData.element;
                             
+                            if (intersectElement && ['brick', 'block'].includes(intersectElement.type)) {
+                                // Vérifier si on clique sur la face supérieure du bloc
+                                const face = intersect.face;
+                                const normal = face ? face.normal.clone() : null;
+                                
+                                if (normal) {
+                                    // Transformer la normale dans l'espace world
+                                    normal.transformDirection(intersect.object.matrixWorld);
+                                    
+                                    // Si la normale pointe vers le haut (face supérieure)
+                                    if (normal.y > 0.8) { // normale proche de (0,1,0)
+                                        placementPoint = intersect.point.clone();
+                                        
+                                        // Calculer la hauteur pour placer sur cette face
+                                        const blockTop = intersectElement.position.y + (intersectElement.dimensions.height / 2);
+                                        
+                                        // Position Y du nouveau bloc = haut du bloc cliqué + hauteur/2 du nouveau bloc
+                                        if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
+                                            const ghostHeight = window.ConstructionTools.ghostElement.dimensions?.height || 6.5;
+                                            placementY = blockTop + ghostHeight / 2;
+                                        } else {
+                                            placementY = blockTop + 3.25; // hauteur par défaut / 2
+                                        }
+                                        
+                                        console.log('🎯 Clic sur face supérieure du bloc', intersectElement.id, 
+                                                  'placement à Y =', placementY);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Si pas de face supérieure trouvée, utiliser le sol
+                        if (!placementPoint) {
+                            const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
+                            if (groundIntersects.length > 0) {
+                                placementPoint = groundIntersects[0].point;
+                                // placementY reste null pour utiliser la hauteur d'assise par défaut
+                            }
+                        }
+                        
+                        if (placementPoint) {
                             // 🆕 NOUVEAU: Si on est en mode sélection et qu'on clique à côté d'une brique, 
                             // revenir automatiquement au mode pose de brique
                             if (isSelectionMode) {
@@ -1673,10 +1840,11 @@ class SceneManager {
                                 
                                 // Mettre à jour la position du fantôme
                                 if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
+                                    const updateY = placementY || window.ConstructionTools.ghostElement.position.y;
                                     window.ConstructionTools.ghostElement.updatePosition(
-                                        point.x, 
-                                        window.ConstructionTools.ghostElement.position.y, 
-                                        point.z
+                                        placementPoint.x, 
+                                        updateY, 
+                                        placementPoint.z
                                     );
                                 }
                                 
@@ -1687,10 +1855,11 @@ class SceneManager {
                             } else {
                                 // Mode normal - juste mettre à jour la position du fantôme
                                 if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
+                                    const updateY = placementY || window.ConstructionTools.ghostElement.position.y;
                                     window.ConstructionTools.ghostElement.updatePosition(
-                                        point.x, 
-                                        window.ConstructionTools.ghostElement.position.y, 
-                                        point.z
+                                        placementPoint.x, 
+                                        updateY, 
+                                        placementPoint.z
                                     );
                                 }
                             }
@@ -1698,10 +1867,57 @@ class SceneManager {
                     } else {
                         // Mode construction avec fantôme actif - placer à la position de la souris
                         
-                        const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
-                        if (groundIntersects.length > 0) {
-                            const point = groundIntersects[0].point;
+                        // 🆕 NOUVELLE LOGIQUE: Vérifier d'abord les intersections avec les faces des blocs
+                        let placementPoint = null;
+                        let placementY = null;
+                        
+                        // Chercher des intersections avec tous les blocs (même d'autres assises)
+                        for (let i = 0; i < constructionIntersects.length; i++) {
+                            const intersect = constructionIntersects[i];
+                            const intersectElement = intersect.object.userData.element;
                             
+                            if (intersectElement && ['brick', 'block'].includes(intersectElement.type)) {
+                                // Vérifier si on clique sur la face supérieure du bloc
+                                const face = intersect.face;
+                                const normal = face ? face.normal.clone() : null;
+                                
+                                if (normal) {
+                                    // Transformer la normale dans l'espace world
+                                    normal.transformDirection(intersect.object.matrixWorld);
+                                    
+                                    // Si la normale pointe vers le haut (face supérieure)
+                                    if (normal.y > 0.8) { // normale proche de (0,1,0)
+                                        placementPoint = intersect.point.clone();
+                                        
+                                        // Calculer la hauteur pour placer sur cette face
+                                        const blockTop = intersectElement.position.y + (intersectElement.dimensions.height / 2);
+                                        
+                                        // Position Y du nouveau bloc = haut du bloc cliqué + hauteur/2 du nouveau bloc
+                                        if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
+                                            const ghostHeight = window.ConstructionTools.ghostElement.dimensions?.height || 6.5;
+                                            placementY = blockTop + ghostHeight / 2;
+                                        } else {
+                                            placementY = blockTop + 3.25; // hauteur par défaut / 2
+                                        }
+                                        
+                                        console.log('🎯 Placement sur face supérieure du bloc', intersectElement.id, 
+                                                  'placement à Y =', placementY);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Si pas de face supérieure trouvée, utiliser le sol
+                        if (!placementPoint) {
+                            const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
+                            if (groundIntersects.length > 0) {
+                                placementPoint = groundIntersects[0].point;
+                                // placementY reste null pour utiliser la hauteur d'assise par défaut
+                            }
+                        }
+                        
+                        if (placementPoint) {
                             // 🔧 GLB: Détecter si on a un GLB fantôme actif
                             const hasGLBGhost = window.tempGLBInfo && 
                                               window.ConstructionTools &&
@@ -1716,13 +1932,18 @@ class SceneManager {
                             if (hasGLBGhost && !isPlacementPrevented) {
                                 // console.log('🎯 GLB fantôme détecté - Utilisation de ConstructionTools.placeElementAtCursor');
                                 if (window.ConstructionTools.placeElementAtCursor) {
-                                    window.ConstructionTools.placeElementAtCursor(point.x, point.z);
+                                    window.ConstructionTools.placeElementAtCursor(placementPoint.x, placementPoint.z);
                                 }
                             } else if (hasGLBGhost && isPlacementPrevented) {
                                 console.log('🚫 Placement GLB empêché temporairement');
                             } else {
                                 // Placement normal pour les éléments classiques
-                                this.placeElementAt(point.x, point.z);
+                                // 🆕 Passer la hauteur calculée si disponible
+                                if (placementY !== null) {
+                                    this.placeElementAt(placementPoint.x, placementPoint.z, null, null, placementY);
+                                } else {
+                                    this.placeElementAt(placementPoint.x, placementPoint.z);
+                                }
                             }
                         }
                     }
@@ -1860,7 +2081,7 @@ class SceneManager {
         return result;
     }
 
-    placeElementAt(x, z, customRotation = null, supportElement = null) {
+    placeElementAt(x, z, customRotation = null, supportElement = null, customY = null) {
         // console.log('🚀 DÉBUT placeElementAt:', { x, z, customRotation, supportElement });
         
         // CORRECTION: Nettoyer les suggestions avant placement manuel
@@ -1992,7 +2213,12 @@ class SceneManager {
 
         // Calculer la hauteur Y appropriée
         let y = 0;
-        if (!supportElement) {
+        
+        // 🆕 NOUVEAU: Utiliser la hauteur personnalisée si fournie (pour placement sur faces de blocs)
+        if (customY !== null) {
+            y = customY;
+            console.log(`🎯 Utilisation de la hauteur personnalisée: Y = ${y} cm`);
+        } else if (!supportElement) {
             // Si pas d'élément support spécifié, chercher automatiquement
             const stackingResult = this.findAutoStackingHeight(snapX, snapZ);
             y = stackingResult.height;
