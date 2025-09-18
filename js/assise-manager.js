@@ -1156,6 +1156,11 @@ class AssiseManager {
                 }
             }
             
+            // Mettre à jour l'affichage du bloc sélectionné
+            if (window.BlockSelector && window.BlockSelector.updateCurrentBlockDisplay) {
+                window.BlockSelector.updateCurrentBlockDisplay();
+            }
+            
             this.updateUI();
             
             // Notifier le changement d'assise pour la mise à jour du raycasting
