@@ -770,6 +770,15 @@ class SceneManager {
             // 🆕 NOUVEAU: Sauvegarder l'événement de souris pour l'analyse des faces
             this.lastMouseEvent = event;
             
+            // 🆕 NOUVEAU: Recalculer immédiatement la position de la souris à partir de l'événement de clic
+            // pour éviter de dépendre du dernier mousemove (qui peut être trop ancien si l'utilisateur clique très vite)
+            const canvas = (this.renderer && this.renderer.domElement) ? this.renderer.domElement : document.getElementById('threejs-canvas');
+            if (canvas && canvas.getBoundingClientRect) {
+                const rect = canvas.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            }
+            
             // Vérifier si le menu flottant d'assise est en mode d'activation
             if (window.FloatingAssiseMenu && window.FloatingAssiseMenu.isInSelectMode()) {
                 return; // Laisser le menu flottant gérer le clic
@@ -1067,10 +1076,20 @@ class SceneManager {
                                             let previous = placedElement || this.getLastPlacedElement();
                                             if (previous) {
                                                 const rotation = previous.rotation || ghost.rotation || 0;
-                                                // Déterminer le signe (A = +, B = -) en utilisant la dernière lettre (A/B) du code lettre
-                                                const letterCode = ghost.mesh.userData.letter || '';
-                                                const basePosLetter = letterCode.charAt(letterCode.length - 1); // ex: EEA -> A
-                                                const sign = basePosLetter === 'B' ? -1 : 1;
+                                                // Déterminer le signe de continuité (A = +, B = -)
+                                                // Priorité: utiliser suggestionKey (clé A/B de la position de base)
+                                                // Fallback: extraire A/B à la fin de la lettre si présent (ex: EEA -> A)
+                                                const suggestionKey = ghost.mesh.userData.suggestionKey;
+                                                let sign;
+                                                if (suggestionKey === 'A') {
+                                                    sign = 1;
+                                                } else if (suggestionKey === 'B') {
+                                                    sign = -1;
+                                                } else {
+                                                    const letterCode = ghost.mesh.userData.letter || '';
+                                                    const basePosLetter = letterCode.charAt(letterCode.length - 1);
+                                                    sign = basePosLetter === 'B' ? -1 : 1;
+                                                }
                                                 // Longueur de l'élément courant
                                                 const elementLength = previous.dimensions?.length || 19;
                                                 let jointVertical = 0;
@@ -1171,9 +1190,17 @@ class SceneManager {
                                         let previous = placedElement || this.getLastPlacedElement();
                                         if (previous) {
                                             const rotation = previous.rotation || ghost.rotation || 0;
-                                            const letterCode = ghost.mesh.userData.letter || '';
-                                            const basePosLetter = letterCode.charAt(letterCode.length - 1);
-                                            const sign = basePosLetter === 'B' ? -1 : 1;
+                                            const suggestionKey = ghost.mesh.userData.suggestionKey;
+                                            let sign;
+                                            if (suggestionKey === 'A') {
+                                                sign = 1;
+                                            } else if (suggestionKey === 'B') {
+                                                sign = -1;
+                                            } else {
+                                                const letterCode = ghost.mesh.userData.letter || '';
+                                                const basePosLetter = letterCode.charAt(letterCode.length - 1);
+                                                sign = basePosLetter === 'B' ? -1 : 1;
+                                            }
                                             const elementLength = previous.dimensions?.length || 19;
                                             let jointVertical = 0;
                                             if (window.ConstructionTools && window.ConstructionTools.getJointVerticalThickness) {
@@ -1483,33 +1510,58 @@ class SceneManager {
                         intersect.object.userData.isAssiseProjectionMarker);
             });
             
-            // Si on clique sur un marqueur d'accrochage, placer directement à cette position
             if (attachmentMarkerIntersects.length > 0) {
-                const attachmentIntersect = attachmentMarkerIntersects[0];
-                const markerObject = attachmentIntersect.object;
-                
-                console.log('🎯 Clic sur marqueur d\'accrochage détecté:', markerObject.userData);
-                
-                // Utiliser la position exacte du marqueur
-                const markerPosition = markerObject.position.clone();
-                
-                // Calculer la hauteur de placement appropriée
-                let placementY = null;
-                if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
-                    const ghostHeight = window.ConstructionTools.ghostElement.dimensions?.height || 6.5;
-                    placementY = markerPosition.y + ghostHeight / 2;
+                // Choisir le comportement selon la cible LA PLUS PROCHE
+                const nearest = intersects[0]; // trié par distance croissante par three.js
+                const nearestIsMarker = !!(nearest && nearest.object && nearest.object.userData && (
+                    nearest.object.userData.isProjectedAttachmentPoint || nearest.object.userData.isAssiseProjectionMarker
+                ));
+                const forceMarkerPlacement = (event && (event.altKey || event.shiftKey)) || (window.AssiseManager && window.AssiseManager.enableAttachmentMarkerPlacement);
+
+                if (nearestIsMarker || forceMarkerPlacement) {
+                    // Utiliser le marqueur le plus proche (dans la liste filtrée, déjà ordonnée par distance)
+                    const attachmentIntersect = attachmentMarkerIntersects[0];
+                    const markerObject = attachmentIntersect.object;
+                    console.log('🎯 Clic sur marqueur d\'accrochage détecté:', markerObject.userData);
+
+                    // Position MONDE exacte du marqueur (évite les erreurs dues aux groupes)
+                    let markerWorldPos;
+                    if (typeof markerObject.getWorldPosition === 'function' && typeof THREE !== 'undefined') {
+                        markerWorldPos = new THREE.Vector3();
+                        markerObject.getWorldPosition(markerWorldPos);
+                    } else {
+                        // Repli: utiliser le point d'intersection
+                        markerWorldPos = attachmentIntersect.point?.clone?.() || markerObject.position.clone();
+                    }
+
+                    // Calculer la hauteur de placement appropriée (inclure le joint horizontal courant si disponible)
+                    let placementY = null;
+                    if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
+                        const ghostHeight = window.ConstructionTools.ghostElement.dimensions?.height || 6.5;
+                        let jh = 0;
+                        try {
+                            if (window.AssiseManager) {
+                                const currentType = window.AssiseManager.currentType;
+                                const currentAssiseIndex = window.AssiseManager.currentAssiseByType.get(currentType) ?? 0;
+                                if (typeof window.AssiseManager.getJointHeightForAssise === 'function') {
+                                    jh = window.AssiseManager.getJointHeightForAssise(currentType, currentAssiseIndex) || 0;
+                                }
+                            }
+                        } catch (e) { jh = 0; }
+                        placementY = markerWorldPos.y + jh + ghostHeight / 2;
+                    }
+
+                    console.log('🎯 Placement sur marqueur (monde) à la position:', markerWorldPos.x, markerWorldPos.z, 'hauteur:', placementY);
+
+                    // Placer l'élément exactement à la position du marqueur (X/Z monde) avec hauteur calculée si dispo
+                    if (placementY !== null) {
+                        this.placeElementAt(markerWorldPos.x, markerWorldPos.z, null, null, placementY);
+                    } else {
+                        this.placeElementAt(markerWorldPos.x, markerWorldPos.z);
+                    }
+                    return; // Sortir pour éviter le traitement normal
                 }
-                
-                console.log('🎯 Placement sur marqueur à la position:', markerPosition.x, markerPosition.z, 'hauteur:', placementY);
-                
-                // Placer l'élément à la position exacte du marqueur
-                if (placementY !== null) {
-                    this.placeElementAt(markerPosition.x, markerPosition.z, null, null, placementY);
-                } else {
-                    this.placeElementAt(markerPosition.x, markerPosition.z);
-                }
-                
-                return; // Sortir pour éviter le traitement normal
+                // Sinon: la cible la plus proche n'est pas un marqueur → on laisse la suite gérer (sélection/suggestions)
             }
             
             // Séparer les éléments de construction et les objets d'annotation
@@ -1638,7 +1690,10 @@ class SceneManager {
                 if (element && element.id) {
                     // Éléments de construction (briques, blocs, etc.)
                     if (element.type && ['brick', 'block', 'insulation', 'linteau', 'beam'].includes(element.type)) { // 🆕 ajouter beam
-                        canSelect = !window.AssiseManager || window.AssiseManager.canSelectElement(element.id, true);
+                        // En mode sélection, autoriser la sélection inter-assises (cliquer la face supérieure d'une assise inférieure)
+                        // Sinon, respecter la restriction d'assise active via AssiseManager
+                        const selectionModeActive = (window.toolbarManager && window.toolbarManager.interactionMode === 'selection');
+                        canSelect = selectionModeActive || !window.AssiseManager || window.AssiseManager.canSelectElement(element.id, true);
                     }
                     // Modèles GLB importés - toujours sélectionnables
                     else if (element.type === 'glb' || element.isGLBModel) {
@@ -1808,19 +1863,47 @@ class SceneManager {
                                     // Si la normale pointe vers le haut (face supérieure)
                                     if (normal.y > 0.8) { // normale proche de (0,1,0)
                                         placementPoint = intersect.point.clone();
-                                        
+
+                                        // 1) Essayer d'activer les suggestions adjacentes quand on clique sur un élément existant
+                                        try {
+                                            if (window.ConstructionTools && window.ConstructionTools.activateSuggestionsForBrick) {
+                                                let canCreateSuggestions = true;
+                                                if (window.AssiseManager && window.AssiseManager.canSelectElement) {
+                                                    // Autoriser les suggestions uniquement si l'élément appartient à son assise active
+                                                    canCreateSuggestions = window.AssiseManager.canSelectElement(intersectElement.id, true);
+                                                }
+                                                if (canCreateSuggestions) {
+                                                    console.log('🎯 Clic sur élément (face supérieure) → suggestions adjacentes:', intersectElement.type, intersectElement.id);
+                                                    window.ConstructionTools.activateSuggestionsForBrick(intersectElement);
+                                                    return; // Stopper le flux: on passe en mode suggestions
+                                                }
+                                            }
+                                        } catch (e) {
+                                            console.warn('⚠️ Impossible d’activer les suggestions adjacentes, on tente un placement direct:', e);
+                                        }
+
+                                        // 2) Fallback: placement direct sur la face supérieure avec prise en compte du joint horizontal
                                         // Calculer la hauteur pour placer sur cette face
                                         const blockTop = intersectElement.position.y + (intersectElement.dimensions.height / 2);
-                                        
-                                        // Position Y du nouveau bloc = haut du bloc cliqué + hauteur/2 du nouveau bloc
+
+                                        // Position Y du nouveau bloc = haut du bloc cliqué + joint courant + hauteur/2 du fantôme
                                         if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
                                             const ghostHeight = window.ConstructionTools.ghostElement.dimensions?.height || 6.5;
-                                            placementY = blockTop + ghostHeight / 2;
+                                            let jointOffset = 0;
+                                            try {
+                                                if (window.AssiseManager) {
+                                                    const currentType = window.AssiseManager.currentType;
+                                                    const currentAssiseIndex = window.AssiseManager.currentAssiseByType.get(currentType) ?? 0;
+                                                    const jh = window.AssiseManager.getJointHeightForAssise(currentType, currentAssiseIndex);
+                                                    if (typeof jh === 'number' && jh > 0) jointOffset = jh;
+                                                }
+                                            } catch (_) { /* noop */ }
+                                            placementY = blockTop + jointOffset + ghostHeight / 2;
                                         } else {
                                             placementY = blockTop + 3.25; // hauteur par défaut / 2
                                         }
-                                        
-                                        console.log('🎯 Clic sur face supérieure du bloc', intersectElement.id, 
+
+                                        console.log('🎯 Placement sur face supérieure du bloc', intersectElement.id,
                                                   'placement à Y =', placementY);
                                         break;
                                     }
@@ -2111,6 +2194,15 @@ class SceneManager {
         // Cela permet de s'assurer que le ghost principal redevient visible après placement
         if (window.ConstructionTools && window.ConstructionTools.clearSuggestions) {
             window.ConstructionTools.clearSuggestions();
+        }
+
+        // NOUVEAU: En cas de placement direct d'un élément, désélectionner l'élément actuellement en surbrillance
+        if (this.selectedElement) {
+            this.deselectElement();
+        }
+        // Nettoyer la surbrillance de survol éventuelle pour éviter les résidus visuels
+        if (window.toolbarManager && typeof window.toolbarManager.clearHoverHighlight === 'function') {
+            window.toolbarManager.clearHoverHighlight();
         }
         
         // CORRECTION: Récupérer le type depuis ConstructionTools (plus fiable)
@@ -2658,6 +2750,11 @@ class SceneManager {
     }
 
     selectElement(element) {
+        // S'assurer d'enlever toute surbrillance de survol temporaire avant d'appliquer la sélection
+        if (window.toolbarManager && typeof window.toolbarManager.clearHoverHighlight === 'function') {
+            window.toolbarManager.clearHoverHighlight();
+        }
+
         // Désélectionner l'élément précédent
         if (this.selectedElement) {
             this.deselectPrevious(this.selectedElement);
@@ -3650,9 +3747,19 @@ class SceneManager {
             onComplete();
             return;
         }
+        // Option runtime pour désactiver l'animation de placement (instantané)
+        if (typeof window !== 'undefined' && window.disablePlacementAnimation === true) {
+            try {
+                ghost.mesh.material.opacity = 0;
+            } catch {}
+            onComplete();
+            return;
+        }
         
         const startTime = Date.now();
-        const duration = 200; // 200ms d'animation
+        const duration = (typeof window !== 'undefined' && typeof window.placementAnimationDurationMs === 'number')
+            ? window.placementAnimationDurationMs
+            : 120; // 120ms d'animation (plus rapide)
         const originalScale = ghost.mesh.scale.x;
         const originalOpacity = ghost.mesh.material.opacity;
         

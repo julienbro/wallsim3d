@@ -1217,7 +1217,12 @@ class EditMenuHandler {
     }
 
     generateUniqueId() {
-        return 'element_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        // Utiliser le compteur global de WallElement pour garantir l'unicité
+        if (!WallElement.idCounter) {
+            WallElement.idCounter = 0;
+        }
+        WallElement.idCounter++;
+        return 'element_' + Date.now() + '_' + WallElement.idCounter + '_' + Math.random().toString(36).substr(2, 6);
     }
 
     showNotification(message, type = 'info', duration = 3000) {

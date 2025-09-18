@@ -32,6 +32,15 @@
     '[SCENE-MANAGER]','[CONSTRUCTION]','[STL]','[EXPORT]','[DIAG]','[GRID]','[PERF]','[TRACE]',
     // Ajouts pour réduire le bruit en niveau 2 (considérés comme debug => visibles seulement niveau 3)
   '👻','🧱','🧊','🧥👻','[ISO-GHOST]','Fantôme créé','Fantôme: Options','MODE BLOC',
+  // Logs assises (bruitus)
+  '🏗️','[DEBUG-ASSISE]','Type assise actuel','Mise en surbrillance de l\'élément','Utilisation du type spécifique sélectionné',
+  // Suggestions/placements/UX boutons
+  '[DEBUG-SUGGESTIONS]','BOUTON AJOUT ASSISE','EXCLUSIONS:',
+  // Debug calcul joints
+  'Aucune position de joint calculée','Aucun élément cible trouvé pour la surbrillance',
+  // TabManager / GLB ghost / placement debug
+  'TabManager contient un type non-brique IGNORÉ','Sélection TabManager non-brique ignorée',
+  'Création d\'un fantôme GLB','DEBUG PLACEMENT','PLACEMENT DEBUG',
   // Debug joints & isolation UI
   '[JOINT-DBG]','Isolant défini','Déjà en mode insulation','🔄'
   ];
@@ -47,7 +56,7 @@
     return debugMarkers.some(mark => first.includes(mark));
   }
   // Liste de marqueurs à supprimer complètement (aucune sortie, quel que soit le niveau)
-  const alwaysMute = ['🔧','🔗','🎨','🔍','✅','🏥','📊'];
+  const alwaysMute = ['🔧','🔗','🎨','🔍','✅','🏥','📊', 'Live reload enabled'];
   function allow(kind, args){
     if(kind === 'error' || kind === 'warn') return level >= 1; // always show warns/errors if level>=1
     if(kind === 'info') return level >= 2;
@@ -57,6 +66,8 @@
     // treat as info if not classified as debug
     return level >= 2;
   }
+    console.warn = wrap('warn');
+    console.error = wrap('error');
   function wrap(kind){
     return function(...args){
       if(args.length && typeof args[0] === 'string'){

@@ -2934,6 +2934,32 @@ class ConstructionTools {
             brickType = 'other';
         }
         
+        // NOUVEAU: Déterminer le type de brique À PLACER depuis BrickSelector
+        let placementBrickType = 'entiere'; // Type de la brique que l'on veut placer
+        if (this.currentMode === 'brick' && window.BrickSelector && window.BrickSelector.getCurrentBrick) {
+            const currentBrick = window.BrickSelector.getCurrentBrick();
+            const placementLength = currentBrick.length;
+            
+            // Déterminer le type de brique selon sa longueur
+            if (placementLength === 19) {
+                placementBrickType = 'entiere'; // Brique entière
+            } else if (placementLength >= 14 && placementLength <= 15) {
+                placementBrickType = '3/4'; // Brique 3/4 (14-15cm)
+            } else if (placementLength >= 9 && placementLength <= 10) {
+                placementBrickType = '1/2'; // Brique 1/2 (9-10cm)
+            } else if (placementLength >= 4 && placementLength <= 5) {
+                placementBrickType = '1/4'; // Brique 1/4 (4-5cm)
+            } else {
+                placementBrickType = 'custom'; // Brique dimension personnalisée
+            }
+        } else if (this.currentMode === 'block') {
+            placementBrickType = 'block';
+        } else {
+            placementBrickType = 'other';
+        }
+        
+        console.log(`🔧 TYPES DE BRIQUES: Référence (survolée)=${brickType}, Placement (sélectionnée)=${placementBrickType}`);
+
         // Calculs spécifiques selon le type de brique
         let lengthAdjustment = 0;
         let positionOffsets = { E: 0, F: 0, I: 0, J: 0 }; // Décalages spécifiques par position
@@ -3013,7 +3039,7 @@ class ConstructionTools {
                 // Brique de référence ENTIÈRE (19cm)
                 'entiere': {
                     '3/4': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
-                    '1/2': [], // Toutes positions autorisées - AUTORISER les perpendiculaires pour brique 1/2 sur entière
+                    '1/2': ['E', 'F', 'I', 'J'], // EXCLURE E, F, I, J pour brique 1/2 sur entière (éviter HEE, HEF, HEI, HEJ)
                     '1/4': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
                     'custom': [] // Toutes positions autorisées - pas d'exclusion des perpendiculaires
                 },
@@ -3042,8 +3068,8 @@ class ConstructionTools {
             return baseExclusions; // Plus d'exclusion automatique de BB, AA, RR, CC, DD
         };
         
-        const excludedPositions = getExcludedPositions(referenceBrickType, brickType);
-        // console.log(`🚫 EXCLUSIONS: Référence ${referenceBrickType} → Placement ${brickType}: positions exclues [${excludedPositions.join(', ')}]`);
+        const excludedPositions = getExcludedPositions(referenceBrickType, placementBrickType);
+        console.log(`🚫 EXCLUSIONS: Référence ${referenceBrickType} → Placement ${placementBrickType}: positions exclues [${excludedPositions.join(', ')}]`);
         
         // SYSTÈME DE NUMÉROTATION ADAPTATIF avec filtrage des positions incompatibles
         const getLetterForPosition = (basePosition, isBoutisse, placementBrickType, referenceBrickType) => {
@@ -3208,8 +3234,8 @@ class ConstructionTools {
                 
                 // === SYSTÈME ENTIÈRE SUR 1/2 (EHX) ===
                 'EHA': { x: 0, z: 0 }, 'EHB': { x: -10, z: 0 }, 'EHC': { x: -5, z: 5 }, 'EHD': { x: 0, z: 0 },
-                'EHE': { x: -5, z: -5 }, 'EHF': { x: 0, z: 0 }, 'EHG': { x: -5, z: 5 }, 'EHH': { x: -5, z: 5 },
-                'EHI': { x: -5, z: -5 }, 'EHJ': { x: -5, z: -5 }, 'EHS': { x: -5, z: 0 }, 'EHT': { x: -5, z: -10 },
+                'EHE': { x: -5, z: -15 }, 'EHF': { x: 0, z: 0 }, 'EHG': { x: -5, z: 5 }, 'EHH': { x: -5, z: 5 },
+                'EHI': { x: -5, z: -13 }, 'EHJ': { x: -5, z: -13 }, 'EHS': { x: -5, z: 0 }, 'EHT': { x: -5, z: -10 },
                 'EHU': { x: -5, z: -15 }, 'EHV': { x: -5, z: -5 },
                 
                 // === SYSTÈME ENTIÈRE SUR 1/4 (EQX) ===
@@ -3220,8 +3246,8 @@ class ConstructionTools {
                 
                 // === SYSTÈME 3/4 SUR ENTIÈRE (TEX) ===
                 'TEA': { x: 0, z: 0 }, 'TEB': { x: 5, z: 0 }, 'TEC': { x: 0, z: 0 }, 'TED': { x: 0, z: 0 },
-                'TEE': { x: 0, z: 1 }, 'TEF': { x: 0, z: 1 }, 'TEG': { x: 0, z: 0 }, 'TEH': { x: 0, z: 0 },
-                'TEI': { x: 0, z: 2 }, 'TEJ': { x: 0, z: 2 }, 'TES': { x: 0, z: 5 }, 'TET': { x: 0, z: 5 },
+                'TEE': { x: 0, z: 5 }, 'TEF': { x: 0, z: 5 }, 'TEG': { x: 0, z: 0 }, 'TEH': { x: 0, z: 0 },
+                'TEI': { x: 0, z: 5 }, 'TEJ': { x: 0, z: 5 }, 'TES': { x: 0, z: 5 }, 'TET': { x: 0, z: 5 },
                 'TEU': { x: 0, z: 0 }, 'TEV': { x: 0, z: 0 },
                 
                 // === SYSTÈME 3/4 SUR 3/4 (TTX) ===
@@ -3268,8 +3294,8 @@ class ConstructionTools {
                 
                 // === SYSTÈME 1/4 SUR ENTIÈRE (QEX) ===
                 'QEA': { x: 0, z: 0 }, 'QEB': { x: 15, z: 0 }, 'QEC': { x: 0, z: 0 }, 'QED': { x: 0, z: 0 },
-                'QEE': { x: 0, z: -3 }, 'QEF': { x: 0, z: -3 }, 'QEG': { x: 0, z: 0 }, 'QEH': { x: 0, z: 0 },
-                'QEI': { x: 0, z: 0 }, 'QEJ': { x: 0, z: 0 }, 'QES': { x: 0, z: 0 }, 'QET': { x: 0, z: 0 },
+                'QEE': { x: 0, z: 15 }, 'QEF': { x: 0, z: 15 }, 'QEG': { x: 0, z: 0 }, 'QEH': { x: 0, z: 0 },
+                'QEI': { x: 0, z: 15 }, 'QEJ': { x: 0, z: 15 }, 'QES': { x: 0, z: 0 }, 'QET': { x: 0, z: 0 },
                 'QEU': { x: 0, z: 0 }, 'QEV': { x: 0, z: 0 },
                 
                 // === SYSTÈME 1/4 SUR 3/4 (QTX) ===
@@ -3360,7 +3386,7 @@ class ConstructionTools {
         // Filtrer les positions selon les règles de compatibilité et ajouter les lettres avec ajustements indépendants
         let localPositions = positionsToProcess
             .map(pos => {
-                const letter = getLetterForPosition(pos.key, isBoutisse, brickType, referenceBrickType);
+                const letter = getLetterForPosition(pos.key, isBoutisse, placementBrickType, referenceBrickType);
                 if (letter === null) return null; // Position exclue
                 
                 // Appliquer les ajustements spécifiques à chaque lettre de manière indépendante
@@ -3446,7 +3472,7 @@ class ConstructionTools {
             // Filtrer les angles selon les règles de compatibilité avec ajustements indépendants
             const anglePositions = baseAnglePositions
                 .map(pos => {
-                    const letter = getLetterForPosition(pos.key, isBoutisse, brickType, referenceBrickType);
+                    const letter = getLetterForPosition(pos.key, isBoutisse, placementBrickType, referenceBrickType);
                     if (letter === null) return null; // Position exclue
                     
                     // Appliquer les ajustements spécifiques à chaque lettre de manière indépendante
@@ -3533,7 +3559,7 @@ class ConstructionTools {
             // Filtrer et créer les suggestions d'angle avec ajustements indépendants par lettre
             const anglePositions = [];
             for (const [key, position] of Object.entries(positionsToProcess)) {
-                const letter = getLetterForPosition(key, isBoutisse, brickType, referenceBrickType);
+                const letter = getLetterForPosition(key, isBoutisse, placementBrickType, referenceBrickType);
                 // console.log(`🔧 DEBUG Position ${letter}: x=${position.x.toFixed(2)}, z=${position.z.toFixed(2)}`);
                 if (letter) {
                     // Appliquer les ajustements spécifiques à chaque lettre de manière indépendante
@@ -3552,7 +3578,7 @@ class ConstructionTools {
         }
         
         // Convertir en positions mondiales et créer les fantômes
-        localPositions.forEach((localPos, index) => {
+    localPositions.forEach((localPos, index) => {
             // SYSTÈME INDÉPENDANT : Chaque lettre a ses coordonnées fixes sans ajustements conditionnels
             // Toutes les positions spécifiques sont déjà intégrées dans les définitions de base
             const adjustedX = localPos.x;
@@ -3571,7 +3597,8 @@ class ConstructionTools {
                     localPos.color,
                     index,
                     localPos.letter,
-                    localPos.type // IMPORTANT: stocker le type de suggestion réel ('continuation', 'perpendiculaire-...', etc.)
+                    localPos.type, // IMPORTANT: stocker le type de suggestion réel ('continuation', 'perpendiculaire-...', etc.)
+                    localPos.key // Conserver la clé de base A/B pour déterminer la direction de continuité
                 );
                 if (suggestion) {
                     suggestions.push(suggestion);
@@ -3584,7 +3611,7 @@ class ConstructionTools {
     }
     
     // Créer un fantôme de suggestion
-    createSuggestionGhost(x, y, z, rotation, color, index, letter = null, suggestionType = null) {
+    createSuggestionGhost(x, y, z, rotation, color, index, letter = null, suggestionType = null, suggestionKey = null) {
         // CORRECTION: Utiliser les dimensions de l'élément actif en mode suggestions
         let length, width, height, elementType;
         
@@ -3668,7 +3695,8 @@ class ConstructionTools {
         // Ajouter identifiant pour le clic
         ghost.mesh.userData.suggestionIndex = index;
         ghost.mesh.userData.isSuggestion = true;
-        ghost.mesh.userData.suggestionType = suggestionType; // Stocker le type de suggestion
+    ghost.mesh.userData.suggestionType = suggestionType; // Stocker le type de suggestion
+    ghost.mesh.userData.suggestionKey = suggestionKey;   // Stocker la clé A/B de la position de base
         ghost.mesh.userData.letter = letter; // NOUVEAU: Stocker la lettre pour détection position C
         ghost.mesh.userData.isAngleSuggestion = (color === 0xff0000 || color === 0x00ff00 || color === 0x0000ff || color === 0xffff00 || color === 0xff00ff || color === 0x00ffff);
         
@@ -3813,11 +3841,27 @@ class ConstructionTools {
             }
         }
         
-        // Animer l'apparition avec un délai progressif
-        const delay = index * 100; // 100ms entre chaque suggestion
-        setTimeout(() => {
-            this.animateGhostAppearance(ghost.mesh);
-        }, delay);
+        // Animer l'apparition avec un délai progressif (accéléré)
+        // Options runtime:
+        //  - window.disableSuggestionAnimations = true  → pas d'animation
+        //  - window.suggestionAnimationDurationMs = <number>  → durée totale
+        //  - window.suggestionStaggerMs = <number>  → décalage par index
+        //  - window.suggestionMaxStaggerMs = <number>  → décalage max cumulé
+        const animationsDisabled = typeof window !== 'undefined' && window.disableSuggestionAnimations === true;
+        if (animationsDisabled) {
+            // Appliquer directement l'état final
+            try {
+                ghost.mesh.scale.setScalar(1.0);
+                if (ghost.mesh.material) ghost.mesh.material.opacity = 0.5;
+            } catch {}
+        } else {
+            const stagger = (typeof window !== 'undefined' && typeof window.suggestionStaggerMs === 'number') ? window.suggestionStaggerMs : 20;
+            const maxStagger = (typeof window !== 'undefined' && typeof window.suggestionMaxStaggerMs === 'number') ? window.suggestionMaxStaggerMs : 80;
+            const delay = Math.min(index * stagger, maxStagger);
+            setTimeout(() => {
+                this.animateGhostAppearance(ghost.mesh);
+            }, delay);
+        }
         
         window.SceneManager.scene.add(ghost.mesh);
         return ghost;
@@ -3828,7 +3872,9 @@ class ConstructionTools {
         if (!mesh || !mesh.material) return;
         
         const startTime = Date.now();
-        const duration = 300; // 300ms d'animation
+        const duration = (typeof window !== 'undefined' && typeof window.suggestionAnimationDurationMs === 'number')
+            ? window.suggestionAnimationDurationMs
+            : 150; // 150ms par défaut (plus rapide)
         const targetOpacity = 0.5;
         const targetScale = 1.0;
         
@@ -6185,13 +6231,9 @@ class ConstructionTools {
             // Pour l'assise 0, le plan zéro est à Y=0
             planZeroAssise = 0;
         } else {
-            // CORRECTION: Pour les autres assises, utiliser le plan de l'ASSISE COURANTE
-            // Le joint doit s'arrêter au plan de l'assise où se trouve l'élément
-            // BUGFIX: calculateAssiseHeightForType(index) retourne la hauteur jusqu'à l'index-1
-            // Donc pour l'assise courante (elementAssiseIndex), on doit calculer jusqu'à elementAssiseIndex+1
-            planZeroAssise = window.AssiseManager.calculateAssiseHeightForType(elementAssiseType, elementAssiseIndex + 1);
-            
-            console.log(`🔧 [TIMESTAMP-${Date.now()}] Joint horizontal assise ${elementAssiseIndex}: plan zéro assise courante = ${planZeroAssise} cm (calculé avec index ${elementAssiseIndex + 1})`);
+            // Pour les autres assises, plan zéro = base de l'assise courante
+            planZeroAssise = window.AssiseManager.calculateAssiseHeightForType(elementAssiseType, elementAssiseIndex);
+            if (dbg) console.log(`🔧 [JOINT-DBG] Joint horizontal assise ${elementAssiseIndex}: plan zéro = ${planZeroAssise} cm (type ${elementAssiseType})`);
         }
         
         let hauteurJointHorizontal = faceInferieureBrique - planZeroAssise;
@@ -7991,9 +8033,10 @@ class ConstructionTools {
         let planZeroAssise = 0; // Sol réel pour assise 0
         
         if (elementAssiseIndex > 0 && window.AssiseManager) {
-            // Utiliser la fonction corrigée qui calcule correctement le plan zéro
-            planZeroAssise = window.AssiseManager.calculateAssiseHeightForType(elementAssiseType, elementAssiseIndex + 1);
-            console.log(`🔧 DEBUG calculateJointPositionsLikeManual - Plan zéro assise ${elementAssiseIndex + 1}: ${planZeroAssise} cm`);
+            // Plan zéro de l'assise courante = base de cette assise
+            // calculateAssiseHeightForType(type, index) retourne la hauteur de base de l'assise index
+            planZeroAssise = window.AssiseManager.calculateAssiseHeightForType(elementAssiseType, elementAssiseIndex);
+            if (dbg) console.log(`🔧 [JOINT-DBG] Plan zéro assise ${elementAssiseIndex} (type ${elementAssiseType}): ${planZeroAssise} cm`);
         }
         
         let hauteurJointHorizontal = faceInferieureBrique - planZeroAssise;

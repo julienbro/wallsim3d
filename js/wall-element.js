@@ -263,7 +263,12 @@ class WallElement {
     }
 
     generateId() {
-        return 'element_' + Math.random().toString(36).substr(2, 9);
+        // Utiliser timestamp + random + compteur pour garantir l'unicité
+        if (!WallElement.idCounter) {
+            WallElement.idCounter = 0;
+        }
+        WallElement.idCounter++;
+        return 'element_' + Date.now() + '_' + WallElement.idCounter + '_' + Math.random().toString(36).substr(2, 6);
     }
 
     createMesh() {
@@ -602,10 +607,28 @@ class WallElement {
     setSelected(selected) {
         this.selected = selected;
         if (this.mesh) {
-            if (selected) {
-                this.mesh.material.emissive.setHex(0x444444);
-            } else {
-                this.mesh.material.emissive.setHex(0x000000);
+            const mat = this.mesh.material;
+            // Sécuriser: certains matériaux peuvent ne pas avoir d'emissive (ex: MeshBasicMaterial)
+            if (mat && mat.emissive) {
+                if (selected) {
+                    // Sauvegarder l'émissive originale si non encore sauvé
+                    if (!this.mesh.userData._originalEmissive) {
+                        this.mesh.userData._originalEmissive = mat.emissive.clone();
+                    }
+                    // Appliquer une surbrillance bleu vive pour une sélection claire
+                    mat.emissive.setHex(0x3b82f6); // blue-500
+                    mat.emissiveIntensity = Math.max(mat.emissiveIntensity || 0.5, 0.6);
+                    mat.needsUpdate = true;
+                } else {
+                    // Restaurer l'émissive originale si disponible
+                    if (this.mesh.userData._originalEmissive) {
+                        mat.emissive.copy(this.mesh.userData._originalEmissive);
+                        delete this.mesh.userData._originalEmissive;
+                    } else {
+                        mat.emissive.setHex(0x000000);
+                    }
+                    mat.needsUpdate = true;
+                }
             }
         }
     }

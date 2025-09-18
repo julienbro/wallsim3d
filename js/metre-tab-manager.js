@@ -361,22 +361,27 @@ class MetreTabManager {
         let cutType = 'full';
         let cutDisplay = 'Entier';
         
+        // Normaliser les champs susceptibles d'être non-string
+        const elementId = (element && element.id != null) ? String(element.id) : '';
+        const blockType = (element && element.blockType != null) ? String(element.blockType) : '';
+        const brickType = (element && element.brickType != null) ? String(element.brickType) : '';
+
         // 1. Vérifier la propriété cut de l'élément
         if (element.cut && element.cut !== '1/1') {
             cutType = element.cut;
             cutDisplay = element.cut;
         }
         // 2. Vérifier l'ID de l'élément pour les suffixes de coupe
-        else if (element.id && (element.id.includes('_3Q') || element.id.includes('_HALF') || element.id.includes('_1Q') || element.id.includes('_CUSTOM_'))) {
-            if (element.id.includes('_3Q')) {
+        else if (elementId && (elementId.includes('_3Q') || elementId.includes('_HALF') || elementId.includes('_1Q') || elementId.includes('_CUSTOM_'))) {
+            if (elementId.includes('_3Q')) {
                 cutType = '3/4';
-            } else if (element.id.includes('_HALF')) {
+            } else if (elementId.includes('_HALF')) {
                 cutType = '1/2';
-            } else if (element.id.includes('_1Q')) {
+            } else if (elementId.includes('_1Q')) {
                 cutType = '1/4';
-            } else if (element.id.includes('_CUSTOM_')) {
+            } else if (elementId.includes('_CUSTOM_')) {
                 // Extraire la longueur personnalisée du suffixe _CUSTOM_XX
-                const customMatch = element.id.match(/_CUSTOM_(\d+(?:_\d+)?)/);
+                const customMatch = elementId.match(/_CUSTOM_(\d+(?:_\d+)?)/);
                 if (customMatch) {
                     const customLength = customMatch[1].replace('_', '.');
                     cutType = 'custom';
@@ -385,32 +390,32 @@ class MetreTabManager {
             }
         }
         // 3. Vérifier les suffixes dans blockType ou brickType
-        else if (element.blockType) {
-            if (element.blockType.includes('_3Q')) {
+        else if (blockType) {
+            if (blockType.includes('_3Q')) {
                 cutType = '3/4';
-            } else if (element.blockType.includes('_HALF')) {
+            } else if (blockType.includes('_HALF')) {
                 cutType = '1/2';
-            } else if (element.blockType.includes('_1Q')) {
+            } else if (blockType.includes('_1Q')) {
                 cutType = '1/4';
-            } else if (element.blockType.includes('_CUSTOM_')) {
+            } else if (blockType.includes('_CUSTOM_')) {
                 // Extraire la longueur personnalisée du suffixe _CUSTOM_XX
-                const customMatch = element.blockType.match(/_CUSTOM_(\d+(?:_\d+)?)/);
+                const customMatch = blockType.match(/_CUSTOM_(\d+(?:_\d+)?)/);
                 if (customMatch) {
                     const customLength = customMatch[1].replace('_', '.');
                     cutType = 'custom';
                     cutDisplay = `${customLength}cm`;
                 }
             }
-        } else if (element.brickType) {
-            if (element.brickType.includes('_3Q')) {
+        } else if (brickType) {
+            if (brickType.includes('_3Q')) {
                 cutType = '3/4';
-            } else if (element.brickType.includes('_HALF')) {
+            } else if (brickType.includes('_HALF')) {
                 cutType = '1/2';
-            } else if (element.brickType.includes('_1Q')) {
+            } else if (brickType.includes('_1Q')) {
                 cutType = '1/4';
-            } else if (element.brickType.includes('_CUSTOM_')) {
+            } else if (brickType.includes('_CUSTOM_')) {
                 // Extraire la longueur personnalisée du suffixe _CUSTOM_XX
-                const customMatch = element.brickType.match(/_CUSTOM_(\d+(?:_\d+)?)/);
+                const customMatch = brickType.match(/_CUSTOM_(\d+(?:_\d+)?)/);
                 if (customMatch) {
                     const customLength = customMatch[1].replace('_', '.');
                     cutType = 'custom';

@@ -10,6 +10,7 @@ class MeasurementAnnotationManager {
         this.measurementControls = null;
         this.annotationControls = null;
         this.isInitialized = false;
+        this.groupsReady = false;
         
         this.init();
     }
@@ -22,37 +23,58 @@ class MeasurementAnnotationManager {
     }
 
     waitForTools() {
-        // 🔧 PROTECTION: Limiter les tentatives pour éviter les boucles infinies
+        // 🔧 PROTECTION: Limiter les tentatives et gérer une initialisation en deux phases
         if (!this.retryCount) this.retryCount = 0;
         this.retryCount++;
-        
-        if (this.retryCount > 50) { // Limite à 50 tentatives (10 secondes)
-            console.warn('⚠️ MeasurementAnnotationManager: Arrêt des tentatives après 50 essais - outils non trouvés');
-            // Créer les instances des outils même s'ils ne sont pas complètement initialisés
-            this.createToolInstances();
+
+        // État des instances
+        const instancesReady = !!(window.MeasurementTool && window.AnnotationTool && window.TextLeaderTool);
+        // État des groupes Three.js associés
+        const groupsReady = instancesReady &&
+                            window.MeasurementTool.measurementGroup &&
+                            window.AnnotationTool.annotationGroup &&
+                            window.TextLeaderTool.textLeaderGroup;
+
+        // Si tout est prêt (instances + groupes), finaliser si nécessaire et arrêter
+        if (groupsReady) {
+            if (!this.isInitialized) {
+                this.measurementTool = window.MeasurementTool;
+                this.annotationTool = window.AnnotationTool;
+                this.textLeaderTool = window.TextLeaderTool;
+                this.setupUI();
+                this.setupEventListeners();
+                this.setupToolbarIntegration();
+                this.isInitialized = true;
+            }
+            this.groupsReady = true;
             return;
         }
-        
-        // Vérifier que les outils sont disponibles et correctement initialisés
-        const measurementReady = window.MeasurementTool && 
-                                 window.MeasurementTool.measurementGroup;
-        const annotationReady = window.AnnotationTool && 
-                               window.AnnotationTool.annotationGroup;
-        const textLeaderReady = window.TextLeaderTool && 
-                               window.TextLeaderTool.textLeaderGroup;
-        
-        if (measurementReady && annotationReady && textLeaderReady) {
+
+        // Si les instances existent mais pas encore les groupes, faire une initialisation partielle une seule fois
+        if (instancesReady && !this.isInitialized) {
             this.measurementTool = window.MeasurementTool;
             this.annotationTool = window.AnnotationTool;
             this.textLeaderTool = window.TextLeaderTool;
+            // Ces étapes ne nécessitent pas obligatoirement la présence des groupes
             this.setupUI();
             this.setupEventListeners();
             this.setupToolbarIntegration();
             this.isInitialized = true;
-            // console.log('✅ Gestionnaire des outils de mesure, annotation et texte initialisé');
-        } else {
-            setTimeout(() => this.waitForTools(), 200);
+            this.groupsReady = false; // On attend encore les groupes
         }
+
+        // Journaliser une information après 50 tentatives, mais continuer d'attendre silencieusement
+        if (this.retryCount === 50 && !instancesReady) {
+            console.info('ℹ️ MeasurementAnnotationManager: Outils en cours d\'initialisation, attente prolongée…');
+        }
+
+        // En dernier recours, au bout d'un délai long, tenter de créer les instances (si elles n\'existent pas)
+        if (this.retryCount > 300 && !instancesReady) { // ~60s
+            this.createToolInstances();
+            return;
+        }
+
+        setTimeout(() => this.waitForTools(), 200);
     }
 
     createToolInstances() {
@@ -316,6 +338,13 @@ class MeasurementAnnotationManager {
             this.hideMeasurementControls();
             this.setToolButtonActive('measureTool', false);
         } else {
+            // Vérifier que le groupe est prêt avant d'activer
+            if (!this.measurementTool || !this.measurementTool.measurementGroup) {
+                console.info('ℹ️ Outil de mesure en cours d\'initialisation…');
+                // Retenter légèrement plus tard
+                setTimeout(() => this.toggleMeasurementTool(), 250);
+                return;
+            }
             // Désactiver les autres outils si actifs
             if (this.annotationTool.isActive) {
                 this.annotationTool.deactivate();
@@ -340,6 +369,12 @@ class MeasurementAnnotationManager {
             this.hideAnnotationControls();
             this.setToolButtonActive('annotationTool', false);
         } else {
+            // Vérifier que le groupe est prêt avant d'activer
+            if (!this.annotationTool || !this.annotationTool.annotationGroup) {
+                console.info('ℹ️ Outil d\'annotation en cours d\'initialisation…');
+                setTimeout(() => this.toggleAnnotationTool(), 250);
+                return;
+            }
             // Désactiver les autres outils si actifs
             if (this.measurementTool.isActive) {
                 this.measurementTool.deactivate();
@@ -363,6 +398,12 @@ class MeasurementAnnotationManager {
             this.textLeaderTool.deactivate();
             this.setToolButtonActive('textLeaderTool', false);
         } else {
+            // Vérifier que le groupe est prêt avant d'activer
+            if (!this.textLeaderTool || !this.textLeaderTool.textLeaderGroup) {
+                console.info('ℹ️ Outil texte en cours d\'initialisation…');
+                setTimeout(() => this.toggleTextLeaderTool(), 250);
+                return;
+            }
             // Désactiver les autres outils si actifs
             if (this.measurementTool.isActive) {
                 this.measurementTool.deactivate();
@@ -551,6 +592,11 @@ class MeasurementAnnotationManager {
     toggleMeasurementVisibility() {
         const hideBtn = document.getElementById('hideMeasurements');
         if (!hideBtn) return;
+
+        if (!this.measurementTool || !this.measurementTool.measurementGroup) {
+            // Groupe pas encore prêt
+            return;
+        }
 
         if (this.measurementTool.measurementGroup.visible) {
             this.measurementTool.hideMeasurements();

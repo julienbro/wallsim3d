@@ -15,6 +15,17 @@ class ToolbarManager {
         this.previousGridState = undefined;
         this.previousGhostState = undefined;
         
+    // Etats temporaires pour la surbrillance au survol (tous types d'objets)
+    // Map: key = material.uuid + '|' + object.uuid, value = { emissive?: Color, color?: Color, opacity?: number }
+    this._hoverOriginals = null;
+
+    // Optimisations de survol
+    this._lastHoverTsDelete = 0;
+    this._lastMousePosDelete = { x: null, y: null };
+    this._lastHoverTsSelect = 0;
+    this._lastMousePosSelect = { x: null, y: null };
+    this._lastCanvasCursor = '';
+        
         // Attendre que le DOM et les autres managers soient prêts
         setTimeout(() => {
             this.initElements();
@@ -62,6 +73,15 @@ class ToolbarManager {
         
         // FERMER TOUTES LES FENÊTRES D'AIDE OUVERTES
         this.closeAllHelpWindows();
+
+        // Si on passe à dupliquer/supprimer/déplacer, désélectionner l'élément actuellement en surbrillance
+        if (['moveTool', 'deleteTool', 'duplicateTool'].includes(toolId)) {
+            if (window.SceneManager && typeof window.SceneManager.deselectElement === 'function') {
+                window.SceneManager.deselectElement();
+            }
+            // Nettoyer aussi toute surbrillance locale/hover
+            this.resetSelection();
+        }
         
         // Cas spécial pour le bouton pinceau : il gère son propre état
         if (toolId === 'materialPaintMode') {
@@ -77,12 +97,9 @@ class ToolbarManager {
         const toggleableTools = ['selectTool', 'duplicateTool', 'deleteTool', 'moveTool'];
         if (toggleableTools.includes(toolId) && button.classList.contains('active')) {
             // Si l'outil est déjà actif, le désactiver et revenir en mode placement
-            if (toolId === 'selectTool') {
-                // Pour l'outil de sélection, revenir en mode placement de briques
+            if (toolId === 'selectTool' || toolId === 'duplicateTool' || toolId === 'moveTool' || toolId === 'deleteTool') {
+                // Pour tous ces outils, revenir en mode placement de briques (construction)
                 this.setInteractionMode('placement');
-            } else {
-                // Pour les autres outils, revenir en mode sélection
-                this.returnToSelectMode();
             }
             return;
         }
@@ -205,6 +222,22 @@ class ToolbarManager {
                 this.isToolActive = true;
                 this.showInstruction('Cliquez sur un élément pour le dupliquer');
                 this.disableNormalPlacement();
+                // Masquer la brique fantôme en mode duplication (ne pas l'attacher au curseur)
+                if (window.ConstructionTools) {
+                    // Sauvegarder l'état du fantôme
+                    this.previousGhostState = window.ConstructionTools.showGhost;
+                    // Désactiver le fantôme et le mode placement
+                    window.ConstructionTools.showGhost = false;
+                    window.ConstructionTools.isPlacementMode = false;
+                    // Masquer immédiatement le fantôme s'il existe
+                    if (window.ConstructionTools.hideGhostElement) {
+                        window.ConstructionTools.hideGhostElement();
+                    }
+                    // Forcer l'invisibilité du mesh fantôme si présent
+                    if (window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.mesh) {
+                        window.ConstructionTools.ghostElement.mesh.visible = false;
+                    }
+                }
                 break;
         }
         
@@ -257,8 +290,8 @@ class ToolbarManager {
                 console.log('🔄 Grilles d\'assises restaurées');
             }
             
-            // Restaurer l'état du fantôme si on quitte le mode suppression
-            if (this.currentTool === 'delete' && window.ConstructionTools && this.previousGhostState !== undefined) {
+            // Restaurer l'état du fantôme si on quitte le mode suppression ou duplication
+            if ((this.currentTool === 'delete' || this.currentTool === 'duplicate') && window.ConstructionTools && this.previousGhostState !== undefined) {
                 window.ConstructionTools.showGhost = this.previousGhostState;
                 window.ConstructionTools.isPlacementMode = this.previousGhostState;
                 
@@ -321,6 +354,10 @@ class ToolbarManager {
         // console.log('🎯 Setting up canvas interaction');
         
         const raycaster = new THREE.Raycaster();
+        // Faciliter l'intersection avec les lignes fines (cotation/annotation)
+        if (raycaster.params && raycaster.params.Line) {
+            raycaster.params.Line.threshold = 0.25; // largeur de sélection des lignes en unités monde
+        }
         const mouse = new THREE.Vector2();
         
         // Trouver la scène et la caméra via SceneManager
@@ -341,9 +378,21 @@ class ToolbarManager {
         // Ajouter gestionnaire de survol pour l'outil de suppression
         canvas.addEventListener('mousemove', (event) => {
             if (!this.isToolActive || this.currentTool !== 'delete') return;
+            // Throttle simple: ne traiter que toutes les ~16ms et si vrai mouvement (>0.5px)
+            const now = performance.now();
+            const dx = this._lastMousePosDelete.x === null ? Infinity : Math.abs(event.clientX - this._lastMousePosDelete.x);
+            const dy = this._lastMousePosDelete.y === null ? Infinity : Math.abs(event.clientY - this._lastMousePosDelete.y);
+            if (now - this._lastHoverTsDelete < 16 && dx < 0.5 && dy < 0.5) return;
+            this._lastHoverTsDelete = now;
+            this._lastMousePosDelete.x = event.clientX;
+            this._lastMousePosDelete.y = event.clientY;
             
             // Appliquer le curseur corbeille sur le canvas
-            canvas.style.cursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' fill=\'%23dc2626\' viewBox=\'0 0 24 24\'><path d=\'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z\'/></svg>") 12 12, auto';
+            const delCursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' fill=\'%23dc2626\' viewBox=\'0 0 24 24\'><path d=\'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z\'/></svg>") 12 12, auto';
+            if (this._lastCanvasCursor !== delCursor) {
+                canvas.style.cursor = delCursor;
+                this._lastCanvasCursor = delCursor;
+            }
             
             // Calculer la position de la souris
             const rect = canvas.getBoundingClientRect();
@@ -369,8 +418,20 @@ class ToolbarManager {
                 }
                 
                 // Accepter les éléments avec userData valides
-                return obj.userData?.elementId || obj.userData?.id || obj.userData?.type ||
-                       obj.userData?.measurementId || obj.userData?.annotationId || obj.userData?.textLeaderId;
+                if (obj.userData?.elementId || obj.userData?.id || obj.userData?.type ||
+                    obj.userData?.measurementId || obj.userData?.annotationId || obj.userData?.textLeaderId) {
+                    return true;
+                }
+                // Vérifier le parent immédiat pour les cotations/annotations/textes
+                if (obj.parent && (obj.parent.userData?.measurementId !== undefined ||
+                    obj.parent.userData?.annotationId !== undefined ||
+                    obj.parent.userData?.textLeaderId !== undefined ||
+                    obj.parent.userData?.toolType === 'measurement' ||
+                    obj.parent.userData?.toolType === 'annotation' ||
+                    obj.parent.userData?.toolType === 'textleader')) {
+                    return true;
+                }
+                return false;
             });
             
             // Gérer la surbrillance au survol
@@ -387,6 +448,87 @@ class ToolbarManager {
                 }
             } else {
                 // Aucun élément survolé, supprimer la surbrillance
+                this.clearHoverHighlight();
+            }
+        });
+
+        // Ajouter gestionnaire de survol pour l'outil de sélection / déplacer / dupliquer (surbrillance au survol)
+        canvas.addEventListener('mousemove', (event) => {
+            // Actif quand on est en mode d'interaction "selection" et que l'outil courant est select/move/duplicate
+            if (this.interactionMode !== 'selection' || !['select','move','duplicate'].includes(this.currentTool)) return;
+            // Throttle simple: ne traiter que toutes les ~16ms et si vrai mouvement (>0.5px)
+            const nowSel = performance.now();
+            const dxSel = this._lastMousePosSelect.x === null ? Infinity : Math.abs(event.clientX - this._lastMousePosSelect.x);
+            const dySel = this._lastMousePosSelect.y === null ? Infinity : Math.abs(event.clientY - this._lastMousePosSelect.y);
+            if (nowSel - this._lastHoverTsSelect < 16 && dxSel < 0.5 && dySel < 0.5) return;
+            this._lastHoverTsSelect = nowSel;
+            this._lastMousePosSelect.x = event.clientX;
+            this._lastMousePosSelect.y = event.clientY;
+
+            // Mettre un curseur spécifique selon l'outil
+            let desiredCursor = '';
+            if (this.currentTool === 'duplicate') {
+                desiredCursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'%233b82f6\'><path d=\'M16 1H4c-1.1 0-2 .9-2 2v12h2V3h12V1zm4 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h12v14z\'/></svg>") 12 12, auto';
+            } else if (this.currentTool === 'move') {
+                desiredCursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'%2310b981\'><path d=\'M13 3l3.29 3.29-2.3-.01L14 9h-4l-.01-2.72-2.3.01L11 3h2zm-2 18l-3.29-3.29 2.3.01L10 15h4l.01 2.72 2.3-.01L13 21h-2zm-8-8l3.29-3.29-.01 2.3L9 10v4l-2.72.01.01 2.3L3 13v-2zm18 2l-3.29 3.29.01-2.3L15 14v-4l2.72-.01-.01-2.3L21 11v2z\'/></svg>") 12 12, auto';
+            } else {
+                desiredCursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'%233b82f6\'><path d=\'M13 3l7 7h-4v7H10v-4H6l7-10z\'/></svg>") 12 12, auto';
+            }
+            if (this._lastCanvasCursor !== desiredCursor) {
+                canvas.style.cursor = desiredCursor;
+                this._lastCanvasCursor = desiredCursor;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const allIntersects = raycaster.intersectObjects(scene.children, true);
+
+            const validIntersects = allIntersects.filter(intersect => {
+                const obj = intersect.object;
+                // Ignorer les objets système
+                if (obj.name === 'WallSim3D_InteractionPlane' || 
+                    obj.name === 'WallSim3D_GroundFloor' ||
+                    obj.userData?.isGround ||
+                    obj.userData?.isSystem ||
+                    obj.type === 'GridHelper' || 
+                    obj.type === 'AxesHelper') {
+                    return false;
+                }
+                // Accepter uniquement les éléments sélectionnables usuels
+                const ud = obj.userData || {};
+                const isSelectableConstruction = (ud.element && (
+                    ud.element.type === 'brick' || ud.element.type === 'block' || ud.element.type === 'insulation' || ud.element.type === 'linteau' || ud.element.type === 'beam'
+                ));
+                const isGLB = (ud.element && (ud.element.type === 'glb' || ud.element.isGLBModel)) || ud.isGLB || obj.isGLBModel;
+                const isAnnot = ud.measurementId !== undefined || ud.annotationId !== undefined || ud.textLeaderId !== undefined || ud.toolType === 'measurement' || ud.toolType === 'annotation' || ud.toolType === 'textleader';
+                // Vérifier parent immédiat pour les objets de cotation/annotation/textLeader
+                const p = obj.parent ? (obj.parent.userData || {}) : {};
+                const isAnnotParent = (p.measurementId !== undefined || p.annotationId !== undefined || p.textLeaderId !== undefined || p.toolType === 'measurement' || p.toolType === 'annotation' || p.toolType === 'textleader');
+                return isSelectableConstruction || isGLB || isAnnot || isAnnotParent;
+            });
+
+            if (validIntersects.length > 0) {
+                const newHoveredElement = this.findElementParent(validIntersects[0].object);
+                // Ne pas interférer avec la surbrillance de sélection persistante
+                if (this.isObjectSelected(newHoveredElement)) {
+                    // Si on survolait autre chose avant, nettoyer sa surbrillance
+                    if (this.hoveredElement && this.hoveredElement !== newHoveredElement) {
+                        this.clearHoverHighlight();
+                    }
+                    // Ne pas appliquer de surbrillance de survol sur l'objet sélectionné
+                    this.hoveredElement = null;
+                    return;
+                }
+
+                if (newHoveredElement !== this.hoveredElement) {
+                    this.clearHoverHighlight();
+                    this.hoveredElement = newHoveredElement;
+                    this.applyHoverHighlightByTool(this.currentTool);
+                }
+            } else {
                 this.clearHoverHighlight();
             }
         });
@@ -1130,7 +1272,7 @@ class ToolbarManager {
             
             // 🔄 RETOUR AUTOMATIQUE: Revenir en mode pose de brique après duplication
             setTimeout(() => {
-                this.returnToSelectMode();
+                this.returnToBrickMode();
             }, 1500); // Délai pour laisser le temps de voir le message
             
         } catch (error) {
@@ -1265,7 +1407,7 @@ class ToolbarManager {
                 
                 // 🔄 RETOUR AUTOMATIQUE: Revenir en mode pose de brique après déplacement
                 setTimeout(() => {
-                    this.returnToSelectMode();
+                    this.returnToBrickMode();
                 }, 1500); // Délai pour laisser le temps de voir le message
             } else {
                 // console.log('❌ Could not find valid position for placement');
@@ -1345,42 +1487,173 @@ class ToolbarManager {
     
     // Méthodes pour la surbrillance au survol en mode suppression
     applyHoverHighlight() {
-        if (!this.hoveredElement || !this.hoveredElement.material) return;
-        
+        if (!this.hoveredElement) return;
+        // Rouge pour suppression
+        this.applyHoverColor(0xff4444);
+    }
+
+    // Surbrillance au survol pour l'outil de sélection (couleur neutre/bleutée)
+    applyHoverHighlightSelection() {
+        if (!this.hoveredElement) return;
+        // Éviter d'écraser la surbrillance de l'élément sélectionné
+        if (this.isObjectSelected(this.hoveredElement)) return;
+        // Bleu doux pour indiquer sélection possible
+        this.applyHoverColor(0x3b82f6);
+    }
+
+    // Déterminer la couleur selon l'outil courant
+    applyHoverHighlightByTool(tool) {
+        if (!this.hoveredElement) return;
+        // Éviter d'écraser la surbrillance de l'élément sélectionné
+        if (this.isObjectSelected(this.hoveredElement)) return;
+        const colorByTool = {
+            select: 0x3b82f6,    // bleu
+            move: 0x10b981,      // vert (emerald)
+            duplicate: 0x8b5cf6  // violet (purple)
+        };
+        const hex = colorByTool[tool] || 0x3b82f6;
+        this.applyHoverColor(hex);
+    }
+
+    // Appliquer une couleur de survol à un objet (et ses enfants) en sauvegardant l'état initial
+    applyHoverColor(hex) {
         try {
-            // Sauvegarder l'émissive original seulement si ce n'est pas déjà fait
-            if (!this.originalEmissive) {
-                this.originalEmissive = this.hoveredElement.material.emissive ? 
-                    this.hoveredElement.material.emissive.clone() : new THREE.Color(0x000000);
+            // Enregistrer l'état original la première fois
+            if (!this._hoverOriginals) {
+                this._hoverOriginals = new Map();
+                this._forEachMaterial(this.hoveredElement, (obj, mat) => {
+                    const key = `${mat.uuid}|${obj.uuid}`;
+                    if (!this._hoverOriginals.has(key)) {
+                        this._hoverOriginals.set(key, {
+                            emissive: mat.emissive ? mat.emissive.clone() : null,
+                            color: mat.color ? mat.color.clone() : null,
+                            opacity: typeof mat.opacity === 'number' ? mat.opacity : undefined
+                        });
+                    }
+                });
             }
-            
-            // Vérifier que le matériau est valide avant modification
-            if (this.hoveredElement.material.emissive && this.hoveredElement.material.emissive.setHex) {
-                // Appliquer une surbrillance rouge pour indiquer la suppression
-                this.hoveredElement.material.emissive.setHex(0xff4444);
-                // Forcer la mise à jour du matériau
-                this.hoveredElement.material.needsUpdate = true;
-            }
+
+            // Appliquer la couleur de survol
+            this._forEachMaterial(this.hoveredElement, (_obj, mat) => {
+                if (mat.emissive && mat.emissive.setHex) {
+                    mat.emissive.setHex(hex);
+                } else if (mat.color && mat.color.setHex) {
+                    // Pour les lignes, sprites, etc.
+                    mat.color.setHex(hex);
+                }
+                if (typeof mat.needsUpdate !== 'undefined') mat.needsUpdate = true;
+            });
         } catch (error) {
-            console.warn('⚠️ Erreur lors de l\'application de la surbrillance:', error);
+            console.warn('⚠️ Erreur lors de l\'application de la couleur de survol:', error);
+        }
+    }
+
+    // Parcourir récursivement l'objet et récupérer tous les matériaux (y compris multi-matériaux)
+    _forEachMaterial(root, cb) {
+        if (!root) return;
+        const stack = [root];
+        let safety = 0;
+        while (stack.length && safety++ < 10000) {
+            const obj = stack.pop();
+            if (!obj) continue;
+            if (obj.material) {
+                if (Array.isArray(obj.material)) {
+                    obj.material.forEach(m => m && cb(obj, m));
+                } else {
+                    cb(obj, obj.material);
+                }
+            }
+            if (obj.children && obj.children.length) {
+                for (let i = 0; i < obj.children.length; i++) stack.push(obj.children[i]);
+            }
         }
     }
     
     clearHoverHighlight() {
-        if (this.hoveredElement && this.hoveredElement.material && this.originalEmissive) {
-            try {
-                // Vérifier que le matériau est toujours valide
+        if (!this.hoveredElement) {
+            // Nettoyage simple
+            this._hoverOriginals = null;
+            this.originalEmissive = null;
+            return;
+        }
+        try {
+            // Ne pas supprimer la surbrillance si l'objet est l'élément sélectionné
+            if (this.isObjectSelected(this.hoveredElement)) {
+                this.hoveredElement = null;
+                this._hoverOriginals = null;
+                this.originalEmissive = null;
+                return;
+            }
+
+            if (this._hoverOriginals && this._hoverOriginals.size > 0) {
+                // Restaurer les matériaux enregistrés
+                this._forEachMaterial(this.hoveredElement, (obj, mat) => {
+                    const key = `${mat.uuid}|${obj.uuid}`;
+                    const saved = this._hoverOriginals.get(key);
+                    if (saved) {
+                        if (mat.emissive && saved.emissive && mat.emissive.copy) {
+                            mat.emissive.copy(saved.emissive);
+                        }
+                        if (mat.color && saved.color && mat.color.copy) {
+                            mat.color.copy(saved.color);
+                        }
+                        if (typeof saved.opacity === 'number') {
+                            mat.opacity = saved.opacity;
+                        }
+                        if (typeof mat.needsUpdate !== 'undefined') mat.needsUpdate = true;
+                    }
+                });
+            } else if (this.hoveredElement.material && this.originalEmissive) {
+                // Compat: ancien chemin (un seul matériau avec emissive)
                 if (this.hoveredElement.material.emissive && this.hoveredElement.material.emissive.copy) {
                     this.hoveredElement.material.emissive.copy(this.originalEmissive);
-                    // Forcer la mise à jour du matériau
                     this.hoveredElement.material.needsUpdate = true;
                 }
-            } catch (error) {
-                console.warn('⚠️ Erreur lors de la suppression de la surbrillance:', error);
+            }
+        } catch (error) {
+            console.warn('⚠️ Erreur lors de la suppression de la surbrillance:', error);
+        }
+        // Reset états
+        this.hoveredElement = null;
+        this._hoverOriginals = null;
+        this.originalEmissive = null;
+    }
+
+    // Déterminer si un objet Three.js correspond à l'élément actuellement sélectionné
+    isObjectSelected(object) {
+        if (!object || !window.SceneManager || !window.SceneManager.selectedElement) return false;
+        const selected = window.SceneManager.selectedElement;
+
+        // Cas 1: sélection directe d'un objet Three.js (annotations, GLB, etc.)
+        if (object === selected) return true;
+        // Vérifier si l'objet est un descendant de l'élément sélectionné (pour les Group)
+        if (selected && selected.isObject3D) {
+            let cur = object;
+            let depth = 0;
+            while (cur && depth < 10) {
+                if (cur === selected) return true;
+                cur = cur.parent;
+                depth++;
             }
         }
-        this.hoveredElement = null;
-        this.originalEmissive = null;
+
+        // Cas 2: éléments de construction (WallElement) - comparer via IDs
+        const selectedId = selected.id || selected.elementId;
+        if (!selectedId) return false;
+        const objectId = this.getObjectElementId(object);
+        return objectId && objectId === selectedId;
+    }
+
+    // Extraire l'ID d'élément depuis un objet Three.js et ses userData
+    getObjectElementId(object) {
+        if (!object) return null;
+        const ud = object.userData || {};
+        // Chercher dans différents emplacements possibles
+        return ud.elementId ||
+               ud.id ||
+               (ud.element && (ud.element.elementId || ud.element.id)) ||
+               object.name ||
+               null;
     }
     
     resetSelection() {
@@ -1459,6 +1732,45 @@ class ToolbarManager {
         this.enableNormalPlacement();
         
         // console.log('🔄 Returned to select mode after deletion');
+    }
+
+    returnToBrickMode() {
+        // Nettoyer la surbrillance de survol si elle existe
+        this.clearHoverHighlight();
+        
+        // Restaurer le curseur normal
+        document.body.style.cursor = '';
+        const canvas = document.getElementById('threejs-canvas');
+        if (canvas) {
+            canvas.style.cursor = '';
+        }
+        
+        // Désactiver tous les boutons d'outils
+        this.toolButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Réinitialiser l'état interne
+        this.currentTool = null;
+        this.isToolActive = false;
+        this.interactionMode = 'placement';
+        
+        // Réactiver le placement normal
+        this.enableNormalPlacement();
+        
+        // Activer le mode brique
+        if (window.ConstructionTools && typeof window.ConstructionTools.setMode === 'function') {
+            window.ConstructionTools.setMode('brick');
+            console.log('🧱 Retour automatique en mode pose de brique après duplication');
+        }
+        
+        // Réactiver le fantôme si nécessaire
+        if (window.ConstructionTools) {
+            window.ConstructionTools.showGhost = true;
+            window.ConstructionTools.isPlacementMode = true;
+            
+            if (window.ConstructionTools.showGhostElement) {
+                window.ConstructionTools.showGhostElement();
+            }
+        }
     }
     
     // Méthodes pour gérer l'intégration avec les managers existants
@@ -1764,7 +2076,12 @@ class ToolbarManager {
     }
     
     generateId() {
-        return 'element_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        // Utiliser le compteur global de WallElement pour garantir l'unicité
+        if (!WallElement.idCounter) {
+            WallElement.idCounter = 0;
+        }
+        WallElement.idCounter++;
+        return 'element_' + Date.now() + '_' + WallElement.idCounter + '_' + Math.random().toString(36).substr(2, 6);
     }
     
     // Méthodes publiques pour l'intégration
