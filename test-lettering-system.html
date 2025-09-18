@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test du Système de Lettrage pour Différents Types de Briques</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c5282;
+            margin-bottom: 15px;
+        }
+        .instructions {
+            background-color: #e6f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3182ce;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
+            border-left: 3px solid #38a169;
+        }
+        .expected {
+            background-color: #f0fff4;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #38a169;
+            margin-top: 10px;
+        }
+        .brick-type {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: white;
+        }
+        .entiere { background-color: #3182ce; }
+        .half { background-color: #e53e3e; }
+        .three-quarter { background-color: #d69e2e; }
+        .quarter { background-color: #805ad5; }
+        
+        .letter-examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .letter-example {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        .letter-code {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        .letter-meaning {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test du Système de Lettrage pour Types de Briques</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instructions de Test</h3>
+            <p><strong>Objectif :</strong> Vérifier que chaque type de brique reçoit un lettrage unique selon le type de brique que l'on veut placer ET le type de brique de référence.</p>
+            <p><strong>Problème corrigé :</strong> Avant, placer une brique 1/2 sur une brique entière donnait les mêmes lettres que placer une brique entière sur une brique entière.</p>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🧱 Test 1 : Brique Entière → Brique Entière</div>
+            <div class="step">
+                1. Sélectionnez une <span class="brick-type entiere">brique entière (19cm)</span> dans la barre d'outils
+            </div>
+            <div class="step">
+                2. Survolez une <span class="brick-type entiere">brique entière existante</span> dans la scène 3D
+            </div>
+            <div class="expected">
+                <strong>✅ Résultat attendu :</strong> Lettres commençant par <strong>EE</strong> (Ex: EEA, EEB, EEC...)
+                <div class="letter-examples">
+                    <div class="letter-example">
+                        <div class="letter-code">EEA</div>
+                        <div class="letter-meaning">Entière sur Entière, position A</div>
+                    </div>
+                    <div class="letter-example">
+                        <div class="letter-code">EEB</div>
+                        <div class="letter-meaning">Entière sur Entière, position B</div>
+                    </div>
+                    <div class="letter-example">
+                        <div class="letter-code">EEF</div>
+                        <div class="letter-meaning">Entière sur Entière, position F</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🧱 Test 2 : Brique 1/2 → Brique Entière</div>
+            <div class="step">
+                1. Sélectionnez une <span class="brick-type half">brique 1/2 (9-10cm)</span> dans la barre d'outils
+            </div>
+            <div class="step">
+                2. Survolez une <span class="brick-type entiere">brique entière existante</span> dans la scène 3D
+            </div>
+            <div class="expected">
+                <strong>✅ Résultat attendu :</strong> Lettres commençant par <strong>HE</strong> (Ex: HEA, HEB, HEC...)
+                <div class="letter-examples">
+                    <div class="letter-example">
+                        <div class="letter-code">HEA</div>
+                        <div class="letter-meaning">1/2 sur Entière, position A</div>
+                    </div>
+                    <div class="letter-example">
+                        <div class="letter-code">HEB</div>
+                        <div class="letter-meaning">1/2 sur Entière, position B</div>
+                    </div>
+                    <div class="letter-example">
+                        <div class="letter-code">HEF</div>
+                        <div class="letter-meaning">1/2 sur Entière, position F</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🧱 Test 3 : Brique Entière → Brique 1/2</div>
+            <div class="step">
+                1. Sélectionnez une <span class="brick-type entiere">brique entière (19cm)</span> dans la barre d'outils
+            </div>
+            <div class="step">
+                2. Survolez une <span class="brick-type half">brique 1/2 existante</span> dans la scène 3D
+            </div>
+            <div class="expected">
+                <strong>✅ Résultat attendu :</strong> Lettres commençant par <strong>EH</strong> (Ex: EHA, EHB, EHC...)
+                <div class="letter-examples">
+                    <div class="letter-example">
+                        <div class="letter-code">EHA</div>
+                        <div class="letter-meaning">Entière sur 1/2, position A</div>
+                    </div>
+                    <div class="letter-example">
+                        <div class="letter-code">EHB</div>
+                        <div class="letter-meaning">Entière sur 1/2, position B</div>
+                    </div>
+                    <div class="letter-example">
+                        <div class="letter-code">EHF</div>
+                        <div class="letter-meaning">Entière sur 1/2, position F</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🧱 Test 4 : Brique 3/4 → Brique Entière</div>
+            <div class="step">
+                1. Sélectionnez une <span class="brick-type three-quarter">brique 3/4 (14-15cm)</span> dans la barre d'outils
+            </div>
+            <div class="step">
+                2. Survolez une <span class="brick-type entiere">brique entière existante</span> dans la scène 3D
+            </div>
+            <div class="expected">
+                <strong>✅ Résultat attendu :</strong> Lettres commençant par <strong>TE</strong> (Ex: TEA, TEB, TEC...)
+                <div class="letter-examples">
+                    <div class="letter-example">
+                        <div class="letter-code">TEA</div>
+                        <div class="letter-meaning">3/4 sur Entière, position A</div>
+                    </div>
+                    <div class="letter-example">
+                        <div class="letter-code">TEB</div>
+                        <div class="letter-meaning">3/4 sur Entière, position B</div>
+                    </div>
+                    <div class="letter-example">
+                        <div class="letter-code">TEF</div>
+                        <div class="letter-meaning">3/4 sur Entière, position F</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🔍 Comment Vérifier</div>
+            <div class="step">
+                1. <strong>Console de Développement :</strong> Ouvrez F12 et regardez les messages console qui affichent :
+                <br><code>🔧 TYPES DE BRIQUES: Référence (survolée)=..., Placement (sélectionnée)=...</code>
+            </div>
+            <div class="step">
+                2. <strong>Lettres 3D :</strong> Observez les lettres blanches affichées sur les suggestions de placement
+            </div>
+            <div class="step">
+                3. <strong>Couleurs des Suggestions :</strong> Les suggestions doivent être transparentes avec des lettres lisibles
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📊 Légende du Système de Lettrage</div>
+            <div class="letter-examples">
+                <div class="letter-example">
+                    <div class="letter-code">E = Entière</div>
+                    <div class="letter-meaning">Première lettre = Type de placement</div>
+                </div>
+                <div class="letter-example">
+                    <div class="letter-code">H = 1/2</div>
+                    <div class="letter-meaning">H pour Half (1/2)</div>
+                </div>
+                <div class="letter-example">
+                    <div class="letter-code">T = 3/4</div>
+                    <div class="letter-meaning">T pour Three-quarter (3/4)</div>
+                </div>
+                <div class="letter-example">
+                    <div class="letter-code">Q = 1/4</div>
+                    <div class="letter-meaning">Q pour Quarter (1/4)</div>
+                </div>
+            </div>
+            <p style="text-align: center; margin-top: 15px;">
+                <strong>Format :</strong> [Type_Placement][Type_Référence][Position] → Ex: <code>HEA</code> = Brique 1/2 sur Entière en position A
+            </p>
+        </div>
+    </div>
+</body>
+</html>

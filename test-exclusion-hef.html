@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Exclusion HEF, HEE, HEI, HEJ</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e53e3e;
+            margin-bottom: 15px;
+        }
+        .instructions {
+            background-color: #fff5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e53e3e;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
+            border-left: 3px solid #e53e3e;
+        }
+        .excluded-letters {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .excluded-letter {
+            background: #fed7d7;
+            border: 2px solid #e53e3e;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .letter-code {
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            font-weight: bold;
+            color: #e53e3e;
+            margin-bottom: 8px;
+        }
+        .letter-meaning {
+            font-size: 12px;
+            color: #666;
+        }
+        .position-meaning {
+            font-size: 10px;
+            color: #999;
+            margin-top: 5px;
+        }
+        .allowed-letters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .allowed-letter {
+            background: #c6f6d5;
+            border: 2px solid #38a169;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .allowed-letter .letter-code {
+            font-size: 16px;
+            color: #38a169;
+            margin-bottom: 5px;
+        }
+        .verification {
+            background-color: #e6fffa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #38b2ac;
+            margin-top: 20px;
+        }
+        .console-example {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .console-exclusion {
+            color: #f56565;
+        }
+        .console-types {
+            color: #68d391;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚫 Test d'Exclusion des Positions HEF, HEE, HEI, HEJ</h1>
+        
+        <div class="instructions">
+            <h3>🎯 Objectif du Test</h3>
+            <p><strong>Vérifier que les positions HEF, HEE, HEI, HEJ ne sont plus proposées</strong> lorsque l'on veut placer une brique 1/2 (9-10cm) sur une brique entière (19cm).</p>
+            <p><strong>Contexte :</strong> Ces positions spécifiques ont été identifiées comme non souhaitables pour cette combinaison de briques.</p>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🔴 Positions EXCLUES (ne doivent PAS apparaître)</div>
+            
+            <div class="excluded-letters">
+                <div class="excluded-letter">
+                    <div class="letter-code">HEE</div>
+                    <div class="letter-meaning">1/2 sur Entière</div>
+                    <div class="position-meaning">Position E</div>
+                </div>
+                <div class="excluded-letter">
+                    <div class="letter-code">HEF</div>
+                    <div class="letter-meaning">1/2 sur Entière</div>
+                    <div class="position-meaning">Position F</div>
+                </div>
+                <div class="excluded-letter">
+                    <div class="letter-code">HEI</div>
+                    <div class="letter-meaning">1/2 sur Entière</div>
+                    <div class="position-meaning">Position I</div>
+                </div>
+                <div class="excluded-letter">
+                    <div class="letter-code">HEJ</div>
+                    <div class="letter-meaning">1/2 sur Entière</div>
+                    <div class="position-meaning">Position J</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">✅ Positions AUTORISÉES (doivent apparaître)</div>
+            
+            <div class="allowed-letters">
+                <div class="allowed-letter">
+                    <div class="letter-code">HEA</div>
+                    <div class="letter-meaning">Position A</div>
+                </div>
+                <div class="allowed-letter">
+                    <div class="letter-code">HEB</div>
+                    <div class="letter-meaning">Position B</div>
+                </div>
+                <div class="allowed-letter">
+                    <div class="letter-code">HEC</div>
+                    <div class="letter-meaning">Position C</div>
+                </div>
+                <div class="allowed-letter">
+                    <div class="letter-code">HED</div>
+                    <div class="letter-meaning">Position D</div>
+                </div>
+                <div class="allowed-letter">
+                    <div class="letter-code">HEG</div>
+                    <div class="letter-meaning">Position G</div>
+                </div>
+                <div class="allowed-letter">
+                    <div class="letter-code">HEH</div>
+                    <div class="letter-meaning">Position H</div>
+                </div>
+                <div class="allowed-letter">
+                    <div class="letter-code">HES</div>
+                    <div class="letter-meaning">Position S (boutisse)</div>
+                </div>
+                <div class="allowed-letter">
+                    <div class="letter-code">HET</div>
+                    <div class="letter-meaning">Position T (boutisse)</div>
+                </div>
+                <div class="allowed-letter">
+                    <div class="letter-code">HEU</div>
+                    <div class="letter-meaning">Position U (boutisse)</div>
+                </div>
+                <div class="allowed-letter">
+                    <div class="letter-code">HEV</div>
+                    <div class="letter-meaning">Position V (boutisse)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🧪 Procédure de Test</div>
+            
+            <div class="step">
+                <strong>Étape 1 :</strong> Ouvrez l'application principale (index.html)
+            </div>
+            <div class="step">
+                <strong>Étape 2 :</strong> Placez d'abord une brique entière (19cm) dans la scène
+            </div>
+            <div class="step">
+                <strong>Étape 3 :</strong> Sélectionnez une brique 1/2 (9-10cm) dans la barre d'outils
+            </div>
+            <div class="step">
+                <strong>Étape 4 :</strong> Survolez la brique entière placée précédemment
+            </div>
+            <div class="step">
+                <strong>Étape 5 :</strong> Observez les suggestions de placement qui apparaissent
+            </div>
+        </div>
+
+        <div class="verification">
+            <h3>🔍 Comment Vérifier</h3>
+            
+            <p><strong>1. Console de Développement (F12) :</strong></p>
+            <div class="console-example">
+                <div class="console-types">🔧 TYPES DE BRIQUES: Référence (survolée)=entiere, Placement (sélectionnée)=1/2</div>
+                <div class="console-exclusion">🚫 EXCLUSIONS: Référence entiere → Placement 1/2: positions exclues [E, F, I, J]</div>
+            </div>
+            
+            <p><strong>2. Suggestions 3D :</strong></p>
+            <ul>
+                <li>✅ Vous devez voir les lettres : HEA, HEB, HEC, HED, HEG, HEH, HES, HET, HEU, HEV</li>
+                <li>🚫 Vous ne devez PAS voir les lettres : HEE, HEF, HEI, HEJ</li>
+            </ul>
+            
+            <p><strong>3. Test Inverse (pour comparaison) :</strong></p>
+            <p>Sélectionnez une brique entière et survolez une brique entière → vous devez voir EEE, EEF, EEI, EEJ</p>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📋 Résultats Attendus</div>
+            
+            <div class="step">
+                <strong>✅ Succès :</strong> Les positions E, F, I, J sont filtrées et n'apparaissent pas comme suggestions
+            </div>
+            <div class="step">
+                <strong>✅ Succès :</strong> Les positions A, B, C, D, G, H, S, T, U, V sont disponibles
+            </div>
+            <div class="step">
+                <strong>❌ Échec :</strong> Si vous voyez encore HEE, HEF, HEI, ou HEJ, le système d'exclusion ne fonctionne pas
+            </div>
+        </div>
+    </div>
+</body>
+</html>

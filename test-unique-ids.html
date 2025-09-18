@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test des IDs Uniques des Briques</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+        }
+        .error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        .success {
+            border-left-color: #4CAF50;
+            background: #e8f5e8;
+        }
+        .id-list {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test des IDs Uniques des Briques</h1>
+        <p>Ce test vérifie que les briques adjacentes ont des numérotations uniques.</p>
+        
+        <button onclick="testUniqueIds()">Tester la génération d'IDs uniques</button>
+        <button onclick="testRapidCreation()">Test de création rapide (100 briques)</button>
+        <button onclick="clearResults()">Effacer les résultats</button>
+        
+        <div id="results" class="results" style="display: none;">
+            <h3>Résultats du test :</h3>
+            <div id="result-content"></div>
+        </div>
+    </div>
+
+    <!-- Charger WallElement pour tester -->
+    <script src="js/wall-element.js"></script>
+    
+    <script>
+        // Simuler les autres dépendances si nécessaire
+        if (typeof window.DEBUG_WALL_ELEMENT === 'undefined') {
+            window.DEBUG_WALL_ELEMENT = false;
+        }
+
+        function showResults(content, isError = false) {
+            const resultsDiv = document.getElementById('results');
+            const contentDiv = document.getElementById('result-content');
+            
+            resultsDiv.style.display = 'block';
+            resultsDiv.className = isError ? 'results error' : 'results success';
+            contentDiv.innerHTML = content;
+        }
+
+        function clearResults() {
+            document.getElementById('results').style.display = 'none';
+        }
+
+        function testUniqueIds() {
+            console.log('🧪 Test de génération d\'IDs uniques...');
+            
+            const ids = new Set();
+            const duplicates = [];
+            const generatedIds = [];
+            
+            // Générer 50 briques simulées très rapidement
+            for (let i = 0; i < 50; i++) {
+                try {
+                    const element = new WallElement({
+                        type: 'brick',
+                        position: { x: i, y: 0, z: 0 },
+                        rotation: 0,
+                        dimensions: { length: 19, width: 9, height: 6.5 },
+                        material: 'brique-rouge-classique'
+                    });
+                    
+                    if (ids.has(element.id)) {
+                        duplicates.push(element.id);
+                    } else {
+                        ids.add(element.id);
+                    }
+                    
+                    generatedIds.push(element.id);
+                } catch (error) {
+                    console.error('Erreur lors de la création de l\'élément:', error);
+                }
+            }
+            
+            let result = `<strong>Test terminé !</strong><br>`;
+            result += `🔢 Total d'IDs générés : ${generatedIds.length}<br>`;
+            result += `✅ IDs uniques : ${ids.size}<br>`;
+            result += `❌ Doublons détectés : ${duplicates.length}<br>`;
+            
+            if (duplicates.length > 0) {
+                result += `<br><strong>⚠️ IDs en double :</strong><br>`;
+                duplicates.forEach(id => {
+                    result += `- ${id}<br>`;
+                });
+            } else {
+                result += `<br>🎉 <strong>Succès ! Tous les IDs sont uniques.</strong>`;
+            }
+            
+            result += `<div class="id-list">`;
+            result += `<strong>Liste des IDs générés :</strong><br>`;
+            generatedIds.forEach((id, index) => {
+                result += `${index + 1}. ${id}<br>`;
+            });
+            result += `</div>`;
+            
+            showResults(result, duplicates.length > 0);
+        }
+
+        function testRapidCreation() {
+            console.log('🚀 Test de création rapide...');
+            
+            const start = performance.now();
+            const ids = new Set();
+            const duplicates = [];
+            const generatedIds = [];
+            
+            // Créer 100 briques très rapidement pour stresser le système
+            for (let i = 0; i < 100; i++) {
+                try {
+                    const element = new WallElement({
+                        type: 'brick',
+                        position: { x: Math.random() * 20, y: 0, z: Math.random() * 20 },
+                        rotation: 0,
+                        dimensions: { length: 19, width: 9, height: 6.5 },
+                        material: 'brique-rouge-classique'
+                    });
+                    
+                    if (ids.has(element.id)) {
+                        duplicates.push(element.id);
+                    } else {
+                        ids.add(element.id);
+                    }
+                    
+                    generatedIds.push(element.id);
+                } catch (error) {
+                    console.error('Erreur lors de la création rapide:', error);
+                }
+            }
+            
+            const end = performance.now();
+            const duration = (end - start).toFixed(2);
+            
+            let result = `<strong>Test de création rapide terminé !</strong><br>`;
+            result += `⏱️ Durée : ${duration}ms<br>`;
+            result += `🔢 Total d'IDs générés : ${generatedIds.length}<br>`;
+            result += `✅ IDs uniques : ${ids.size}<br>`;
+            result += `❌ Doublons détectés : ${duplicates.length}<br>`;
+            
+            if (duplicates.length > 0) {
+                result += `<br><strong>⚠️ IDs en double :</strong><br>`;
+                duplicates.forEach(id => {
+                    result += `- ${id}<br>`;
+                });
+            } else {
+                result += `<br>🎉 <strong>Succès ! Tous les IDs sont uniques même en création rapide.</strong>`;
+            }
+            
+            // Afficher seulement les 20 premiers IDs pour éviter de surcharger l'interface
+            result += `<div class="id-list">`;
+            result += `<strong>Premiers 20 IDs générés :</strong><br>`;
+            generatedIds.slice(0, 20).forEach((id, index) => {
+                result += `${index + 1}. ${id}<br>`;
+            });
+            if (generatedIds.length > 20) {
+                result += `... et ${generatedIds.length - 20} autres<br>`;
+            }
+            result += `</div>`;
+            
+            showResults(result, duplicates.length > 0);
+        }
+
+        // Lancer un test automatique au chargement pour vérifier
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔧 Page de test chargée. Système de génération d\'IDs prêt.');
+        });
+    </script>
+</body>
+</html>
