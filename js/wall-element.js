@@ -22,6 +22,12 @@ class WallElement {
             height: options.height || 5   // cm
         };
         
+        // Ajout conditionnel des propriétés directes SEULEMENT si elles n'existent pas déjà
+        if (options.width !== undefined) this.width = this.dimensions.width;
+        if (options.height !== undefined) this.height = this.dimensions.height;
+        if (options.length !== undefined) this.length = this.dimensions.length;
+        if (options.width !== undefined) this.depth = this.dimensions.width;
+        
     // Nouveau: nom d'assise (ex: "M65 Assise 2" ou "M65 #2") si fourni
     this.assiseName = options.assiseName || null;
         

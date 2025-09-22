@@ -741,16 +741,19 @@ class SceneManager {
         // quand l'assise était en hauteur (le plan était fixé à Y=0)
         const currentAssiseHeight = window.AssiseManager ? window.AssiseManager.getAssiseHeight(window.AssiseManager.currentAssise) : 0;
         
-        // Mettre à jour la position du plan de collision à la hauteur de l'assise courante
+        // Mettre à jour la position du plan de collision visuel
+        // (utile pour d'autres interactions et repères visuels)
         this.groundPlane.position.y = currentAssiseHeight;
         
+        // Utiliser un plan mathématique infini pour le raycast afin de ne pas être limité
+        // par la taille de la géométrie du groundPlane (permet le placement "loin" dans la scène)
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        const intersects = this.raycaster.intersectObject(this.groundPlane);
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -currentAssiseHeight);
+        const point = new THREE.Vector3();
 
-        if (intersects.length > 0) {
-            const point = intersects[0].point;
+        if (this.raycaster.ray.intersectPlane(plane, point)) {
             const snapToGrid = (value) => Math.round(value / this.gridSpacing) * this.gridSpacing;
-            
+
             const x = snapToGrid(point.x);
             const z = snapToGrid(point.z);
 
@@ -1649,9 +1652,21 @@ class SceneManager {
                             }
                             
                             // Placer l'élément à la position de la souris sur le sol
-                            const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
-                            if (groundIntersects.length > 0) {
-                                const point = groundIntersects[0].point;
+                            // 1) Essayer le plan mathématique infini à la hauteur d'assise courante
+                            const currentAssiseHeight = window.AssiseManager ? window.AssiseManager.getAssiseHeight(window.AssiseManager.currentAssise) : 0;
+                            const infPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -currentAssiseHeight);
+                            const infPoint = new THREE.Vector3();
+                            let point = null;
+                            if (this.raycaster.ray.intersectPlane(infPlane, infPoint)) {
+                                point = infPoint.clone();
+                            } else {
+                                // 2) Repli: essayer l'intersection avec la géométrie du sol si disponible
+                                const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
+                                if (groundIntersects.length > 0) {
+                                    point = groundIntersects[0].point.clone();
+                                }
+                            }
+                            if (point) {
                                 // console.log('🎯 Tentative de placement à la position:', {x: point.x, z: point.z});
                                 
                                 // 🔧 GLB: Détecter si on a un GLB fantôme actif
@@ -1911,12 +1926,19 @@ class SceneManager {
                             }
                         }
                         
-                        // Si pas de face supérieure trouvée, utiliser le sol
+                        // Si pas de face supérieure trouvée, utiliser le sol (plan infini d'abord)
                         if (!placementPoint) {
-                            const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
-                            if (groundIntersects.length > 0) {
-                                placementPoint = groundIntersects[0].point;
+                            const currentAssiseHeight = window.AssiseManager ? window.AssiseManager.getAssiseHeight(window.AssiseManager.currentAssise) : 0;
+                            const infPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -currentAssiseHeight);
+                            const infPoint = new THREE.Vector3();
+                            if (this.raycaster.ray.intersectPlane(infPlane, infPoint)) {
+                                placementPoint = infPoint.clone();
                                 // placementY reste null pour utiliser la hauteur d'assise par défaut
+                            } else {
+                                const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
+                                if (groundIntersects.length > 0) {
+                                    placementPoint = groundIntersects[0].point;
+                                }
                             }
                         }
                         
@@ -2014,12 +2036,19 @@ class SceneManager {
                             }
                         }
                         
-                        // Si pas de face supérieure trouvée, utiliser le sol
+                        // Si pas de face supérieure trouvée, utiliser le sol (plan infini d'abord)
                         if (!placementPoint) {
-                            const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
-                            if (groundIntersects.length > 0) {
-                                placementPoint = groundIntersects[0].point;
+                            const currentAssiseHeight = window.AssiseManager ? window.AssiseManager.getAssiseHeight(window.AssiseManager.currentAssise) : 0;
+                            const infPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -currentAssiseHeight);
+                            const infPoint = new THREE.Vector3();
+                            if (this.raycaster.ray.intersectPlane(infPlane, infPoint)) {
+                                placementPoint = infPoint.clone();
                                 // placementY reste null pour utiliser la hauteur d'assise par défaut
+                            } else {
+                                const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
+                                if (groundIntersects.length > 0) {
+                                    placementPoint = groundIntersects[0].point;
+                                }
                             }
                         }
                         
@@ -2076,7 +2105,19 @@ class SceneManager {
                 */
                 
                 // Placement direct sans vérifier les intersections pour le moment
-                const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
+                // Essayer d'abord l'intersection avec un plan infini à la hauteur de l'assise
+                const currentAssiseHeight = window.AssiseManager ? window.AssiseManager.getAssiseHeight(window.AssiseManager.currentAssise) : 0;
+                const infPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -currentAssiseHeight);
+                const infPoint = new THREE.Vector3();
+                let groundPoint = null;
+                if (this.raycaster.ray.intersectPlane(infPlane, infPoint)) {
+                    groundPoint = infPoint.clone();
+                } else {
+                    const groundIntersects = this.raycaster.intersectObject(this.groundPlane);
+                    if (groundIntersects.length > 0) {
+                        groundPoint = groundIntersects[0].point.clone();
+                    }
+                }
                 
                 /*
                 console.log('🎯 Intersection avec le sol:', {
@@ -2085,8 +2126,8 @@ class SceneManager {
                 });
                 */
                 
-                if (groundIntersects.length > 0) {
-                    const point = groundIntersects[0].point;
+                if (groundPoint) {
+                    const point = groundPoint;
                     // console.log('🎯 Tentative de placement à la position:', { x: point.x, z: point.z });
                     
                     // 🔧 GLB: Détecter si on a un GLB fantôme actif
@@ -2111,7 +2152,8 @@ class SceneManager {
                         this.placeElementAt(point.x, point.z);
                     }
                 } else {
-                    console.warn('⚠️ Aucune intersection avec le sol détectée');
+                    // Aucun point d'intersection trouvé (cas rare: rayon quasi parallèle au plan)
+                    // Ne rien faire pour éviter le bruit en console.
                 }
             } else {
                 // Clic dans le vide - gérer selon le mode d'interaction
@@ -2280,12 +2322,30 @@ class SceneManager {
             width = currentBlock.width;
             height = currentBlock.height;
             
-            // CORRECTION: Ajuster les dimensions selon la coupe active
-            if (blockType && blockType !== type) {
+            // CORRECTION: Ne PAS ajuster les dimensions pour les blocs avec coupes
+            // car BlockSelector a déjà les bonnes dimensions pour tous les types de coupes
+            const hasCutSuffix = originalBlockType && (
+                originalBlockType.includes('_HALF') || 
+                originalBlockType.includes('_34CM') || 
+                originalBlockType.includes('_4CM') || 
+                originalBlockType.includes('_3CM') ||
+                originalBlockType.includes('1/2') ||
+                originalBlockType.includes('1/4') ||
+                originalBlockType.includes('3/4') ||
+                originalBlockType.includes('1Q') ||
+                originalBlockType.includes('3Q') ||
+                originalBlockType.includes('HALF')
+            );
+            
+            if (blockType && blockType !== type && !hasCutSuffix) {
+                console.log('🔧 Ajustement dimensions pour coupe:', blockType, 'depuis', length);
                 const adjustedDimensions = this.adjustDimensionsForCut(length, width, height, blockType);
                 length = adjustedDimensions.length;
                 width = adjustedDimensions.width;
                 height = adjustedDimensions.height;
+                console.log('🔧 Dimensions après ajustement:', length);
+            } else if (hasCutSuffix) {
+                console.log('🔧 Bloc avec coupe détecté - conservation des dimensions BlockSelector:', length);
             }
             // // console.log(`🔧 Dimensions bloc: ${length}x${width}x${height}cm`);
         } else if (type === 'beam' && window.BeamProfiles && window.ConstructionTools) {
@@ -2399,7 +2459,29 @@ class SceneManager {
             }
         }
 
+        // DEBUG: Log elementOptions AVANT création
+        console.warn('========== CRÉATION WALLELEMENT DANS SCENE-MANAGER ==========');
+        console.log('elementOptions AVANT new WallElement:', {
+            type: elementOptions.type,
+            width: elementOptions.width,
+            height: elementOptions.height,
+            depth: elementOptions.depth,
+            length: elementOptions.length,
+            dimensions: elementOptions.dimensions
+        });
+
         const element = new WallElement(elementOptions);
+
+        // DEBUG: Log element APRÈS création
+        console.log('element APRÈS new WallElement:', {
+            id: element.id,
+            type: element.type,
+            width: element.width,
+            height: element.height,
+            depth: element.depth,
+            length: element.length,
+            dimensions: element.dimensions
+        });
 
         // CORRECTION SPÉCIALE: Forcer l'opacité complète pour les isolants placés
         if (element.type === 'insulation' && element.mesh && element.mesh.material) {
@@ -3598,13 +3680,22 @@ class SceneManager {
             -((e.clientY - rect.top) / rect.height) * 2 + 1
         );
 
-        // Calculer le point du monde sous le curseur avant zoom (sur le plan de sol)
+        // Calculer le point du monde sous le curseur avant zoom (plan infini à la hauteur de l'assise)
         this.raycaster.setFromCamera(mouse, this.camera);
         let pointBefore = null;
-        if (this.groundPlane) {
-            const hits = this.raycaster.intersectObject(this.groundPlane);
-            if (hits && hits.length > 0) {
-                pointBefore = hits[0].point.clone();
+        {
+            const planeY = (window.AssiseManager && typeof window.AssiseManager.getAssiseHeight === 'function')
+                ? window.AssiseManager.getAssiseHeight(window.AssiseManager.currentAssise)
+                : (this.groundPlane ? this.groundPlane.position.y : 0);
+            const infPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY);
+            const infPoint = new THREE.Vector3();
+            if (this.raycaster.ray.intersectPlane(infPlane, infPoint)) {
+                pointBefore = infPoint.clone();
+            } else if (this.groundPlane) {
+                const hits = this.raycaster.intersectObject(this.groundPlane);
+                if (hits && hits.length > 0) {
+                    pointBefore = hits[0].point.clone();
+                }
             }
         }
 
@@ -3622,13 +3713,22 @@ class SceneManager {
         // Déplacer la caméra vers/loin du point de focus
         this.camera.position.addScaledVector(toFocus, step * directionFactor);
 
-        // Recalculer le point sous le curseur après le déplacement
+        // Recalculer le point sous le curseur après le déplacement (même logique de plan infini)
         this.raycaster.setFromCamera(mouse, this.camera);
         let pointAfter = null;
-        if (this.groundPlane) {
-            const hitsAfter = this.raycaster.intersectObject(this.groundPlane);
-            if (hitsAfter && hitsAfter.length > 0) {
-                pointAfter = hitsAfter[0].point.clone();
+        {
+            const planeY = (window.AssiseManager && typeof window.AssiseManager.getAssiseHeight === 'function')
+                ? window.AssiseManager.getAssiseHeight(window.AssiseManager.currentAssise)
+                : (this.groundPlane ? this.groundPlane.position.y : 0);
+            const infPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY);
+            const infPoint = new THREE.Vector3();
+            if (this.raycaster.ray.intersectPlane(infPlane, infPoint)) {
+                pointAfter = infPoint.clone();
+            } else if (this.groundPlane) {
+                const hitsAfter = this.raycaster.intersectObject(this.groundPlane);
+                if (hitsAfter && hitsAfter.length > 0) {
+                    pointAfter = hitsAfter[0].point.clone();
+                }
             }
         }
 

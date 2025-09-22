@@ -1,7 +1,7 @@
 ﻿// Outils de construction et de manipulation - Version CORRIGÉE 10/08/2025
 
 // NOUVEAU: Variable globale pour contrôler l'affichage des lettres de proposition adjacente
-window.showAdjacentProposalLetters = false;
+window.showAdjacentProposalLetters = true;
 
 // 🔧 CORRECTION: Encapsuler les fonctions de test dans une IIFE pour éviter les conflits de syntaxe
 (function() {
@@ -112,6 +112,18 @@ window.showAdjacentProposalLetters = false;
         if (window.SceneManager && window.SceneManager.createElement && !window.originalCreateElement) {
             window.originalCreateElement = window.SceneManager.createElement;
             window.SceneManager.createElement = function(type, position, rotation, dimensions, material, layerId) {
+                // Log pour TOUS les éléments, pas seulement les joints
+                console.warn('[CREATEELEMENT-DEBUG] ========== ELEMENT CRÉÉ ==========');
+                console.log('[CREATEELEMENT-DEBUG] createElement appelé:', {
+                    type: type,
+                    layerId: layerId,
+                    position: position,
+                    dimensions: dimensions,
+                    material: material,
+                    stack: new Error().stack.split('\n')[2].trim()
+                });
+                
+                // Log spécial pour les joints
                 if ((layerId && layerId.includes('joint')) || type === 'joint') {
                     console.log('🕵️ JOINT CRÉÉ via createElement:', {
                         type: type,
@@ -129,6 +141,22 @@ window.showAdjacentProposalLetters = false;
         if (window.SceneManager && window.SceneManager.addElement && !window.originalAddElement) {
             window.originalAddElement = window.SceneManager.addElement;
             window.SceneManager.addElement = function(element) {
+                // Log pour TOUS les éléments, pas seulement les joints
+                console.warn('[ADDELEMENT-DEBUG] ========== ELEMENT AJOUTÉ ==========');
+                console.log('[ADDELEMENT-DEBUG] addElement appelé:', {
+                    id: element.id,
+                    type: element.type || element.userData?.type,
+                    position: element.position,
+                    dimensions: element.dimensions,
+                    width: element.width,
+                    height: element.height,
+                    depth: element.depth,
+                    length: element.length,
+                    y: element.position ? element.position.y : 'undefined',
+                    stack: new Error().stack.split('\n')[2].trim()
+                });
+                
+                // Log spécial pour les joints
                 if (element && ((element.id && element.id.includes('joint')) || element.type === 'joint')) {
                     console.log('🕵️ JOINT CRÉÉ via addElement:', {
                         id: element.id,
@@ -144,17 +172,40 @@ window.showAdjacentProposalLetters = false;
         }
         
         // Intercepter WallElement constructor si possible
+        originalConsoleLog('TENTATIVE installation intercepteur WallElement...');
+        originalConsoleLog('WallElement existe:', !!window.WallElement);
+        originalConsoleLog('WallElement déjà tracké:', !!(window.WallElement && window.WallElement._tracked));
+        
         if (window.WallElement && !window.WallElement._tracked) {
+            originalConsoleWarn('INSTALLATION intercepteur WallElement RÉUSSIE !');
             const originalWallElement = window.WallElement;
             window.WallElement = function(config) {
-                if (config && config.type === 'joint') {
-                    console.log('🕵️ JOINT CRÉÉ via WallElement constructor:', {
-                        config: config,
-                        y: config.y,
-                        stack: new Error().stack.split('\n')[2].trim()
-                    });
-                }
+                // Log pour TOUS les WallElement, pas seulement les joints
+                originalConsoleWarn('========== WALLELEMENT CRÉÉ ==========');
+                originalConsoleLog('WallElement constructor appelé:', {
+                    config: config,
+                    type: config?.type,
+                    id: config?.id,
+                    width: config?.width,
+                    height: config?.height,
+                    depth: config?.depth,
+                    length: config?.length,
+                    dimensions: config?.dimensions,
+                    y: config?.y
+                });
+                
                 const element = new originalWallElement(config);
+                
+                // Log des dimensions finales de l'élément créé
+                originalConsoleLog('Dimensions finales après création:', {
+                    id: element.id,
+                    type: element.type,
+                    width: element.width,
+                    height: element.height,
+                    depth: element.depth,
+                    length: element.length
+                });
+                
                 return element;
             };
             // Copier toutes les propriétés statiques
@@ -164,6 +215,11 @@ window.showAdjacentProposalLetters = false;
         }
         
         console.log('🕵️ Intercepteurs installés - WallElement, SceneManager.createElement et addElement');
+        originalConsoleWarn('========== INTERCEPTEURS DEBUG ==========');
+        originalConsoleLog('WallElement disponible:', !!window.WallElement);
+        originalConsoleLog('SceneManager disponible:', !!window.SceneManager);
+        originalConsoleLog('SceneManager.createElement disponible:', !!(window.SceneManager && window.SceneManager.createElement));
+        originalConsoleLog('SceneManager.addElement disponible:', !!(window.SceneManager && window.SceneManager.addElement));
         
         // NOUVEAU: Intercepter aussi les ajouts directs aux éléments SceneManager
         if (window.SceneManager && window.SceneManager.elements && !window.SceneManager._elementsIntercepted) {
@@ -194,6 +250,62 @@ window.showAdjacentProposalLetters = false;
         console.log('');
     };
 })();
+
+// Sauvegarder console.log original AVANT le filtrage
+const originalConsoleLog = window.console.log.bind(window.console);
+const originalConsoleWarn = window.console.warn.bind(window.console);
+
+// Test de chargement - DOIT APPARAÎTRE
+originalConsoleWarn('========== CONSTRUCTION-TOOLS.JS CHARGÉ ==========');
+
+// Fonction pour installer les intercepteurs plus tard
+function installInterceptors() {
+    try {
+        originalConsoleWarn('========== INSTALLATION INTERCEPTEURS ==========');
+        originalConsoleLog('WallElement disponible:', !!window.WallElement);
+        originalConsoleLog('SceneManager disponible:', !!window.SceneManager);
+        
+        // Intercepter WallElement constructor si possible
+        if (window.WallElement && !window.WallElement._tracked) {
+            originalConsoleWarn('INSTALLATION intercepteur WallElement RÉUSSIE !');
+            const originalWallElement = window.WallElement;
+            window.WallElement = function(config) {
+                // Log pour TOUS les WallElement
+                originalConsoleWarn('========== WALLELEMENT CRÉÉ ==========');
+                originalConsoleLog('WallElement config:', config);
+                originalConsoleLog('Dimensions config:', {
+                    width: config?.width,
+                    height: config?.height,
+                    depth: config?.depth,
+                    length: config?.length
+                });
+                
+                const element = new originalWallElement(config);
+                
+                // Log des dimensions finales
+                originalConsoleLog('Dimensions finales:', {
+                    id: element.id,
+                    type: element.type,
+                    width: element.width,
+                    height: element.height,
+                    depth: element.depth,
+                    length: element.length
+                });
+                
+                return element;
+            };
+            
+            // Copier toutes les propriétés statiques
+            Object.setPrototypeOf(window.WallElement, originalWallElement);
+            Object.assign(window.WallElement, originalWallElement);
+            window.WallElement._tracked = true;
+        } else {
+            originalConsoleWarn('WallElement non disponible ou déjà tracké');
+        }
+    } catch (error) {
+        originalConsoleWarn('Erreur installation intercepteurs:', error);
+    }
+}
 
 class ConstructionTools {
     constructor() {
@@ -418,14 +530,24 @@ class ConstructionTools {
             width = currentLinteau.width;
             height = currentLinteau.height;
             
-            // Appliquer les coupes si détectées
+            // ✅ CORRECTION: Ne plus appliquer de coupes automatiques pour les blocs B14 spéciaux
+            // car leurs dimensions sont déjà correctes depuis BrickSelector
             const elementTypeWithCut = this.getElementTypeForMode(this.currentMode);
-            if (elementTypeWithCut && typeof elementTypeWithCut === 'string' && elementTypeWithCut.includes('_')) {
+            const isB14SpecialBlock = elementTypeWithCut && (
+                elementTypeWithCut.includes('B14_34CM') || 
+                elementTypeWithCut.includes('B14_4CM') ||
+                elementTypeWithCut.includes('B14_3CM')
+            );
+            
+            if (!isB14SpecialBlock && elementTypeWithCut && typeof elementTypeWithCut === 'string' && elementTypeWithCut.includes('_')) {
                 const cutSuffix = elementTypeWithCut.split('_')[1];
                 const ratio = this.getCutRatio(cutSuffix);
                 if (ratio && ratio !== 1) {
                     length = Math.round(length * ratio);
+                    console.log(`🔧 Coupe automatique appliquée: ${cutSuffix} (ratio=${ratio}), nouvelle longueur: ${length}`);
                 }
+            } else if (isB14SpecialBlock) {
+                console.log(`🎯 Bloc B14 spécial détecté (${elementTypeWithCut}), pas de coupe automatique appliquée`);
             }
         } else if (this.currentMode === 'beam' && window.BeamProfiles) {
             // Poutres acier procédurales (pivot coin inférieur début)
@@ -2134,8 +2256,11 @@ class ConstructionTools {
     }
 
     placeElementAtCursor(x = null, z = null) {
-        console.log('🎯 DEBUG PLACEMENT: placeElementAtCursor appelé, mode:', this.currentMode);
+        console.warn('========== DÉBUT PLACEMENT ELEMENT ==========');
+        console.log('[PLACEMENT-DEBUG] placeElementAtCursor appelé - Mode:', this.currentMode, 'X:', x, 'Z:', z);
+        console.log('[PLACEMENT-DEBUG] DEBUG PLACEMENT: placeElementAtCursor appelé, mode:', this.currentMode);
         
+        console.log('[PLACEMENT-DEBUG] placeElementAtCursor appelé avec paramètres:', {x, z});
         if (window.DEBUG_CONSTRUCTION) {
             console.log('PLACEMENT DEBUG: placeElementAtCursor appelé avec paramètres:', {x, z});
         }
@@ -2179,14 +2304,38 @@ class ConstructionTools {
             }
         }
 
-        // ✅ CORRECTION FINALE: Utiliser directement BrickSelector au lieu de previewElement.dimensions
-        // car previewElement.dimensions peut être obsolète quand on change de coupe
-        let finalLength, finalWidth, finalHeight, finalBlockType;
+        // ✅ CORRECTION FINALE: Utiliser PRIORITAIREMENT les dimensions du fantôme
+        // car elles sont correctes pour les blocs de coupe, contrairement à BrickSelector
+        console.log('🔍 VÉRIFICATION FANTÔME - ghostElement existe:', !!this.ghostElement);
         
-        if ((this.currentMode === 'brick' || this.currentMode === 'block') && window.BrickSelector) {
+        if (this.ghostElement && this.ghostElement.dimensions) {
+            finalLength = this.ghostElement.dimensions.length;
+            finalWidth = this.ghostElement.dimensions.width;
+            finalHeight = this.ghostElement.dimensions.height;
+            
+            console.log('✅ UTILISATION FANTÔME - Dimensions extraites:', finalLength, finalWidth, finalHeight);
+            
+            // Récupérer le type depuis BrickSelector s'il est disponible
+            if ((this.currentMode === 'brick' || this.currentMode === 'block') && window.BrickSelector) {
+                const currentBrick = window.BrickSelector.getCurrentBrick();
+                finalBlockType = currentBrick?.type || this.getElementTypeForMode(this.currentMode);
+            } else {
+                finalBlockType = this.getElementTypeForMode(this.currentMode);
+            }
+            
+            console.log('🎯 UTILISATION DIMENSIONS FANTÔME (prioritaire):', {
+                blockType: finalBlockType,
+                length: finalLength,
+                width: finalWidth,
+                height: finalHeight,
+                source: 'ghostElement'
+            });
+            
+        } else if ((this.currentMode === 'brick' || this.currentMode === 'block') && window.BrickSelector) {
+            // Fallback vers BrickSelector si ghostElement n'est pas disponible
             const currentBrick = window.BrickSelector.getCurrentBrick();
             
-            console.log('🧱 Placement: Récupération des dimensions depuis BrickSelector:', {
+            console.log('🔄 FALLBACK vers BrickSelector:', {
                 mode: this.currentMode,
                 type: currentBrick?.type,
                 length: currentBrick?.length,
@@ -2198,7 +2347,7 @@ class ConstructionTools {
                 finalLength = currentBrick.length;
                 finalWidth = currentBrick.width;
                 finalHeight = currentBrick.height;
-                finalBlockType = currentBrick.type; // ✅ UTILISER le type exact du BrickSelector
+                finalBlockType = currentBrick.type;
             } else {
                 // Fallback vers previewElement si BrickSelector n'est pas disponible
                 finalLength = this.previewElement.dimensions.length;
@@ -2221,6 +2370,16 @@ class ConstructionTools {
             height: finalHeight
         });
         
+        // ✅ DIAGNOSTIC SUPPLÉMENTAIRE: Logs très détaillés pour traquer le problème
+        console.log('🔍 AVANT création WallElement - Dimensions exactes:', {
+            finalLength,
+            finalWidth, 
+            finalHeight,
+            finalBlockType,
+            'typeof finalLength': typeof finalLength,
+            'isNaN finalLength': isNaN(finalLength)
+        });
+        
         const element = new WallElement({
             type: this.currentMode,
             blockType: finalBlockType, // ✅ UTILISER le type exact avec bonnes dimensions
@@ -2231,6 +2390,24 @@ class ConstructionTools {
             length: finalLength,
             width: finalWidth,
             height: finalHeight
+        });
+
+        // ✅ CORRECTION SCALE: S'assurer que l'élément final a un scale normal (1,1,1)
+        // pour éviter que les animations d'apparition affectent la taille finale
+        if (element.mesh && element.mesh.scale) {
+            element.mesh.scale.set(1, 1, 1);
+            console.log('🔧 Scale de l\'élément final corrigé vers (1,1,1)');
+        }
+        
+        // ✅ DIAGNOSTIC FINAL: Vérifier les dimensions de l'élément créé
+        console.log('🔍 APRÈS création WallElement - Dimensions réelles:', {
+            'element.dimensions': element.dimensions,
+            'element.mesh geometry': element.mesh ? {
+                length: element.mesh.geometry.parameters?.width || 'N/A',
+                width: element.mesh.geometry.parameters?.depth || 'N/A', 
+                height: element.mesh.geometry.parameters?.height || 'N/A'
+            } : 'Pas de mesh',
+            'element.mesh.scale': element.mesh ? element.mesh.scale : 'Pas de mesh'
         });
 
         // Déterminer si on fait de l'empilage vertical sur un élément support
@@ -2543,6 +2720,7 @@ class ConstructionTools {
             case ' ':
                 if (this.isPlacementMode && this.previewElement) {
                     event.preventDefault();
+                    console.log('⌨️ TOUCHE ESPACE PRESSÉE - Appel de placeElementAtCursor()');
                     this.placeElementAtCursor();
                 }
                 break;
@@ -2838,6 +3016,17 @@ class ConstructionTools {
         // console.log('🎯 createPlacementSuggestions appelée pour élément:', hoveredElement.type, hoveredElement.id);
         console.log('🎯 [DEBUG-SUGGESTIONS] createPlacementSuggestions appelée pour élément:', hoveredElement.type, hoveredElement.id);
         
+        // 🔧 DEBUG: État global des modes et sélections
+        if (window.DEBUG_POSITIONS) { // Seulement si debug activé
+            window.forceLog('[DEBUG-GLOBAL-STATE] État global:', {
+                currentMode: this.currentMode,
+                showSuggestions: this.showSuggestions,
+                isInitialized: this.isInitialized,
+                BlockSelector: !!window.BlockSelector,
+                getCurrentBlock: window.BlockSelector && window.BlockSelector.getCurrentBlock ? window.BlockSelector.getCurrentBlock() : 'non disponible'
+            });
+        }
+        
         this.clearSuggestions();
         
         // Masquer immédiatement l'élément fantôme principal pendant les suggestions
@@ -2848,6 +3037,32 @@ class ConstructionTools {
         const suggestions = [];
         const basePos = hoveredElement.position;
         const dims = hoveredElement.dimensions;
+        
+        // Système effectiveWidth : Force B14 à utiliser l'espacement B9 pour tous les calculs de position
+        let effectiveWidth = dims.width; // Largeur effective pour les calculs de position
+        let effectiveLength = dims.length; // Longueur effective pour les calculs de position
+        const activeBlockType = window.BlockSelector && window.BlockSelector.getCurrentBlock ? window.BlockSelector.getCurrentBlock() : null;
+        if (activeBlockType) {
+            if (activeBlockType.includes('B14')) {
+                effectiveWidth = 9; // Utiliser la largeur B9 (9cm au lieu de 14cm)
+                effectiveLength = 39; // Utiliser la longueur B9 (39cm, identique à B9)
+            }
+            // B9 et autres blocs gardent leurs dimensions originales
+        }
+        
+        // 🔧 DEBUG: Log des dimensions et calculs (optionnel)
+        if (window.DEBUG_POSITIONS) {
+            window.forceLog('[DEBUG-POSITIONS] Informations de base:', {
+                elementId: hoveredElement.id,
+                activeBlockType: activeBlockType,
+                dims: dims,
+                originalWidth: dims.width,
+                originalLength: dims.length,
+                effectiveWidth: effectiveWidth,
+                effectiveLength: effectiveLength,
+                position: basePos
+            });
+        }
         const rotation = hoveredElement.rotation;
         
         // Paramètres de joints spécifiques au matériau de l'élément survolé
@@ -2869,10 +3084,26 @@ class ConstructionTools {
         const isBoutisse = (normalizedRotation > Math.PI / 4 && normalizedRotation < 3 * Math.PI / 4) ||
                           (normalizedRotation > 5 * Math.PI / 4 && normalizedRotation < 7 * Math.PI / 4);
         
-        // Calculs proportionnels aux dimensions actuelles pour les suggestions perpendiculaires
-        const perpOffsetX = Math.min(9, dims.length * 0.47); // Minimum 9cm ou 47% de la longueur
-        const perpOffsetReverse = Math.max(19, dims.length * 1.0); // Minimum 19cm ou 100% de la longueur
-        const perpAdjustment = Math.max(14, dims.length * 0.74); // Minimum 14cm ou 74% de la longueur
+        // Calculs proportionnels aux dimensions effectives pour les suggestions perpendiculaires
+        const perpOffsetX = Math.min(9, effectiveLength * 0.47); // Minimum 9cm ou 47% de la longueur effective
+        const perpOffsetReverse = Math.max(19, effectiveLength * 1.0); // Minimum 19cm ou 100% de la longueur effective
+        const perpAdjustment = Math.max(14, effectiveLength * 0.74); // Minimum 14cm ou 74% de la longueur effective
+        
+        // 🔧 DEBUG: Log pour Position C (optionnel)
+        if (window.DEBUG_POSITIONS) {
+            const positionC_Z = dims.width/2 + effectiveLength/2 - perpAdjustment + jointVertical;
+            window.forceLog('[DEBUG-POSITION-C] Calcul détaillé Position C:', {
+                dimsWidth: dims.width,
+                effectiveWidth: effectiveWidth,
+                effectiveLength: effectiveLength,
+                perpAdjustment: perpAdjustment,
+                jointVertical: jointVertical,
+                'dims.width/2': dims.width/2,
+                'effectiveLength/2': effectiveLength/2,
+                'formule': 'dims.width/2 + effectiveLength/2 - perpAdjustment + jointVertical',
+                'resultat_Z': positionC_Z
+            });
+        }
         
         // SYSTÈME ADAPTATIF: Calculs et numérotation selon le type de brique
         // CORRECTION: Utiliser le type de l'élément survolé/cliqué pour déterminer les suggestions
@@ -3041,25 +3272,38 @@ class ConstructionTools {
                     '3/4': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
                     '1/2': ['E', 'F', 'I', 'J'], // EXCLURE E, F, I, J pour brique 1/2 sur entière (éviter HEE, HEF, HEI, HEJ)
                     '1/4': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
-                    'custom': [] // Toutes positions autorisées - pas d'exclusion des perpendiculaires
+                    'custom': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
+                    'block': [] // Toutes positions autorisées pour les blocs
                 },
                 // Brique de référence 3/4 (14-15cm)
                 '3/4': {
                     'entiere': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
                     '1/2': [], // Toutes positions autorisées - AUTORISER les perpendiculaires pour brique 1/2 sur 3/4
-                    '1/4': [] // Toutes positions autorisées - pas d'exclusion des perpendiculaires
+                    '1/4': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
+                    'block': [] // Toutes positions autorisées pour les blocs
                 },
                 // Brique de référence 1/2 (9-10cm)
                 '1/2': {
                     'entiere': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
                     '3/4': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
-                    '1/4': [] // Toutes positions autorisées
+                    '1/4': [], // Toutes positions autorisées
+                    'block': [] // Toutes positions autorisées pour les blocs
                 },
                 // Brique de référence 1/4 (4-5cm)
                 '1/4': {
                     'entiere': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
                     '3/4': [], // Toutes positions autorisées - pas d'exclusion des perpendiculaires
-                    '1/2': [] // Toutes positions autorisées
+                    '1/2': [], // Toutes positions autorisées
+                    'block': [] // Toutes positions autorisées pour les blocs
+                },
+                // Blocs de référence (toutes tailles)
+                'block': {
+                    'entiere': [], // Toutes positions autorisées
+                    '3/4': [], // Toutes positions autorisées
+                    '1/2': [], // Toutes positions autorisées
+                    '1/4': [], // Toutes positions autorisées
+                    'block': [], // Toutes positions autorisées pour bloc sur bloc
+                    'custom': [] // Toutes positions autorisées
                 }
             };
             
@@ -3080,6 +3324,27 @@ class ConstructionTools {
             if (excludedPositions.includes(basePosition)) {
                 return null; // Position exclue - ne pas créer de suggestion
             }
+            
+            // Fonction pour obtenir le type de proposition selon la position
+            const getPropositionType = (position) => {
+                const types = {
+                    'A': 'continuité-droite',
+                    'B': 'continuité-gauche',
+                    'C': 'perpendiculaire-frontale-droite',
+                    'D': 'perpendiculaire-frontale-gauche',
+                    'E': 'perpendiculaire-dorsale-droite',
+                    'F': 'perpendiculaire-dorsale-gauche',
+                    'G': 'angle-panneresse-droite',
+                    'H': 'angle-panneresse-gauche',
+                    'I': 'angle-panneresse-droite-arrière',
+                    'J': 'angle-panneresse-gauche-arrière',
+                    'S': 'angle-boutisse-droite',
+                    'T': 'angle-boutisse-gauche',
+                    'U': 'angle-boutisse-droite-avant',
+                    'V': 'angle-boutisse-gauche-avant'
+                };
+                return types[position] || 'inconnu';
+            };
             
             // Déterminer l'orientation basée sur la clé de position elle-même, pas sur l'élément de référence
             // A-J = panneresse, S-V = boutisse
@@ -3173,8 +3438,27 @@ class ConstructionTools {
                 
                 // Systèmes pour blocs et custom
                 'block': {
-                    panneresse: { A: '1', B: '2', C: '3', D: '4', E: '5', F: '6', G: '7', H: '8', I: '9', J: '10' },
-                    boutisse: { S: '1b', T: '2b', U: '3b', V: '4b' }
+                    // Numérotation unique et indépendante pour les blocs
+                    // Continuité longitudinale
+                    panneresse: { 
+                        A: 'BL1',  // Bloc continuité droite
+                        B: 'BL2',  // Bloc continuité gauche
+                        C: 'BL3',  // Bloc perpendiculaire frontale droite
+                        D: 'BL4',  // Bloc perpendiculaire frontale gauche
+                        E: 'BL5',  // Bloc perpendiculaire dorsale droite
+                        F: 'BL6',  // Bloc perpendiculaire dorsale gauche
+                        G: 'BL7',  // Bloc angle panneresse droite
+                        H: 'BL8',  // Bloc angle panneresse gauche
+                        I: 'BL9',  // Bloc angle panneresse droite arrière
+                        J: 'BL10'  // Bloc angle panneresse gauche arrière
+                    },
+                    // Angles boutisse
+                    boutisse: { 
+                        S: 'BB1',  // Bloc angle boutisse droite
+                        T: 'BB2',  // Bloc angle boutisse gauche
+                        U: 'BB3',  // Bloc angle boutisse droite avant
+                        V: 'BB4'   // Bloc angle boutisse gauche avant
+                    }
                 },
                 'custom': {
                     panneresse: { A: '?A', B: '?B', C: '?C', D: '?D', E: '?E', F: '?F', G: '?G', H: '?H', I: '?I', J: '?J' },
@@ -3184,8 +3468,61 @@ class ConstructionTools {
             
             // Créer la clé combinée pour le système de lettres
             let systemKey;
+            let blockSubType = null;
+            
             if (placementBrickType === 'block' || placementBrickType === 'custom' || placementBrickType === 'other') {
                 systemKey = placementBrickType;
+                
+                // NOUVEAU: Détection du sous-type de bloc pour numérotation spécifique
+                // CORRECTION: Utiliser le bloc SOURCE (hoveredElement) pour déterminer la numérotation
+                // plutôt que le bloc sélectionné dans BlockSelector
+                if (placementBrickType === 'block') {
+                    console.log(`🔧 [CORRECTION NUMÉROTATION] Bloc détecté - source: ${hoveredElement?.blockType}, sélectionné: ${window.BlockSelector?.getCurrentBlock?.()}`);
+                    
+                    // PRIORITÉ 1: Utiliser le bloc source (celui cliqué) pour la numérotation
+                    if (hoveredElement && hoveredElement.blockType) {
+                        const sourceBlockId = hoveredElement.blockType;
+                        console.log(`🔧 [CORRECTION NUMÉROTATION] Utilisation du bloc source: ${sourceBlockId}`);
+                        
+                        // Extraire le type de base ET le suffixe de coupe (B9_HALF, B14_3Q, B14_34CM, B14_4CM, etc.)
+                        const fullType = sourceBlockId.match(/^(B\d+)(_HALF|_3Q|_1Q|_34CM|_4CM)?/);
+                        if (fullType) {
+                            const baseType = fullType[1]; // B9, B14, etc.
+                            const cutSuffix = fullType[2]; // _HALF, _3Q, _1Q, _34CM, _4CM ou undefined
+                            
+                            // Créer un identifiant complet pour les coupes
+                            if (cutSuffix) {
+                                blockSubType = baseType + cutSuffix; // B9_HALF, B14_3Q, etc.
+                            } else {
+                                blockSubType = baseType; // B9, B14, etc. (bloc entier)
+                            }
+                            
+                            console.log(`🔧 [CORRECTION NUMÉROTATION] Type détecté: ${blockSubType} (depuis bloc source)`);
+                        } else {
+                            console.log(`🔧 [CORRECTION NUMÉROTATION] Format non reconnu: ${sourceBlockId}`);
+                        }
+                    }
+                    // PRIORITÉ 2: Fallback vers BlockSelector si hoveredElement.blockType non disponible
+                    else if (window.BlockSelector && window.BlockSelector.getCurrentBlock) {
+                        const currentBlockId = window.BlockSelector.getCurrentBlock();
+                        if (currentBlockId) {
+                            console.log(`🔧 [CORRECTION NUMÉROTATION] Fallback - utilisation BlockSelector: ${currentBlockId}`);
+                            // Extraire le type de base ET le suffixe de coupe (B9_HALF, B14_3Q, B14_34CM, B14_4CM, etc.)
+                            const fullType = currentBlockId.match(/^(B\d+)(_HALF|_3Q|_1Q|_34CM|_4CM)?/);
+                            if (fullType) {
+                                const baseType = fullType[1]; // B9, B14, etc.
+                                const cutSuffix = fullType[2]; // _HALF, _3Q, _1Q ou undefined
+                                
+                                // Créer un identifiant complet pour les coupes
+                                if (cutSuffix) {
+                                    blockSubType = baseType + cutSuffix; // B9_HALF, B14_3Q, etc.
+                                } else {
+                                    blockSubType = baseType; // B9, B14, etc. (bloc entier)
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
                 systemKey = `${placementBrickType}_${referenceBrickType}`;
             }
@@ -3196,6 +3533,194 @@ class ConstructionTools {
             const system = combinedLetteringSystems[systemKey] || combinedLetteringSystems['custom'];
             
             const proposedLetter = system[orientation] && system[orientation][basePosition];
+            
+            // NOUVEAU: Pour les blocs, personnaliser la numérotation selon le sous-type
+            let finalLetter = proposedLetter;
+            if (systemKey === 'block' && blockSubType && proposedLetter) {
+                // CORRECTION MAJEURE: Déterminer aussi le type du bloc À PLACER
+                let placementBlockSubType = null;
+                if (window.BlockSelector && window.BlockSelector.getCurrentBlock) {
+                    const placementBlockId = window.BlockSelector.getCurrentBlock();
+                    if (placementBlockId) {
+                        const fullPlacementType = placementBlockId.match(/^(B\d+)(_HALF|_3Q|_1Q|_34CM|_4CM)?/);
+                        if (fullPlacementType) {
+                            const baseType = fullPlacementType[1]; // B9, B14, etc.
+                            const cutSuffix = fullPlacementType[2]; // _HALF, _3Q, _1Q, _34CM, _4CM ou undefined
+                            
+                            if (cutSuffix) {
+                                placementBlockSubType = baseType + cutSuffix; // B9_HALF, B14_3Q, etc.
+                            } else {
+                                placementBlockSubType = baseType; // B9, B14, etc. (bloc entier)
+                            }
+                        }
+                    }
+                }
+                
+                console.log(`🔧 [NUMÉROTATION COMBINÉE] Source: ${blockSubType}, À placer: ${placementBlockSubType}`);
+                console.log(`🔧 [DEBUG] hoveredElement.blockType: ${hoveredElement?.blockType}`);
+                console.log(`🔧 [DEBUG] BlockSelector.getCurrentBlock(): ${window.BlockSelector?.getCurrentBlock?.()}`);
+                
+                // Système de numérotation combinée SOURCE → PLACEMENT
+                const combinedBlockTypePrefix = {
+                    // === BLOCS B9 ENTIERS → différents types ===
+                    'B9_B9': '0901',         // B9 entier → B9 entier
+                    'B9_B9_HALF': '0902',    // B9 entier → B9 demi
+                    'B9_B9_3Q': '0903',      // B9 entier → B9 3/4
+                    'B9_B9_1Q': '0904',      // B9 entier → B9 1/4
+                    
+                    // === BLOCS B9 3/4 → différents types ===
+                    'B9_3Q_B9': '9301',     // B9 3/4 → B9 entier
+                    'B9_3Q_B9_HALF': '9302', // B9 3/4 → B9 demi
+                    'B9_3Q_B9_3Q': '9303',   // B9 3/4 → B9 3/4
+                    'B9_3Q_B9_1Q': '9304',   // B9 3/4 → B9 1/4
+                    
+                    // === BLOCS B9 DEMI → différents types ===
+                    'B9_HALF_B9': '9501',       // B9 demi → B9 entier
+                    'B9_HALF_B9_HALF': '9502',  // B9 demi → B9 demi
+                    'B9_HALF_B9_3Q': '9503',    // B9 demi → B9 3/4
+                    'B9_HALF_B9_1Q': '9504',    // B9 demi → B9 1/4
+                    
+                    // === BLOCS B9 1/4 → différents types ===
+                    'B9_1Q_B9': '9101',      // B9 1/4 → B9 entier
+                    'B9_1Q_B9_HALF': '9102', // B9 1/4 → B9 demi
+                    'B9_1Q_B9_3Q': '9103',   // B9 1/4 → B9 3/4
+                    'B9_1Q_B9_1Q': '9104',   // B9 1/4 → B9 1/4
+                    
+                    // === BLOCS B14 ENTIERS → différents types ===
+                    'B14_B14': '1401',       // B14 entier → B14 entier
+                    'B14_B14_HALF': '1402',  // B14 entier → B14 demi
+                    'B14_B14_3Q': '1403',    // B14 entier → B14 3/4
+                    'B14_B14_1Q': '1404',    // B14 entier → B14 1/4
+                    
+                    // === BLOCS B14 3/4 → différents types ===
+                    'B14_3Q_B14': '4301',     // B14 3/4 → B14 entier
+                    'B14_3Q_B14_HALF': '4302', // B14 3/4 → B14 demi
+                    'B14_3Q_B14_3Q': '4303',   // B14 3/4 → B14 3/4
+                    'B14_3Q_B14_1Q': '4304',   // B14 3/4 → B14 1/4
+                    
+                    // === BLOCS B14 34CM → différents types ===
+                    'B14_34CM_B14': '3401',     // B14 34cm → B14 entier
+                    'B14_34CM_B14_HALF': '3402', // B14 34cm → B14 demi
+                    'B14_34CM_B14_3Q': '3403',   // B14 34cm → B14 3/4
+                    'B14_34CM_B14_1Q': '3404',   // B14 34cm → B14 1/4
+                    'B14_34CM_B14_34CM': '3434', // B14 34cm → B14 34cm
+                    'B14_34CM_B14_4CM': '3440',  // B14 34cm → B14 4cm
+                    
+                    // === BLOCS B14 4CM → différents types ===
+                    'B14_4CM_B14': '0401',       // B14 4cm → B14 entier
+                    'B14_4CM_B14_HALF': '0402',  // B14 4cm → B14 demi
+                    'B14_4CM_B14_3Q': '0403',    // B14 4cm → B14 3/4
+                    'B14_4CM_B14_1Q': '0404',    // B14 4cm → B14 1/4
+                    'B14_4CM_B14_34CM': '0434',  // B14 4cm → B14 34cm
+                    'B14_4CM_B14_4CM': '0440',   // B14 4cm → B14 4cm
+                    
+                    // === BLOCS B14 1/4 → différents types ===
+                    'B14_1Q_B14': '1405',       // B14 1/4 → B14 entier (différent de 0401)
+                    'B14_1Q_B14_HALF': '1406',  // B14 1/4 → B14 demi
+                    'B14_1Q_B14_3Q': '1407',    // B14 1/4 → B14 3/4
+                    'B14_1Q_B14_1Q': '1408',    // B14 1/4 → B14 1/4
+                    'B14_1Q_B14_34CM': '1435',  // B14 1/4 → B14 34cm
+                    'B14_1Q_B14_4CM': '1441',   // B14 1/4 → B14 4cm
+                    
+                    // === ORDRE INVERSE: Bloc entier → blocs coupés ===
+                    'B14_B14_34CM': '1434',     // B14 entier → B14 34cm (ordre inverse)
+                    'B14_B14_4CM': '1440',      // B14 entier → B14 4cm (ordre inverse)
+                    
+                    // === BLOCS B19 ENTIERS → différents types ===
+                    'B19_B19': '1901',       // B19 entier → B19 entier
+                    'B19_B19_HALF': '1902',  // B19 entier → B19 demi
+                    'B19_B19_3Q': '1903',    // B19 entier → B19 3/4
+                    'B19_B19_1Q': '1904',    // B19 entier → B19 1/4
+                    
+                    // === BLOCS B19 3/4 → différents types ===
+                    'B19_3Q_B19': '8301',     // B19 3/4 → B19 entier
+                    'B19_3Q_B19_HALF': '8302', // B19 3/4 → B19 demi
+                    'B19_3Q_B19_3Q': '8303',   // B19 3/4 → B19 3/4
+                    'B19_3Q_B19_1Q': '8304',   // B19 3/4 → B19 1/4
+                    
+                    // === BLOCS B19 DEMI → différents types ===
+                    'B19_HALF_B19': '8501',       // B19 demi → B19 entier
+                    'B19_HALF_B19_HALF': '8502',  // B19 demi → B19 demi
+                    'B19_HALF_B19_3Q': '8503',    // B19 demi → B19 3/4
+                    'B19_HALF_B19_1Q': '8504',    // B19 demi → B19 1/4
+                    
+                    // === BLOCS B19 1/4 → différents types ===
+                    'B19_1Q_B19': '1905',       // B19 1/4 → B19 entier
+                    'B19_1Q_B19_HALF': '1906',  // B19 1/4 → B19 demi
+                    'B19_1Q_B19_3Q': '1907',    // B19 1/4 → B19 3/4
+                    'B19_1Q_B19_1Q': '1908',    // B19 1/4 → B19 1/4
+                    
+                    // === BLOCS B19 sur différents sous-types (combinaisons manquantes) ===
+                    'B19_B19_1Q': '1910',       // B19 entier sur B19 1/4
+                    'B19_B19_HALF': '1911',     // B19 entier sur B19 demi
+                    'B19_B19_3Q': '1912',       // B19 entier sur B19 3/4
+                    
+                    // === BLOCS B29 ENTIERS → différents types ===
+                    'B29_B29': '2901',       // B29 entier → B29 entier
+                    'B29_B29_HALF': '2902',  // B29 entier → B29 demi
+                    'B29_B29_3Q': '2903',    // B29 entier → B29 3/4
+                    'B29_B29_1Q': '2904',    // B29 entier → B29 1/4
+                    
+                    // === BLOCS B29 3/4 → différents types ===
+                    'B29_3Q_B29': '7301',     // B29 3/4 → B29 entier
+                    'B29_3Q_B29_HALF': '7302', // B29 3/4 → B29 demi
+                    'B29_3Q_B29_3Q': '7303',   // B29 3/4 → B29 3/4
+                    'B29_3Q_B29_1Q': '7304',   // B29 3/4 → B29 1/4
+                    
+                    // === BLOCS B29 DEMI → différents types ===
+                    'B29_HALF_B29': '7501',       // B29 demi → B29 entier
+                    'B29_HALF_B29_HALF': '7502',  // B29 demi → B29 demi
+                    'B29_HALF_B29_3Q': '7503',    // B29 demi → B29 3/4
+                    'B29_HALF_B29_1Q': '7504',    // B29 demi → B29 1/4
+                    
+                    // === BLOCS B29 1/4 → différents types ===
+                    'B29_1Q_B29': '2905',       // B29 1/4 → B29 entier
+                    'B29_1Q_B29_HALF': '2906',  // B29 1/4 → B29 demi
+                    'B29_1Q_B29_3Q': '2907',    // B29 1/4 → B29 3/4
+                    'B29_1Q_B29_1Q': '2908',    // B29 1/4 → B29 1/4
+                    
+                    // === BLOCS B29 sur différents sous-types (combinaisons manquantes) ===
+                    'B29_B29_1Q': '2910',       // B29 entier sur B29 1/4
+                    'B29_B29_HALF': '2911',     // B29 entier sur B29 demi
+                    'B29_B29_3Q': '2912',       // B29 entier sur B29 3/4
+                    
+                    // Fallback vers l'ancien système si combinaison non trouvée
+                    'B9': '09',   // Blocs B9 entiers -> 09xx
+                    'B14': '14',  // Blocs B14 entiers -> 14xx
+                    'B19': '19',  // Blocs B19 entiers -> 19xx
+                    'B29': '29',  // Blocs B29 entiers -> 29xx
+                    'B9_HALF': '95',   // Blocs B9 demi -> 95xx
+                    'B14_HALF': '45',  // Blocs B14 demi -> 45xx
+                    'B9_3Q': '93',     // Blocs B9 3/4 -> 93xx
+                    'B14_3Q': '43',    // Blocs B14 3/4 -> 43xx
+                    'B9_1Q': '91',     // Blocs B9 1/4 -> 91xx
+                    'B14_1Q': '41',    // Blocs B14 1/4 -> 41xx
+                    'B14_34CM': '34',  // Blocs B14 34cm -> 34xx
+                    'B14_4CM': '04'    // Blocs B14 4cm -> 04xx
+                };
+                
+                // Créer la clé combinée source_placement
+                const combinedKey = placementBlockSubType ? `${blockSubType}_${placementBlockSubType}` : blockSubType;
+                const prefix = combinedBlockTypePrefix[combinedKey] || combinedBlockTypePrefix[blockSubType];
+                
+                if (prefix) {
+                    // Extraire le numéro de la proposition (BL1 -> 1, BB2 -> 2)
+                    const numberMatch = proposedLetter.match(/(\d+)$/);
+                    if (numberMatch) {
+                        const propNumber = numberMatch[1].padStart(2, '0');
+                        finalLetter = `${prefix}${propNumber}`;
+                        window.forceLog(`🏗️ BLOC COMBINÉ ${combinedKey}: Position ${basePosition} (${getPropositionType(basePosition)}) → Identifiant: ${finalLetter}`);
+                    }
+                } else {
+                    console.log(`🏗️ BLOC GÉNÉRIQUE: Position ${basePosition} (${getPropositionType(basePosition)}) → Identifiant: ${finalLetter}`);
+                }
+            }
+            
+            // EXCLUSION SPÉCIFIQUE: Ne pas afficher les angles panneresse pour certains types de blocs
+            if ((blockSubType === 'B14_HALF') && ['G', 'H', 'I', 'J'].includes(basePosition)) {
+                console.log(`🚫 EXCLUSION ${blockSubType}: Position ${basePosition} (${getPropositionType(basePosition)}) exclue pour les blocs ${blockSubType}`);
+                return null; // Exclure ces positions spécifiquement pour B9_1Q et B14_HALF
+            }
             
             // Debug pour identifier les cas où le système échoue
             if (!proposedLetter) {
@@ -3210,13 +3735,23 @@ class ConstructionTools {
                 return null; // Position spécifiquement exclue
             }
             
-            // Toutes les lettres sont maintenant autorisées - restrictions BB, AA, RR, CC, DD supprimées
-            return proposedLetter;
+            // Retourner la lettre finale (personnalisée pour les blocs ou standard)
+            return finalLetter;
         };
         
         // FONCTION D'AJUSTEMENT SPÉCIFIQUE PAR LETTRE (système complètement indépendant)
         const getPositionAdjustments = (letter) => {
             if (!letter) return { x: 0, z: 0 };
+            
+            // Debug logging pour B14
+            if (letter && (letter.includes('140103') || letter.includes('140104') || letter.includes('140105') || letter.includes('140106'))) {
+                window.forceLog(`🔧 [DÉCALAGES B14] Recherche décalage pour: "${letter}"`);
+            }
+            
+            // EXCLUSION DIRECTE: Angles panneresse B9_1Q, B14_HALF, B14_1Q, B29 Perpendiculaires, B19_HALF, B19_1Q Angles panneresse, B29_3Q Perpendiculaires et B29_3Q Angles panneresse + Propositions 3/4, 1/2, 1/4, 34cm sur blocs 4cm + Propositions 3/4, 34cm sur blocs 34cm + Propositions 1/4 sur blocs 1/4 + Propositions 4cm sur blocs 1/4 ne doivent pas être affichés - AFFICHER 043403/043404/043405/043406 (perpendiculaires B14_4CM→B14_34CM) et 344003/344004/344005/344006 (perpendiculaires B14_34CM→B14_4CM) - MASQUER 043407/043408/043409/043410 (angles B14_4CM→B14_34CM) et 344007/344008/344009/344010 (angles B14_34CM→B14_4CM) et 044001-044010 (série complète) et 191107/191108/191109/191110 (angles B19→B19_DEMI) et 191007/191008/191009/191010 (angles B19→B19_1Q) et 830207/830208/830209/830210 (angles B19_3Q→B19_HALF) et 830407/830408/830409/830410 (angles B19_3Q→B19_1Q) et 830403/830404/830405/830406 (perpendiculaires B19_3Q→B19_1Q) et 850103/850106 (perpendiculaires B19_HALF→B19) et 850304/850306/850307/850308/850309/850310 (perpendiculaires et angles B19_HALF→B19_3Q) et 850203/850205/850207/850208/850209/850210 (perpendiculaires et angles B19_HALF→B19_1Q) et 850403/850405/850407/850408/850409/850410 (perpendiculaires et angles B19_HALF→B19_HALF)
+            if (['9107', '9108', '9109', '9110', '4507', '4508', '4509', '4510', '4107', '4108', '4109', '4110', '2903', '2904', '2905', '2906', '8507', '8508', '8509', '8510', '8107', '8108', '8109', '8110', '7303', '7304', '7305', '7306', '7307', '7308', '7309', '7310', '910104', '910106', '090407', '090408', '090409', '090410', '950407', '950408', '950409', '950410', '930303', '930304', '930305', '930306', '930307', '930308', '930309', '930310', '930407', '930408', '930409', '930410', '950207', '950208', '950209', '950210', '950203', '950204', '950205', '950206', '910401', '910402', '910403', '910404', '910405', '910406', '910407', '910408', '910409', '910410', '910201', '910202', '910203', '910204', '910205', '910206', '910207', '910208', '910209', '910210', '910301', '910302', '910303', '910304', '910305', '910306', '910307', '910308', '910309', '910310', '140407', '140408', '140409', '140410', '430303', '430304', '430305', '430306', '430307', '430308', '430309', '430310', '430407', '430408', '430409', '430410', '040103', '040104', '040105', '040106', '340201', '340202', '340203', '340204', '340205', '340206', '340207', '340208', '340209', '340210', '340401', '340402', '340403', '340404', '340405', '340406', '340407', '340408', '340409', '340410', '344001', '344002', '344007', '344008', '344009', '344010', '343401', '343402', '343403', '343404', '343405', '343406', '343407', '343408', '343409', '343410', '144007', '144008', '144009', '144010', '040201', '040202', '040203', '040204', '040205', '040206', '040207', '040208', '040209', '040210', '040301', '040302', '040303', '040304', '040305', '040306', '040307', '040308', '040309', '040310', '040401', '040402', '040403', '040404', '040405', '040406', '040407', '040408', '040409', '040410', '043401', '043402', '043407', '043408', '043409', '043410', '044001', '044002', '044003', '044004', '044005', '044006', '044007', '044008', '044009', '044010', '191007', '191008', '191009', '191010', '191107', '191108', '191109', '191110', '340301', '340302', '340303', '340304', '340305', '340306', '340307', '340308', '340309', '340310', '140503', '140504', '140505', '140506', '140801', '140802', '140803', '140804', '140805', '140806', '140807', '140808', '140809', '140810', '140603', '140604', '140605', '140606', '140607', '140608', '140609', '140610', '140703', '140704', '140705', '140706', '140707', '140708', '140709', '140710', '144101', '144102', '144103', '144104', '144105', '144106', '144107', '144108', '144109', '144110', '143503', '143504', '143505', '143506', '143507', '143508', '143509', '143510', '830207', '830208', '830209', '830210', '830407', '830408', '830409', '830410', '830403', '830404', '830405', '830406', '850103', '850106', '850304', '850306', '850307', '850308', '850309', '850310', '850203', '850205', '850207', '850208', '850209', '850210', '850403', '850405', '850407', '850408', '850409', '850410'].includes(letter)) {
+                return null; // Forcer l'exclusion de ces identifiants
+            }
             
             // Ajustements spécifiques par lettre - système à 3 caractères complètement indépendant
             const adjustments = {
@@ -3316,41 +3851,512 @@ class ConstructionTools {
                 'QQI': { x: 0, z: 0 }, 'QQJ': { x: 0, z: 0 }, 'QQS': { x: 0, z: 0 }, 'QQT': { x: 0, z: 0 },
                 'QQU': { x: 0, z: 0 }, 'QQV': { x: 0, z: 0 },
                 
+                // === SYSTÈME BLOCS GÉNÉRIQUES (BL/BB + numéros spécifiques par type) ===
+                // Continuité longitudinale
+                'BL1': { x: 0, z: 0 }, 'BL2': { x: 0, z: 0 }, 
+                // Perpendiculaires
+                'BL3': { x: 0, z: 0 }, 'BL4': { x: 0, z: 0 }, 'BL5': { x: 0, z: 0 }, 'BL6': { x: 0, z: 0 },
+                // Angles panneresse  
+                'BL7': { x: 0, z: 0 }, 'BL8': { x: 0, z: 0 }, 'BL9': { x: 0, z: 0 }, 'BL10': { x: 0, z: 0 },
+                // Angles boutisse
+                'BB1': { x: 0, z: 0 }, 'BB2': { x: 0, z: 0 }, 'BB3': { x: 0, z: 0 }, 'BB4': { x: 0, z: 0 },
+                
+                // === SYSTÈME BLOCS B9 (09XX) ===
+                // Continuité longitudinale B9
+                '0901': { x: 0, z: 0 }, '0902': { x: 0, z: 0 },
+                // Perpendiculaires B9
+                '0903': { x: 0, z: 5 }, '0904': { x: 0, z: 5 }, '0905': { x: 0, z: -10 }, '0906': { x: 0, z: -10 },
+                // Angles panneresse B9
+                '0907': { x: 10, z: 12 }, '0908': { x: 10, z: 12 }, '0909': { x: 10, z: -10 }, '0910': { x: 10, z: -10 },
+                
+                // === SYSTÈME BLOCS B9 COMBINÉ (NOUVEAU) ===
+                // B9 entier → B9 entier (0901XX)
+                '090101': { x: 0, z: 0 }, '090102': { x: 0, z: 0 }, // Continuité longitudinale
+                '090103': { x: 0, z: 5 }, '090104': { x: 0, z: 5 }, // Perpendiculaires frontales (-5cm par rapport à z: 10)
+                '090105': { x: 0, z: -10 }, '090106': { x: 0, z: -10 }, // Perpendiculaires dorsales
+                '090107': { x: 10, z: 12 }, '090108': { x: 10, z: 12 }, // Angles panneresse frontaux
+                '090109': { x: 10, z: -10 }, '090110': { x: 10, z: -10 }, // Angles panneresse dorsaux
+                
+                // B9 entier → B9 demi (0902XX)
+                '090201': { x: 0, z: 0 }, '090202': { x: 0, z: 0 }, // Continuité longitudinale
+                '090203': { x: 0, z: 5 }, '090204': { x: 0, z: 5 }, // Perpendiculaires frontales
+                '090205': { x: 0, z: 10 }, '090206': { x: 0, z: 10 }, // Perpendiculaires dorsales (avance 20cm en Z)
+                '090207': { x: 10, z: 12 }, '090208': { x: 10, z: 12 }, // Angles panneresse frontaux (090207 et 090208 avancent 10cm en X)
+                '090209': { x: 10, z: 10 }, '090210': { x: 10, z: 10 }, // Angles panneresse dorsaux (090209 et 090210 avancent 10cm en X, avance 20cm en Z)
+                
+                // B9 entier → B9 3/4 (0903XX)
+                '090301': { x: 0, z: 0 }, '090302': { x: 10, z: 0 }, // Continuité longitudinale (090302 avance 10cm en X)
+                '090303': { x: 0, z: 5 }, '090304': { x: 0, z: 5 }, // Perpendiculaires frontales
+                '090305': { x: 0, z: 0 }, '090306': { x: 0, z: 0 }, // Perpendiculaires dorsales (avance 10cm en Z)
+                '090307': { x: 10, z: 12 }, '090308': { x: 10, z: 12 }, // Angles panneresse frontaux (090307 et 090308 avancent 10cm en X)
+                '090309': { x: 10, z: 0 }, '090310': { x: 10, z: 0 }, // Angles panneresse dorsaux (090309 et 090310 avancent 10cm en X)
+                
+                // B9 entier → B9 1/4 (0904XX)
+                '090401': { x: 0, z: 0 }, '090402': { x: 30, z: 0 }, // Continuité longitudinale (090402 avance 30cm en X)
+                '090403': { x: 0, z: 5 }, '090404': { x: 0, z: 5 }, // Perpendiculaires frontales
+                '090405': { x: 0, z: 20 }, '090406': { x: 0, z: 20 }, // Perpendiculaires dorsales (090405 et 090406 avancent 30cm en Z)
+                '090407': { x: 10, z: 22 }, '090408': { x: 10, z: 22 }, // Angles panneresse frontaux (090407 et 090408 avancent 10cm en X+Z)
+                '090409': { x: 10, z: 10 }, '090410': { x: 10, z: 10 }, // Angles panneresse dorsaux (090409 et 090410 avancent 10cm en X+Z)
+                
+                // B9 3/4 → B9 entier (9301XX)
+                '930101': { x: 0, z: 0 }, '930102': { x: -10, z: 0 }, // Continuité longitudinale (-20cm en X pour 930102)
+                '930103': { x: 0, z: 2 }, '930104': { x: 0, z: 2 }, // Perpendiculaires frontales (-3cm par rapport à z: 5)
+                '930105': { x: 0, z: -25 }, '930106': { x: 0, z: -25 }, // Perpendiculaires dorsales (-25cm)
+                '930107': { x: 5, z: 11.5 }, '930108': { x: 5, z: 7 }, // Angles panneresse frontaux (-5cm en X, 930107 recule 5cm en Z)
+                '930109': { x: 5, z: -25 }, '930110': { x: 5, z: -25 }, // Angles panneresse dorsaux (-5cm en X)
+                
+                // B9 3/4 → B9 demi (9302XX)
+                '930201': { x: 0, z: 0 }, '930202': { x: 0, z: 0 }, // Continuité longitudinale (930202 recule 10cm en X)
+                '930203': { x: 0, z: 2 }, '930204': { x: 0, z: 2 }, // Perpendiculaires frontales (-3cm en Z)
+                '930205': { x: 0, z: -5 }, '930206': { x: 0, z: -5 }, // Perpendiculaires dorsales (-5cm en Z)
+                '930207': { x: 5, z: -3 }, '930208': { x: 5, z: -3 }, // Angles panneresse frontaux (+5cm en X, -3cm en Z)
+                '930209': { x: 5, z: 5 }, '930210': { x: 5, z: 5 }, // Angles panneresse dorsaux (+5cm en X, +5cm en Z)
+                
+                // B9 3/4 → B9 3/4 (9303XX)
+                '930301': { x: 0, z: 0 }, '930302': { x: 0, z: 0 }, // Continuité longitudinale (930302 recule 10cm en X)
+                '930303': { x: 0, z: 5 }, '930304': { x: 0, z: 5 }, // Perpendiculaires frontales
+                '930305': { x: 0, z: 0 }, '930306': { x: 0, z: 0 }, // Perpendiculaires dorsales
+                
+                // B9 3/4 → B9 1/4 (9304XX)
+                '930401': { x: 0, z: 0 }, '930402': { x: 20, z: 0 }, // Continuité longitudinale (930402 avance +10cm en X)
+                '930403': { x: 0, z: 2 }, '930404': { x: 0, z: 2 }, // Perpendiculaires frontales (-3cm en Z)
+                '930405': { x: 0, z: 5 }, '930406': { x: 0, z: 5 }, // Perpendiculaires dorsales (+5cm en Z)
+                
+                // B9 demi → B9 entier (9501XX)
+                '950101': { x: 0, z: 0 }, '950102': { x: -20, z: 0 }, // Continuité longitudinale (-40cm en X pour 950102)
+                '950103': { x: 0, z: 0 }, '950104': { x: 0, z: 0 }, // Perpendiculaires frontales (recul 5cm en Z)
+                '950105': { x: 0, z: -40 }, '950106': { x: 0, z: -40 }, // Perpendiculaires dorsales (avance 20cm en Z depuis -60cm)
+                '950107': { x: 0, z: -28 }, '950108': { x: 0, z: -28 }, // Angles panneresse frontaux (950107 recule 40cm en Z et 10cm en X, 950108 recule 10cm en X et 40cm en Z)
+                '950109': { x: 0, z: -10 }, '950110': { x: 0, z: -10 }, // Angles panneresse dorsaux (950109 recule 10cm en X, 950110 recule 10cm en X, tous deux reculent 20cm en Z)
+                
+                // B9 demi → B9 demi (9502XX)
+                '950201': { x: 0, z: 0 }, '950202': { x: -20, z: 0 }, // Continuité longitudinale (950202 recule 20cm en X)
+                '950203': { x: 0, z: 5 }, '950204': { x: 0, z: 5 }, // Perpendiculaires frontales
+                '950205': { x: 0, z: 10 }, '950206': { x: 0, z: 10 }, // Perpendiculaires dorsales
+                
+                // B9 demi → B9 3/4 (9503XX)
+                '950301': { x: 0, z: 0 }, '950302': { x: 0, z: 0 }, // Continuité longitudinale
+                '950303': { x: 0, z: 5 }, '950304': { x: 0, z: 5 }, // Perpendiculaires frontales
+                '950305': { x: 0, z: -10 }, '950306': { x: 0, z: -10 }, // Perpendiculaires dorsales (avance 10cm en Z depuis -20cm)
+                
+                // B9 demi → B9 1/4 (9504XX)
+                '950401': { x: 0, z: 0 }, '950402': { x: 10, z: 0 }, // Continuité longitudinale (950402 avance 10cm en X)
+                '950403': { x: 0, z: -20 }, '950404': { x: 0, z: -20 }, // Perpendiculaires frontales (950403 et 950404 reculent 25cm en Z total)
+                '950405': { x: 0, z: 10 }, '950406': { x: 0, z: 10 }, // Perpendiculaires dorsales
+                
+                // === SYSTÈME BLOCS B14 (14XX) ===
+                // Continuité longitudinale B14
+                '1401': { x: 0, z: 0 }, '1402': { x: 0, z: 0 },
+                // Perpendiculaires B14
+                '1403': { x: -5, z: 2 }, '1404': { x: 0, z: 2 }, '1405': { x: -5, z: 0 }, '1406': { x: 0, z: 0 },
+                // Angles panneresse B14
+                '1407': { x: 10, z: 7 }, '1408': { x: 5, z: 7 }, '1409': { x: 10, z: -5 }, '1410': { x: 5, z: -5 },
+                
+                // === SYSTÈME BLOCS B19 (19XX) ===
+                // Continuité longitudinale B19
+                '1901': { x: 0, z: 0 }, '1902': { x: 0, z: 0 },
+                // Perpendiculaires B19
+                '1903': { x: -10, z: 0 }, '1904': { x: 0, z: 0 }, '1905': { x: -10, z: 0 }, '1906': { x: 0, z: 0 },
+                // Angles panneresse B19
+                '1907': { x: 5, z: 1 }, '1908': { x: 5, z: 1 }, '1909': { x: 5, z: -1 }, '1910': { x: 5, z: -1 },
+                
+                // === SYSTÈME BLOCS B29 (29XX) ===
+                // Continuité longitudinale B29
+                '2901': { x: 0, z: 0 }, '2902': { x: 0, z: 0 },
+                // Perpendiculaires B29
+                // '2903': { x: 0, z: 0 }, '2904': { x: 0, z: 0 }, '2905': { x: 0, z: 0 }, '2906': { x: 0, z: 0 }, // B29 Perpendiculaires - DÉSACTIVÉS
+                // Angles panneresse B29
+                '2907': { x: 0, z: -9 }, '2908': { x: 0, z: -9 }, '2909': { x: 0, z: 9 }, '2910': { x: 0, z: 9 },
+                
+                // === SYSTÈME BLOCS COUPES DEMI ===
+                // B9_HALF (95XX), B14_HALF (45XX), B19_HALF (85XX), B29_HALF (75XX)
+                '9501': { x: 0, z: 0 }, '9502': { x: 0, z: 0 }, // B9_HALF Continuité
+                '9503': { x: 0, z: 5 }, '9504': { x: 0, z: 5 }, '9505': { x: 0, z: 10 }, '9506': { x: 0, z: 10 }, // B9_HALF Perpendiculaires
+                '9507': { x: 10, z: 12 }, '9508': { x: 10, z: 12 }, '9509': { x: 10, z: 10 }, '9510': { x: 10, z: 10 }, // B9_HALF Angles panneresse
+                
+                '4501': { x: -30, z: 0 }, '4502': { x: 0, z: 0 }, // B14_HALF Continuité (4501 reculé de 10cm en X)
+                '4503': { x: -20, z: -13 }, '4504': { x: -15, z: -13 }, '4505': { x: -20, z: -10 }, '4506': { x: -15, z: -10 }, // B14_HALF Perpendiculaires (4503 et 4505 reculés de 10cm en X)
+                // '4507': { x: 0, z: 0 }, '4508': { x: 0, z: 0 }, '4509': { x: 0, z: 0 }, '4510': { x: 0, z: 0 }, // B14_HALF Angles panneresse - DÉSACTIVÉS
+                
+                '8501': { x: 0, z: 0 }, '8502': { x: 0, z: 0 }, // B19_HALF Continuité
+                '8503': { x: -10, z: 0 }, '8504': { x: 0, z: 0 }, '8505': { x: -10, z: 21 }, '8506': { x: 0, z: 21 }, // B19_HALF Perpendiculaires
+                // '8507': { x: 0, z: 0 }, '8508': { x: 0, z: 0 }, '8509': { x: 0, z: 0 }, '8510': { x: 0, z: 0 }, // B19_HALF Angles panneresse - DÉSACTIVÉS
+                
+                '7501': { x: 0, z: 0 }, '7502': { x: 0, z: 0 }, // B29_HALF Continuité
+                '7503': { x: -20, z: -5 }, '7504': { x: 0, z: -5 }, '7505': { x: -20, z: 31 }, '7506': { x: 0, z: 31 }, // B29_HALF Perpendiculaires
+                '7507': { x: 0, z: 1 }, '7508': { x: 0, z: 1 }, '7509': { x: 0, z: 19 }, '7510': { x: 0, z: 19 }, // B29_HALF Angles panneresse
+                
+                // === SYSTÈME BLOCS COUPES 3/4 ===
+                // B9_3Q (93XX), B14_3Q (43XX), B19_3Q (83XX), B29_3Q (73XX)
+                '9301': { x: 0, z: 0 }, '9302': { x: 10, z: 0 }, // B9_3Q Continuité
+                '9303': { x: 0, z: 5 }, '9304': { x: 0, z: 5 }, '9305': { x: 0, z: 0 }, '9306': { x: 0, z: 0 }, // B9_3Q Perpendiculaires
+                '9307': { x: 10, z: 12 }, '9308': { x: 10, z: 12 }, '9309': { x: 10, z: 0 }, '9310': { x: 10, z: 0 }, // B9_3Q Angles panneresse
+                
+                '4301': { x: 0, z: 0 }, '4302': { x: 0, z: 0 }, // B14_3Q Continuité
+                '4303': { x: -5, z: 2 }, '4304': { x: 0, z: 2 }, '4305': { x: -5, z: 5 }, '4306': { x: 0, z: 5 }, // B14_3Q Perpendiculaires
+                '4307': { x: 20, z: 12 }, '4308': { x: 20, z: 12 }, '4309': { x: 20, z: -10 }, '4310': { x: 20, z: -10 }, // B14_3Q Angles panneresse
+                
+                '8301': { x: 0, z: 0 }, '8302': { x: 10, z: 0 }, // B19_3Q Continuité
+                '8303': { x: -10, z: 0 }, '8304': { x: 0, z: 0 }, '8305': { x: -10, z: -35 }, '8306': { x: 0, z: -35 }, // B19_3Q Perpendiculaires (8305/8306 correspondent à 830105/830106 - reculés 46cm en Z total)
+                '8307': { x: 5, z: 1 }, '8308': { x: 5, z: 1 }, '8309': { x: 5, z: 0 }, '8310': { x: 5, z: 0 }, // B19_3Q Angles panneresse
+                
+                '7301': { x: 0, z: 0 }, '7302': { x: 9, z: 0 }, // B29_3Q Continuité
+                // '7303': { x: 0, z: 0 }, '7304': { x: 0, z: 0 }, '7305': { x: 0, z: 0 }, '7306': { x: 0, z: 0 }, // B29_3Q Perpendiculaires - DÉSACTIVÉS
+                // '7307': { x: 0, z: -9 }, '7308': { x: 0, z: -9 }, '7309': { x: 0, z: 0 }, '7310': { x: 0, z: 0 }, // B29_3Q Angles panneresse - DÉSACTIVÉS
+                
+                // === SYSTÈME BLOCS COUPES 1/4 - VERSION COMBINÉE ===
+                // B9 1/4 → B9 entier (9101XX)
+                '910101': { x: 0, z: 0 }, '910102': { x: -30, z: 0 }, // Continuité longitudinale (910102 recule 30cm en X)
+                '910103': { x: -5, z: -45 }, '910104': { x: 0, z: -45 }, // Perpendiculaires frontales (910103 recule 5cm en X)
+                '910105': { x: -5, z: -5 }, '910106': { x: 0, z: -5 }, // Perpendiculaires dorsales (910105 recule 5cm en X)
+                '910107': { x: -5, z: -23 }, '910108': { x: -5, z: -23 }, // Angles panneresse frontaux (recul 23cm en Z)
+                '910109': { x: -5, z: -25 }, '910110': { x: -5, z: -25 }, // Angles panneresse dorsaux (recul 25cm en Z)
+                
+                // B9 1/4 → B9 demi (9102XX)
+                '910201': { x: 30, z: 0 }, '910202': { x: 30, z: 0 }, // Continuité longitudinale
+                '910203': { x: 0, z: 5 }, '910204': { x: 0, z: 5 }, // Perpendiculaires frontales
+                '910205': { x: 0, z: 20 }, '910206': { x: 0, z: 20 }, // Perpendiculaires dorsales
+                '910207': { x: 30, z: 0 }, '910208': { x: 50, z: 0 }, // Angles panneresse frontaux
+                '910209': { x: 30, z: 0 }, '910210': { x: 30, z: 0 }, // Angles panneresse dorsaux
+                
+                // B9 1/4 → B9 3/4 (9103XX)
+                '910301': { x: 0, z: 5 }, '910302': { x: 0, z: 5 }, // Continuité longitudinale
+                '910303': { x: 0, z: 5 }, '910304': { x: 0, z: 5 }, // Perpendiculaires frontales
+                '910305': { x: 0, z: 20 }, '910306': { x: 0, z: 20 }, // Perpendiculaires dorsales
+                '910307': { x: 0, z: 5 }, '910308': { x: 20, z: 5 }, // Angles panneresse frontaux
+                '910309': { x: 0, z: 5 }, '910310': { x: 0, z: 5 }, // Angles panneresse dorsaux
+                
+                // B9 1/4 → B9 1/4 (9104XX)
+                '910401': { x: 0, z: 5 }, '910402': { x: 0, z: 5 }, // Continuité longitudinale
+                '910403': { x: 0, z: 5 }, '910404': { x: 0, z: 5 }, // Perpendiculaires frontales
+                '910405': { x: 0, z: 20 }, '910406': { x: 0, z: 20 }, // Perpendiculaires dorsales
+                '910407': { x: 0, z: 5 }, '910408': { x: 20, z: 5 }, // Angles panneresse frontaux
+                '910409': { x: 0, z: 5 }, '910410': { x: 0, z: 5 }, // Angles panneresse dorsaux
+
+                // === SYSTÈME BLOCS COUPES 1/4 - ANCIEN SYSTÈME 4 CHIFFRES ===
+                // B9_1Q (91XX), B14_1Q (41XX), B19_1Q (81XX), B29_1Q (71XX)
+                '9101': { x: 0, z: 0 }, '9102': { x: 30, z: 0 }, // B9_1Q Continuité
+                '9103': { x: 0, z: 5 }, '9104': { x: 0, z: 5 }, '9105': { x: 0, z: 20 }, '9106': { x: 0, z: 20 }, // B9_1Q Perpendiculaires
+                // '9107': { x: 0, z: 0 }, '9108': { x: 20, z: 0 }, '9109': { x: 0, z: 0 }, '9110': { x: 0, z: 0 }, // B9_1Q Angles panneresse - DÉSACTIVÉS
+                
+                '4101': { x: -30, z: 0 }, '4102': { x: 0, z: 0 }, // B14_1Q Continuité
+                '4103': { x: -20, z: -13 }, '4104': { x: -15, z: -13 }, '4105': { x: -20, z: -20 }, '4106': { x: -15, z: -20 }, // B14_1Q Perpendiculaires
+                // '4107': { x: 0, z: 0 }, '4108': { x: 0, z: 0 }, '4109': { x: 0, z: 0 }, '4110': { x: 0, z: 0 }, // B14_1Q Angles panneresse - DÉSACTIVÉS
+                
+                '8101': { x: 0, z: 0 }, '8102': { x: 30, z: 0 }, // B19_1Q Continuité
+                '8103': { x: -10, z: 0 }, '8104': { x: 0, z: 0 }, '8105': { x: -10, z: 31 }, '8106': { x: 0, z: 31 }, // B19_1Q Perpendiculaires
+                // '8107': { x: 0, z: 0 }, '8108': { x: 0, z: 0 }, '8109': { x: 0, z: 0 }, '8110': { x: 0, z: 0 }, // B19_1Q Angles panneresse - DÉSACTIVÉS
+                
+                '7101': { x: 0, z: 0 }, '7102': { x: 30, z: 0 }, // B29_1Q Continuité
+                '7103': { x: -20, z: -5 }, '7104': { x: 0, z: -5 }, '7105': { x: -20, z: 41 }, '7106': { x: 0, z: 41 }, // B29_1Q Perpendiculaires
+                '7107': { x: 0, z: 11 }, '7108': { x: 0, z: 11 }, '7109': { x: 0, z: 19 }, '7110': { x: 0, z: 19 }, // B29_1Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B14 SPÉCIFIQUES (14XX) ===
+                '1401': { x: 0, z: 0 }, '1402': { x: 0, z: 0 }, // B14 Continuité longitudinale
+                '1403': { x: -5, z: 2 }, '1404': { x: 0, z: 2 }, '1405': { x: -5, z: 0 }, '1406': { x: 0, z: 0 }, // B14 Perpendiculaires
+                '1407': { x: 10, z: 7 }, '1408': { x: 5, z: 7 }, '1409': { x: 10, z: -5 }, '1410': { x: 5, z: -5 }, // B14 Angles panneresse
+                
+                // === SYSTÈME BLOCS B14 ENTIER → ENTIER (1401XX) ===
+                '140101': { x: 0, z: 0 }, '140102': { x: 0, z: 0 }, // B14→B14 Continuité longitudinale
+                '140103': { x: -5, z: 2 }, '140104': { x: 0, z: 2 }, '140105': { x: -5, z: -5 }, '140106': { x: 0, z: -5 }, // B14→B14 Perpendiculaires (ajustés X et Z)
+                '140107': { x: 10, z: 7 }, '140108': { x: 5, z: 7 }, '140109': { x: 10, z: -10 }, '140110': { x: 5, z: -10 }, // B14→B14 Angles panneresse (ajustés X et Z)
+                
+                // === SYSTÈME BLOCS B14 COUPES 34CM (340XXX) ===
+                '340101': { x: -5, z: 0 }, // B14 34cm → Position A (continuité-droite, recule de 5cm en X)
+                '340102': { x: 0, z: 0 }, // B14 34cm → Position B (continuité-gauche)
+                '340103': { x: -10, z: 2 }, // B14 34cm → Position C (avance de 2cm en Z, recule de 10cm en X)
+                '340104': { x: 0, z: 2 }, // B14 34cm → Position D (avance de 2cm en Z)
+                '340105': { x: -10, z: -10 }, // B14 34cm → Position E (recule de 10cm en X, recule de 10cm en Z)
+                '340106': { x: 0, z: -10 }, // B14 34cm → Position F (recule de 10cm en Z)
+                '340107': { x: 5, z: 7 }, // B14 34cm → Position G (avance de 5cm en X, avance de 7cm en Z)
+                '340108': { x: 5, z: 7 }, // B14 34cm → Position H (avance de 5cm en X, avance de 7cm en Z)
+                '340109': { x: 5, z: -15 }, // B14 34cm → Position I (avance de 5cm en X, recule de 15cm en Z)
+                '340110': { x: 5, z: -15 }, // B14 34cm → Position J (avance de 5cm en X, recule de 15cm en Z) 
+                
+                // === SYSTÈME BLOCS B14 COUPES 4CM (040XXX) ===
+                '040101': { x: -35, z: 0 }, // B14 4cm → Position A (recule de 35cm en X)
+                '040102': { x: 0, z: 0 }, // B14 4cm → Position B (reculé de 35cm en X)
+                '040103': { x: -5, z: 2 }, // B14 4cm → Position C (avance de 2cm en Z, recule de 5cm en X)
+                '040104': { x: 0, z: 2 }, // B14 4cm → Position D (avance de 2cm en Z)
+                '040105': { x: -5, z: 30 }, // B14 4cm → Position E (avance de 30cm en Z, recule de 5cm en X)
+                '040106': { x: 0, z: 30 }, // B14 4cm → Position F (avance de 30cm en Z)
+                '040107': { x: -25, z: -18 }, // B14 4cm → Position G (reculé de 35cm en X, reculé de 35cm en Z)
+                '040108': { x: 5, z: -18 }, // B14 4cm → Position H (avance de 5cm en X, reculé de 35cm en Z)
+                '040109': { x: -25, z: -20 }, // B14 4cm → Position I (reculé de 35cm en X, reculé de 35cm en Z)
+                '040110': { x: 5, z: -20 }, // B14 4cm → Position J (avance de 5cm en X, reculé de 35cm en Z)
+                
+                // === SYSTÈME BLOCS B14 4CM → B14 34CM (0434XX) ===
+                '043401': { x: 0, z: 0 }, '043402': { x: 30, z: 0 }, // B14_4CM→B14_34CM Continuité longitudinale
+                '043403': { x: -25, z: -13 }, '043404': { x: -15, z: -13 }, '043405': { x: -25, z: -20 }, '043406': { x: -15, z: -20 }, // B14_4CM→B14_34CM Perpendiculaires (043404/043406 reculés 40cm en X, 043403/043405 reculés 20cm en X supplémentaires, 043403/043404 à z=-13, 043405/043406 à z=-20)
+                '043407': { x: -25, z: -13 }, '043408': { x: 5, z: -13 }, '043409': { x: -25, z: -20 }, '043410': { x: 5, z: -20 }, // B14_4CM→B14_34CM Angles panneresse (043407/043409 reculés 35cm en X, 043408/043410 reculés 30cm en X, tous reculés 20cm en Z)
+                
+                // === SYSTÈME BLOCS B14 34CM → B14 4CM (3440XX) ===
+                '344001': { x: 0, z: 0 }, '344002': { x: -30, z: 0 }, // B14_34CM→B14_4CM Continuité longitudinale
+                '344003': { x: -10, z: 2 }, '344004': { x: 0, z: 2 }, '344005': { x: -10, z: 25 }, '344006': { x: 0, z: 25 }, // B14_34CM→B14_4CM Perpendiculaires (344005/344006 reculés 5cm en Z, 344004/344006 avancés 25cm en X, 344003/344005 reculés 15cm en X)
+                '344007': { x: -10, z: 22 }, '344008': { x: 20, z: 22 }, '344009': { x: -10, z: 5 }, '344010': { x: 20, z: 5 }, // B14_34CM→B14_4CM Angles panneresse (344008/344010 avancés 55cm en X au total, 344007/344008 avancés 15cm en Z, 344009/344010 avancés 5cm en Z)
+                
+                // === SYSTÈME BLOCS B14 COUPES 3CM (430XXX) ===
+                '430101': { x: -10, z: 0 }, // B14 3cm → Position A (recule de 10cm en X)
+                '430103': { x: -15, z: 2 }, // B14 3cm → Position C (avance de 2cm en Z, recule de 15cm en X)
+                '430104': { x: 0, z: 2 }, // B14 3cm → Position D (avance de 2cm en Z)
+                '430105': { x: -15, z: -15 }, // B14 3cm → Position E (recule de 15cm en Z, recule de 15cm en X)
+                '430106': { x: 0, z: -15 }, // B14 3cm → Position F (recule de 15cm en Z)
+                '430107': { x: 0, z: 7 }, // B14 3cm → Position G (avance de 7cm en Z)
+                '430108': { x: 5, z: 7 }, // B14 3cm → Position H (avance de 5cm en X, avance de 7cm en Z)
+                '430109': { x: 0, z: -20 }, // B14 3cm → Position I (recule de 20cm en Z)
+                '430110': { x: 5, z: -20 }, // B14 3cm → Position J (recule de 20cm en Z, avance de 5cm en X)
+                '430201': { x: -10, z: 0 }, // B14 3cm → Position 2-1 (recule de 10cm en X)
+                '430203': { x: -15, z: 2 }, // B14 3cm → Position 2-3 (recule de 15cm en X, avance de 2cm en Z)
+                '430204': { x: 0, z: 2 }, // B14 3cm → Position 2-4 (avance de 2cm en Z)
+                '430205': { x: -15, z: 5 }, // B14 3cm → Position 2-5 (recule de 15cm en X, avance de 5cm en Z)
+                '430206': { x: 0, z: 5 }, // B14 3cm → Position 2-6 (avance de 5cm en Z)
+                '430207': { x: 0, z: 2 }, // B14 3cm → Position 2-7 (avance de 2cm en Z)
+                '430208': { x: 5, z: 2 }, // B14 3cm → Position 2-8 (avance de 5cm en X, avance de 2cm en Z)
+                '430209': { x: 0, z: 5 }, // B14 3cm → Position 2-9 (avance de 5cm en Z)
+                '430210': { x: 5, z: 5 }, // B14 3cm → Position 2-10 (avance de 5cm en X, avance de 5cm en Z)
+                '430301': { x: -10, z: 0 }, // B14 3cm → Position 3/4-1 (reculé de 10cm en X total - avancé de 7cm)
+                '430302': { x: 10, z: 0 }, // B14 3cm → Position 3/4-2 (avance de 10cm en X)
+                '430401': { x: -10, z: 0 }, // B14 3cm → Position 4-1 (recule de 10cm en X)
+                '430402': { x: 30, z: 0 }, // B14 3cm → Position 4-2 (avance de 30cm en X)
+                '430403': { x: -15, z: 2 }, // B14 3cm → Position 4-3 (recule de 15cm en X, avance de 2cm en Z)
+                '430404': { x: 0, z: 2 }, // B14 3cm → Position 4-4 (avance de 2cm en Z)
+                '430405': { x: -15, z: 15 }, // B14 3cm → Position 4-5 (recule de 15cm en X, avance de 15cm en Z)
+                '430406': { x: 0, z: 15 }, // B14 3cm → Position 4-6 (avance de 15cm en Z)
+                
+                // === SYSTÈME BLOCS B14 ENTIER → DEMI (1402XX) ===
+                '140201': { x: 0, z: 0 }, '140202': { x: 0, z: 0 }, // B14→B14_DEMI Continuité longitudinale (140202 remis à position de base)
+                '140203': { x: -5, z: 2 }, '140204': { x: 0, z: 2 }, '140205': { x: -5, z: 15 }, '140206': { x: 0, z: 15 }, // B14→B14_DEMI Perpendiculaires (ajustés X et Z)
+                '140207': { x: 10, z: 7 }, '140208': { x: 5, z: 7 }, '140209': { x: 10, z: 10 }, '140210': { x: 5, z: 10 }, // B14→B14_DEMI Angles panneresse (ajustés X et Z)
+                
+                // === SYSTÈME BLOCS B14 ENTIER → 1/4 (1404XX) ===
+                '140401': { x: 0, z: 0 }, '140402': { x: 30, z: 0 }, // B14→B14_1Q Continuité longitudinale (140402 reculé de 5cm en X)
+                '140403': { x: -5, z: 2 }, '140404': { x: 0, z: 2 }, '140405': { x: -5, z: 25 }, '140406': { x: 0, z: 25 }, // B14→B14_1Q Perpendiculaires (140405/140406 reculés de 5cm en Z)
+                
+                // === SYSTÈME BLOCS B14 ENTIER → 34CM (1434XX) ===
+                '143401': { x: 0, z: 0 }, '143402': { x: 5, z: 0 }, // B14→B14_34CM Continuité longitudinale (143402 avancé de 5cm en X)
+                '143403': { x: -5, z: 2 }, '143404': { x: 0, z: 2 }, '143405': { x: -5, z: 0 }, '143406': { x: 0, z: 0 }, // B14→B14_34CM Perpendiculaires (143403/143404 à position de base, 143405/143406 reculés de 2cm en Z)
+                '143407': { x: 10, z: 7 }, '143408': { x: 5, z: 7 }, '143409': { x: 10, z: -5 }, '143410': { x: 5, z: -5 }, // B14→B14_34CM Angles panneresse (143407 et 143409 reculés de 5cm en Z)
+                
+                // === SYSTÈME BLOCS B14 ENTIER → 4CM (1440XX) ===
+                '144001': { x: 0, z: 0 }, '144002': { x: 35, z: 0 }, // B14→B14_4CM Continuité longitudinale (144002 avancé de 5cm en X)
+                '144003': { x: -5, z: 2 }, '144004': { x: 0, z: 2 }, '144005': { x: -5, z: 30 }, '144006': { x: 0, z: 30 }, // B14→B14_4CM Perpendiculaires (144003/144004 à position de base, 144005/144006 avancés de 30cm en Z)
+                
+                // === SYSTÈME BLOCS B14 3/4 → B14 3/4 (1403XX) ===
+                '140301': { x: 0, z: 0 }, '140302': { x: 0, z: 0 }, // B14 3/4→3/4 Continuité longitudinale
+                '140303': { x: -5, z: 2 }, '140304': { x: 0, z: 2 }, '140305': { x: -5, z: 5 }, '140306': { x: 0, z: 5 }, // B14 3/4→3/4 Perpendiculaires (ajustés X et Z)
+                '140307': { x: 10, z: 7 }, '140308': { x: 5, z: 7 }, '140309': { x: 10, z: 0 }, '140310': { x: 5, z: 0 }, // B14 3/4→3/4 Angles panneresse (ajustés X et Z)
+                
+                // === SYSTÈME BLOCS B14 1/4 → B14 ENTIER (1405XX) ===
+                '140501': { x: -30, z: 0 }, '140502': { x: 0, z: 0 }, // B14 1/4→B14 Continuité longitudinale (140501 reculé de 30cm en X, 140502 reculé de 30cm en X)
+                '140507': { x: -20, z: -18 }, '140508': { x: 5, z: -18 }, '140509': { x: -20, z: -15 }, '140510': { x: 5, z: -15 }, // B14 1/4→B14 Angles panneresse (140507/140509 reculés de 30cm en X, 140507/140508 reculés de 25cm en Z, 140509/140510 reculés de 15cm en Z)
+                
+                // === SYSTÈME BLOCS B14 1/4 → B14 DEMI (1406XX) ===
+                '140601': { x: -30, z: 0 }, '140602': { x: -40, z: 0 }, // B14 1/4→B14_DEMI Continuité longitudinale (140601 reculé de 30cm en X, 140602 reculé de 40cm en X)
+                
+                // === SYSTÈME BLOCS B14 1/4 → B14 3/4 (1407XX) ===
+                '140701': { x: -30, z: 0 }, '140702': { x: 10, z: 0 }, // B14 1/4→B14_3Q Continuité longitudinale (140701 reculé de 30cm en X, 140702 avancé de 10cm en X)
+                
+                // === SYSTÈME BLOCS B14 1/4 → B14 34CM (1435XX) ===
+                '143501': { x: -30, z: 0 }, '143502': { x: 5, z: 0 }, // B14 1/4→B14_34CM Continuité longitudinale (143501 reculé 30cm en X, 143502 reculé 25cm en X)
+                '143507': { x: 10, z: 7 }, '143508': { x: 15, z: 7 }, '143509': { x: 10, z: 0 }, '143510': { x: 15, z: 0 }, // B14 1/4→B14_34CM Angles panneresse (143508/143510 avancés de 10cm en X)
+                
+                // === NOUVEAU SYSTÈME BLOCS B19 ===
+                
+                // === SYSTÈME BLOCS B19 ENTIER → B19 ENTIER (1901XX) ===
+                '190101': { x: 0, z: 0 }, '190102': { x: 0, z: 0 }, // B19→B19 Continuité longitudinale
+                '190103': { x: -10, z: 0 }, '190104': { x: 0, z: 0 }, '190105': { x: -10, z: 1 }, '190106': { x: 0, z: 1 }, // B19→B19 Perpendiculaires (190105/190106 repositionnés à z=1)
+                '190107': { x: 5, z: 1 }, '190108': { x: 5, z: 1 }, '190109': { x: 5, z: -1 }, '190110': { x: 5, z: -1 }, // B19→B19 Angles panneresse (190109/190110 reculés 1cm en Z)
+                
+                // === SYSTÈME BLOCS B19 ENTIER → B19 DEMI (1902XX) ===
+                '190201': { x: 0, z: 0 }, '190202': { x: 15, z: 0 }, // B19→B19_DEMI Continuité longitudinale
+                '190203': { x: -10, z: 0 }, '190204': { x: 0, z: 0 }, '190205': { x: -10, z: 19 }, '190206': { x: 0, z: 19 }, // B19→B19_DEMI Perpendiculaires
+                '190207': { x: 5, z: 1 }, '190208': { x: 5, z: 1 }, '190209': { x: 5, z: 0 }, '190210': { x: 5, z: 0 }, // B19→B19_DEMI Angles panneresse
+                
+                // === SYSTÈME BLOCS B19 ENTIER → B19 3/4 (1903XX) ===
+                '190301': { x: 0, z: 0 }, '190302': { x: 10, z: 0 }, // B19→B19_3Q Continuité longitudinale
+                '190303': { x: -10, z: 0 }, '190304': { x: 0, z: 0 }, '190305': { x: -10, z: 19 }, '190306': { x: 0, z: 19 }, // B19→B19_3Q Perpendiculaires
+                '190307': { x: 5, z: 1 }, '190308': { x: 5, z: 1 }, '190309': { x: 5, z: 0 }, '190310': { x: 5, z: 0 }, // B19→B19_3Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B19 ENTIER → B19 1/4 (1904XX) ===
+                '190401': { x: 0, z: 0 }, '190402': { x: 30, z: 0 }, // B19→B19_1Q Continuité longitudinale
+                '190403': { x: -10, z: 0 }, '190404': { x: 0, z: 0 }, '190405': { x: -10, z: 19 }, '190406': { x: 0, z: 19 }, // B19→B19_1Q Perpendiculaires
+                '190407': { x: 5, z: 1 }, '190408': { x: 5, z: 1 }, '190409': { x: 5, z: 0 }, '190410': { x: 5, z: 0 }, // B19→B19_1Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B19 1/4 → B19 ENTIER (1905XX) ===
+                '190501': { x: -30, z: 0 }, '190502': { x: 0, z: 0 }, // B19 1/4→B19 Continuité longitudinale
+                '190503': { x: -40, z: 0 }, '190504': { x: -10, z: 0 }, '190505': { x: -40, z: 19 }, '190506': { x: -10, z: 19 }, // B19 1/4→B19 Perpendiculaires
+                '190507': { x: -25, z: 1 }, '190508': { x: -25, z: 1 }, '190509': { x: -25, z: 0 }, '190510': { x: -25, z: 0 }, // B19 1/4→B19 Angles panneresse
+                
+                // === SYSTÈME BLOCS B19 1/4 → B19 DEMI (1906XX) ===
+                '190601': { x: -30, z: 0 }, '190602': { x: -15, z: 0 }, // B19 1/4→B19_DEMI Continuité longitudinale
+                '190603': { x: -40, z: 0 }, '190604': { x: -10, z: 0 }, '190605': { x: -40, z: 19 }, '190606': { x: -10, z: 19 }, // B19 1/4→B19_DEMI Perpendiculaires
+                '190607': { x: -25, z: 1 }, '190608': { x: -25, z: 1 }, '190609': { x: -25, z: 0 }, '190610': { x: -25, z: 0 }, // B19 1/4→B19_DEMI Angles panneresse
+                
+                // === SYSTÈME BLOCS B19 1/4 → B19 3/4 (1907XX) ===
+                '190701': { x: -30, z: 0 }, '190702': { x: -20, z: 0 }, // B19 1/4→B19_3Q Continuité longitudinale
+                '190703': { x: -40, z: 0 }, '190704': { x: -10, z: 0 }, '190705': { x: -40, z: 19 }, '190706': { x: -10, z: 19 }, // B19 1/4→B19_3Q Perpendiculaires
+                '190707': { x: -25, z: 1 }, '190708': { x: -25, z: 1 }, '190709': { x: -25, z: 0 }, '190710': { x: -25, z: 0 }, // B19 1/4→B19_3Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B19 1/4 → B19 1/4 (1908XX) ===
+                '190801': { x: 0, z: 0 }, '190802': { x: 0, z: 0 }, // B19 1/4→B19_1Q Continuité longitudinale
+                '190803': { x: -10, z: 0 }, '190804': { x: 20, z: 0 }, '190805': { x: -10, z: 19 }, '190806': { x: 20, z: 19 }, // B19 1/4→B19_1Q Perpendiculaires
+                '190807': { x: 5, z: 1 }, '190808': { x: 5, z: 1 }, '190809': { x: 5, z: 0 }, '190810': { x: 5, z: 0 }, // B19 1/4→B19_1Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B19 ENTIER sur B19 1/4 (1910XX) ===
+                '191001': { x: 0, z: 0 }, '191002': { x: 30, z: 0 }, // B19 sur B19_1Q Continuité longitudinale
+                '191003': { x: -30, z: 0 }, '191004': { x: 20, z: 0 }, '191005': { x: -30, z: 31 }, '191006': { x: 20, z: 31 }, // B19 sur B19_1Q Perpendiculaires (191003/191004/191006/191005 reculés 20cm en X, 191005/191006 avancés 12cm en Z)
+                '191007': { x: 15, z: 1 }, '191008': { x: 5, z: 1 }, '191009': { x: 15, z: 0 }, '191010': { x: 5, z: 0 }, // B19 sur B19_1Q Angles panneresse (191008/191010 reculés 30cm en X)
+                
+                // === SYSTÈME BLOCS B19 ENTIER sur B19 DEMI (1911XX) ===
+                '191101': { x: 0, z: 0 }, '191102': { x: 0, z: 0 }, // B19 sur B19_DEMI Continuité longitudinale (191102 reculé 15cm en X)
+                '191103': { x: -10, z: 0 }, '191104': { x: 0, z: 0 }, '191105': { x: -10, z: 21 }, '191106': { x: 0, z: 21 }, // B19 sur B19_DEMI Perpendiculaires (191104/191106 reculés 25cm en X, 191105/191106 avancés 2cm en Z)
+                '191107': { x: 5, z: 1 }, '191108': { x: 20, z: 1 }, '191109': { x: 5, z: 0 }, '191110': { x: 20, z: 0 }, // B19 sur B19_DEMI Angles panneresse
+                
+                // === SYSTÈME BLOCS B19 ENTIER sur B19 3/4 (1912XX) ===
+                '191201': { x: 0, z: 0 }, '191202': { x: 10, z: 0 }, // B19 sur B19_3Q Continuité longitudinale (830101/830102)
+                '191203': { x: -10, z: 0 }, '191204': { x: 0, z: 0 }, '191205': { x: -10, z: 11 }, '191206': { x: 0, z: 11 }, // B19 sur B19_3Q Perpendiculaires (830103/830104/830105/830106) (191204/191206 reculés 20cm en X, 191205/191206 avancés 32cm en Z par rapport position précédente)
+                '191207': { x: 5, z: 1 }, '191208': { x: 5, z: 1 }, '191209': { x: 5, z: 9 }, '191210': { x: 5, z: 9 }, // B19 sur B19_3Q Angles panneresse (830107/830108/830109/830110) (191208/191210 reculés 10cm en X, 191209/191210 avancés 9cm en Z)
+                
+                // === NOUVEAU SYSTÈME BLOCS B29 ===
+                
+                // === SYSTÈME BLOCS B29 ENTIER → B29 ENTIER (2901XX) ===
+                '290101': { x: 0, z: 0 }, '290102': { x: 0, z: 0 }, // B29→B29 Continuité longitudinale
+                '290103': { x: -15, z: 0 }, '290104': { x: 0, z: 0 }, '290105': { x: -15, z: 29 }, '290106': { x: 0, z: 29 }, // B29→B29 Perpendiculaires
+                '290107': { x: 7, z: 2 }, '290108': { x: 7, z: 2 }, '290109': { x: 7, z: 0 }, '290110': { x: 7, z: 0 }, // B29→B29 Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 ENTIER → B29 DEMI (2902XX) ===
+                '290201': { x: 0, z: 0 }, '290202': { x: 22, z: 0 }, // B29→B29_DEMI Continuité longitudinale
+                '290203': { x: -15, z: 0 }, '290204': { x: 7, z: 0 }, '290205': { x: -15, z: 29 }, '290206': { x: 7, z: 29 }, // B29→B29_DEMI Perpendiculaires
+                '290207': { x: 7, z: 2 }, '290208': { x: 14, z: 2 }, '290209': { x: 7, z: 0 }, '290210': { x: 14, z: 0 }, // B29→B29_DEMI Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 ENTIER → B29 3/4 (2903XX) ===
+                '290301': { x: 0, z: 0 }, '290302': { x: 15, z: 0 }, // B29→B29_3Q Continuité longitudinale
+                '290303': { x: -15, z: 0 }, '290304': { x: 0, z: 0 }, '290305': { x: -15, z: 29 }, '290306': { x: 0, z: 29 }, // B29→B29_3Q Perpendiculaires
+                '290307': { x: 7, z: 2 }, '290308': { x: 22, z: 2 }, '290309': { x: 7, z: 0 }, '290310': { x: 22, z: 0 }, // B29→B29_3Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 ENTIER → B29 1/4 (2904XX) ===
+                '290401': { x: 0, z: 0 }, '290402': { x: 44, z: 0 }, // B29→B29_1Q Continuité longitudinale
+                '290403': { x: -15, z: 0 }, '290404': { x: 29, z: 0 }, '290405': { x: -15, z: 29 }, '290406': { x: 29, z: 29 }, // B29→B29_1Q Perpendiculaires
+                '290407': { x: 7, z: 2 }, '290408': { x: 37, z: 2 }, '290409': { x: 7, z: 0 }, '290410': { x: 37, z: 0 }, // B29→B29_1Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 1/4 → B29 ENTIER (2905XX) ===
+                '290501': { x: -44, z: 0 }, '290502': { x: 0, z: 0 }, // B29 1/4→B29 Continuité longitudinale
+                '290503': { x: -59, z: 0 }, '290504': { x: -15, z: 0 }, '290505': { x: -59, z: 29 }, '290506': { x: -15, z: 29 }, // B29 1/4→B29 Perpendiculaires
+                '290507': { x: -37, z: 2 }, '290508': { x: -37, z: 2 }, '290509': { x: -37, z: 0 }, '290510': { x: -37, z: 0 }, // B29 1/4→B29 Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 1/4 → B29 DEMI (2906XX) ===
+                '290601': { x: -44, z: 0 }, '290602': { x: -22, z: 0 }, // B29 1/4→B29_DEMI Continuité longitudinale
+                '290603': { x: -59, z: 0 }, '290604': { x: -37, z: 0 }, '290605': { x: -59, z: 29 }, '290606': { x: -37, z: 29 }, // B29 1/4→B29_DEMI Perpendiculaires
+                '290607': { x: -37, z: 2 }, '290608': { x: -30, z: 2 }, '290609': { x: -37, z: 0 }, '290610': { x: -30, z: 0 }, // B29 1/4→B29_DEMI Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 1/4 → B29 3/4 (2907XX) ===
+                '290701': { x: -44, z: 0 }, '290702': { x: -29, z: 0 }, // B29 1/4→B29_3Q Continuité longitudinale
+                '290703': { x: -59, z: 0 }, '290704': { x: -44, z: 0 }, '290705': { x: -59, z: 29 }, '290706': { x: -44, z: 29 }, // B29 1/4→B29_3Q Perpendiculaires
+                '290707': { x: -37, z: 2 }, '290708': { x: -22, z: 2 }, '290709': { x: -37, z: 0 }, '290710': { x: -22, z: 0 }, // B29 1/4→B29_3Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 1/4 → B29 1/4 (2908XX) ===
+                '290801': { x: 0, z: 0 }, '290802': { x: 0, z: 0 }, // B29 1/4→B29_1Q Continuité longitudinale
+                '290803': { x: -15, z: 0 }, '290804': { x: 29, z: 0 }, '290805': { x: -15, z: 29 }, '290806': { x: 29, z: 29 }, // B29 1/4→B29_1Q Perpendiculaires
+                '290807': { x: 7, z: 2 }, '290808': { x: 7, z: 2 }, '290809': { x: 7, z: 0 }, '290810': { x: 7, z: 0 }, // B29 1/4→B29_1Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 ENTIER sur B29 1/4 (2910XX) ===
+                '291001': { x: 0, z: 0 }, '291002': { x: 44, z: 0 }, // B29 sur B29_1Q Continuité longitudinale
+                '291003': { x: -15, z: 0 }, '291004': { x: 59, z: 0 }, '291005': { x: -15, z: 29 }, '291006': { x: 59, z: 29 }, // B29 sur B29_1Q Perpendiculaires
+                '291007': { x: 22, z: 2 }, '291008': { x: 52, z: 2 }, '291009': { x: 22, z: 0 }, '291010': { x: 52, z: 0 }, // B29 sur B29_1Q Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 ENTIER sur B29 DEMI (2911XX) ===
+                '291101': { x: 0, z: 0 }, '291102': { x: 22, z: 0 }, // B29 sur B29_DEMI Continuité longitudinale
+                '291103': { x: -15, z: 0 }, '291104': { x: 37, z: 0 }, '291105': { x: -15, z: 29 }, '291106': { x: 37, z: 29 }, // B29 sur B29_DEMI Perpendiculaires
+                '291107': { x: 7, z: 2 }, '291108': { x: 29, z: 2 }, '291109': { x: 7, z: 0 }, '291110': { x: 29, z: 0 }, // B29 sur B29_DEMI Angles panneresse
+                
+                // === SYSTÈME BLOCS B29 ENTIER sur B29 3/4 (2912XX) ===
+                '291201': { x: 0, z: 0 }, '291202': { x: 15, z: 0 }, // B29 sur B29_3Q Continuité longitudinale
+                '291203': { x: -15, z: 0 }, '291204': { x: 30, z: 0 }, '291205': { x: -15, z: 29 }, '291206': { x: 30, z: 29 }, // B29 sur B29_3Q Perpendiculaires
+                '291207': { x: 7, z: 2 }, '291208': { x: 22, z: 2 }, '291209': { x: 7, z: 0 }, '291210': { x: 22, z: 0 }, // B29 sur B29_3Q Angles panneresse
+                
+                // === POSITIONS SPÉCIFIQUES POUR IDENTIFIANTS AFFICHÉS ===
+                '830102': { x: -10, z: 0 }, // B19_3Q→B19 Continuité gauche (reculé 20cm en X total)
+                '830103': { x: -10, z: -3 }, '830104': { x: 0, z: -3 }, // B19_3Q→B19 Perpendiculaires frontales (reculés 3cm en Z)
+                '830105': { x: -10, z: -15 }, '830106': { x: 0, z: -15 }, // B19_3Q→B19 Perpendiculaires dorsales (reculés 15cm en Z)
+                '830107': { x: 0, z: -4 }, '830108': { x: 0, z: -4 }, // B19_3Q→B19 Angles panneresse avant (reculés 5cm en Z net, reculés 5cm en X)
+                '830109': { x: 0, z: -16 }, '830110': { x: 0, z: -16 }, // B19_3Q→B19 Angles panneresse arrière (reculés 16cm en Z, reculés 5cm en X)
+                '830203': { x: -10, z: -3 }, '830204': { x: 0, z: -3 }, // B19_3Q→B19_HALF Perpendiculaires frontales (reculés 3cm en Z)
+                '830205': { x: -10, z: 6 }, '830206': { x: 0, z: 6 }, // B19_3Q→B19_HALF Perpendiculaires dorsales (avancés 6cm en Z)
+                '830402': { x: 20, z: 0 }, // B19_3Q→B19_1Q Continuité droite (avancé 20cm en X)
+                '850102': { x: -20, z: 0 }, // B19_HALF→B19 Continuité gauche (reculé 20cm en X)
+                '850104': { x: 0, z: -5 }, // B19_HALF→B19 Perpendiculaire frontale droite (reculé 5cm en Z)
+                '850105': { x: -10, z: -29 }, '850106': { x: 0, z: -29 }, // B19_HALF→B19 Perpendiculaires dorsales (reculés 29cm en Z)
+                '850107': { x: -5, z: -9 }, '850108': { x: -5, z: -9 }, // B19_HALF→B19 Angles panneresse avant (reculés 9cm en Z, reculés 5cm en X)
+                '850109': { x: -5, z: -31 }, '850110': { x: -5, z: -31 }, // B19_HALF→B19 Angles panneresse arrière (reculés 31cm en Z, reculés 5cm en X)
+                '850202': { x: -20, z: 0 }, // B19_HALF→B19_1Q Continuité gauche (reculé 20cm en X)
+                '850204': { x: 0, z: -5 }, // B19_HALF→B19_1Q Perpendiculaire frontale droite (reculé 5cm en Z)
+                '850206': { x: 0, z: -10 }, // B19_HALF→B19_1Q Perpendiculaire dorsale droite (reculé 10cm en Z)
+                '850302': { x: -10, z: 0 }, // B19_HALF→B19_3Q Continuité gauche (reculé 10cm en X total)
+                '850303': { x: -10, z: -5 }, '850304': { x: 0, z: -5 }, // B19_HALF→B19_3Q Perpendiculaires frontales (reculés 5cm en Z)
+                '850305': { x: -10, z: -19 }, '850306': { x: 0, z: -19 }, // B19_HALF→B19_3Q Perpendiculaires dorsales (reculés 40cm en Z total par rapport base z:21)
+                '850402': { x: 10, z: 0 }, // B19_HALF→B19_HALF Continuité droite (avancé 10cm en X)
+                '850404': { x: 0, z: -5 }, // B19_HALF→B19_HALF Perpendiculaire frontale droite (reculé 5cm en Z)
+                
                 // === POSITIONS RÉTROCOMPATIBILITÉ (ancien système - désactivées pour indépendance) ===
             };
             
-            return adjustments[letter] || { x: 0, z: 0 };
+            // Debug logging pour le résultat
+            const result = adjustments[letter] || { x: 0, z: 0 };
+            if (letter && (letter.includes('140103') || letter.includes('140104') || letter.includes('140105') || letter.includes('140106'))) {
+                window.forceLog(`🔧 [DÉCALAGES B14] Lettre: "${letter}" → Décalage trouvé:`, result);
+            }
+            
+            return result;
         };
         
         // Créer les positions de base avec filtrage des incompatibilités
         const basePositions = [
             // À droite (continuation) - avec joint vertical - BLANC
-            { x: dims.length + jointVertical, z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'A' },
+            { x: effectiveLength + jointVertical, z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'A' },
             // À gauche - avec joint vertical - BLANC (B position de base: -20cm)
-            { x: -(dims.length + jointVertical), z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'B' },
+            { x: -(effectiveLength + jointVertical), z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'B' },
             
             // 4 briques perpendiculaires - 2 côté panneresse frontale, 2 côté panneresse dorsale
             // Côté panneresse frontale (Z+) - 2 briques perpendiculaires
-            { x: dims.length - perpOffsetX, z: dims.width/2 + dims.length/2 - perpAdjustment + jointVertical, rotation: rotation + Math.PI/2, color: 0xFFFFFF, type: 'perpendiculaire-frontale-droite', key: 'C' },
-            { x: -dims.length + perpOffsetReverse, z: dims.width/2 + dims.length/2 - perpAdjustment + jointVertical, rotation: rotation + Math.PI/2, color: 0xFFFFFF, type: 'perpendiculaire-frontale-gauche', key: 'D' },
+            { x: effectiveLength - perpOffsetX, z: dims.width/2 + effectiveLength/2 - perpAdjustment + jointVertical, rotation: rotation + Math.PI/2, color: 0xFFFFFF, type: 'perpendiculaire-frontale-droite', key: 'C' },
+            { x: -effectiveLength + perpOffsetReverse, z: dims.width/2 + effectiveLength/2 - perpAdjustment + jointVertical, rotation: rotation + Math.PI/2, color: 0xFFFFFF, type: 'perpendiculaire-frontale-gauche', key: 'D' },
             
             // Côté panneresse dorsale (Z-) - 2 briques perpendiculaires avec ajustements spécifiques
-            { x: dims.length - perpOffsetX, z: -(dims.width/2 + dims.length/2) - dims.width - Math.max(5, dims.width * 0.56) - jointVertical + positionOffsets.E, rotation: rotation + Math.PI/2, color: 0xFFFFFF, type: 'perpendiculaire-dorsale-droite', key: 'E' },
-            { x: -dims.length + perpOffsetReverse, z: -(dims.width/2 + dims.length/2) - dims.width - Math.max(5, dims.width * 0.56) - jointVertical + positionOffsets.F, rotation: rotation + Math.PI/2, color: 0xFFFFFF, type: 'perpendiculaire-dorsale-gauche', key: 'F' }
+            { x: effectiveLength - perpOffsetX, z: -(dims.width/2 + effectiveLength/2) - dims.width - Math.max(5, dims.width * 0.56) - jointVertical + positionOffsets.E, rotation: rotation + Math.PI/2, color: 0xFFFFFF, type: 'perpendiculaire-dorsale-droite', key: 'E' },
+            { x: -effectiveLength + perpOffsetReverse, z: -(dims.width/2 + effectiveLength/2) - dims.width - Math.max(5, dims.width * 0.56) - jointVertical + positionOffsets.F, rotation: rotation + Math.PI/2, color: 0xFFFFFF, type: 'perpendiculaire-dorsale-gauche', key: 'F' }
         ];
         
-        // LOGIQUE SPÉCIFIQUE POUR LES BLOCS: ne traiter que les positions boutisse (pas de panneresse A-F)
+        // 🔧 DEBUG: Log des positions de base calculées (optionnel)
+        if (window.DEBUG_POSITIONS) {
+            window.forceLog('[DEBUG-BASE-POSITIONS] Positions de base calculées:', {
+                basePositions: basePositions.map(pos => ({
+                    key: pos.key,
+                    type: pos.type,
+                    x: pos.x,
+                    z: pos.z,
+                    rotation: pos.rotation
+                })),
+                perpOffsetX: perpOffsetX,
+                perpOffsetReverse: perpOffsetReverse,
+                perpAdjustment: perpAdjustment
+            });
+        }
+        
+        // LOGIQUE SPÉCIFIQUE POUR LES BLOCS: afficher toutes les positions (A-F et angles)
         let positionsToProcess = basePositions;
         if (this.currentMode === 'block') {
-            console.log('🧱 MODE BLOC: Suppression des positions panneresse A-F (seules les boutisses seront proposées)');
-            positionsToProcess = []; // Vider d'abord
-            // Ajouter quand même des continuités longitudinales (A / B) pour permettre l'allongement + multi-insertion
-            const jointForBlock = jointVertical; // déjà calculé via getJointVerticalThickness
-            // Détection correcte du bloc courant (identifiant comme 'B14_HALF')
+            console.log('🧱 MODE BLOC: Affichage de toutes les positions adjacentes (A-F et angles)');
+            // MODIFICATION: Ne plus vider les positions, garder toutes les positions de base
+            // positionsToProcess = []; // SUPPRIMÉ - on garde toutes les positions de base
+            
+            // Ajustements spécifiques pour les blocs 1/2 (positions A et B uniquement)
             const activeBlockType = window.BlockSelector && window.BlockSelector.getCurrentBlock ? window.BlockSelector.getCurrentBlock() : null;
             const isHalfBlock = activeBlockType && /_HALF$/.test(activeBlockType);
-            let leftContinuationX = -(dims.length + jointForBlock);
             if (isHalfBlock) {
+                // Pour les blocs 1/2, ajuster la position B (gauche) pour un alignement précis
+                const jointForBlock = jointVertical;
+                let leftContinuationX = -(dims.length + jointForBlock);
+                
                 // Récupérer la longueur du bloc plein (base) pour calculer le décalage exact.
                 const blockData = window.BlockSelector && window.BlockSelector.getCurrentBlockData ? window.BlockSelector.getCurrentBlockData() : null;
                 let fullLength = null;
@@ -3359,8 +4365,7 @@ class ConstructionTools {
                     const base = allBlocks[blockData.baseBlock];
                     if (base && base.length) fullLength = base.length;
                 }
-                // Si on a la longueur du bloc plein (> demi), corriger précisément: position gauche = -(half + joint) + (full - half)
-                // car l'ancien calcul utilisait -(full + joint) donnant un surplus de (full - half)
+                // Si on a la longueur du bloc plein (> demi), corriger précisément
                 if (fullLength && fullLength > dims.length) {
                     const delta = fullLength - dims.length; // ex: 39 - 19 = 20
                     leftContinuationX += delta; // rapproche de delta cm
@@ -3368,11 +4373,13 @@ class ConstructionTools {
                     // Fallback conservatif: ajouter 20cm (cas observé)
                     leftContinuationX += 20;
                 }
+                
+                // Mettre à jour la position B dans basePositions
+                const positionB = positionsToProcess.find(pos => pos.key === 'B');
+                if (positionB) {
+                    positionB.x = leftContinuationX;
+                }
             }
-            positionsToProcess.push(
-                { x: dims.length + jointForBlock, z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'A' },
-                { x: leftContinuationX, z: 0, rotation: rotation, color: 0xFFFFFF, type: 'continuation', key: 'B' }
-            );
         }
         
         // LOGIQUE SPÉCIFIQUE POUR LES ISOLANTS: ne proposer que les positions de continuité A et B
@@ -3391,6 +4398,13 @@ class ConstructionTools {
                 
                 // Appliquer les ajustements spécifiques à chaque lettre de manière indépendante
                 const adjustments = getPositionAdjustments(letter);
+                if (adjustments === null) return null; // Position spécifiquement exclue dans les ajustements
+                
+                // Debug logging pour B14
+                if (letter && (letter.includes('140103') || letter.includes('140104') || letter.includes('140105') || letter.includes('140106'))) {
+                    window.forceLog(`🔧 [APPLICATION B14] Lettre: "${letter}", Position originale: {x:${pos.x}, z:${pos.z}}, Ajustements: {x:${adjustments.x}, z:${adjustments.z}}`);
+                }
+                
                 return { 
                     ...pos, 
                     letter,
@@ -3400,37 +4414,50 @@ class ConstructionTools {
             })
             .filter(pos => pos !== null); // Éliminer les positions exclues
 
-        // MODE BLOCK: forcer exactement 2 suggestions (A et B) sans doublon
-        if (this.currentMode === 'block') {
-            const keepKeys = new Set(['A','B']);
-            const seen = new Set();
-            localPositions = localPositions.filter(pos => {
-                if (!keepKeys.has(pos.key)) return false;
-                if (seen.has(pos.key)) return false;
-                seen.add(pos.key);
-                return true;
-            });
-        }
+        // SUPPRIMÉ: Filtre qui limitait les blocs aux positions A et B uniquement
+        // MODE BLOCK: tous les blocs adjacents sont maintenant affichés
+        // if (this.currentMode === 'block') {
+        //     const keepKeys = new Set(['A','B']);
+        //     const seen = new Set();
+        //     localPositions = localPositions.filter(pos => {
+        //         if (!keepKeys.has(pos.key)) return false;
+        //         if (seen.has(pos.key)) return false;
+        //         seen.add(pos.key);
+        //         return true;
+        //     });
+        // }
         
-        // SUGGESTIONS D'ANGLE DE MUR POUR TOUTES LES BRIQUES
+        // SUGGESTIONS D'ANGLE DE MUR POUR TOUTES LES BRIQUES ET BLOCS
         // Ajouter des suggestions d'angle pour créer des angles à 90° (technique de maçonnerie)
         
-        // Pour les briques normales (panneresse), proposer des briques d'angle perpendiculaires
-        // MAIS PAS POUR LES BLOCS (ils n'ont que les boutisses S et T)
-        // ET PAS POUR LES ISOLANTS (seulement continuité A et B)
-        if (!isBoutisse && this.currentMode !== 'block' && this.currentMode !== 'insulation') {
+        // Pour les briques normales (panneresse) ET les blocs, proposer des briques d'angle perpendiculaires
+        // MAIS PAS POUR LES ISOLANTS (seulement continuité A et B)
+        if (!isBoutisse && this.currentMode !== 'insulation') {
             // Calcul des décalages adaptatifs aux dimensions actuelles
-            const offsetX = 5; // Décalage sur X
-            const offsetZ1 = Math.max(4, dims.width * 0.44); // Minimum 4cm ou 44% de la largeur
-            const offsetZ2 = Math.max(19, dims.length * 1.0); // Minimum 19cm ou 100% de la longueur
+            let offsetX = 5; // Décalage sur X par défaut
+            
+            const offsetZ1 = Math.max(4, effectiveWidth * 0.44); // Minimum 4cm ou 44% de la largeur effective
+            const offsetZ2 = Math.max(19, effectiveLength * 1.0); // Minimum 19cm ou 100% de la longueur effective
             const offsetZ3 = Math.max(1, dims.height * 0.15); // Minimum 1cm ou 15% de la hauteur
+            
+            // 🔧 DEBUG: Log des offsets calculés (optionnel)
+            if (window.DEBUG_POSITIONS) {
+                window.forceLog('[DEBUG-OFFSETS] Calculs d\'offsets:', {
+                    offsetX: offsetX,
+                    offsetZ1: offsetZ1,
+                    offsetZ2: offsetZ2,
+                    offsetZ3: offsetZ3,
+                    effectiveWidthUsed: effectiveWidth,
+                    jointVertical: jointVertical
+                });
+            }
             
             // Suggestions d'angle aux extrémités des panneresses avec filtrage
             const baseAnglePositions = [
                 // Angle à droite de la panneresse (perpendiculaire pour former un angle)
                 { 
-                    x: dims.length/2 + dims.width/2 + jointVertical + offsetX,
-                    z: dims.width/2 + dims.length/2 + jointVertical - offsetZ1 - offsetZ2 - offsetZ3,
+                    x: effectiveLength/2 + effectiveWidth/2 + jointVertical + offsetX,
+                    z: effectiveWidth/2 + effectiveLength/2 + jointVertical - offsetZ1 - offsetZ2 - offsetZ3,
                     rotation: rotation + Math.PI/2, 
                     color: 0xFFFFFF,
                     type: 'angle-panneresse-droite',
@@ -3439,8 +4466,8 @@ class ConstructionTools {
                 },
                 // Angle à gauche de la panneresse (perpendiculaire pour former un angle)
                 { 
-                    x: -(dims.length/2 + dims.width/2 + jointVertical) + offsetX,
-                    z: dims.width/2 + dims.length/2 + jointVertical - offsetZ1 - offsetZ2 - offsetZ3,
+                    x: -(effectiveLength/2 + effectiveWidth/2 + jointVertical) + offsetX,
+                    z: effectiveWidth/2 + effectiveLength/2 + jointVertical - offsetZ1 - offsetZ2 - offsetZ3,
                     rotation: rotation + Math.PI/2, 
                     color: 0xFFFFFF,
                     type: 'angle-panneresse-gauche',
@@ -3449,8 +4476,8 @@ class ConstructionTools {
                 },
                 // Angle à droite arrière de la panneresse - position de base sans ajustement initial
                 { 
-                    x: dims.length/2 + dims.width/2 + jointVertical + offsetX,
-                    z: -(dims.width/2 + dims.length/2 + jointVertical) - offsetZ1 + positionOffsets.I,
+                    x: effectiveLength/2 + effectiveWidth/2 + jointVertical + offsetX,
+                    z: -(effectiveWidth/2 + effectiveLength/2 + jointVertical) - offsetZ1 + positionOffsets.I,
                     rotation: rotation + Math.PI/2, 
                     color: 0xFFFFFF,
                     type: 'angle-panneresse-droite-arriere',
@@ -3459,8 +4486,8 @@ class ConstructionTools {
                 },
                 // Angle à gauche arrière de la panneresse - position de base sans ajustement initial
                 { 
-                    x: -(dims.length/2 + dims.width/2 + jointVertical) + offsetX,
-                    z: -(dims.width/2 + dims.length/2 + jointVertical) - offsetZ1 + positionOffsets.J,
+                    x: -(effectiveLength/2 + effectiveWidth/2 + jointVertical) + offsetX,
+                    z: -(effectiveWidth/2 + effectiveLength/2 + jointVertical) - offsetZ1 + positionOffsets.J,
                     rotation: rotation + Math.PI/2, 
                     color: 0xFFFFFF,
                     type: 'angle-panneresse-gauche-arriere',
@@ -3468,6 +4495,19 @@ class ConstructionTools {
                     key: 'J'
                 }
             ];
+            
+            // 🔧 DEBUG: Log des positions d'angles calculées (optionnel)
+            if (window.DEBUG_POSITIONS) {
+                window.forceLog('[DEBUG-ANGLE-POSITIONS] Positions d\'angles panneresse calculées:', {
+                    anglePositions: baseAnglePositions.map(pos => ({
+                        key: pos.key,
+                        type: pos.type,
+                        x: pos.x,
+                        z: pos.z,
+                        effectiveWidthUsed: effectiveWidth
+                    }))
+                });
+            }
             
             // Filtrer les angles selon les règles de compatibilité avec ajustements indépendants
             const anglePositions = baseAnglePositions
@@ -3477,6 +4517,8 @@ class ConstructionTools {
                     
                     // Appliquer les ajustements spécifiques à chaque lettre de manière indépendante
                     const adjustments = getPositionAdjustments(letter);
+                    if (adjustments === null) return null; // Position spécifiquement exclue dans les ajustements
+                    
                     return { 
                         ...pos, 
                         letter,
@@ -3488,91 +4530,116 @@ class ConstructionTools {
             
             // Ajouter les suggestions d'angle à la liste
             localPositions.push(...anglePositions);
-            // Filtrage final spécifique mode block: supprimer S/T (ou toute clé autre que A/B)
-            if (this.currentMode === 'block') {
-                const seen = new Set();
-                localPositions = localPositions.filter(p => {
-                    if (p.key !== 'A' && p.key !== 'B') return false;
-                    if (seen.has(p.key)) return false; // éviter doublon même clé
-                    seen.add(p.key);
-                    return true;
-                });
-            }
+            // SUPPRIMÉ: Filtrage final spécifique mode block qui supprimait les positions autres que A/B
+            // Maintenant tous les blocs adjacents (y compris les angles) sont affichés
+            // if (this.currentMode === 'block') {
+            //     const seen = new Set();
+            //     localPositions = localPositions.filter(p => {
+            //         if (p.key !== 'A' && p.key !== 'B') return false;
+            //         if (seen.has(p.key)) return false; // éviter doublon même clé
+            //         seen.add(p.key);
+            //         return true;
+            //     });
+            // }
         }
         
         // SUGGESTIONS D'ANGLE POUR LES BOUTISSES
         // Si la brique est une boutisse, ajouter des suggestions pour créer des angles
         // OU si on est en mode bloc (forcer l'affichage des positions S et T pour les blocs)
         // MAIS PAS POUR LES ISOLANTS (seulement continuité A et B)
-    // Angles uniquement pour les briques boutisse (pas pour les blocs) afin d'éviter doublons A/S et B/T
-    if (isBoutisse && this.currentMode !== 'insulation' && this.currentMode !== 'block') {
-            // Calcul des décalages adaptatifs aux dimensions actuelles
-            const offsetX = 5; // Décalage sur X
-            const offsetZ = Math.max(4, dims.height * 0.62); // Minimum 4cm ou 62% de la hauteur
-            
-            // Suggestions pour angle de mur aux extrémités des boutisses
-            // Ces briques seront perpendiculaires à la boutisse pour former un angle à 90°
-            
-            // Calcul du recul spécial pour S et T selon la compatibilité
-            let stRecul = 0;
-            if (referenceBrickType === 'entiere' && brickType === '3/4') {
-                stRecul = 0; // Pas de recul spécial - remis à 0
-            }
-            
-            const baseAnglePositions = {
-                'S': { 
-                    x: dims.width/2 + dims.length/2 + jointVertical + offsetX,
-                    z: -9 - dims.length + dims.width - stRecul, // Recul supplémentaire + longueur brique - avance d'une largeur de brique + recul spécial (S avance)
+    // Angles pour les briques boutisse ET pour les blocs (pour afficher les positions S,T,U,V)
+    if (isBoutisse && this.currentMode !== 'insulation') {
+            // NOUVEAU COMPORTEMENT: Conserver les décalages panneresse et les adapter par rotation 90°
+            // Recalcule les mêmes positions d'angle que pour la panneresse (G,H,I,J)
+            const pOffsetX = 5;
+            const pOffsetZ1 = Math.max(4, effectiveWidth * 0.44);
+            const pOffsetZ2 = Math.max(19, effectiveLength * 1.0);
+            const pOffsetZ3 = Math.max(1, dims.height * 0.15);
+
+            const panneresseAngles = [
+                { 
+                    x: effectiveLength/2 + effectiveWidth/2 + jointVertical + pOffsetX,
+                    z: effectiveWidth/2 + effectiveLength/2 + jointVertical - pOffsetZ1 - pOffsetZ2 - pOffsetZ3,
                     rotation: rotation + Math.PI/2, 
-                    color: 0xFFFFFF, // BLANC - Angle boutisse droite
-                    type: 'angle-boutisse-droite',
-                    isAngle: true
+                    color: 0xFFFFFF,
+                    type: 'angle-panneresse-droite',
+                    isAngle: true,
+                    key: 'G'
                 },
-                'T': { 
-                    x: -(dims.width/2 + dims.length/2 + jointVertical) + offsetX,
-                    z: -9 - dims.length + dims.width - stRecul, // Recul supplémentaire + longueur brique - avance d'une largeur de brique + recul spécial (T avance)
+                { 
+                    x: -(effectiveLength/2 + effectiveWidth/2 + jointVertical) + pOffsetX,
+                    z: effectiveWidth/2 + effectiveLength/2 + jointVertical - pOffsetZ1 - pOffsetZ2 - pOffsetZ3,
                     rotation: rotation + Math.PI/2, 
-                    color: 0xFFFFFF, // BLANC - Angle boutisse gauche
-                    type: 'angle-boutisse-gauche',
-                    isAngle: true
+                    color: 0xFFFFFF,
+                    type: 'angle-panneresse-gauche',
+                    isAngle: true,
+                    key: 'H'
                 },
-                'U': { 
-                    x: dims.width/2 + dims.length/2 + jointVertical + offsetX,
-                    z: dims.width/2 + dims.length/2 + jointVertical + offsetZ - dims.length - dims.width, // Recul d'une largeur de brique supplémentaire (U recule)
+                { 
+                    x: effectiveLength/2 + effectiveWidth/2 + jointVertical + pOffsetX,
+                    z: -(effectiveWidth/2 + effectiveLength/2 + jointVertical) - pOffsetZ1 + positionOffsets.I,
                     rotation: rotation + Math.PI/2, 
-                    color: 0xFFFFFF, // BLANC - Angle boutisse droite avant
-                    type: 'angle-boutisse-droite-avant',
-                    isAngle: true
+                    color: 0xFFFFFF,
+                    type: 'angle-panneresse-droite-arriere',
+                    isAngle: true,
+                    key: 'I'
                 },
-                'V': { 
-                    x: -(dims.width/2 + dims.length/2 + jointVertical) + offsetX, // Position de base sans ajustement initial
-                    z: dims.width/2 + dims.length/2 + jointVertical + offsetZ - dims.length - dims.width, // Recul d'une largeur de brique supplémentaire (V recule)
+                { 
+                    x: -(effectiveLength/2 + effectiveWidth/2 + jointVertical) + pOffsetX,
+                    z: -(effectiveWidth/2 + effectiveLength/2 + jointVertical) - pOffsetZ1 + positionOffsets.J,
                     rotation: rotation + Math.PI/2, 
-                    color: 0xFFFFFF, // BLANC - Angle boutisse gauche avant
-                    type: 'angle-boutisse-gauche-avant',
-                    isAngle: true
+                    color: 0xFFFFFF,
+                    type: 'angle-panneresse-gauche-arriere',
+                    isAngle: true,
+                    key: 'J'
                 }
-            };
-            
-            let positionsToProcess = baseAnglePositions; // uniquement base S/T/U/V pour briques boutisse
-            
+            ];
+
+            // IMPORTANT: Ne pas re-rotater les offsets locaux ici pour éviter une double rotation.
+            // Le passage en boutisse provient déjà de la rotation de l'élément de référence (cos/sin plus loin).
+            // On remappe simplement les positions panneresse G/H/I/J vers S/T/U/V en conservant x/z tels quels.
+            const baseAnglePositions = {};
+            const mapGHIVtoSTUV = [
+                { from: 'G', to: 'S', type: 'angle-boutisse-droite' },
+                { from: 'H', to: 'T', type: 'angle-boutisse-gauche' },
+                { from: 'I', to: 'U', type: 'angle-boutisse-droite-avant' },
+                { from: 'J', to: 'V', type: 'angle-boutisse-gauche-avant' }
+            ];
+            for (const map of mapGHIVtoSTUV) {
+                const src = panneresseAngles.find(p => p.key === map.from);
+                if (!src) continue;
+                baseAnglePositions[map.to] = {
+                    x: src.x,
+                    z: src.z,
+                    rotation: src.rotation, // l'orientation de la brique adjacente reste perpendiculaire
+                    color: src.color,
+                    type: map.type,
+                    isAngle: true,
+                    sourceKey: map.from // conserver la clé source (G/H/I/J) pour les ajustements
+                };
+            }
+
             // Filtrer et créer les suggestions d'angle avec ajustements indépendants par lettre
             const anglePositions = [];
-            for (const [key, position] of Object.entries(positionsToProcess)) {
-                const letter = getLetterForPosition(key, isBoutisse, placementBrickType, referenceBrickType);
-                // console.log(`🔧 DEBUG Position ${letter}: x=${position.x.toFixed(2)}, z=${position.z.toFixed(2)}`);
-                if (letter) {
-                    // Appliquer les ajustements spécifiques à chaque lettre de manière indépendante
-                    const adjustments = getPositionAdjustments(letter);
-                    anglePositions.push({
-                        ...position,
-                        letter: letter,
-                        x: position.x + adjustments.x, // Ajustement X spécifique à cette lettre
-                        z: position.z + adjustments.z  // Ajustement Z spécifique à cette lettre
-                    });
-                }
+            for (const [key, position] of Object.entries(baseAnglePositions)) {
+                // Lettre à afficher (boutisse S/T/U/V)
+                const displayLetter = getLetterForPosition(key, isBoutisse, placementBrickType, referenceBrickType);
+                if (!displayLetter) continue;
+                // Lettre source panneresse (G/H/I/J) pour réutiliser EXACTEMENT les mêmes ajustements
+                const sourceLetter = position.sourceKey
+                    ? getLetterForPosition(position.sourceKey, /*isBoutisse=*/false, placementBrickType, referenceBrickType)
+                    : null;
+                const adjustments = sourceLetter ? getPositionAdjustments(sourceLetter) : { x: 0, z: 0 };
+                if (adjustments === null) continue;
+
+                anglePositions.push({
+                    ...position,
+                    letter: displayLetter,
+                    x: position.x + (adjustments?.x || 0),
+                    z: position.z + (adjustments?.z || 0)
+                });
             }
-            
+
             // Ajouter les suggestions d'angle à la liste
             localPositions.push(...anglePositions);
         }
@@ -3588,6 +4655,21 @@ class ConstructionTools {
             const worldX = basePos.x + (adjustedX * cos - adjustedZ * sin);
             const worldZ = basePos.z + (adjustedX * sin + adjustedZ * cos);
             const worldY = basePos.y + (localPos.y || 0);
+            
+            // 🔧 DEBUG: Log de la conversion coordonnées locales → mondiales (optionnel)
+            if (window.DEBUG_POSITIONS && index < 6) { // Limiter les logs aux 6 premières positions pour éviter le spam
+                window.forceLog(`[DEBUG-COORD-CONVERSION] Position ${localPos.key} (${localPos.type}):`, {
+                    localX: localPos.x,
+                    localZ: localPos.z,
+                    adjustedX: adjustedX,
+                    adjustedZ: adjustedZ,
+                    worldX: worldX,
+                    worldZ: worldZ,
+                    basePos: basePos,
+                    cos: cos,
+                    sin: sin
+                });
+            }
             
             // TEMPORAIRE: Désactivation complète de la vérification de collision pour debug
             if (true) { // Toujours créer les suggestions
@@ -3607,6 +4689,13 @@ class ConstructionTools {
         });
         
         this.suggestionGhosts = suggestions;
+        
+        // 🔄 RETOUR AUTOMATIQUE EN MODE POSE: Si aucune suggestion n'est affichée, remettre en mode pose de bloc
+        if (suggestions.length === 0) {
+            console.log('🔄 AUCUNE SUGGESTION: Retour automatique en mode pose de bloc');
+            this.clearSuggestions();
+        }
+        
         // // console.log(`🎯 ${suggestions.length} suggestions de placement créées pour ${hoveredElement.type}:`, hoveredElement.id);
     }
     
@@ -3706,21 +4795,26 @@ class ConstructionTools {
         
         // Ajouter une lettre sur la face supérieure si fournie
         if (letter && window.SceneManager && window.SceneManager.scene) {
-            // Créer le texte 3D avec une résolution plus élevée
+            // Créer le texte 3D avec une résolution plus élevée pour les numéros à 4 chiffres
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
-            canvas.width = 256; // Résolution doublée pour plus de netteté
-            canvas.height = 256; // Résolution doublée pour plus de netteté
+            canvas.width = 512; // Résolution augmentée pour les numéros plus longs (256 → 512)
+            canvas.height = 256; // Hauteur gardée pour ratio optimal
             
             // Style du texte avec une taille proportionnellement adaptée
             context.fillStyle = '#000000'; // Noir sur fond transparent
-            context.font = 'Bold 140px Arial'; // Taille adaptée à la nouvelle résolution
+            context.font = 'Bold 120px Arial'; // Taille ajustée pour le canvas plus large (512x256)
             context.textAlign = 'center';
             context.textBaseline = 'middle';
             
             // Pas de fond - garder transparent
             // context.fillStyle = '#FFFFFF';
             // context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Contour blanc pour améliorer la lisibilité
+            context.strokeStyle = '#FFFFFF';
+            context.lineWidth = 6;
+            context.strokeText(letter, canvas.width / 2, canvas.height / 2);
             
             // Texte noir
             context.fillStyle = '#000000';
@@ -3737,8 +4831,8 @@ class ConstructionTools {
                 opacity: 0.9
             });
             
-            // Créer un plan pour le texte sur la face supérieure avec une taille légèrement réduite
-            const textGeometry = new THREE.PlaneGeometry(length * 0.35, width * 0.35); // Réduction de 0.4 à 0.35
+            // Créer un plan pour le texte sur la face supérieure avec une taille agrandie
+            const textGeometry = new THREE.PlaneGeometry(length * 0.5, width * 0.5); // Agrandie de 0.35 à 0.5 pour les numéros plus longs
             const textMesh = new THREE.Mesh(textGeometry, textMaterial);
             
             // Désactiver l'interaction avec le texte pour permettre de cliquer sur la brique en dessous
@@ -4710,31 +5804,28 @@ class ConstructionTools {
                                 }
                                 break;
                             case 'cut':
-                                // Pour les blocs coupés, déterminer le type selon l'origine
-                                if (currentBlockType && currentBlockType.startsWith('B9')) {
-                                    type = 'B9';
-                                } else if (currentBlockType && currentBlockType.startsWith('B14')) {
-                                    type = 'B14';
-                                } else if (currentBlockType && currentBlockType.startsWith('B19')) {
-                                    type = 'B19';
-                                } else if (currentBlockType && currentBlockType.startsWith('B29')) {
-                                    type = 'B29';
-                                } else if (currentBlockType && (currentBlockType.startsWith('BC_') || currentBlockType.startsWith('BCA_'))) {
-                                    type = 'CELLULAIRE'; // Les blocs béton cellulaire coupés restent CELLULAIRE
-                                    console.log(`🔧 Bloc béton cellulaire coupé détecté: ${currentBlockType} → type CELLULAIRE conservé`);
-                                } else if (currentBlockType && currentBlockType.startsWith('ARGEX_')) {
-                                    // Détecter le sous-type ARGEX pour les blocs coupés
-                                    if (currentBlockType.includes('39x9')) {
-                                        type = 'ARGEX9';
-                                    } else if (currentBlockType.includes('39x14')) {
-                                        type = 'ARGEX14';
-                                    } else if (currentBlockType.includes('39x19')) {
-                                        type = 'ARGEX19';
-                                    } else {
-                                        type = 'ARGEX'; // Fallback générique
-                                    }
-                                    console.log(`🔧 Bloc ARGEX coupé détecté: ${currentBlockType} → type ${type} conservé`);
-                                } else if (currentBlockType && currentBlockType.startsWith('TC_')) {
+                                // Pour les blocs coupés, retourner le type COMPLET avec suffixe
+                                if (currentBlockType) {
+                                    // CORRECTION: Retourner le type complet au lieu du type de base
+                                    if (currentBlockType.startsWith('B9') || currentBlockType.startsWith('B14') || 
+                                        currentBlockType.startsWith('B19') || currentBlockType.startsWith('B29')) {
+                                        type = currentBlockType; // ✅ Conserver le suffixe (_34CM, _4CM, etc.)
+                                    } else if (currentBlockType.startsWith('BC_') || currentBlockType.startsWith('BCA_')) {
+                                        type = 'CELLULAIRE'; // Les blocs béton cellulaire coupés restent CELLULAIRE
+                                        console.log(`🔧 Bloc béton cellulaire coupé détecté: ${currentBlockType} → type CELLULAIRE conservé`);
+                                    } else if (currentBlockType.startsWith('ARGEX_')) {
+                                        // Détecter le sous-type ARGEX pour les blocs coupés
+                                        if (currentBlockType.includes('39x9')) {
+                                            type = 'ARGEX9';
+                                        } else if (currentBlockType.includes('39x14')) {
+                                            type = 'ARGEX14';
+                                        } else if (currentBlockType.includes('39x19')) {
+                                            type = 'ARGEX19';
+                                        } else {
+                                            type = 'ARGEX'; // Fallback générique
+                                        }
+                                        console.log(`🔧 Bloc ARGEX coupé détecté: ${currentBlockType} → type ${type} conservé`);
+                                    } else if (currentBlockType.startsWith('TC_')) {
                                     // Détecter le sous-type terre cuite pour les blocs coupés
                                     if (currentBlockType.includes('50x10')) {
                                         type = 'TC10';
@@ -4746,8 +5837,11 @@ class ConstructionTools {
                                         type = 'TERRE_CUITE'; // Fallback générique
                                     }
                                     console.log(`🔧 Bloc terre cuite coupé détecté: ${currentBlockType} → type ${type} conservé`);
+                                    } else {
+                                        type = 'CREUX'; // Les autres blocs découpés deviennent CREUX
+                                    }
                                 } else {
-                                    type = 'CREUX'; // Les autres blocs découpés deviennent CREUX
+                                    type = 'CREUX'; // Fallback si currentBlockType n'est pas défini
                                 }
                                 break;
                             case 'cellular':
@@ -9022,6 +10116,10 @@ class ConstructionTools {
 
 // Instance globale
 window.ConstructionTools = new ConstructionTools();
+
+// Installer les intercepteurs maintenant que tout est chargé
+originalConsoleWarn('========== INSTALLATION INTERCEPTEURS APRÈS CHARGEMENT ==========');
+installInterceptors();
 
 // Fonction d'aide pour debugging des joints
 window.enableJointDebug = false;

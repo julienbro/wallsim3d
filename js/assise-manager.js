@@ -1818,6 +1818,20 @@ class AssiseManager {
             currentType: this.currentType
         });
         
+        // LOG DES DIMENSIONS DE L'ELEMENT À CE MOMENT
+        if (element) {
+            console.warn('========== DIMENSIONS ELEMENT DANS ASSISE ==========');
+            console.log('Dimensions element dans addElementToAssise:', {
+                id: element.id,
+                type: element.type,
+                width: element.width,
+                height: element.height,
+                depth: element.depth,
+                length: element.length,
+                dimensions: element.dimensions
+            });
+        }
+        
     // Poutres désormais gérées (assise dédiée 'beam')
         let elementType = this.currentType; // Par défaut
         
@@ -2389,7 +2403,8 @@ class AssiseManager {
     // Calculer la taille dynamique de la grille en fonction des éléments présents dans la scène
     calculateDynamicGridSize() {
         if (!window.SceneManager || window.SceneManager.elements.size === 0) {
-            return 200; // Taille par défaut si pas d'éléments
+            // Taille par défaut: 400 cm (±2m) pour respecter la règle de marge minimale
+            return 400;
         }
         
         let minX = Infinity, maxX = -Infinity;
@@ -2410,25 +2425,22 @@ class AssiseManager {
             maxZ = Math.max(maxZ, pos.z + halfWidth);
         });
         
-        // AMÉLIORATION: Calculer la taille nàcessaire avec une marge adaptative plus importante
-        // Pour les constructions étendues, augmenter la marge proportionnellement
-        const elementRange = Math.max(maxX - minX, maxZ - minZ);
-        
-        // Marge adaptative : 
-        // - Minimum 3m de chaque côté pour petites constructions (600cm au total)
-        // - Jusqu'à 5m de chaque côté pour grandes constructions (1000cm au total)
-        const adaptiveMargin = Math.max(600, Math.min(1000, elementRange * 0.5));
-        
-        const rangeX = maxX - minX + adaptiveMargin;
-        const rangeZ = maxZ - minZ + adaptiveMargin;
-        const maxRange = Math.max(rangeX, rangeZ);
-        
-        // Arrondir à la dizaine supàrieure pour une grille propre
-        const finalSize = Math.ceil(maxRange / 10) * 10;
-        
-        // Taille minimale de 600cm (pour garantir au moins 3m de marge)
-        // Taille maximale augmentée à 2000cm (20m) pour supporter les grandes constructions
-        return Math.min(Math.max(finalSize, 600), 2000);
+        // Nouvelle règle: la grille d'assise doit couvrir au moins 200 cm au-delà de la brique la plus éloignée
+        // GridHelper est centré sur l'origine (0,0) et prend une taille "size" qui va de -size/2 à +size/2.
+        // On calcule donc la distance max depuis l'origine jusqu'à l'élément le plus éloigné, puis on ajoute 200 cm.
+        const extentX = Math.max(Math.abs(minX), Math.abs(maxX));
+        const extentZ = Math.max(Math.abs(minZ), Math.abs(maxZ));
+        const furthestRadius = Math.max(extentX, extentZ);
+
+        // Marge minimale stricte de 200 cm au-delà du point le plus éloigné
+        const requiredHalfSize = furthestRadius + 200;
+        let finalSize = Math.ceil((requiredHalfSize * 2) / 10) * 10; // arrondi à la dizaine
+
+        // Garder une taille minimale raisonnable et plafonner pour performance
+        finalSize = Math.max(finalSize, 400); // au moins ±2m si peu d'éléments
+        finalSize = Math.min(finalSize, 4000); // cap à 40m total
+
+        return finalSize;
     }
 
     // Cràer la grille pour une assise d'un type spécifique
