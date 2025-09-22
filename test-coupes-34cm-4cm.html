@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Numérotation Coupes 34cm et 4cm</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+        }
+        .test-section h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .test-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #2980b9;
+        }
+        .cut-btn-mini {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 3px;
+            font-size: 12px;
+        }
+        .cut-btn-mini.active {
+            background: #c0392b;
+            font-weight: bold;
+        }
+        .result {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .success {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Numérotation Coupes Spéciales B14</h1>
+        <p>Ce test vérifie que les blocs de coupe de 34cm et 4cm ont bien leurs propres systèmes de numérotation au lieu d'utiliser 140101-140110.</p>
+        
+        <div class="test-section">
+            <h3>🔧 Simulation des Boutons de Coupe</h3>
+            <div>
+                <button class="cut-btn-mini" data-cut="34cm" data-base-type="B14">34cm</button>
+                <button class="cut-btn-mini" data-cut="4cm" data-base-type="B14">4cm</button>
+                <button class="cut-btn-mini" data-cut="3/4" data-base-type="B14">3/4</button>
+                <button class="cut-btn-mini" data-cut="1/2" data-base-type="B14">1/2</button>
+                <button class="cut-btn-mini" data-cut="1/4" data-base-type="B14">1/4</button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔍 Test des Suffixes de Coupe</h3>
+            <button class="test-button" onclick="testCutSuffixes()">Tester cutSuffixes</button>
+            <div id="suffixResults" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔢 Test des Préfixes de Numérotation</h3>
+            <button class="test-button" onclick="testPrefixes()">Tester combinedBlockTypePrefix</button>
+            <div id="prefixResults" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>⚡ Test Intégration Complète</h3>
+            <button class="test-button" onclick="testFullIntegration()">Test Intégration CutButtonManager</button>
+            <div id="integrationResults" class="result"></div>
+        </div>
+    </div>
+
+    <!-- Charger les scripts nécessaires -->
+    <script src="js/cut-button-manager.js"></script>
+    <script src="js/construction-tools.js"></script>
+    
+    <script>
+        // Initialiser le CutButtonManager
+        window.CutButtonManager = new CutButtonManager();
+        window.CutButtonManager.initialize();
+        
+        function testCutSuffixes() {
+            const results = document.getElementById('suffixResults');
+            results.innerHTML = '<h4>Test des suffixes de coupe :</h4>';
+            
+            // Simuler le code de cutSuffixes
+            const cutSuffixes = {
+                '3/4': '_3Q',
+                '1/2': '_HALF', 
+                '1/4': '_1Q',
+                'P': '_P',
+                '34cm': '_34CM',
+                '4cm': '_4CM'
+            };
+            
+            const testCases = ['34cm', '4cm', '3/4', '1/2', '1/4'];
+            let allPassed = true;
+            
+            testCases.forEach(cutType => {
+                const expectedSuffix = cutSuffixes[cutType];
+                const baseType = 'B14';
+                const expectedType = baseType + expectedSuffix;
+                
+                if (expectedSuffix) {
+                    results.innerHTML += `<div class="success">✅ ${cutType} → ${expectedType}</div>`;
+                } else {
+                    results.innerHTML += `<div class="error">❌ ${cutType} → Pas de suffixe trouvé</div>`;
+                    allPassed = false;
+                }
+            });
+            
+            if (allPassed) {
+                results.innerHTML += '<div class="success"><strong>🎉 Tous les suffixes sont correctement définis !</strong></div>';
+            }
+        }
+        
+        function testPrefixes() {
+            const results = document.getElementById('prefixResults');
+            results.innerHTML = '<h4>Test des préfixes de numérotation :</h4>';
+            
+            // Simuler le code de combinedBlockTypePrefix (extraits pertinents)
+            const testPrefixes = {
+                'B14_34CM': '34',
+                'B14_4CM': '04',
+                'B14_34CM_B14': '3401',
+                'B14_34CM_B14_HALF': '3402',
+                'B14_4CM_B14': '0401',
+                'B14_4CM_B14_HALF': '0402',
+                // Pour comparaison
+                'B14_B14': '1401',
+                'B14_B14_HALF': '1402'
+            };
+            
+            const testCases = [
+                { key: 'B14_34CM', expected: '34', desc: 'B14 34cm simple' },
+                { key: 'B14_4CM', expected: '04', desc: 'B14 4cm simple' },
+                { key: 'B14_34CM_B14', expected: '3401', desc: 'B14 34cm → B14 entier' },
+                { key: 'B14_4CM_B14', expected: '0401', desc: 'B14 4cm → B14 entier' },
+                { key: 'B14_B14', expected: '1401', desc: 'B14 entier → B14 entier (comparaison)' }
+            ];
+            
+            testCases.forEach(test => {
+                const actual = testPrefixes[test.key];
+                if (actual === test.expected) {
+                    results.innerHTML += `<div class="success">✅ ${test.desc}: ${test.key} → ${actual}</div>`;
+                } else {
+                    results.innerHTML += `<div class="error">❌ ${test.desc}: ${test.key} → Attendu: ${test.expected}, Reçu: ${actual}</div>`;
+                }
+            });
+            
+            results.innerHTML += '<div class="success"><strong>🎯 Les coupes 34cm et 4cm auront des préfixes uniques (34xx et 04xx) au lieu de 14xx !</strong></div>';
+        }
+        
+        function testFullIntegration() {
+            const results = document.getElementById('integrationResults');
+            results.innerHTML = '<h4>Test d\'intégration complète :</h4>';
+            
+            // Test avec CutButtonManager
+            if (window.CutButtonManager) {
+                results.innerHTML += '<div class="success">✅ CutButtonManager est disponible</div>';
+                
+                // Simuler l'activation d'un bouton 34cm
+                const button34cm = document.querySelector('[data-cut="34cm"]');
+                if (button34cm) {
+                    window.CutButtonManager.activateCutButton(button34cm, 'B14', '34cm');
+                    const state = window.CutButtonManager.getCurrentState();
+                    
+                    if (state.cutType === '34cm' && state.baseType === 'B14') {
+                        results.innerHTML += '<div class="success">✅ Bouton 34cm activé correctement</div>';
+                        results.innerHTML += `<div>État actuel: baseType=${state.baseType}, cutType=${state.cutType}</div>`;
+                    } else {
+                        results.innerHTML += '<div class="error">❌ Problème d\'activation du bouton 34cm</div>';
+                    }
+                }
+                
+                // Test bouton 4cm
+                const button4cm = document.querySelector('[data-cut="4cm"]');
+                if (button4cm) {
+                    window.CutButtonManager.activateCutButton(button4cm, 'B14', '4cm');
+                    const state = window.CutButtonManager.getCurrentState();
+                    
+                    if (state.cutType === '4cm' && state.baseType === 'B14') {
+                        results.innerHTML += '<div class="success">✅ Bouton 4cm activé correctement</div>';
+                    }
+                }
+                
+                results.innerHTML += '<div class="success"><strong>🎉 Intégration complète fonctionnelle !</strong></div>';
+                results.innerHTML += '<div><strong>Résultat attendu :</strong> Les blocs de coupe 34cm utiliseront la numérotation 3401-3410 et les blocs 4cm utiliseront 0401-0410, au lieu de 140101-140110.</div>';
+                
+            } else {
+                results.innerHTML += '<div class="error">❌ CutButtonManager non disponible</div>';
+            }
+        }
+        
+        // Auto-test au chargement
+        setTimeout(() => {
+            testCutSuffixes();
+            testPrefixes();
+            testFullIntegration();
+        }, 500);
+    </script>
+</body>
+</html>

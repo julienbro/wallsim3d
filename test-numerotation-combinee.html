@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Numérotation Combinée B9</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5; 
+        }
+        .test-section { 
+            background: white; 
+            padding: 20px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .test-section.success { border-left: 4px solid #4CAF50; }
+        .test-section.error { border-left: 4px solid #f44336; }
+        .test-section.info { border-left: 4px solid #2196F3; }
+        button { 
+            background: #2196F3; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        button:hover { background: #1976D2; }
+        .result { 
+            font-family: 'Courier New', monospace; 
+            background: #f8f8f8; 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .comparison-item {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #90caf9;
+        }
+        .comparison-item h4 {
+            margin-top: 0;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de la Numérotation Combinée pour Blocs B9</h1>
+    
+    <div class="test-section info">
+        <h3>📋 Problème à résoudre</h3>
+        <p><strong>Avant la correction :</strong> Les blocs B9 1/1 avaient la même numérotation qu'ils soient placés à partir d'un bloc B9 1/1 ou d'un bloc B9 3/4.</p>
+        <p><strong>Après la correction :</strong> La numérotation doit être différente selon le bloc source.</p>
+    </div>
+
+    <div class="comparison">
+        <div class="comparison-item">
+            <h4>🟢 Cas 1: B9 1/1 → B9 1/1</h4>
+            <p><strong>Source :</strong> Bloc B9 entier (1/1)</p>
+            <p><strong>À placer :</strong> Bloc B9 entier (1/1)</p>
+            <p><strong>Préfixe attendu :</strong> <code>0901</code></p>
+            <div id="result1" class="result">En attente...</div>
+        </div>
+        
+        <div class="comparison-item">
+            <h4>🔵 Cas 2: B9 3/4 → B9 1/1</h4>
+            <p><strong>Source :</strong> Bloc B9 3/4</p>
+            <p><strong>À placer :</strong> Bloc B9 entier (1/1)</p>
+            <p><strong>Préfixe attendu :</strong> <code>9301</code></p>
+            <div id="result2" class="result">En attente...</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔧 Tests automatiques</h3>
+        <button onclick="testNumerotationCombinee()">▶️ Tester la numérotation combinée</button>
+        <button onclick="clearResults()">🗑️ Effacer les résultats</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-section ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('result1').textContent = 'En attente...';
+            document.getElementById('result2').textContent = 'En attente...';
+        }
+
+        function testNumerotationCombinee() {
+            addResult('<h3>🧪 Test de la numérotation combinée</h3>');
+            
+            // Simuler les objets necessaires
+            window.BlockSelector = {
+                getCurrentBlock: function() {
+                    return 'B9'; // Simuler la sélection d'un bloc B9 entier
+                }
+            };
+
+            try {
+                // Test 1: Simuler un bloc source B9 entier
+                const sourceB9Entier = {
+                    blockType: 'B9',
+                    type: 'block',
+                    dimensions: { length: 39, width: 9, height: 19 }
+                };
+                
+                // Test 2: Simuler un bloc source B9 3/4
+                const sourceB9_3Q = {
+                    blockType: 'B9_3Q',
+                    type: 'block',
+                    dimensions: { length: 29, width: 9, height: 19 }
+                };
+
+                // Fonction de test simulée (basée sur la logique corrigée)
+                function simulateNumerotation(sourceBlock, placementBlockId) {
+                    // Détecter le type du bloc source
+                    let blockSubType = null;
+                    if (sourceBlock.blockType) {
+                        const sourceBlockId = sourceBlock.blockType;
+                        const fullType = sourceBlockId.match(/^(B\\d+)(_HALF|_3Q|_1Q)?/);
+                        if (fullType) {
+                            const baseType = fullType[1];
+                            const cutSuffix = fullType[2];
+                            blockSubType = cutSuffix ? baseType + cutSuffix : baseType;
+                        }
+                    }
+
+                    // Détecter le type du bloc à placer
+                    let placementBlockSubType = null;
+                    if (placementBlockId) {
+                        const fullPlacementType = placementBlockId.match(/^(B\\d+)(_HALF|_3Q|_1Q)?/);
+                        if (fullPlacementType) {
+                            const baseType = fullPlacementType[1];
+                            const cutSuffix = fullPlacementType[2];
+                            placementBlockSubType = cutSuffix ? baseType + cutSuffix : baseType;
+                        }
+                    }
+
+                    // Préfixes combinés
+                    const combinedBlockTypePrefix = {
+                        'B9_B9': '0901',
+                        'B9_3Q_B9': '9301',
+                        'B9_B9_3Q': '0903',
+                        'B9_3Q_B9_3Q': '9303'
+                    };
+
+                    const combinedKey = placementBlockSubType ? `${blockSubType}_${placementBlockSubType}` : blockSubType;
+                    const prefix = combinedBlockTypePrefix[combinedKey];
+
+                    return {
+                        sourceType: blockSubType,
+                        placementType: placementBlockSubType,
+                        combinedKey: combinedKey,
+                        prefix: prefix || 'NON_TROUVÉ'
+                    };
+                }
+
+                // Test 1: B9 entier → B9 entier
+                const result1 = simulateNumerotation(sourceB9Entier, 'B9');
+                document.getElementById('result1').innerHTML = `
+                    <strong>Résultat :</strong><br>
+                    Source: ${result1.sourceType}<br>
+                    Placement: ${result1.placementType}<br>
+                    Clé combinée: ${result1.combinedKey}<br>
+                    Préfixe: <strong>${result1.prefix}</strong>
+                `;
+
+                // Test 2: B9 3/4 → B9 entier
+                const result2 = simulateNumerotation(sourceB9_3Q, 'B9');
+                document.getElementById('result2').innerHTML = `
+                    <strong>Résultat :</strong><br>
+                    Source: ${result2.sourceType}<br>
+                    Placement: ${result2.placementType}<br>
+                    Clé combinée: ${result2.combinedKey}<br>
+                    Préfixe: <strong>${result2.prefix}</strong>
+                `;
+
+                // Vérification
+                if (result1.prefix === '0901' && result2.prefix === '9301') {
+                    addResult('✅ <strong>SUCCÈS :</strong> Les préfixes sont différents ! La numérotation combinée fonctionne correctement.', 'success');
+                    addResult(`
+                        <h4>📊 Comparaison des résultats :</h4>
+                        <ul>
+                            <li><strong>B9 1/1 → B9 1/1 :</strong> Préfixe <code>${result1.prefix}</code></li>
+                            <li><strong>B9 3/4 → B9 1/1 :</strong> Préfixe <code>${result2.prefix}</code></li>
+                        </ul>
+                        <p>✅ Les numérotations sont maintenant distinctes !</p>
+                    `, 'success');
+                } else {
+                    addResult(`❌ <strong>ÉCHEC :</strong> Les préfixes ne correspondent pas aux attentes.<br>
+                              Attendu: 0901 et 9301<br>
+                              Obtenu: ${result1.prefix} et ${result2.prefix}`, 'error');
+                }
+
+            } catch (error) {
+                addResult(`❌ <strong>Erreur lors du test :</strong> ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

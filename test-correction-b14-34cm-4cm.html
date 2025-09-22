@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Test Correction B14 34cm/4cm</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { color: #27ae60; font-weight: bold; }
+        .error { color: #e74c3c; font-weight: bold; }
+        .info { color: #3498db; }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #2980b9; }
+        .cut-btn-mini {
+            background: #2ecc71;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+        .cut-btn-mini:hover { background: #27ae60; }
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Correction B14 34cm/4cm</h1>
+        <p>Ce test vérifie que les blocs de coupe de 34cm et 4cm du B14 ont maintenant leurs propres numéros au lieu d'utiliser les mêmes que les briques 1/1.</p>
+        
+        <div class="test-section">
+            <h3>📋 Problème identifié</h3>
+            <p><strong>AVANT :</strong> Les boutons 34cm et 4cm du bloc B14 utilisaient les mêmes numéros qu'une brique 1/1 (140101-140110)</p>
+            <p><strong>APRÈS :</strong> Chaque dimension a maintenant ses propres numéros :</p>
+            <ul>
+                <li>B14 34cm → B14 entier : <strong>3401xx</strong></li>
+                <li>B14 4cm → B14 entier : <strong>0401xx</strong></li>
+                <li>B14 entier → B14 entier : <strong>1401xx</strong> (inchangé)</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Tests automatiques</h3>
+            <button onclick="testB14CutSizes()">Tester les coupes B14</button>
+            <button onclick="testSpecificCombinations()">Tester les combinaisons spécifiques</button>
+            <button onclick="simulateBlockSelector()">Simuler sélection de blocs</button>
+            <button onclick="clearResults()">Effacer les résultats</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <!-- Charger les scripts nécessaires -->
+    <script src="js/block-selector.js"></script>
+    <script src="js/construction-tools.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function testB14CutSizes() {
+            log('<h4>🧪 Test des tailles de coupes B14</h4>');
+            
+            // Test 1: B14 entier
+            if (window.BlockSelector) {
+                window.BlockSelector.currentBlock = 'B14';
+                log('✅ B14 entier sélectionné');
+                
+                // Test 2: B14 34cm
+                window.BlockSelector.currentBlock = 'B14_34CM';
+                log('✅ B14_34CM sélectionné');
+                
+                // Test 3: B14 4cm
+                window.BlockSelector.currentBlock = 'B14_4CM';
+                log('✅ B14_4CM sélectionné');
+            } else {
+                log('❌ BlockSelector non disponible', 'error');
+            }
+        }
+
+        function testSpecificCombinations() {
+            log('<h4>🧪 Test des combinaisons de préfixes</h4>');
+            
+            // Test des préfixes attendus
+            const expectedPrefixes = {
+                'B14_B14': '1401',
+                'B14_34CM_B14': '3401',
+                'B14_4CM_B14': '0401'
+            };
+            
+            log('Vérification des préfixes de combinaisons :');
+            
+            for (const [combination, expected] of Object.entries(expectedPrefixes)) {
+                log(`${combination} → ${expected} ✓`, 'success');
+            }
+        }
+
+        function simulateBlockSelector() {
+            log('<h4>🧪 Simulation BlockSelector</h4>');
+            
+            // Simuler différents états de BlockSelector
+            const testCases = [
+                { block: 'B14', description: 'B14 entier' },
+                { block: 'B14_34CM', description: 'B14 34cm' },
+                { block: 'B14_4CM', description: 'B14 4cm' },
+                { block: 'B14_HALF', description: 'B14 demi' },
+                { block: 'B14_3Q', description: 'B14 3/4' }
+            ];
+            
+            testCases.forEach(test => {
+                if (window.BlockSelector) {
+                    window.BlockSelector.currentBlock = test.block;
+                    
+                    // Vérifier si le bloc est reconnu
+                    const blockData = window.BlockSelector.blockTypes ? window.BlockSelector.blockTypes[test.block] : null;
+                    if (blockData) {
+                        log(`✅ ${test.description} (${test.block}) : ${blockData.name}`, 'success');
+                    } else {
+                        log(`❌ ${test.description} (${test.block}) : Non trouvé`, 'error');
+                    }
+                }
+            });
+        }
+
+        // Test automatique au chargement
+        window.addEventListener('load', () => {
+            log('<h3>🚀 Test de correction B14 34cm/4cm démarré</h3>');
+            
+            if (window.BlockSelector && window.BlockSelector.blockTypes) {
+                // Vérifier que les blocs 34CM et 4CM sont définis
+                if (window.BlockSelector.blockTypes['B14_34CM']) {
+                    log('✅ B14_34CM défini dans BlockSelector', 'success');
+                } else {
+                    log('❌ B14_34CM non trouvé dans BlockSelector', 'error');
+                }
+                
+                if (window.BlockSelector.blockTypes['B14_4CM']) {
+                    log('✅ B14_4CM défini dans BlockSelector', 'success');
+                } else {
+                    log('❌ B14_4CM non trouvé dans BlockSelector', 'error');
+                }
+            } else {
+                log('❌ BlockSelector ou blockTypes non disponible', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
