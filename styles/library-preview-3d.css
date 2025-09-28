@@ -241,6 +241,15 @@
     image-rendering: crisp-edges;
 }
 
+/* Sécurité: conserver l'éditabilité des champs dans les cartes */
+.library-item .slab-input,
+.library-item input,
+.library-item button,
+.library-item select,
+.library-item textarea {
+    pointer-events: auto !important;
+}
+
 /* Message d'erreur pour WebGL non disponible */
 .webgl-error {
     background: rgba(244, 67, 54, 0.1);

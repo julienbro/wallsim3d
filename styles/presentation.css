@@ -912,3 +912,37 @@
         min-width: 40px;
     }
 }
+
+/* Styles pour la section d'information de vue 3D */
+.view-info-settings {
+    margin-bottom: 20px;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.view-info-settings h5 {
+    margin: 0 0 8px 0;
+    color: #2c3e50;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.view-info-settings .setting-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #007bff;
+    font-size: 13px;
+    font-style: italic;
+}
+
+.view-info-settings .fa-info-circle {
+    color: #007bff;
+    opacity: 0.8;
+}
+
+.view-info-settings .fa-camera {
+    color: #6c757d;
+}

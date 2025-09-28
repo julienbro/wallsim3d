@@ -111,6 +111,7 @@
     background: linear-gradient(90deg, var(--accent-color), var(--accent-hover));
     opacity: 0;
     transition: all var(--transition-normal);
+    pointer-events: none;
 }
 
 .library-item::after {
@@ -123,6 +124,7 @@
     background: linear-gradient(135deg, transparent 0%, rgba(212, 216, 220, 0.02) 50%, transparent 100%);
     opacity: 0;
     transition: all var(--transition-normal);
+    pointer-events: none; /* IMPORTANT: ne pas bloquer les champs interactifs (inputs, boutons) */
 }
 
 .library-item:hover {
@@ -187,6 +189,12 @@
     display: block;
     background: transparent;
     border-radius: var(--radius-md);
+}
+
+/* Assurer l'interactivité des contrôles embarqués (ex: dalle personnalisée) */
+.library-item .item-controls,
+.library-item .item-controls * {
+    pointer-events: auto;
 }
 
 /* === INFORMATIONS DE LA BRIQUE === */

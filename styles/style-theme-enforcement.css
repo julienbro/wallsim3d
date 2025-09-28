@@ -72,6 +72,14 @@
     opacity: 1;
 }
 
+.library-item input,
+.library-item select,
+.library-item textarea,
+.library-item .slab-input {
+    /* Garantie: les champs à l'intérieur des cartes de bibliothèque restent éditables */
+    pointer-events: auto !important;
+}
+
 .item-preview {
     background: var(--primary-bg) !important;
     border-radius: var(--radius-md) !important;
