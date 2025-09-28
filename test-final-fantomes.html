@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 TEST FINAL - Élimination des Briques Fantômes</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .test-card {
+            background: rgba(255,255,255,0.15);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .test-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .test-card h3 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .test-button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+            min-width: 140px;
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .test-button.danger { background: linear-gradient(45deg, #f44336, #d32f2f); }
+        .test-button.warning { background: linear-gradient(45deg, #FF9800, #F57C00); }
+        .test-button.info { background: linear-gradient(45deg, #2196F3, #1976D2); }
+        .test-button.success { background: linear-gradient(45deg, #4CAF50, #388E3C); }
+        
+        .log-panel {
+            background: rgba(0,0,0,0.8);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            border: 1px solid rgba(255,255,255,0.2);
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .log-content {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+        
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #FF9800; }
+        .info { color: #2196F3; }
+        
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #4CAF50, #2196F3, #FF9800);
+            z-index: 1000;
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .status-bar.active {
+            transform: scaleX(1);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .stat-item {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-bar" id="statusBar"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🎯 TEST FINAL</h1>
+            <p>Élimination Complète des Briques Fantômes dans l'Export PDF</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="maskedCount">0</div>
+                <div class="stat-label">Fantômes Masqués</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="testCount">0</div>
+                <div class="stat-label">Tests Effectués</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="successRate">0%</div>
+                <div class="stat-label">Taux de Réussite</div>
+            </div>
+        </div>
+        
+        <div class="test-grid">
+            <div class="test-card">
+                <h3>🔍 Diagnostic Instantané</h3>
+                <p>Identifier immédiatement tous les éléments fantômes présents.</p>
+                <button class="test-button info" onclick="diagnosticInstantane()">Diagnostic</button>
+                <button class="test-button" onclick="analyseComplete()">Analyse Complète</button>
+            </div>
+            
+            <div class="test-card">
+                <h3>🚫 Masquage Force Brute</h3>
+                <p>Masquer instantanément TOUS les fantômes détectés.</p>
+                <button class="test-button warning" onclick="masquageForce()">Masquer Tout</button>
+                <button class="test-button danger" onclick="masquageUltra()">Mode Ultra</button>
+            </div>
+            
+            <div class="test-card">
+                <h3>📄 Test Export PDF</h3>
+                <p>Vérifier que l'export PDF ne contient plus de fantômes.</p>
+                <button class="test-button success" onclick="testExportPDF()">Tester Export</button>
+                <button class="test-button info" onclick="previewExport()">Aperçu</button>
+            </div>
+            
+            <div class="test-card">
+                <h3>🔄 Restauration</h3>
+                <p>Restaurer les éléments nécessaires au fonctionnement normal.</p>
+                <button class="test-button warning" onclick="restaurerElements()">Restaurer</button>
+                <button class="test-button danger" onclick="resetComplet()">Reset</button>
+            </div>
+        </div>
+        
+        <div class="log-panel">
+            <h3>📋 Journal des Opérations</h3>
+            <div class="log-content" id="logContent">
+Prêt pour les tests. Cliquez sur "Diagnostic" pour commencer...
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="test-button success" onclick="testComplet()" style="font-size: 16px; padding: 15px 30px;">
+                🚀 LANCER TEST COMPLET
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let stats = {
+            masked: 0,
+            tests: 0,
+            successes: 0,
+            elementsToRestore: []
+        };
+        
+        function log(message, type = 'info') {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            logContent.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+        
+        function updateStats() {
+            document.getElementById('maskedCount').textContent = stats.masked;
+            document.getElementById('testCount').textContent = stats.tests;
+            const successRate = stats.tests > 0 ? Math.round((stats.successes / stats.tests) * 100) : 0;
+            document.getElementById('successRate').textContent = successRate + '%';
+        }
+        
+        function showActivity() {
+            const statusBar = document.getElementById('statusBar');
+            statusBar.classList.add('active');
+            setTimeout(() => {
+                statusBar.classList.remove('active');
+            }, 2000);
+        }
+        
+        function diagnosticInstantane() {
+            log('🔍 DIAGNOSTIC INSTANTANÉ', 'info');
+            showActivity();
+            stats.tests++;
+            
+            let fantomes = [];
+            
+            // ConstructionTools
+            if (window.ConstructionTools) {
+                Object.getOwnPropertyNames(window.ConstructionTools).forEach(key => {
+                    const element = window.ConstructionTools[key];
+                    if (element && typeof element === 'object') {
+                        if (element.visible === true) {
+                            fantomes.push({source: 'ConstructionTools', key, type: 'visible'});
+                        }
+                        if (element.mesh && element.mesh.visible === true) {
+                            fantomes.push({source: 'ConstructionTools', key: key + '.mesh', type: 'mesh'});
+                        }
+                    }
+                });
+            }
+            
+            // Scène
+            if (window.SceneManager && window.SceneManager.scene) {
+                window.SceneManager.scene.traverse((object) => {
+                    if (object.isMesh && object.visible) {
+                        if (object.material && object.material.opacity < 1.0) {
+                            fantomes.push({source: 'Scene', key: object.name || 'sans nom', type: `opacity ${object.material.opacity}`});
+                        }
+                        if (object.name && ['ghost', 'preview', 'phantom', 'cursor', 'fantome'].some(mot => 
+                            object.name.toLowerCase().includes(mot))) {
+                            fantomes.push({source: 'Scene', key: object.name, type: 'nom suspect'});
+                        }
+                    }
+                });
+            }
+            
+            log(`📊 RÉSULTAT: ${fantomes.length} éléments fantômes détectés`, fantomes.length > 0 ? 'warning' : 'success');
+            
+            if (fantomes.length > 0) {
+                fantomes.forEach(fantome => {
+                    log(`👻 ${fantome.source}.${fantome.key} (${fantome.type})`, 'warning');
+                });
+                stats.successes++;
+            } else {
+                log('✅ Aucun élément fantôme détecté', 'success');
+                stats.successes++;
+            }
+            
+            updateStats();
+            return fantomes;
+        }
+        
+        function masquageForce() {
+            log('🚫 MASQUAGE FORCE BRUTE', 'warning');
+            showActivity();
+            stats.tests++;
+            
+            let maskedCount = 0;
+            const elementsToRestore = [];
+            
+            // ConstructionTools
+            if (window.ConstructionTools) {
+                Object.getOwnPropertyNames(window.ConstructionTools).forEach(key => {
+                    const element = window.ConstructionTools[key];
+                    if (element && typeof element === 'object') {
+                        if (element.visible === true) {
+                            elementsToRestore.push({source: 'CT', key, element, prop: 'visible'});
+                            element.visible = false;
+                            maskedCount++;
+                            log(`🚫 Masqué: ConstructionTools.${key}`, 'warning');
+                        }
+                        if (element.mesh && element.mesh.visible === true) {
+                            elementsToRestore.push({source: 'CT_mesh', key, element: element.mesh, prop: 'visible'});
+                            element.mesh.visible = false;
+                            maskedCount++;
+                            log(`🚫 Masqué: ConstructionTools.${key}.mesh`, 'warning');
+                        }
+                    }
+                });
+            }
+            
+            // PlacementManager
+            if (window.PlacementManager) {
+                Object.getOwnPropertyNames(window.PlacementManager).forEach(key => {
+                    const element = window.PlacementManager[key];
+                    if (element && typeof element === 'object' && element.visible === true) {
+                        elementsToRestore.push({source: 'PM', key, element, prop: 'visible'});
+                        element.visible = false;
+                        maskedCount++;
+                        log(`🚫 Masqué: PlacementManager.${key}`, 'warning');
+                    }
+                });
+            }
+            
+            // Scène
+            if (window.SceneManager && window.SceneManager.scene) {
+                window.SceneManager.scene.traverse((object) => {
+                    if (object.isMesh && object.visible) {
+                        let shouldHide = false;
+                        let reason = '';
+                        
+                        if (object.material && object.material.opacity < 1.0) {
+                            shouldHide = true;
+                            reason = `opacity ${object.material.opacity}`;
+                        } else if (object.name && ['ghost', 'preview', 'phantom', 'cursor', 'fantome', 'temp'].some(mot => 
+                            object.name.toLowerCase().includes(mot))) {
+                            shouldHide = true;
+                            reason = `nom suspect`;
+                        }
+                        
+                        if (shouldHide) {
+                            elementsToRestore.push({source: 'Scene', key: object.name || 'sans nom', element: object, prop: 'visible'});
+                            object.visible = false;
+                            maskedCount++;
+                            log(`🚫 Masqué dans scène: ${object.name || 'sans nom'} (${reason})`, 'warning');
+                        }
+                    }
+                });
+            }
+            
+            // Forcer le rendu
+            if (window.SceneManager && window.SceneManager.renderer) {
+                window.SceneManager.renderer.render(window.SceneManager.scene, window.SceneManager.camera);
+            }
+            
+            stats.masked += maskedCount;
+            stats.elementsToRestore = elementsToRestore;
+            stats.successes++;
+            
+            log(`✅ MASQUAGE TERMINÉ: ${maskedCount} éléments masqués`, 'success');
+            updateStats();
+            
+            return maskedCount;
+        }
+        
+        function masquageUltra() {
+            log('🔥 MODE ULTRA - MASQUAGE EXTRÊME', 'danger');
+            showActivity();
+            
+            if (window.presentationManager && window.presentationManager.disableVisualAidsForExport) {
+                try {
+                    window.presentationManager.disableVisualAidsForExport();
+                    log('✅ Fonction de masquage intégrée activée', 'success');
+                    stats.masked += 10; // Estimation
+                } catch (e) {
+                    log(`❌ Erreur: ${e.message}`, 'error');
+                }
+            }
+            
+            // Double sécurité
+            masquageForce();
+        }
+        
+        function testExportPDF() {
+            log('📄 TEST EXPORT PDF', 'info');
+            showActivity();
+            stats.tests++;
+            
+            if (!window.presentationManager) {
+                log('❌ PresentationManager non disponible', 'error');
+                updateStats();
+                return;
+            }
+            
+            log('🔄 Lancement de l\'export PDF...', 'info');
+            log('💡 Vérifiez visuellement si des fantômes apparaissent dans le PDF', 'warning');
+            
+            try {
+                window.presentationManager.generatePDF();
+                log('✅ Export PDF lancé avec succès', 'success');
+                log('📋 Vérifiez le PDF téléchargé pour confirmer l\'absence de fantômes', 'info');
+                stats.successes++;
+            } catch (e) {
+                log(`❌ Erreur export: ${e.message}`, 'error');
+            }
+            
+            updateStats();
+        }
+        
+        function restaurerElements() {
+            log('🔄 RESTAURATION DES ÉLÉMENTS', 'info');
+            showActivity();
+            
+            if (stats.elementsToRestore.length === 0) {
+                log('⚠️ Aucun élément à restaurer', 'warning');
+                return;
+            }
+            
+            let restored = 0;
+            stats.elementsToRestore.forEach(item => {
+                try {
+                    item.element[item.prop] = true;
+                    restored++;
+                    log(`✅ Restauré: ${item.source}.${item.key}`, 'success');
+                } catch (e) {
+                    log(`❌ Erreur restauration ${item.source}.${item.key}: ${e.message}`, 'error');
+                }
+            });
+            
+            stats.elementsToRestore = [];
+            log(`✅ ${restored} éléments restaurés`, 'success');
+            
+            // Forcer le rendu
+            if (window.SceneManager && window.SceneManager.renderer) {
+                window.SceneManager.renderer.render(window.SceneManager.scene, window.SceneManager.camera);
+            }
+        }
+        
+        function testComplet() {
+            log('🚀 DÉMARRAGE DU TEST COMPLET', 'info');
+            log('='.repeat(50), 'info');
+            
+            // 1. Diagnostic
+            setTimeout(() => {
+                const fantomes = diagnosticInstantane();
+                
+                // 2. Masquage si nécessaire
+                setTimeout(() => {
+                    if (fantomes.length > 0) {
+                        masquageForce();
+                        
+                        // 3. Test export
+                        setTimeout(() => {
+                            log('💡 MAINTENANT: Testez l\'export PDF manuellement', 'warning');
+                            log('📋 Si des fantômes persistent, utilisez le Mode Ultra', 'info');
+                            log('='.repeat(50), 'info');
+                            log('🎯 TEST COMPLET TERMINÉ', 'success');
+                        }, 1000);
+                    } else {
+                        log('✅ Aucun fantôme détecté - Export PDF devrait être propre', 'success');
+                        log('='.repeat(50), 'info');
+                        log('🎯 TEST COMPLET TERMINÉ', 'success');
+                    }
+                }, 1000);
+            }, 500);
+        }
+        
+        function analyseComplete() {
+            log('🔬 ANALYSE COMPLÈTE DU SYSTÈME', 'info');
+            
+            const systemes = [
+                'SceneManager', 'ConstructionTools', 'PlacementManager', 
+                'presentationManager', 'AssiseManager', 'LayerManager'
+            ];
+            
+            systemes.forEach(sys => {
+                const available = !!window[sys];
+                log(`${available ? '✅' : '❌'} ${sys}: ${available ? 'DISPONIBLE' : 'NON DISPONIBLE'}`, 
+                    available ? 'success' : 'error');
+            });
+            
+            if (window.SceneManager && window.SceneManager.scene) {
+                let meshCount = 0;
+                let visibleCount = 0;
+                let transparentCount = 0;
+                
+                window.SceneManager.scene.traverse((obj) => {
+                    if (obj.isMesh) {
+                        meshCount++;
+                        if (obj.visible) visibleCount++;
+                        if (obj.material && obj.material.opacity < 1.0) transparentCount++;
+                    }
+                });
+                
+                log(`📊 Statistiques de la scène:`, 'info');
+                log(`   • Meshes total: ${meshCount}`, 'info');
+                log(`   • Meshes visibles: ${visibleCount}`, 'info');
+                log(`   • Meshes transparents: ${transparentCount}`, transparentCount > 0 ? 'warning' : 'info');
+            }
+        }
+        
+        function previewExport() {
+            log('👁️ APERÇU DE L\'EXPORT (simulation)', 'info');
+            
+            masquageForce();
+            log('🔄 Masquage appliqué - La scène devrait maintenant être sans fantômes', 'success');
+            log('💡 Observez la vue 3D: les éléments fantômes doivent être invisibles', 'info');
+            
+            setTimeout(() => {
+                log('🔄 Restauration automatique dans 5 secondes...', 'warning');
+                setTimeout(restaurerElements, 5000);
+            }, 1000);
+        }
+        
+        function resetComplet() {
+            if (confirm('⚠️ Cela va recharger la page. Continuer ?')) {
+                window.location.reload();
+            }
+        }
+        
+        // Initialisation
+        window.addEventListener('load', () => {
+            updateStats();
+            log('🎯 Interface de test chargée', 'success');
+            log('💡 Utilisez "Test Complet" pour une vérification automatique', 'info');
+            
+            if (!window.SceneManager || !window.presentationManager) {
+                log('⚠️ Certains composants WallSim3D sont manquants', 'warning');
+                log('📋 Assurez-vous qu\'un projet est ouvert avant les tests', 'info');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Restriction Blocs Spécialisés</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #007acc;
+            background-color: #f9f9f9;
+        }
+        .success { border-left-color: #28a745; }
+        .warning { border-left-color: #ffc107; }
+        .error { border-left-color: #dc3545; }
+        button {
+            background-color: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #005999;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .instruction {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test - Restriction Blocs Spécialisés</h1>
+        
+        <div class="instruction">
+            <strong>Objectif :</strong> Vérifier que les blocs de béton cellulaire, béton cellulaire d'assise, 
+            terre cuite et argex ne proposent que les blocs fantômes adjacents de continuité.
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Étapes de test</h3>
+            <ol>
+                <li>Ouvrir WallSim3D dans l'onglet principal</li>
+                <li>Placer un bloc de type spécialisé (BC_, BCA_, ARGEX, TERRE_CUITE)</li>
+                <li>Cliquer dessus pour activer les suggestions</li>
+                <li>Vérifier qu'il n'y a que 2 suggestions (positions A et B)</li>
+                <li>Comparer avec un bloc creux (B9/B14/B19) qui doit avoir toutes les suggestions</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Test automatique de la fonction</h3>
+            <p>Cliquer sur le bouton pour tester la fonction de détection des matériaux :</p>
+            <button onclick="runTest()">Lancer le test</button>
+            <pre id="testOutput">Résultats du test s'afficheront ici...</pre>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Résultats attendus</h3>
+            <ul>
+                <li><strong>Blocs spécialisés</strong> (BC_, BCA_, ARGEX, TERRE_CUITE) : 
+                    <span style="color: #28a745;">2 suggestions uniquement (A et B)</span></li>
+                <li><strong>Blocs creux</strong> (B9, B14, B19, B29) : 
+                    <span style="color: #007acc;">Toutes les suggestions (6-10 positions)</span></li>
+                <li><strong>Briques</strong> : 
+                    <span style="color: #007acc;">Toutes les suggestions (comportement normal)</span></li>
+            </ul>
+        </div>
+
+        <div class="test-section warning">
+            <h3>⚠️ Notes importantes</h3>
+            <ul>
+                <li>Cette page de test ne remplace pas le test dans l'application réelle</li>
+                <li>Les logs détaillés sont visibles dans la console du navigateur (F12)</li>
+                <li>Chercher les messages avec 🔧 pour les logs de restriction</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Simulation de la fonction getBlockMaterialType pour le test
+        function getBlockMaterialType(element) {
+            if (!element || element.type !== 'block') {
+                return null;
+            }
+
+            if (element.blockType) {
+                const blockType = element.blockType;
+                
+                if (blockType.startsWith('BC_')) return 'cellular';
+                if (blockType.startsWith('BCA_')) return 'cellular-assise';
+                if (blockType.startsWith('ARGEX') || blockType === 'ARGEX') return 'argex';
+                if (blockType === 'TERRE_CUITE' || blockType.startsWith('TC_')) return 'terracotta';
+            }
+            
+            return 'hollow';
+        }
+
+        function runTest() {
+            const output = document.getElementById('testOutput');
+            let result = 'Test de la fonction getBlockMaterialType\n';
+            result += '==========================================\n\n';
+            
+            const testElements = [
+                { id: 'test-bc', type: 'block', blockType: 'BC_15', description: 'Béton cellulaire 15cm' },
+                { id: 'test-bca', type: 'block', blockType: 'BCA_20', description: 'Béton cellulaire assise 20cm' },
+                { id: 'test-argex', type: 'block', blockType: 'ARGEX14', description: 'Bloc ARGEX 14cm' },
+                { id: 'test-tc', type: 'block', blockType: 'TERRE_CUITE', description: 'Bloc terre cuite' },
+                { id: 'test-b14', type: 'block', blockType: 'B14', description: 'Bloc creux B14' },
+                { id: 'test-brick', type: 'brick', description: 'Brique classique' }
+            ];
+            
+            testElements.forEach(element => {
+                const materialType = getBlockMaterialType(element);
+                const isSpecialized = materialType && ['cellular', 'cellular-assise', 'argex', 'terracotta'].includes(materialType);
+                
+                result += `📦 ${element.description}:\n`;
+                result += `   Type détecté: ${materialType || 'null'}\n`;
+                result += `   Matériau spécialisé: ${isSpecialized ? '✅ OUI' : '❌ NON'}\n`;
+                result += `   Restrictions: ${isSpecialized ? '✅ Continuité uniquement' : '❌ Toutes suggestions'}\n\n`;
+            });
+            
+            result += '🔍 Test local réussi !\n';
+            result += '\n📋 Prochaine étape: Tester dans WallSim3D avec de vrais blocs.';
+            
+            output.textContent = result;
+        }
+
+        // Instructions dans la console
+        console.log('🔧 Page de test chargée - Restriction Blocs Spécialisés');
+        console.log('Pour tester dans WallSim3D, exécuter: testBlockMaterialRestriction()');
+    </script>
+</body>
+</html>

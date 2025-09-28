@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Détection B14_34CM - Nouvelle Correction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button-group {
+            margin: 10px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background: #e9ecef;
+        }
+        button.test {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .status.info { background: #d1ecf1; border-left: 4px solid #bee5eb; }
+        .status.success { background: #d4edda; border-left: 4px solid #c3e6cb; }
+        .status.warning { background: #fff3cd; border-left: 4px solid #ffeaa7; }
+        .status.error { background: #f8d7da; border-left: 4px solid #f5c6cb; }
+        .step {
+            margin: 5px 0;
+            padding: 5px 10px;
+            border-left: 3px solid #007bff;
+            background: #f8f9fa;
+        }
+        .step.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .step.success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .step.warning {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Détection B14_34CM - Nouvelle Correction</h1>
+    
+    <div class="test-section">
+        <h2>🔍 Problème Résolu</h2>
+        <div class="status success">
+            <strong>✅ Correction implémentée :</strong><br>
+            • Ajout de '_34CM' et '_4CM' dans les suffixes de coupe<br>
+            • Pattern regex pour détecter toutes les dimensions (_XXcm)<br>
+            • Logs détaillés pour le debug<br>
+            • Support des blocs B29 avec dimensions
+        </div>
+        
+        <div class="status info">
+            <strong>📋 Avant la correction :</strong><br>
+            B14_34CM → detectBlockSubType → CREUX (❌ Mauvais)<br>
+            <strong>📋 Après la correction :</strong><br>
+            B14_34CM → detectBlockSubType → B14 (✅ Correct)
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Tests Automatisés</h2>
+        <div class="button-group">
+            <button class="test" onclick="testAllCutTypes()">🔍 Tester Tous les Types de Coupe</button>
+            <button onclick="testB14Cuts()">🧱 Test B14 Coupes</button>
+            <button onclick="testB29Cuts()">🏗️ Test B29 Coupes</button>
+            <button onclick="clearResults()">🧹 Effacer Résultats</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Résultats des Tests</h2>
+        <div id="resultats"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const resultats = document.getElementById('resultats');
+            const div = document.createElement('div');
+            div.className = `step ${type}`;
+            div.innerHTML = `${new Date().toLocaleTimeString()} - ${message}`;
+            resultats.appendChild(div);
+            resultats.scrollTop = resultats.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('resultats').innerHTML = '';
+        }
+
+        function mockBlockSelector(blockType, category) {
+            if (!window.BlockSelector) {
+                window.BlockSelector = {};
+            }
+            window.BlockSelector.getCurrentBlockData = () => ({ category });
+            window.BlockSelector.currentBlock = blockType;
+        }
+
+        function testDetectBlockSubType(blockType, category, expectedResult) {
+            try {
+                if (!window.AssiseManager || typeof window.AssiseManager.detectBlockSubType !== 'function') {
+                    return { success: false, error: 'detectBlockSubType non disponible' };
+                }
+                
+                // Simuler BlockSelector
+                mockBlockSelector(blockType, category);
+                
+                // Créer élément test
+                const testElement = { id: 'test', type: 'block', blockType };
+                
+                // Tester
+                const result = window.AssiseManager.detectBlockSubType(testElement);
+                const success = result === expectedResult;
+                
+                return { success, result, expected: expectedResult };
+                
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        function testAllCutTypes() {
+            log('🔍 Test complet de tous les types de coupe...', 'info');
+            
+            const testCases = [
+                // Tests B14
+                { blockType: 'B14', category: 'hollow', expected: 'B14', desc: 'B14 normal' },
+                { blockType: 'B14_34CM', category: 'cut', expected: 'B14', desc: 'B14 coupe 34cm' },
+                { blockType: 'B14_4CM', category: 'cut', expected: 'B14', desc: 'B14 coupe 4cm' },
+                { blockType: 'B14_HALF', category: 'cut', expected: 'B14', desc: 'B14 demi' },
+                { blockType: 'B14_3Q', category: 'cut', expected: 'B14', desc: 'B14 3/4' },
+                { blockType: 'B14_1Q', category: 'cut', expected: 'B14', desc: 'B14 1/4' },
+                
+                // Tests B29
+                { blockType: 'B29_PANNERESSE', category: 'hollow', expected: 'B29_PANNERESSE', desc: 'B29 Panneresse normal' },
+                { blockType: 'B29_PANNERESSE_4CM', category: 'cut', expected: 'B29_PANNERESSE', desc: 'B29 Panneresse 4cm' },
+                { blockType: 'B29_PANNERESSE_34CM', category: 'cut', expected: 'B29_PANNERESSE', desc: 'B29 Panneresse 34cm' },
+                { blockType: 'B29_BOUTISSE', category: 'hollow', expected: 'B29_BOUTISSE', desc: 'B29 Boutisse normal' },
+                { blockType: 'B29_BOUTISSE_4CM', category: 'cut', expected: 'B29_BOUTISSE', desc: 'B29 Boutisse 4cm' },
+                
+                // Tests B9 et B19
+                { blockType: 'B9_34CM', category: 'cut', expected: 'B9', desc: 'B9 coupe 34cm' },
+                { blockType: 'B19_4CM', category: 'cut', expected: 'B19', desc: 'B19 coupe 4cm' },
+                
+                // Tests avec dimensions variées
+                { blockType: 'B14_12CM', category: 'cut', expected: 'B14', desc: 'B14 coupe 12cm' },
+                { blockType: 'B14_25CM', category: 'cut', expected: 'B14', desc: 'B14 coupe 25cm' }
+            ];
+            
+            let passed = 0;
+            let total = testCases.length;
+            
+            testCases.forEach(testCase => {
+                const result = testDetectBlockSubType(testCase.blockType, testCase.category, testCase.expected);
+                
+                if (result.success) {
+                    log(`✅ ${testCase.desc}: ${testCase.blockType} → ${result.result}`, 'success');
+                    passed++;
+                } else if (result.error) {
+                    log(`❌ ${testCase.desc}: ERREUR - ${result.error}`, 'error');
+                } else {
+                    log(`❌ ${testCase.desc}: ${testCase.blockType} → ${result.result} (attendu: ${result.expected})`, 'error');
+                }
+            });
+            
+            const successRate = Math.round((passed / total) * 100);
+            log(`📊 Résultats: ${passed}/${total} tests réussis (${successRate}%)`, 
+                successRate === 100 ? 'success' : (successRate >= 80 ? 'warning' : 'error'));
+        }
+
+        function testB14Cuts() {
+            log('🧱 Test spécifique des coupes B14...', 'info');
+            
+            const b14Cases = [
+                'B14_34CM',
+                'B14_4CM',
+                'B14_12CM',
+                'B14_25CM',
+                'B14_HALF',
+                'B14_3Q',
+                'B14_1Q'
+            ];
+            
+            b14Cases.forEach(blockType => {
+                const result = testDetectBlockSubType(blockType, 'cut', 'B14');
+                const status = result.success ? '✅' : '❌';
+                const logType = result.success ? 'success' : 'error';
+                log(`${status} ${blockType} → ${result.result || result.error}`, logType);
+            });
+        }
+
+        function testB29Cuts() {
+            log('🏗️ Test spécifique des coupes B29...', 'info');
+            
+            const b29Cases = [
+                { blockType: 'B29_PANNERESSE_4CM', expected: 'B29_PANNERESSE' },
+                { blockType: 'B29_PANNERESSE_34CM', expected: 'B29_PANNERESSE' },
+                { blockType: 'B29_PANNERESSE_12CM', expected: 'B29_PANNERESSE' },
+                { blockType: 'B29_BOUTISSE_4CM', expected: 'B29_BOUTISSE' },
+                { blockType: 'B29_BOUTISSE_34CM', expected: 'B29_BOUTISSE' },
+                { blockType: 'B29_BOUTISSE_HALF', expected: 'B29_BOUTISSE' }
+            ];
+            
+            b29Cases.forEach(testCase => {
+                const result = testDetectBlockSubType(testCase.blockType, 'cut', testCase.expected);
+                const status = result.success ? '✅' : '❌';
+                const logType = result.success ? 'success' : 'error';
+                log(`${status} ${testCase.blockType} → ${result.result || result.error}`, logType);
+            });
+        }
+
+        // Tests automatiques au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Interface de test chargée', 'success');
+            
+            // Attendre que les scripts soient chargés
+            setTimeout(() => {
+                if (window.AssiseManager && typeof window.AssiseManager.detectBlockSubType === 'function') {
+                    log('✅ AssiseManager.detectBlockSubType disponible', 'success');
+                    log('📋 Prêt à tester les corrections de détection des coupes', 'info');
+                } else {
+                    log('⚠️ AssiseManager.detectBlockSubType non disponible - chargez d\'abord votre application', 'warning');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

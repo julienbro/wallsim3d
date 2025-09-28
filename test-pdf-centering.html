@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test du Centrage PDF - WallSim3D</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #1976D2;
+        }
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .info { color: #2196F3; }
+        .warning { color: #FF9800; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Test du Centrage PDF - WallSim3D</h1>
+        
+        <p>Cette page permet de tester les améliorations du centrage automatique pour l'export PDF.</p>
+        
+        <div>
+            <button class="test-button" onclick="testBuildingCenter()">🏗️ Tester le Calcul du Centre du Bâtiment</button>
+            <button class="test-button" onclick="testCameraPositioning()">📹 Tester le Positionnement des Caméras</button>
+            <button class="test-button" onclick="testPerspectiveView()">🌐 Tester la Vue Perspective</button>
+            <button class="test-button" onclick="testAllViews()">📋 Tester Toutes les Vues</button>
+            <button class="test-button" onclick="clearLog()">🧹 Nettoyer le Log</button>
+        </div>
+        
+        <div id="log" class="log">Cliquez sur un bouton de test pour commencer...\n</div>
+        
+        <div style="margin-top: 20px;">
+            <h3>💡 Instructions</h3>
+            <ol>
+                <li>Assurez-vous que WallSim3D est chargé avec un projet contenant des éléments construits</li>
+                <li>Cliquez sur les boutons de test pour vérifier chaque fonctionnalité</li>
+                <li>Regardez les logs pour voir les résultats détaillés</li>
+                <li>Les améliorations incluent :
+                    <ul>
+                        <li>✅ Détection élargie des éléments de construction</li>
+                        <li>✅ Calcul plus précis du centre du bâtiment</li>
+                        <li>✅ Positionnement optimisé des caméras</li>
+                        <li>✅ Ajustement automatique du frustum</li>
+                        <li>✅ Centrage amélioré pour toutes les vues</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            logElement.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = 'Log nettoyé.\n';
+        }
+
+        function testBuildingCenter() {
+            log('=== TEST DU CALCUL DU CENTRE DU BÂTIMENT ===', 'info');
+            
+            if (!window.SceneManager) {
+                log('❌ SceneManager non disponible', 'error');
+                return;
+            }
+            
+            if (!window.presentationManager || !window.presentationManager.calculateBuildingCenter) {
+                log('❌ presentationManager ou calculateBuildingCenter non disponible', 'error');
+                return;
+            }
+            
+            try {
+                const analysis = window.presentationManager.calculateBuildingCenter(window.SceneManager);
+                
+                if (analysis && analysis.elementCount > 0) {
+                    log(`✅ Analyse réussie : ${analysis.elementCount} éléments détectés`, 'success');
+                    log(`📍 Centre : X=${analysis.center.x.toFixed(1)}, Y=${analysis.center.y.toFixed(1)}, Z=${analysis.center.z.toFixed(1)}`, 'info');
+                    log(`📏 Dimensions : L=${analysis.size.x.toFixed(1)}, H=${analysis.size.y.toFixed(1)}, P=${analysis.size.z.toFixed(1)}`, 'info');
+                    log(`📦 Bounding Box : Min(${analysis.boundingBox.min.x.toFixed(1)}, ${analysis.boundingBox.min.y.toFixed(1)}, ${analysis.boundingBox.min.z.toFixed(1)})`, 'info');
+                    log(`📦 Bounding Box : Max(${analysis.boundingBox.max.x.toFixed(1)}, ${analysis.boundingBox.max.y.toFixed(1)}, ${analysis.boundingBox.max.z.toFixed(1)})`, 'info');
+                } else {
+                    log('⚠️ Aucun élément de construction détecté. Vérifiez que le projet contient des briques/blocs.', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Erreur lors du calcul : ${error.message}`, 'error');
+            }
+        }
+
+        function testCameraPositioning() {
+            log('=== TEST DU POSITIONNEMENT DES CAMÉRAS ===', 'info');
+            
+            if (!window.presentationManager || !window.presentationManager.setOrthographicCameraPosition) {
+                log('❌ setOrthographicCameraPosition non disponible', 'error');
+                return;
+            }
+            
+            if (!window.THREE) {
+                log('❌ THREE.js non disponible', 'error');
+                return;
+            }
+            
+            try {
+                const views = ['front', 'back', 'left', 'right', 'top'];
+                
+                views.forEach(viewType => {
+                    // Créer une caméra orthographique de test
+                    const camera = new window.THREE.OrthographicCamera(-100, 100, 100, -100, 0.1, 1000);
+                    
+                    // Tester le positionnement
+                    window.presentationManager.setOrthographicCameraPosition(camera, viewType, window.SceneManager);
+                    
+                    log(`✅ ${viewType.toUpperCase()} : Position(${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)})`, 'success');
+                });
+                
+            } catch (error) {
+                log(`❌ Erreur lors du positionnement : ${error.message}`, 'error');
+            }
+        }
+
+        function testPerspectiveView() {
+            log('=== TEST DE LA VUE PERSPECTIVE ===', 'info');
+            
+            if (!window.SceneManager || !window.SceneManager.camera) {
+                log('❌ Caméra SceneManager non disponible', 'error');
+                return;
+            }
+            
+            try {
+                // Sauvegarder la position actuelle
+                const originalPos = window.SceneManager.camera.position.clone();
+                const originalTarget = window.SceneManager.controls ? window.SceneManager.controls.target.clone() : null;
+                
+                log('📹 Position actuelle sauvegardée', 'info');
+                
+                // Simuler le recentrage perspective (code similaire à addPerspectivePage)
+                const buildingAnalysis = window.presentationManager.calculateBuildingCenter(window.SceneManager);
+                
+                if (buildingAnalysis && buildingAnalysis.boundingBox && buildingAnalysis.elementCount > 0) {
+                    const center = buildingAnalysis.boundingBox.getCenter(new window.THREE.Vector3());
+                    const size = buildingAnalysis.boundingBox.getSize(new window.THREE.Vector3());
+                    
+                    const diagonale3D = Math.sqrt(size.x * size.x + size.y * size.y + size.z * size.z);
+                    const framingFactor = 1.4;
+                    const distance = diagonale3D * framingFactor;
+                    const dir = new window.THREE.Vector3(1.2, 0.8, 1.2).normalize();
+                    
+                    window.SceneManager.camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
+                    if (window.SceneManager.controls) {
+                        window.SceneManager.controls.target.copy(center);
+                        window.SceneManager.controls.update();
+                    }
+                    
+                    log(`✅ Vue perspective recentrée sur (${center.x.toFixed(1)}, ${center.y.toFixed(1)}, ${center.z.toFixed(1)})`, 'success');
+                    log(`📏 Distance calculée : ${distance.toFixed(1)}`, 'info');
+                    log(`📍 Nouvelle position caméra : (${window.SceneManager.camera.position.x.toFixed(1)}, ${window.SceneManager.camera.position.y.toFixed(1)}, ${window.SceneManager.camera.position.z.toFixed(1)})`, 'info');
+                    
+                    // Restaurer après 2 secondes
+                    setTimeout(() => {
+                        window.SceneManager.camera.position.copy(originalPos);
+                        if (window.SceneManager.controls && originalTarget) {
+                            window.SceneManager.controls.target.copy(originalTarget);
+                            window.SceneManager.controls.update();
+                        }
+                        log('🔄 Position originale restaurée', 'info');
+                    }, 2000);
+                    
+                } else {
+                    log('⚠️ Aucun élément pour le recentrage perspective', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Erreur lors du test perspective : ${error.message}`, 'error');
+            }
+        }
+
+        function testAllViews() {
+            log('=== TEST COMPLET DE TOUTES LES VUES ===', 'info');
+            
+            // Lancer tous les tests avec des délais
+            testBuildingCenter();
+            
+            setTimeout(() => {
+                testCameraPositioning();
+            }, 500);
+            
+            setTimeout(() => {
+                testPerspectiveView();
+            }, 1000);
+            
+            setTimeout(() => {
+                log('🎯 Tests terminés ! Vérifiez les résultats ci-dessus.', 'success');
+                log('💡 Pour tester l\'export PDF complet, utilisez le bouton "Générer PDF" dans l\'interface principale.', 'info');
+            }, 1500);
+        }
+
+        // Auto-test au chargement si disponible
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (window.SceneManager && window.presentationManager) {
+                    log('🚀 WallSim3D détecté ! Prêt pour les tests.', 'success');
+                } else {
+                    log('⚠️ WallSim3D non détecté. Chargez un projet d\'abord.', 'warning');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

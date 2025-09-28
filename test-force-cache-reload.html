@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔄 Force Cache Reload - Test B14_34CM</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .alert {
+            background: rgba(220, 53, 69, 0.2);
+            border: 2px solid #dc3545;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .success {
+            background: rgba(40, 167, 69, 0.2);
+            border-color: #28a745;
+        }
+        .warning {
+            background: rgba(255, 193, 7, 0.2);
+            border-color: #ffc107;
+            color: #212529;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.4);
+        }
+        .danger {
+            background: #dc3545;
+        }
+        .danger:hover {
+            background: #c82333;
+        }
+        .success-btn {
+            background: #28a745;
+        }
+        .success-btn:hover {
+            background: #1e7e34;
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 Force Cache Reload - Test B14_34CM</h1>
+    
+    <div class="alert">
+        <h2>⚠️ PROBLÈME DE CACHE DÉTECTÉ</h2>
+        <p>Le navigateur utilise une version mise en cache du fichier <code>assise-manager.js</code>.<br>
+        Les modifications ne sont pas prises en compte.</p>
+    </div>
+
+    <div class="card">
+        <h2>🔧 Solutions pour Forcer le Rechargement</h2>
+        <h3>1. Rechargement Dur</h3>
+        <button class="danger" onclick="hardReload()">🚨 RECHARGEMENT DUR (Ctrl+Shift+R)</button>
+        
+        <h3>2. Vider le Cache Complètement</h3>
+        <button class="danger" onclick="clearAllCache()">🧹 VIDER CACHE COMPLET</button>
+        
+        <h3>3. Rechargement avec Timestamp</h3>
+        <button class="success-btn" onclick="reloadWithTimestamp()">⏰ RELOAD AVEC TIMESTAMP</button>
+    </div>
+
+    <div class="card">
+        <h2>📋 Instructions Manuelles</h2>
+        <ol>
+            <li><strong>Ouvrir les DevTools :</strong> Appuyez sur <kbd>F12</kbd></li>
+            <li><strong>Aller dans Network :</strong> Onglet "Network" ou "Réseau"</li>
+            <li><strong>Cocher "Disable cache" :</strong> Case à cocher en haut</li>
+            <li><strong>Recharger :</strong> Appuyez sur <kbd>F5</kbd></li>
+            <li><strong>Vérifier :</strong> Cherchez le log <code>🆕 [DETECTBLOCKSUBTYPE] NOUVELLE VERSION V3</code></li>
+        </ol>
+    </div>
+
+    <div class="card">
+        <h2>🔍 Test de Vérification</h2>
+        <button onclick="testFunction()">🧪 Tester detectBlockSubType</button>
+        <button onclick="checkVersion()">📋 Vérifier Version</button>
+        <pre id="testResults">Cliquez sur "Tester" pour vérifier si la correction fonctionne...</pre>
+    </div>
+
+    <div class="card">
+        <h2>🎯 Que Chercher dans la Console</h2>
+        <div class="success">
+            <strong>✅ VERSION CORRECTE :</strong><br>
+            <code>🆕 [DETECTBLOCKSUBTYPE] NOUVELLE VERSION V3 - FIX B14_34CM</code><br>
+            <code>🔍 [DEBUG-CUT] Bloc avec catégorie cut détecté, blockType: B14_34CM</code><br>
+            <code>🔍 [DEBUG-CUT] ✅ Retour B14</code>
+        </div>
+        <br>
+        <div class="alert">
+            <strong>❌ VERSION ANCIENNE (cache) :</strong><br>
+            <code>🏗️ [DEBUG-ASSISE] detectBlockSubType retourné: CREUX</code><br>
+            <em>Pas de logs [DEBUG-CUT]</em>
+        </div>
+    </div>
+
+    <script>
+        function hardReload() {
+            // Rechargement dur
+            location.reload(true);
+        }
+
+        function clearAllCache() {
+            // Essayer de vider le cache
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    names.forEach(function(name) {
+                        caches.delete(name);
+                    });
+                });
+            }
+            
+            // Ajouter timestamp à l'URL
+            const url = new URL(window.location);
+            url.searchParams.set('nocache', Date.now());
+            url.searchParams.set('force', 'true');
+            window.location.href = url.toString();
+        }
+
+        function reloadWithTimestamp() {
+            // Recharger avec timestamp pour éviter le cache
+            const timestamp = Date.now();
+            const url = new URL(window.location);
+            url.searchParams.set('v', timestamp);
+            window.location.href = url.toString();
+        }
+
+        function checkVersion() {
+            const results = document.getElementById('testResults');
+            
+            if (window.AssiseManager && typeof window.AssiseManager.detectBlockSubType === 'function') {
+                // Tester avec un élément factice
+                try {
+                    // Simuler BlockSelector
+                    window.BlockSelector = {
+                        getCurrentBlockData: () => ({ category: 'test' }),
+                        currentBlock: 'TEST'
+                    };
+                    
+                    const testElement = { id: 'test', type: 'block' };
+                    
+                    // Cette fonction devrait maintenant afficher le log de version
+                    console.log('🧪 Test de vérification de version...');
+                    window.AssiseManager.detectBlockSubType(testElement);
+                    
+                    results.textContent = '✅ Fonction disponible. Vérifiez la console pour le log de version.';
+                    results.style.color = '#00ff00';
+                    
+                } catch (error) {
+                    results.textContent = `❌ Erreur: ${error.message}`;
+                    results.style.color = '#ff6b6b';
+                }
+            } else {
+                results.textContent = '❌ AssiseManager.detectBlockSubType non disponible';
+                results.style.color = '#ff6b6b';
+            }
+        }
+
+        function testFunction() {
+            const results = document.getElementById('testResults');
+            
+            if (!window.AssiseManager) {
+                results.textContent = '❌ AssiseManager non disponible - chargez d\'abord l\'application principale';
+                results.style.color = '#ff6b6b';
+                return;
+            }
+
+            if (typeof window.AssiseManager.detectBlockSubType !== 'function') {
+                results.textContent = '❌ detectBlockSubType non disponible';
+                results.style.color = '#ff6b6b';
+                return;
+            }
+
+            try {
+                // Simuler BlockSelector pour B14_34CM
+                window.BlockSelector = {
+                    getCurrentBlockData: () => ({ 
+                        category: 'cut',
+                        name: 'Bloc creux B14 34cm',
+                        length: 34,
+                        width: 14,
+                        height: 19
+                    }),
+                    currentBlock: 'B14_34CM'
+                };
+                
+                const testElement = { 
+                    id: 'test_b14_34cm', 
+                    type: 'block',
+                    blockType: 'B14_34CM'
+                };
+                
+                console.log('🧪 TEST: Appel detectBlockSubType avec B14_34CM...');
+                const result = window.AssiseManager.detectBlockSubType(testElement);
+                
+                if (result === 'B14') {
+                    results.textContent = `✅ SUCCÈS! B14_34CM → ${result}\nLa correction fonctionne !`;
+                    results.style.color = '#00ff00';
+                } else {
+                    results.textContent = `❌ ÉCHEC! B14_34CM → ${result}\nDevrait retourner 'B14'`;
+                    results.style.color = '#ff6b6b';
+                }
+                
+                console.log('🎯 Résultat du test:', result);
+                
+            } catch (error) {
+                results.textContent = `❌ Erreur: ${error.message}`;
+                results.style.color = '#ff6b6b';
+                console.error('Erreur test:', error);
+            }
+        }
+
+        // Auto-test au chargement
+        setTimeout(() => {
+            checkVersion();
+        }, 1000);
+    </script>
+</body>
+</html>

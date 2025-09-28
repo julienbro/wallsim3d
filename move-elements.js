@@ -1,7 +1,7 @@
 // Script pour déplacer des éléments spécifiques
 function moveElementsForward() {
-    const elementIds = ['343404', '343403'];
-    const moveDistance = 2; // 2cm vers l'avant (Z+)
+    const elementIds = ['290106', '290105'];
+    const moveDistance = 11; // 11cm vers l'avant (Z+)
     
     elementIds.forEach(id => {
         // Chercher l'élément par ID exact

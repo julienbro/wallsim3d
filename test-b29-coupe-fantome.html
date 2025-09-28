@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Corrections B29 - Sélection Coupe et Position Fantôme</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button-group {
+            margin: 10px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background: #e9ecef;
+        }
+        button.active {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .status.info { background: #d1ecf1; border-left: 4px solid #bee5eb; }
+        .status.success { background: #d4edda; border-left: 4px solid #c3e6cb; }
+        .status.warning { background: #fff3cd; border-left: 4px solid #ffeaa7; }
+        .status.error { background: #f8d7da; border-left: 4px solid #f5c6cb; }
+        .ghost-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .assise-info {
+            background: #f0f8f0;
+            border: 1px solid #c3e6c3;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .step {
+            margin: 5px 0;
+            padding: 5px 10px;
+            border-left: 3px solid #007bff;
+            background: #f8f9fa;
+        }
+        .step.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .step.success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .step.warning {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Corrections B29 - Sélection Coupe et Position Fantôme</h1>
+    
+    <div class="test-section">
+        <h2>📋 Problème à Résoudre</h2>
+        <div class="status info">
+            <strong>Problème identifié :</strong><br>
+            Quand on sélectionne une coupe B29, le système force la position du fantôme en utilisant <code>getCurrentAssiseHeight()</code>, 
+            mais cette méthode peut retourner la hauteur de l'ancienne assise au lieu de la nouvelle.
+        </div>
+        <div class="status warning">
+            <strong>Symptôme :</strong><br>
+            Le fantôme se positionne à la hauteur de l'ancien type d'assise (ex: CREUX) au lieu du nouveau type B29.
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Solutions Implémentées</h2>
+        <div class="status success">
+            <strong>1. Nouvelle méthode robuste :</strong> <code>getCurrentAssiseHeightForType(type)</code><br>
+            ✅ Prend un type spécifique en paramètre<br>
+            ✅ Gestion spéciale pour les blocs B29<br>
+            ✅ Utilise directement le type spécifique au lieu du type actuel
+        </div>
+        <div class="status success">
+            <strong>2. Repositionnement forcé B29 :</strong> <code>forceB29GhostRepositioning()</code><br>
+            ✅ Appelé automatiquement après sélection de coupe B29<br>
+            ✅ Utilise la méthode robuste<br>
+            ✅ Logs détaillés pour le debug
+        </div>
+        <div class="status success">
+            <strong>3. Corrections dans les points snap :</strong><br>
+            ✅ Utilisation de la nouvelle méthode pour les points d'accrochage<br>
+            ✅ Fallback vers l'ancienne méthode si nécessaire
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧭 Tests Manuels</h2>
+        
+        <h3>Test 1: Initialisation AssiseManager</h3>
+        <div class="button-group">
+            <button onclick="testAssiseManagerInit()">🔍 Vérifier AssiseManager</button>
+            <button onclick="testMethodesDisponibles()">📋 Vérifier Nouvelles Méthodes</button>
+        </div>
+        
+        <h3>Test 2: Test Méthode Robuste</h3>
+        <div class="button-group">
+            <button onclick="testGetCurrentHeightStandard()">🔧 getCurrentAssiseHeight() Standard</button>
+            <button onclick="testGetCurrentHeightRobust()">💪 getCurrentAssiseHeightForType() Robuste</button>
+        </div>
+        
+        <h3>Test 3: Simulation Sélection B29</h3>
+        <div class="button-group">
+            <button onclick="simulateB29Panneresse()">🧱 Simuler B29 Panneresse</button>
+            <button onclick="simulateB29Boutisse()">🏗️ Simuler B29 Boutisse</button>
+            <button onclick="simulateB29Coupe()">✂️ Simuler Sélection Coupe B29</button>
+        </div>
+        
+        <h3>Test 4: Force Repositionnement</h3>
+        <div class="button-group">
+            <button onclick="testForceRepositioning()">🎯 Test Force Repositioning</button>
+            <button onclick="testNormalRepositioning()">📍 Test Repositioning Normal</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Résultats des Tests</h2>
+        <div id="resultats"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>👻 État du Fantôme</h2>
+        <div id="ghostInfo" class="ghost-info">
+            <em>Cliquez sur les boutons de test pour voir l'état du fantôme...</em>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🏗️ État des Assises</h2>
+        <div id="assiseInfo" class="assise-info">
+            <em>Informations sur les assises après les tests...</em>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const resultats = document.getElementById('resultats');
+            const div = document.createElement('div');
+            div.className = `step ${type}`;
+            div.innerHTML = `${new Date().toLocaleTimeString()} - ${message}`;
+            resultats.appendChild(div);
+            resultats.scrollTop = resultats.scrollHeight;
+        }
+
+        function updateGhostInfo() {
+            const ghostInfo = document.getElementById('ghostInfo');
+            
+            if (!window.ConstructionTools || !window.ConstructionTools.ghostElement) {
+                ghostInfo.innerHTML = '❌ Aucun fantôme détecté';
+                return;
+            }
+            
+            const ghost = window.ConstructionTools.ghostElement;
+            const pos = ghost.position || {};
+            const dims = ghost.dimensions || {};
+            
+            ghostInfo.innerHTML = `
+                <h4>👻 Fantôme Actuel</h4>
+                <strong>Position:</strong> x=${(pos.x || 0).toFixed(1)}, y=${(pos.y || 0).toFixed(1)}, z=${(pos.z || 0).toFixed(1)}<br>
+                <strong>Dimensions:</strong> L=${dims.length || '?'}cm × W=${dims.width || '?'}cm × H=${dims.height || '?'}cm<br>
+                <strong>Visible:</strong> ${ghost.mesh ? (ghost.mesh.visible ? '✅ Oui' : '❌ Non') : '? Mesh non trouvé'}<br>
+                <strong>Mode Construction:</strong> ${window.ConstructionTools.currentMode || 'Non défini'}
+            `;
+        }
+
+        function updateAssiseInfo() {
+            const assiseInfo = document.getElementById('assiseInfo');
+            
+            if (!window.AssiseManager) {
+                assiseInfo.innerHTML = '❌ AssiseManager non disponible';
+                return;
+            }
+            
+            const currentType = window.AssiseManager.currentType;
+            const currentAssise = window.AssiseManager.currentAssiseByType ? 
+                window.AssiseManager.currentAssiseByType.get(currentType) : 'Non défini';
+            
+            let hauteurStandard = 'N/A';
+            let hauteurRobuste = 'N/A';
+            
+            try {
+                if (typeof window.AssiseManager.getCurrentAssiseHeight === 'function') {
+                    hauteurStandard = window.AssiseManager.getCurrentAssiseHeight() + 'cm';
+                }
+            } catch (e) {
+                hauteurStandard = 'Erreur: ' + e.message;
+            }
+            
+            try {
+                if (typeof window.AssiseManager.getCurrentAssiseHeightForType === 'function') {
+                    hauteurRobuste = window.AssiseManager.getCurrentAssiseHeightForType(currentType) + 'cm';
+                }
+            } catch (e) {
+                hauteurRobuste = 'Erreur: ' + e.message;
+            }
+            
+            assiseInfo.innerHTML = `
+                <h4>🏗️ État AssiseManager</h4>
+                <strong>Type Actuel:</strong> ${currentType || 'Non défini'}<br>
+                <strong>Assise Active:</strong> ${currentAssise}<br>
+                <strong>Hauteur Standard:</strong> ${hauteurStandard}<br>
+                <strong>Hauteur Robuste:</strong> ${hauteurRobuste}
+            `;
+        }
+
+        function testAssiseManagerInit() {
+            log('🔍 Test initialisation AssiseManager...', 'info');
+            
+            if (!window.AssiseManager) {
+                log('❌ AssiseManager non disponible', 'error');
+                return;
+            }
+            
+            log('✅ AssiseManager disponible', 'success');
+            log(`📋 Type actuel: ${window.AssiseManager.currentType}`, 'info');
+            log(`📊 Types supportés: ${window.AssiseManager.supportedTypes ? window.AssiseManager.supportedTypes.length : '?'}`, 'info');
+            
+            updateAssiseInfo();
+        }
+
+        function testMethodesDisponibles() {
+            log('📋 Vérification des nouvelles méthodes...', 'info');
+            
+            const methodes = [
+                'getCurrentAssiseHeight',
+                'getCurrentAssiseHeightForType',
+                'forceB29GhostRepositioning'
+            ];
+            
+            methodes.forEach(methode => {
+                if (methode === 'forceB29GhostRepositioning') {
+                    const available = window.ConstructionTools && typeof window.ConstructionTools[methode] === 'function';
+                    log(`${available ? '✅' : '❌'} ConstructionTools.${methode}`, available ? 'success' : 'error');
+                } else {
+                    const available = window.AssiseManager && typeof window.AssiseManager[methode] === 'function';
+                    log(`${available ? '✅' : '❌'} AssiseManager.${methode}`, available ? 'success' : 'error');
+                }
+            });
+        }
+
+        function testGetCurrentHeightStandard() {
+            log('🔧 Test getCurrentAssiseHeight() standard...', 'info');
+            
+            try {
+                if (!window.AssiseManager || typeof window.AssiseManager.getCurrentAssiseHeight !== 'function') {
+                    log('❌ Méthode getCurrentAssiseHeight non disponible', 'error');
+                    return;
+                }
+                
+                const hauteur = window.AssiseManager.getCurrentAssiseHeight();
+                log(`📏 Hauteur standard: ${hauteur}cm (type: ${window.AssiseManager.currentType})`, 'success');
+                
+            } catch (error) {
+                log(`❌ Erreur méthode standard: ${error.message}`, 'error');
+            }
+        }
+
+        function testGetCurrentHeightRobust() {
+            log('💪 Test getCurrentAssiseHeightForType() robuste...', 'info');
+            
+            try {
+                if (!window.AssiseManager || typeof window.AssiseManager.getCurrentAssiseHeightForType !== 'function') {
+                    log('❌ Méthode getCurrentAssiseHeightForType non disponible', 'error');
+                    return;
+                }
+                
+                const currentType = window.AssiseManager.currentType;
+                const hauteur = window.AssiseManager.getCurrentAssiseHeightForType(currentType);
+                log(`📏 Hauteur robuste: ${hauteur}cm (type spécifique: ${currentType})`, 'success');
+                
+                // Test avec types B29
+                const typesB29 = ['B29_PANNERESSE', 'B29_BOUTISSE'];
+                typesB29.forEach(type => {
+                    try {
+                        const hauteurB29 = window.AssiseManager.getCurrentAssiseHeightForType(type);
+                        log(`📏 Hauteur ${type}: ${hauteurB29}cm`, 'info');
+                    } catch (e) {
+                        log(`⚠️ ${type}: ${e.message}`, 'warning');
+                    }
+                });
+                
+            } catch (error) {
+                log(`❌ Erreur méthode robuste: ${error.message}`, 'error');
+            }
+        }
+
+        function simulateB29Panneresse() {
+            log('🧱 Simulation sélection B29 Panneresse...', 'info');
+            
+            try {
+                if (!window.AssiseManager) {
+                    log('❌ AssiseManager non disponible', 'error');
+                    return;
+                }
+                
+                // Simuler le changement de type vers B29_PANNERESSE
+                const success = window.AssiseManager.setCurrentType('B29_PANNERESSE');
+                log(`${success ? '✅' : '❌'} Changement vers B29_PANNERESSE: ${success}`, success ? 'success' : 'error');
+                
+                updateAssiseInfo();
+                updateGhostInfo();
+                
+            } catch (error) {
+                log(`❌ Erreur simulation B29 Panneresse: ${error.message}`, 'error');
+            }
+        }
+
+        function simulateB29Boutisse() {
+            log('🏗️ Simulation sélection B29 Boutisse...', 'info');
+            
+            try {
+                if (!window.AssiseManager) {
+                    log('❌ AssiseManager non disponible', 'error');
+                    return;
+                }
+                
+                // Simuler le changement de type vers B29_BOUTISSE
+                const success = window.AssiseManager.setCurrentType('B29_BOUTISSE');
+                log(`${success ? '✅' : '❌'} Changement vers B29_BOUTISSE: ${success}`, success ? 'success' : 'error');
+                
+                updateAssiseInfo();
+                updateGhostInfo();
+                
+            } catch (error) {
+                log(`❌ Erreur simulation B29 Boutisse: ${error.message}`, 'error');
+            }
+        }
+
+        function simulateB29Coupe() {
+            log('✂️ Simulation sélection coupe B29...', 'info');
+            
+            try {
+                // Simuler la sélection d'une coupe B29 (ex: 1/2)
+                if (!window.ConstructionTools) {
+                    log('❌ ConstructionTools non disponible', 'error');
+                    return;
+                }
+                
+                // Simuler le processus complet de sélection de coupe
+                log('📋 1. Définition mode block...', 'info');
+                if (typeof window.ConstructionTools.setMode === 'function') {
+                    window.ConstructionTools.setMode('block');
+                }
+                
+                log('📋 2. Sélection type B29_PANNERESSE...', 'info');
+                if (window.AssiseManager && typeof window.AssiseManager.setCurrentType === 'function') {
+                    window.AssiseManager.setCurrentType('B29_PANNERESSE');
+                }
+                
+                log('📋 3. Simulation sélection coupe 1/2...', 'info');
+                // Simuler ce qui se passe dans tab-manager.js lors de la sélection d'une coupe
+                setTimeout(() => {
+                    if (typeof window.ConstructionTools.forceB29GhostRepositioning === 'function') {
+                        window.ConstructionTools.forceB29GhostRepositioning();
+                        log('🎯 Force repositioning B29 exécuté', 'success');
+                    } else {
+                        log('⚠️ forceB29GhostRepositioning non disponible', 'warning');
+                    }
+                    
+                    updateAssiseInfo();
+                    updateGhostInfo();
+                }, 100);
+                
+            } catch (error) {
+                log(`❌ Erreur simulation coupe B29: ${error.message}`, 'error');
+            }
+        }
+
+        function testForceRepositioning() {
+            log('🎯 Test force repositioning B29...', 'info');
+            
+            try {
+                if (!window.ConstructionTools || typeof window.ConstructionTools.forceB29GhostRepositioning !== 'function') {
+                    log('❌ forceB29GhostRepositioning non disponible', 'error');
+                    return;
+                }
+                
+                // Sauvegarder position actuelle
+                const ghost = window.ConstructionTools.ghostElement;
+                const oldY = ghost ? ghost.position.y : 'N/A';
+                log(`📍 Position Y avant: ${oldY}`, 'info');
+                
+                // Exécuter le repositionnement forcé
+                window.ConstructionTools.forceB29GhostRepositioning();
+                
+                // Vérifier nouvelle position
+                const newY = ghost ? ghost.position.y : 'N/A';
+                log(`📍 Position Y après: ${newY}`, 'info');
+                
+                if (oldY !== newY) {
+                    log('✅ Position du fantôme modifiée', 'success');
+                } else {
+                    log('⚠️ Position inchangée (peut être normale si déjà correcte)', 'warning');
+                }
+                
+                updateGhostInfo();
+                
+            } catch (error) {
+                log(`❌ Erreur force repositioning: ${error.message}`, 'error');
+            }
+        }
+
+        function testNormalRepositioning() {
+            log('📍 Test repositioning normal...', 'info');
+            
+            try {
+                if (!window.ConstructionTools || typeof window.ConstructionTools.repositionGhostToCurrentAssise !== 'function') {
+                    log('❌ repositionGhostToCurrentAssise non disponible', 'error');
+                    return;
+                }
+                
+                // Sauvegarder position actuelle
+                const ghost = window.ConstructionTools.ghostElement;
+                const oldY = ghost ? ghost.position.y : 'N/A';
+                log(`📍 Position Y avant: ${oldY}`, 'info');
+                
+                // Exécuter le repositionnement normal
+                const success = window.ConstructionTools.repositionGhostToCurrentAssise();
+                log(`${success ? '✅' : '❌'} Repositioning normal: ${success}`, success ? 'success' : 'error');
+                
+                // Vérifier nouvelle position
+                const newY = ghost ? ghost.position.y : 'N/A';
+                log(`📍 Position Y après: ${newY}`, 'info');
+                
+                updateGhostInfo();
+                
+            } catch (error) {
+                log(`❌ Erreur repositioning normal: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialiser l'affichage
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Interface de test chargée', 'success');
+            
+            // Attendre que les scripts soient chargés
+            setTimeout(() => {
+                updateAssiseInfo();
+                updateGhostInfo();
+            }, 1000);
+        });
+
+        // Mettre à jour les infos toutes les 5 secondes
+        setInterval(() => {
+            updateAssiseInfo();
+            updateGhostInfo();
+        }, 5000);
+    </script>
+</body>
+</html>

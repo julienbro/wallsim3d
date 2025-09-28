@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Debug B14_34CM - Force Reload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test Debug B14_34CM - Force Reload</h1>
+    
+    <div class="section">
+        <h2>🔄 Force Reload</h2>
+        <button onclick="forceReload()">🔄 Force Reload Page</button>
+        <button onclick="clearCache()">🧹 Clear Cache & Reload</button>
+    </div>
+
+    <div class="section">
+        <h2>🧪 Test Direct</h2>
+        <button onclick="testDirectly()">🔍 Test detectBlockSubType Directement</button>
+        <button onclick="simulateB14_34CM()">🧱 Simuler B14_34CM</button>
+    </div>
+
+    <div class="section">
+        <h2>📊 Logs</h2>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'log') {
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function forceReload() {
+            // Force rechargement complet en évitant le cache
+            window.location.reload(true);
+        }
+
+        function clearCache() {
+            // Ajouter un timestamp pour éviter le cache
+            const url = new URL(window.location);
+            url.searchParams.set('_t', Date.now());
+            window.location.href = url.toString();
+        }
+
+        function testDirectly() {
+            log('🔍 Test direct de detectBlockSubType...', 'log');
+
+            try {
+                if (!window.AssiseManager) {
+                    log('❌ AssiseManager non disponible', 'error');
+                    return;
+                }
+
+                if (typeof window.AssiseManager.detectBlockSubType !== 'function') {
+                    log('❌ detectBlockSubType non disponible', 'error');
+                    return;
+                }
+
+                // Simuler BlockSelector avec B14_34CM
+                if (!window.BlockSelector) {
+                    window.BlockSelector = {};
+                }
+
+                window.BlockSelector.getCurrentBlockData = () => ({
+                    category: 'cut',
+                    name: 'Bloc creux B14 34cm',
+                    length: 34,
+                    width: 14,
+                    height: 19
+                });
+                window.BlockSelector.currentBlock = 'B14_34CM';
+
+                log('✅ BlockSelector configuré: B14_34CM, category: cut', 'success');
+
+                // Créer un élément test
+                const testElement = {
+                    id: 'test_b14_34cm',
+                    type: 'block',
+                    blockType: 'B14_34CM'
+                };
+
+                log('🔍 Appel de detectBlockSubType...', 'log');
+
+                // Appeler la fonction
+                const result = window.AssiseManager.detectBlockSubType(testElement);
+
+                log(`🎯 Résultat: ${result}`, result === 'B14' ? 'success' : 'error');
+
+                if (result === 'B14') {
+                    log('✅ SUCCÈS: B14_34CM correctement détecté comme B14', 'success');
+                } else {
+                    log(`❌ ÉCHEC: B14_34CM détecté comme ${result} au lieu de B14`, 'error');
+                }
+
+            } catch (error) {
+                log(`❌ Erreur: ${error.message}`, 'error');
+                console.error('Erreur complète:', error);
+            }
+        }
+
+        function simulateB14_34CM() {
+            log('🧱 Simulation complète B14_34CM...', 'log');
+
+            try {
+                // Simuler le processus complet
+                testDirectly();
+
+                // Vérifier l'état d'AssiseManager
+                if (window.AssiseManager) {
+                    const currentType = window.AssiseManager.currentType;
+                    log(`📊 Type actuel d'AssiseManager: ${currentType}`, 'log');
+                }
+
+            } catch (error) {
+                log(`❌ Erreur simulation: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-test au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Page chargée', 'success');
+            
+            // Attendre un peu pour que les scripts soient chargés
+            setTimeout(() => {
+                if (window.AssiseManager) {
+                    log('✅ AssiseManager disponible', 'success');
+                    if (typeof window.AssiseManager.detectBlockSubType === 'function') {
+                        log('✅ detectBlockSubType disponible', 'success');
+                    } else {
+                        log('❌ detectBlockSubType non disponible', 'error');
+                    }
+                } else {
+                    log('❌ AssiseManager non disponible - rechargez votre application principale', 'error');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

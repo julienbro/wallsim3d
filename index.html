@@ -1080,6 +1080,10 @@
                                     <label for="jointHeight">Hauteur joint (cm):</label>
                                     <input type="number" id="jointHeight" min="0.1" max="5" step="0.1" value="1.2">
                                 </div>
+                                <div class="control-group">
+                                    <label for="baseHeight">Hauteur démarrage (cm):</label>
+                                    <input type="number" id="baseHeight" min="0" step="0.1" value="0">
+                                </div>
 
                                 <!-- Modal Copier Assise -->
                                 <div id="copyAssiseModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
@@ -1327,16 +1331,33 @@
                                                 <button class="cut-btn-mini" data-cut="P" data-base-type="B19">P</button>
                                             </div>
                                         </div>
-                                        <div class="library-item" data-type="B29">
-                                            <div class="item-icon">⬜</div>
-                                            <div class="item-name">B29</div>
+                                    </div>
+                                    
+                                    <h5>⬜ Blocs B29 Spéciaux</h5>
+                                    <small class="section-description">Blocs spéciaux B29 en position boutisse et panneresse - 39×29×19 cm</small>
+                                    <div class="library-grid">
+                                        <div class="library-item" data-type="B29_PANNERESSE">
+                                            <div class="item-icon">🔲</div>
+                                            <div class="item-name">B29 Panneresse</div>
                                             <div class="item-dimensions">39×29×19 cm</div>
                                             <div class="cut-buttons">
-                                                <button class="cut-btn-mini" data-cut="1/1" data-base-type="B29">1/1</button>
-                                                <button class="cut-btn-mini" data-cut="3/4" data-base-type="B29">3/4</button>
-                                                <button class="cut-btn-mini" data-cut="1/2" data-base-type="B29">1/2</button>
-                                                <button class="cut-btn-mini" data-cut="1/4" data-base-type="B29">1/4</button>
-                                                <button class="cut-btn-mini" data-cut="P" data-base-type="B29">P</button>
+                                                <button class="cut-btn-mini" data-cut="1/1" data-base-type="B29_PANNERESSE">1/1</button>
+                                                <button class="cut-btn-mini" data-cut="3/4" data-base-type="B29_PANNERESSE">3/4</button>
+                                                <button class="cut-btn-mini" data-cut="1/2" data-base-type="B29_PANNERESSE">1/2</button>
+                                                <button class="cut-btn-mini" data-cut="1/4" data-base-type="B29_PANNERESSE">1/4</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="B29_PANNERESSE">P</button>
+                                            </div>
+                                        </div>
+                                        <div class="library-item" data-type="B29_BOUTISSE">
+                                            <div class="item-icon">🔳</div>
+                                            <div class="item-name">B29 Boutisse</div>
+                                            <div class="item-dimensions">29×39×19 cm</div>
+                                            <div class="cut-buttons">
+                                                <button class="cut-btn-mini" data-cut="1/1" data-base-type="B29_BOUTISSE">1/1</button>
+                                                <button class="cut-btn-mini" data-cut="3/4" data-base-type="B29_BOUTISSE">3/4</button>
+                                                <button class="cut-btn-mini" data-cut="1/2" data-base-type="B29_BOUTISSE">1/2</button>
+                                                <button class="cut-btn-mini" data-cut="1/4" data-base-type="B29_BOUTISSE">1/4</button>
+                                                <button class="cut-btn-mini" data-cut="P" data-base-type="B29_BOUTISSE">P</button>
                                             </div>
                                         </div>
                                     </div>
@@ -2163,6 +2184,25 @@
                                 <div class="library-section">
                                     <h5><i class="fas fa-layer-group"></i> Types de Planchers</h5>
                                     <div class="library-grid">
+                                        <!-- Dalle personnalisée (boîte paramétrable) -->
+                                        <div class="library-item" id="slab-custom-item" data-type="dalle">
+                                            <div class="item-icon">🧱</div>
+                                            <div class="item-info">
+                                                <div class="item-name">Dalle personnalisée</div>
+                                                <div class="item-dimensions">Définir L × l × ép. (cm)</div>
+                                            </div>
+                                            <div class="item-controls" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+                                                <label style="font-size:12px; opacity:0.8;">L</label>
+                                                <input type="number" min="1" value="100" class="slab-input slab-length" style="width:70px;"/>
+                                                <label style="font-size:12px; opacity:0.8;">l</label>
+                                                <input type="number" min="1" value="100" class="slab-input slab-width" style="width:70px;"/>
+                                                <label style="font-size:12px; opacity:0.8;">ép.</label>
+                                                <input type="number" min="1" value="15" class="slab-input slab-height" style="width:70px;"/>
+                                                <button type="button" class="cut-btn-mini" onclick="(function(btn){ try { var item = document.getElementById('slab-custom-item'); if(!item) return; var L = parseInt(item.querySelector('.slab-length').value)||100; var W = parseInt(item.querySelector('.slab-width').value)||100; var H = parseInt(item.querySelector('.slab-height').value)||15; var Lf = document.getElementById('elementLength'); var Wf = document.getElementById('elementWidth'); var Hf = document.getElementById('elementHeight'); if(Lf) Lf.value=L; if(Wf) Wf.value=W; if(Hf) Hf.value=H; if(window.ConstructionTools){ window.ConstructionTools.setMode('slab'); window.ConstructionTools.createGhostElement(); } } catch(e) { console.warn('Erreur config dalle:', e);} })(this);">Sélectionner</button>
+                                            </div>
+                                            <div class="item-description" style="font-size:11px; opacity:0.8; margin-top:6px;">La dalle est posée au niveau 0 (Y=0), matériau béton.</div>
+                                        </div>
+
                                         <!-- Hourdis 13-60 GLB -->
                                         <div class="library-item" data-type="hourdis_13_60" data-glb-path="assets/models/planchers/hourdis_13_60.glb">
                                             <div class="item-preview">
@@ -2747,7 +2787,7 @@
                                 <div class="form-group">
                                     <div class="joint-info" style="margin-bottom: 10px;">
                                         <strong>Épaisseurs des joints de blocs :</strong><br>
-                                        • <strong>Blocs creux</strong> (B9, B14, B19, B29) : 10mm<br>
+                                        • <strong>Blocs creux</strong> (B9, B14, B19) : 10mm<br>
                                         • <strong>Blocs béton cellulaire</strong> (BC_, BCA_) : 0mm (sans joints)
                                     </div>
                                 </div>
@@ -3883,6 +3923,17 @@
                                 </div>
                             </div>
 
+                            <!-- Information sur la vue 3D -->
+                            <div class="view-info-settings">
+                                <h5><i class="fas fa-camera"></i> Vue 3D :</h5>
+                                <div class="setting-item">
+                                    <span class="setting-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        La vue 3D sera exportée avec votre point de vue actuel
+                                    </span>
+                                </div>
+                            </div>
+
                             <!-- Sélection d'échelle pour les vues orthogonales -->
                             <div class="scale-settings">
                                 <h5>Échelle orthogonale :</h5>
@@ -4200,27 +4251,54 @@
                             </div>
                         </div>
 
-                        <!-- Bloc creux B29 -->
+                        <!-- Bloc B29 Panneresse -->
                         <div class="block-type-section">
-                            <h4>Bloc creux B29 <span class="dimensions">39×29×19 cm</span></h4>
+                            <h4>Bloc B29 Panneresse <span class="dimensions">39×29×19 cm</span></h4>
                             <div class="size-buttons">
-                                <button class="block-size-btn" data-type="B29" data-length="39">
+                                <button class="block-size-btn" data-type="B29_PANNERESSE" data-length="39">
                                     <span class="fraction">1/1</span>
                                     <span class="dimension">39cm</span>
                                 </button>
-                                <button class="block-size-btn" data-type="B29_3Q" data-length="29">
+                                <button class="block-size-btn" data-type="B29_PANNERESSE_3Q" data-length="29">
                                     <span class="fraction">3/4</span>
                                     <span class="dimension">29cm</span>
                                 </button>
-                                <button class="block-size-btn" data-type="B29_HALF" data-length="19">
+                                <button class="block-size-btn" data-type="B29_PANNERESSE_HALF" data-length="19">
                                     <span class="fraction">1/2</span>
                                     <span class="dimension">19cm</span>
                                 </button>
-                                <button class="block-size-btn" data-type="B29_1Q" data-length="9">
+                                <button class="block-size-btn" data-type="B29_PANNERESSE_1Q" data-length="9">
                                     <span class="fraction">1/4</span>
                                     <span class="dimension">9cm</span>
                                 </button>
-                                <button class="block-size-btn custom-cut-btn" data-type="B29" data-custom-cut="true">
+                                <button class="block-size-btn custom-cut-btn" data-type="B29_PANNERESSE" data-custom-cut="true">
+                                    <span class="fraction">✂️</span>
+                                    <span class="dimension">Personnalisée</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Bloc B29 Boutisse -->
+                        <div class="block-type-section">
+                            <h4>Bloc B29 Boutisse <span class="dimensions">29×39×19 cm</span></h4>
+                            <div class="size-buttons">
+                                <button class="block-size-btn" data-type="B29_BOUTISSE" data-length="29">
+                                    <span class="fraction">1/1</span>
+                                    <span class="dimension">29cm</span>
+                                </button>
+                                <button class="block-size-btn" data-type="B29_BOUTISSE_3Q" data-length="22">
+                                    <span class="fraction">3/4</span>
+                                    <span class="dimension">22cm</span>
+                                </button>
+                                <button class="block-size-btn" data-type="B29_BOUTISSE_HALF" data-length="14">
+                                    <span class="fraction">1/2</span>
+                                    <span class="dimension">14cm</span>
+                                </button>
+                                <button class="block-size-btn" data-type="B29_BOUTISSE_1Q" data-length="7">
+                                    <span class="fraction">1/4</span>
+                                    <span class="dimension">7cm</span>
+                                </button>
+                                <button class="block-size-btn custom-cut-btn" data-type="B29_BOUTISSE" data-custom-cut="true">
                                     <span class="fraction">✂️</span>
                                     <span class="dimension">Personnalisée</span>
                                 </button>
@@ -4791,7 +4869,7 @@
     <script src="js/extended-material-manager.js"></script>
     <script src="js/material-painter.js"></script>
     <script src="js/wall-element.js?v=20250811-1045-BLOCKTYPE-FINAL-FIX"></script>
-    <script src="js/assise-manager.js"></script>
+    <script src="js/assise-manager.js?v=SHOW-EMPTY-BELOW-FILLED-V1"></script>
     <script src="js/cut-button-manager.js"></script>
     <script src="js/tools-tab-manager.js"></script>
     <script src="js/tools-reusable-panel-fixed.js"></script>
@@ -4804,7 +4882,7 @@
     <script src="js/insulation-selector.js"></script>
     <script src="js/linteau-selector.js"></script>
     <script src="js/diba-tool.js"></script>
-    <script src="js/construction-tools.js?v=20250823-FIX-GHOST-UPDATE-V8"></script>
+    <script src="js/construction-tools.js?v=20250924-AJOUT-461108-AVANCE-12CM-Z-V127"></script>
     <script src="debug-delete-icon.js"></script>
     <script src="js/layer-manager.js"></script>
     <script src="js/analysis.js"></script>
@@ -5613,6 +5691,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-
 </body>
 </html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test BC5 1/2 - Placement dans bonne assise</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-step {
+            margin: 15px 0;
+            padding: 10px;
+            border-left: 4px solid #007acc;
+            background: #f8f8f8;
+        }
+        .success { border-left-color: #28a745; }
+        .error { border-left-color: #dc3545; }
+        .info { border-left-color: #17a2b8; }
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .console-log {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Test BC5 1/2 - Correction placement assise</h1>
+        
+        <div class="test-step info">
+            <strong>🔧 Problème corrigé :</strong><br>
+            Les blocs BC5 1/2 étaient incorrectement placés dans l'assise "blocs creux" au lieu de l'assise "BC5"
+        </div>
+
+        <div class="test-step">
+            <strong>📋 Test à effectuer :</strong>
+            <ol>
+                <li>Ouvrir l'application WallSim3D</li>
+                <li>Placer un bloc BC5 normal</li>
+                <li>Ajouter une nouvelle assise</li>
+                <li>Sélectionner un bloc BC5 1/2 (coupe)</li>
+                <li>Vérifier que le bloc fantôme se positionne dans l'assise BC5</li>
+                <li>Poser le bloc et vérifier qu'il reste dans l'assise BC5</li>
+            </ol>
+        </div>
+
+        <div class="test-step success">
+            <strong>✅ Corrections apportées :</strong>
+            <ul>
+                <li><code>construction-tools.js</code> : Amélioration de <code>getElementTypeForMode()</code></li>
+                <li><code>assise-manager.js</code> : Amélioration de <code>detectBlockSubType()</code></li>
+                <li>Gestion spéciale des blocs BC_ et BCA_ coupés</li>
+                <li>Détection améliorée des sous-types BC5, BC7, BC10, etc.</li>
+            </ul>
+        </div>
+
+        <div class="test-step">
+            <strong>🔍 Logs de debug à surveiller :</strong><br>
+            <div class="console-log">🔍 [DEBUG-CUT] Test des blocs BC coupés avec baseType: BC_60x5_60x14_60
+🔍 [DEBUG-CUT] ✅ BC5 coupé détecté → BC5
+🏗️ [DEBUG-ASSISE] detectBlockSubType retourné: BC5</div>
+        </div>
+
+        <div class="test-step info">
+            <strong>📝 Notes techniques :</strong>
+            <ul>
+                <li>Les blocs BC5 1/2 ont maintenant une détection spécifique</li>
+                <li>Le type 'BC5' est conservé même pour les coupes</li>
+                <li>Les logs de debug permettent de tracer le processus</li>
+                <li>Compatible avec tous les types BC (BC5, BC7, BC10, etc.)</li>
+            </ul>
+        </div>
+
+        <div class="test-step">
+            <strong>🚀 Pour tester :</strong><br>
+            <button onclick="window.location.href='index.html'" style="padding: 10px 20px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Ouvrir WallSim3D
+            </button>
+        </div>
+    </div>
+
+    <script>
+        console.log('🧪 Test BC5 1/2 - Page de test chargée');
+        console.log('📋 Vérifiez que les blocs BC5 1/2 vont bien dans l\'assise BC5');
+        
+        // Afficher les corrections dans la console
+        console.log('✅ Corrections BC5 appliquées :');
+        console.log('- construction-tools.js : getElementTypeForMode() amélioré');
+        console.log('- assise-manager.js : detectBlockSubType() amélioré');
+        console.log('- Gestion spéciale BC_ et BCA_ coupés ajoutée');
+    </script>
+</body>
+</html>

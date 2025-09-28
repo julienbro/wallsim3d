@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Correctif WebGL - Chargement de Projet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background-color: #cce7ff;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .log-container {
+            background: #1e1e1e;
+            color: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-item {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test Correctif WebGL - Fuite de Contextes</h1>
+    
+    <div class="test-container">
+        <h2>📊 Statistiques WebGL</h2>
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="activeContexts">0</div>
+                <div class="stat-label">Contextes WebGL Actifs</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="pendingPreviews">0</div>
+                <div class="stat-label">Aperçus en Attente</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="loadingState">Non</div>
+                <div class="stat-label">Chargement Projet</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="errorCount">0</div>
+                <div class="stat-label">Erreurs WebGL</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>🧪 Tests de Charge</h2>
+        <p>Ces tests simulent le chargement d'un projet avec de nombreux éléments pour vérifier les fuites WebGL.</p>
+        
+        <button onclick="simulateProjectLoad()">Simuler Chargement Projet</button>
+        <button onclick="simulateMultipleLoads()">Chargements Multiples</button>
+        <button onclick="checkWebGLState()">Vérifier État WebGL</button>
+        <button onclick="forceCleanup()">Nettoyage Forcé</button>
+        <button onclick="clearLog()">Vider Log</button>
+        
+        <div id="testResults"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>📝 Logs en Temps Réel</h2>
+        <div class="log-container" id="logContainer"></div>
+    </div>
+
+    <script>
+        // Variables globales pour les tests
+        let webglContexts = 0;
+        let errorCount = 0;
+        let originalConsoleLog = console.log;
+        let originalConsoleWarn = console.warn;
+        let originalConsoleError = console.error;
+
+        // Intercepter les logs de la console
+        function setupLogInterception() {
+            console.log = function(...args) {
+                logToContainer('LOG', args);
+                originalConsoleLog.apply(console, args);
+            };
+
+            console.warn = function(...args) {
+                logToContainer('WARN', args);
+                originalConsoleWarn.apply(console, args);
+            };
+
+            console.error = function(...args) {
+                logToContainer('ERROR', args);
+                errorCount++;
+                updateStats();
+                originalConsoleError.apply(console, args);
+            };
+        }
+
+        // Afficher les logs dans le conteneur
+        function logToContainer(level, args) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+            
+            const levelColors = {
+                'LOG': '#61dafb',
+                'WARN': '#ffa500',
+                'ERROR': '#ff6b6b'
+            };
+
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666">[${timestamp}]</span> <span style="color: ${levelColors[level]}">[${level}]</span> ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            // Limiter le nombre de logs affichés
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        // Mettre à jour les statistiques
+        function updateStats() {
+            document.getElementById('activeContexts').textContent = webglContexts;
+            document.getElementById('pendingPreviews').textContent = window.TabManager ? window.TabManager.pendingPreviews?.size || 0 : 0;
+            document.getElementById('loadingState').textContent = window.TabManager ? (window.TabManager.isLoadingProject ? 'Oui' : 'Non') : 'N/A';
+            document.getElementById('errorCount').textContent = errorCount;
+        }
+
+        // Simuler le chargement d'un projet
+        function simulateProjectLoad() {
+            showResult('info', '🔄 Simulation de chargement de projet...');
+            
+            if (!window.TabManager) {
+                showResult('error', '❌ TabManager non disponible');
+                return;
+            }
+
+            try {
+                // Simuler un nettoyage
+                window.TabManager.cleanup();
+                window.TabManager.isLoadingProject = true;
+                
+                showResult('success', '✅ État de chargement activé');
+                
+                // Simuler l'ajout de nombreux éléments
+                const elements = [
+                    { type: 'brique_22_10_5_jaune', count: 50 },
+                    { type: 'brique_22_10_10_rouge', count: 30 },
+                    { type: 'brique_44_10_10_bleu', count: 25 },
+                    { type: 'bloc_20_20_20_gris', count: 20 }
+                ];
+
+                let processedCount = 0;
+                elements.forEach(({ type, count }, index) => {
+                    setTimeout(() => {
+                        for (let i = 0; i < count; i++) {
+                            // Simuler l'événement elementPlaced
+                            const event = new CustomEvent('elementPlaced', {
+                                detail: {
+                                    element: {
+                                        id: `${type}_${i}`,
+                                        type: type,
+                                        cut: 'pleine'
+                                    }
+                                }
+                            });
+                            document.dispatchEvent(event);
+                        }
+                        
+                        processedCount += count;
+                        showResult('info', `📦 ${processedCount} éléments ajoutés`);
+                        
+                        // Terminer le chargement après le dernier lot
+                        if (index === elements.length - 1) {
+                            setTimeout(() => {
+                                window.TabManager.isLoadingProject = false;
+                                showResult('success', '✅ Chargement de projet simulé terminé');
+                                updateStats();
+                            }, 2000);
+                        }
+                    }, index * 1000);
+                });
+
+            } catch (error) {
+                showResult('error', `❌ Erreur: ${error.message}`);
+            }
+
+            updateStats();
+        }
+
+        // Simuler plusieurs chargements consécutifs
+        function simulateMultipleLoads() {
+            showResult('info', '🔄 Simulation de chargements multiples...');
+            
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    showResult('info', `📂 Chargement ${i + 1}/3`);
+                    simulateProjectLoad();
+                }, i * 5000);
+            }
+        }
+
+        // Vérifier l'état WebGL
+        function checkWebGLState() {
+            const results = [];
+            
+            // Vérifier le support WebGL
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    results.push('✅ WebGL supporté');
+                    const contextInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (contextInfo) {
+                        results.push(`🖥️ GPU: ${gl.getParameter(contextInfo.UNMASKED_RENDERER_WEBGL)}`);
+                    }
+                } else {
+                    results.push('❌ WebGL non supporté');
+                }
+            } catch (error) {
+                results.push(`❌ Erreur WebGL: ${error.message}`);
+            }
+
+            // Vérifier TabManager
+            if (window.TabManager) {
+                results.push('✅ TabManager disponible');
+                results.push(`📊 Renderer initialisé: ${window.TabManager.rendererInitialized ? 'Oui' : 'Non'}`);
+                results.push(`🔄 Chargement projet: ${window.TabManager.isLoadingProject ? 'Oui' : 'Non'}`);
+                results.push(`📋 Aperçus en attente: ${window.TabManager.pendingPreviews?.size || 0}`);
+            } else {
+                results.push('❌ TabManager non disponible');
+            }
+
+            showResult('info', results.join('<br>'));
+            updateStats();
+        }
+
+        // Forcer un nettoyage
+        function forceCleanup() {
+            if (window.TabManager && typeof window.TabManager.cleanup === 'function') {
+                window.TabManager.cleanup();
+                showResult('success', '🧹 Nettoyage forcé effectué');
+            } else {
+                showResult('error', '❌ Impossible de nettoyer - TabManager non disponible');
+            }
+            
+            errorCount = 0;
+            updateStats();
+        }
+
+        // Vider le log
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+            showResult('info', '🧹 Log vidé');
+        }
+
+        // Afficher un résultat de test
+        function showResult(type, message) {
+            const resultsContainer = document.getElementById('testResults');
+            const result = document.createElement('div');
+            result.className = `test-result ${type}`;
+            result.innerHTML = message;
+            resultsContainer.appendChild(result);
+            
+            // Limiter le nombre de résultats affichés
+            while (resultsContainer.children.length > 10) {
+                resultsContainer.removeChild(resultsContainer.firstChild);
+            }
+        }
+
+        // Surveiller les changements d'état
+        function monitorWebGLState() {
+            setInterval(() => {
+                updateStats();
+            }, 1000);
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            setupLogInterception();
+            monitorWebGLState();
+            
+            showResult('info', '🚀 Test WebGL Fix initialisé');
+            showResult('info', '📋 Chargez l\'application principale dans un autre onglet, puis utilisez les boutons de test');
+            
+            checkWebGLState();
+        });
+    </script>
+</body>
+</html>
