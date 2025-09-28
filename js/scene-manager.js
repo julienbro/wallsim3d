@@ -102,11 +102,15 @@ class SceneManager {
         // Création de la scène
         this.scene = new THREE.Scene();
         
+        // Définir un background par défaut (sera remplacé par le SkyDome)
+        this.scene.background = new THREE.Color(0x87CEEB); // Bleu ciel par défaut
+        
         // Création d'un ciel dégradé
         this.createSkyDome();
         
-        // Brouillard pour l'atmosphère
-        this.scene.fog = new THREE.Fog(0x87CEEB, 800, 2000);
+        // Désactivation du brouillard pour un ciel plus clair
+        // this.scene.fog = new THREE.Fog(0x87CEEB, 800, 1400);
+        this.scene.fog = null; // Pas de brouillard pour un rendu plus net
 
         // Configuration de la caméra
         const width = container.clientWidth;
@@ -147,7 +151,7 @@ class SceneManager {
             this.controls.enableDamping = true;
             this.controls.dampingFactor = 0.05;
             this.controls.minDistance = 5;
-            this.controls.maxDistance = 1000;
+            this.controls.maxDistance = 800; // Réduite à 800 pour être bien en sécurité dans le SkyDome (rayon 1500)
             this.controls.maxPolarAngle = Math.PI / 2;
             
             // Configuration du zoom avec la molette
@@ -488,37 +492,19 @@ class SceneManager {
         // Créer une sphère pour le ciel avec un dégradé bleu
         const skyGeometry = new THREE.SphereGeometry(1500, 32, 32);
         
-        // Créer un matériau avec un dégradé vertical
-        const skyMaterial = new THREE.ShaderMaterial({
-            vertexShader: `
-                varying vec3 vWorldPosition;
-                void main() {
-                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-                    vWorldPosition = worldPosition.xyz;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                varying vec3 vWorldPosition;
-                void main() {
-                    vec3 pointOnSphere = normalize(vWorldPosition);
-                    float h = normalize(vWorldPosition + 1500.0).y;
-                    
-                    // Couleurs du dégradé - version adoucie
-                    vec3 topColor = vec3(0.7, 0.85, 0.95);     // Bleu très clair en haut
-                    vec3 horizonColor = vec3(0.9, 0.95, 0.98); // Bleu-blanc à l'horizon
-                    vec3 bottomColor = vec3(0.85, 0.9, 0.95);  // Gris-bleu très clair en bas
-                    
-                    vec3 color = mix(bottomColor, horizonColor, smoothstep(0.0, 0.5, h));
-                    color = mix(color, topColor, smoothstep(0.5, 1.0, h));
-                    
-                    gl_FragColor = vec4(color, 1.0);
-                }
-            `,
-            side: THREE.BackSide
+        // Utiliser un matériau simple et fiable pour l'export PDF
+        const skyMaterial = new THREE.MeshBasicMaterial({
+            color: 0x87CEEB, // Couleur bleu ciel
+            side: THREE.BackSide, // BackSide pour un rendu correct (visible de l'intérieur)
+            fog: false, // Désactiver le brouillard pour le ciel
+            transparent: false, // Complètement opaque pour éviter les problèmes
+            depthWrite: true, // Activer l'écriture de profondeur pour l'export PDF
+            depthTest: true // Activer le test de profondeur
         });
         
         this.skyDome = new THREE.Mesh(skyGeometry, skyMaterial);
+        this.skyDome.renderOrder = -1000; // Rendu en tout premier arrière-plan
+        this.skyDome.name = 'SkyDome'; // Nom pour identification
         this.scene.add(this.skyDome);
     }
 
@@ -1704,7 +1690,7 @@ class SceneManager {
                 
                 if (element && element.id) {
                     // Éléments de construction (briques, blocs, etc.)
-                    if (element.type && ['brick', 'block', 'insulation', 'linteau', 'beam'].includes(element.type)) { // 🆕 ajouter beam
+                    if (element.type && ['brick', 'block', 'insulation', 'linteau', 'beam', 'slab'].includes(element.type)) { // 🆕 ajouter beam + slab
                         // En mode sélection, autoriser la sélection inter-assises (cliquer la face supérieure d'une assise inférieure)
                         // Sinon, respecter la restriction d'assise active via AssiseManager
                         const selectionModeActive = (window.toolbarManager && window.toolbarManager.interactionMode === 'selection');
@@ -1735,7 +1721,7 @@ class SceneManager {
                         
                         // Ne pas créer de suggestions pour les modèles GLB et éléments de construction
                         if (window.ConstructionTools && window.ConstructionTools.clearSuggestions && 
-                            (['brick', 'block', 'insulation', 'linteau', 'beam'].includes(element.type) || 
+                            (['brick', 'block', 'insulation', 'linteau', 'beam', 'slab'].includes(element.type) || 
                              element.type === 'glb' || element.isGLBModel)) { // 🆕 beam inclus
                             window.ConstructionTools.clearSuggestions();
                         }
@@ -1802,33 +1788,78 @@ class SceneManager {
                                         if (elementAssiseType) break;
                                     }
                                     
-                                    // CORRECTION: Détecter le vrai type de l'élément cliqué pour les suggestions
-                                    let detectedElementType = null;
-                                    if (element.type === 'block' && element.dimensions) {
-                                        const blockWidth = element.dimensions.width;
-                                        if (blockWidth >= 8.5 && blockWidth <= 9.5) {
-                                            detectedElementType = 'B9';
-                                        } else if (blockWidth >= 13.5 && blockWidth <= 14.5) {
-                                            detectedElementType = 'B14';
-                                        } else if (blockWidth >= 18.5 && blockWidth <= 19.5) {
-                                            detectedElementType = 'B19';
-                                        } else if (blockWidth >= 28.5 && blockWidth <= 29.5) {
-                                            detectedElementType = 'B29';
-                                        }
-                                        console.log(`🔍 [DEBUG-SCENE] Détection type bloc: largeur=${blockWidth}cm → type détecté=${detectedElementType}, currentType=${currentType}`);
-                                    }
-                                    
-                                    // Ne créer des suggestions que si l'élément est dans l'assise courante
+                    // CORRECTION: Détecter le vrai type de l'élément cliqué pour les suggestions
+                    let detectedElementType = null;
+                    if (element.type === 'block' && element.dimensions) {
+                        const blockWidth = element.dimensions.width;
+                        const blockLength = element.dimensions.length;
+                        if (blockWidth >= 8.5 && blockWidth <= 9.5) {
+                            detectedElementType = 'B9';
+                        } else if (blockWidth >= 13.5 && blockWidth <= 14.5) {
+                            detectedElementType = 'B14';
+                        } else if (blockWidth >= 18.5 && blockWidth <= 19.5) {
+                            detectedElementType = 'B19';
+                        } else if ((blockWidth >= 28.5 && blockWidth <= 29.5) || (blockWidth >= 38.5 && blockWidth <= 39.5)) {
+                            // Détection B29 - gérer les deux orientations possibles ET les coupes
+                            if ((blockWidth >= 28.5 && blockWidth <= 29.5 && blockLength >= 38.5 && blockLength <= 39.5) ||
+                                (blockWidth >= 38.5 && blockWidth <= 39.5 && blockLength >= 28.5 && blockLength <= 29.5)) {
+                                // B29_PANNERESSE : 29×39 ou 39×29 (orientation inversée)
+                                detectedElementType = 'B29_PANNERESSE';
+                            } else if ((blockWidth >= 28.5 && blockWidth <= 29.5 && blockLength >= 28.5 && blockLength <= 29.5) ||
+                                      (blockWidth >= 38.5 && blockWidth <= 39.5 && blockLength >= 38.5 && blockLength <= 39.5)) {
+                                // B29_BOUTISSE : 29×29 ou 39×39 (orientation inversée - mais 39×39 ne devrait pas exister)
+                                detectedElementType = 'B29_BOUTISSE';
+                            } else if (blockWidth >= 28.5 && blockWidth <= 29.5) {
+                                // Blocs B29_PANNERESSE coupés : 29×19 (HALF), 29×9 (1Q), etc.
+                                if (blockLength >= 18.5 && blockLength <= 19.5) {
+                                    detectedElementType = 'B29_PANNERESSE'; // 29×19 = PANNERESSE_HALF
+                                } else if (blockLength >= 28.5 && blockLength <= 29.5) {
+                                    detectedElementType = 'B29_PANNERESSE'; // 29×29 = PANNERESSE_3Q
+                                } else if (blockLength >= 8.5 && blockLength <= 9.5) {
+                                    detectedElementType = 'B29_PANNERESSE'; // 29×9 = PANNERESSE_1Q
+                                } else {
+                                    detectedElementType = 'B29_PANNERESSE'; // Par défaut
+                                }
+                            } else if (blockWidth >= 38.5 && blockWidth <= 39.5) {
+                                // Blocs B29_BOUTISSE coupés : 39×14 (HALF), 39×7 (1Q), etc.
+                                if (blockLength >= 13.5 && blockLength <= 14.5) {
+                                    detectedElementType = 'B29_BOUTISSE'; // 39×14 = BOUTISSE_HALF
+                                } else if (blockLength >= 21.5 && blockLength <= 22.5) {
+                                    detectedElementType = 'B29_BOUTISSE'; // 39×22 = BOUTISSE_3Q
+                                } else if (blockLength >= 6.5 && blockLength <= 7.5) {
+                                    detectedElementType = 'B29_BOUTISSE'; // 39×7 = BOUTISSE_1Q
+                                } else {
+                                    detectedElementType = 'B29_BOUTISSE'; // Par défaut
+                                }
+                            } else {
+                                // Par défaut si les dimensions ne correspondent pas exactement
+                                if (blockWidth >= 38.5 && blockWidth <= 39.5) {
+                                    detectedElementType = 'B29_BOUTISSE'; // 39×29 = BOUTISSE maintenant
+                                } else {
+                                    detectedElementType = 'B29_PANNERESSE'; // 29×39 = PANNERESSE maintenant  
+                                }
+                            }
+                        }
+                        console.log(`🔍 [DEBUG-SCENE] Détection type bloc: largeur=${blockWidth}cm, longueur=${blockLength}cm → type détecté=${detectedElementType}, currentType=${currentType}`);
+                    }                                    // Ne créer des suggestions que si l'élément est dans l'assise courante
                                     // EXCEPTION: Permettre les suggestions si le type détecté correspond au type actuel
                                     const typeMatches = detectedElementType === currentType;
-                                    if ((elementAssiseType !== currentType || elementAssiseIndex !== currentAssiseIndex) && !typeMatches) {
+                                    
+                                    // EXCEPTION SPÉCIALE B29: Autoriser suggestions pour B29 même si assise courante = CREUX
+                                    const isB29Exception = (detectedElementType && detectedElementType.startsWith('B29_') && 
+                                                          (elementAssiseType && elementAssiseType.startsWith('B29_')) &&
+                                                          currentType === 'CREUX');
+                                    
+                                    if ((elementAssiseType !== currentType || elementAssiseIndex !== currentAssiseIndex) && !typeMatches && !isB29Exception) {
                                         canCreateSuggestions = false;
                                         console.log('🚫 Suggestions bloquées - Élément', element.id, 
                                                   'dans assise', elementAssiseType, elementAssiseIndex, 
                                                   'mais assise courante:', currentType, currentAssiseIndex,
                                                   'type détecté:', detectedElementType);
                                     } else {
-                                        if (typeMatches && elementAssiseType !== currentType) {
+                                        if (isB29Exception) {
+                                            console.log('✅ Suggestions autorisées par exception B29 - Élément:', detectedElementType, 'dans assise:', elementAssiseType, 'courante:', currentType);
+                                        } else if (typeMatches && elementAssiseType !== currentType) {
                                             console.log('✅ Suggestions autorisées par type détecté - Élément type:', detectedElementType, 'assise courante:', currentType);
                                         } else {
                                             console.log('✅ Suggestions autorisées - Élément dans assise courante:', currentType, currentAssiseIndex);
@@ -2272,8 +2303,12 @@ class SceneManager {
             material = document.getElementById('materialSelect').value;
         }
         
-        // CORRECTION: Récupérer AVANT le blockType original (non nettoyé) pour préserver l'info de coupe
-        let originalBlockType = type; // Type original non nettoyé
+    // CORRECTION: Récupérer AVANT le blockType original (non nettoyé) pour préserver l'info de coupe (non applicable à insulation)
+    let originalBlockType = type; // Type original non nettoyé
+    // Spécial dalle: marquer explicitement comme dalle personnalisée
+    if (type === 'slab') {
+        originalBlockType = 'SLAB_CUSTOM';
+    }
         
         // Pour les blocs, récupérer le type original avec l'info de coupe depuis BlockSelector
         if (type === 'block' && window.BlockSelector && window.BlockSelector.currentBlock) {
@@ -2290,9 +2325,9 @@ class SceneManager {
             }
         }
         
-        // MAINTENANT récupérer le blockType nettoyé pour le reste de la logique
+        // MAINTENANT récupérer le blockType nettoyé pour le reste de la logique (sauf isolant)
         let blockType = type; // Valeur par défaut
-        if (window.ConstructionTools && window.ConstructionTools.getElementTypeForMode) {
+        if (type !== 'insulation' && window.ConstructionTools && window.ConstructionTools.getElementTypeForMode) {
             blockType = window.ConstructionTools.getElementTypeForMode(type);
         }
         
@@ -2301,9 +2336,27 @@ class SceneManager {
         // // console.log(`🔧 DEBUG placeElementAt: type=${type}, material=${material}`);
         // // console.log(`🔧 DEBUG placeElementAt: blockType=${blockType}`);
         
-        // CORRECTION: Utiliser les dimensions selon le type d'élément
+    // CORRECTION: Utiliser les dimensions selon le type d'élément
         let length, width, height;
-        if (type === 'brick' && window.BrickSelector) {
+        if (type === 'slab' && window.ConstructionTools && window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.dimensions) {
+            // Dalle personnalisée: reprendre exactement les dimensions du fantôme (utilisateur)
+            const d = window.ConstructionTools.ghostElement.dimensions;
+            length = d.length; width = d.width; height = d.height;
+            // Si l'utilisateur a édité dans la carte, prioriser ces valeurs
+            try {
+                const slabItem = document.getElementById('slab-custom-item');
+                if (slabItem) {
+                    const lenInput = slabItem.querySelector('.slab-length');
+                    const widInput = slabItem.querySelector('.slab-width');
+                    const heiInput = slabItem.querySelector('.slab-height');
+                    if (lenInput && !isNaN(parseInt(lenInput.value))) length = parseInt(lenInput.value);
+                    if (widInput && !isNaN(parseInt(widInput.value))) width = parseInt(widInput.value);
+                    if (heiInput && !isNaN(parseInt(heiInput.value))) height = parseInt(heiInput.value);
+                }
+            } catch(e) { /* ignore */ }
+            // Pas d'ajustement de coupe pour les dalles
+        }
+        else if (type === 'brick' && window.BrickSelector) {
             // Pour les briques, utiliser BrickSelector
             const currentBrick = window.BrickSelector.getCurrentBrick();
             length = currentBrick.length;
@@ -2315,7 +2368,7 @@ class SceneManager {
             if (window.DEBUG_CONSTRUCTION) {
                 // console.log(`🔧 SceneManager: Dimensions brique depuis BrickSelector: ${length}×${width}×${height}cm (type: ${currentBrick.type})`);
             }
-        } else if (type === 'block' && window.BlockSelector) {
+    } else if (type === 'block' && window.BlockSelector) {
             // Pour les blocs, utiliser BlockSelector
             const currentBlock = window.BlockSelector.getCurrentBlockData();
             length = currentBlock.length;
@@ -2348,7 +2401,7 @@ class SceneManager {
                 console.log('🔧 Bloc avec coupe détecté - conservation des dimensions BlockSelector:', length);
             }
             // // console.log(`🔧 Dimensions bloc: ${length}x${width}x${height}cm`);
-        } else if (type === 'beam' && window.BeamProfiles && window.ConstructionTools) {
+    } else if (type === 'beam' && window.BeamProfiles && window.ConstructionTools) {
             // Poutres acier procédurales: dimensions depuis le profil sélectionné
             const beamType = window.ConstructionTools.currentBeamType || 'IPE80';
             const p = window.BeamProfiles.getProfile ? window.BeamProfiles.getProfile(beamType) : null;
@@ -2364,12 +2417,26 @@ class SceneManager {
                 width = 10;
                 height = 10;
             }
+        } else if (type === 'insulation' && window.InsulationSelector) {
+            // Pour les isolants: toujours prendre les dimensions du sélecteur d'isolant, y compris les coupes
+            const currentInsulation = (typeof window.InsulationSelector.getCurrentInsulationWithCutObject === 'function'
+                ? window.InsulationSelector.getCurrentInsulationWithCutObject()
+                : window.InsulationSelector.getCurrentInsulationData());
+            if (currentInsulation) {
+                length = currentInsulation.length;
+                width = currentInsulation.width;
+                height = currentInsulation.height;
+            } else {
+                // Fallback vers les champs HTML si sélecteur indisponible
+                length = parseInt(document.getElementById('elementLength').value);
+                width = parseInt(document.getElementById('elementWidth').value);
+                height = parseInt(document.getElementById('elementHeight').value);
+            }
         } else {
-            // Pour les isolants ou si les sélecteurs ne sont pas disponibles, utiliser les champs HTML
+            // Autres cas fallback vers les champs HTML
             length = parseInt(document.getElementById('elementLength').value);
             width = parseInt(document.getElementById('elementWidth').value);
             height = parseInt(document.getElementById('elementHeight').value);
-            // // console.log(`🔧 Dimensions HTML: ${length}x${width}x${height}cm`);
         }
 
         // Snap to grid
@@ -2387,12 +2454,15 @@ class SceneManager {
         }
 
         // Calculer la hauteur Y appropriée
-        let y = 0;
+    let y = 0;
         
         // 🆕 NOUVEAU: Utiliser la hauteur personnalisée si fournie (pour placement sur faces de blocs)
         if (customY !== null) {
             y = customY;
             console.log(`🎯 Utilisation de la hauteur personnalisée: Y = ${y} cm`);
+        } else if (type === 'slab') {
+            // Dalle: base au sol (Y=0) → centre à H/2, ignorer empilage et assises
+            y = (height || 0) / 2;
         } else if (!supportElement) {
             // Si pas d'élément support spécifié, chercher automatiquement
             const stackingResult = this.findAutoStackingHeight(snapX, snapZ);
@@ -2410,11 +2480,33 @@ class SceneManager {
                     // // console.log(`🎯 SceneManager: Type brique spécifique utilisé: ${currentType}`);
                 }
                 
-                // CORRECTION: Utiliser la méthode getAssiseHeight qui fonctionne avec l'assise courante
-                const currentAssise = window.AssiseManager.currentAssise;
-                const assiseHeight = window.AssiseManager.getAssiseHeight(currentAssise);
+                // CORRECTION B29: Pour les blocs, détecter le type spécifique B29
+                if (currentType === 'block' && window.BlockSelector && window.BlockSelector.currentBlock) {
+                    const blockType = window.BlockSelector.currentBlock;
+                    // Si c'est un bloc B29, utiliser le type spécifique depuis AssiseManager
+                    if (blockType && (blockType.startsWith('B29_PANNERESSE') || blockType.startsWith('B29_BOUTISSE'))) {
+                        currentType = window.AssiseManager.currentType;
+                        console.log(`🎯 SceneManager: Type B29 spécifique utilisé: ${currentType} (bloc: ${blockType})`);
+                    }
+                }
+                
+                // CORRECTION: Utiliser l'assise active pour le type courant au lieu de l'assise globale
+                // Pour l'isolant, normaliser sur la famille (PUR, LAINEROCHE, XPS, PSE, FB, LV)
+                let assiseTypeForY = currentType;
+                if (currentType === 'insulation' && window.AssiseManager && window.InsulationSelector) {
+                    let sourceType = null;
+                    if (typeof window.InsulationSelector.getCurrentInsulation === 'function') {
+                        sourceType = window.InsulationSelector.getCurrentInsulation();
+                    } else if (window.InsulationSelector.currentInsulation) {
+                        sourceType = window.InsulationSelector.currentInsulation;
+                    }
+                    const fam = (sourceType || '').toUpperCase().match(/^(PUR|LAINEROCHE|XPS|PSE|FB|LV)/);
+                    assiseTypeForY = fam ? fam[1] : 'insulation';
+                }
+                const currentAssiseIndex = window.AssiseManager.getCurrentAssiseIndexForType(assiseTypeForY);
+                const assiseHeight = window.AssiseManager.getAssiseHeightForType(assiseTypeForY, currentAssiseIndex);
                 y = assiseHeight + height / 2; // Centre de l'élément
-                // // console.log(`🎯 Positionnement sur assise active: assise ${currentAssise}, hauteur ${assiseHeight} cm, centre Y: ${y} cm`);
+                // console.log(`🎯 Positionnement sur assise active pour type ${currentType}: assise ${currentAssiseIndex}, hauteur ${assiseHeight} cm, centre Y: ${y} cm`);
             }
         } else {
             // Utiliser l'élément support fourni
@@ -2424,7 +2516,6 @@ class SceneManager {
         // Créer le nouvel élément avec ajout des informations GLB
         const elementOptions = {
             type,
-            blockType: originalBlockType, // CORRECTION: Utiliser le type ORIGINAL non nettoyé pour préserver l'info de coupe
             material,
             x: snapX,
             y: y,
@@ -2440,7 +2531,7 @@ class SceneManager {
             } : {}),
             assiseName: (function(){
                 // Ne pas générer de nom d'assise pour les poutres
-                if (type === 'beam') return null;
+                if (type === 'beam' || type === 'slab') return null;
                 if (window.AssiseManager) {
                     const currentType = window.AssiseManager.currentType;
                     const idx = window.AssiseManager.currentAssiseByType.get(currentType) || 0;
@@ -2449,6 +2540,30 @@ class SceneManager {
                 return null;
             })()
         };
+
+        // Ne pas renseigner blockType pour l'isolant; utiliser insulationType
+    if (type === 'insulation') {
+            // Essayer d'obtenir le type isolant précis (avec coupe) depuis le sélecteur/ConstructionTools
+            let insulationType = null;
+            if (window.ConstructionTools && typeof window.ConstructionTools.getElementTypeForMode === 'function') {
+                insulationType = window.ConstructionTools.getElementTypeForMode('insulation');
+            }
+            if (!insulationType && window.InsulationSelector) {
+                if (typeof window.InsulationSelector.getCurrentInsulationWithCut === 'function') {
+                    insulationType = window.InsulationSelector.getCurrentInsulationWithCut();
+                } else if (typeof window.InsulationSelector.getCurrentInsulation === 'function') {
+                    insulationType = window.InsulationSelector.getCurrentInsulation();
+                } else {
+                    insulationType = window.InsulationSelector.currentInsulation;
+                }
+            }
+            if (!insulationType) {
+                insulationType = 'PUR'; // fallback raisonnable
+            }
+            elementOptions.insulationType = insulationType;
+        } else {
+            elementOptions.blockType = originalBlockType; // conserver l'info de coupe pour briques/blocs/linteaux/dalles
+        }
 
         // Ajouter les informations GLB si applicable
         if (window.BrickSelector && window.BrickSelector.brickTypes && window.BrickSelector.brickTypes[type]) {
@@ -2460,28 +2575,29 @@ class SceneManager {
         }
 
         // DEBUG: Log elementOptions AVANT création
-        console.warn('========== CRÉATION WALLELEMENT DANS SCENE-MANAGER ==========');
-        console.log('elementOptions AVANT new WallElement:', {
-            type: elementOptions.type,
-            width: elementOptions.width,
-            height: elementOptions.height,
-            depth: elementOptions.depth,
-            length: elementOptions.length,
-            dimensions: elementOptions.dimensions
-        });
+        // console.warn('========== CRÉATION WALLELEMENT DANS SCENE-MANAGER ==========');
+        // console.log('elementOptions AVANT new WallElement:', {
+        //     type: elementOptions.type,
+        //     blockType: elementOptions.blockType,
+        //     width: elementOptions.width,
+        //     height: elementOptions.height,
+        //     depth: elementOptions.depth,
+        //     length: elementOptions.length,
+        //     dimensions: elementOptions.dimensions
+        // });
 
         const element = new WallElement(elementOptions);
 
         // DEBUG: Log element APRÈS création
-        console.log('element APRÈS new WallElement:', {
-            id: element.id,
-            type: element.type,
-            width: element.width,
-            height: element.height,
-            depth: element.depth,
-            length: element.length,
-            dimensions: element.dimensions
-        });
+        // console.log('element APRÈS new WallElement:', {
+        //     id: element.id,
+        //     type: element.type,
+        //     width: element.width,
+        //     height: element.height,
+        //     depth: element.depth,
+        //     length: element.length,
+        //     dimensions: element.dimensions
+        // });
 
         // CORRECTION SPÉCIALE: Forcer l'opacité complète pour les isolants placés
         if (element.type === 'insulation' && element.mesh && element.mesh.material) {
@@ -2586,7 +2702,7 @@ class SceneManager {
         }
         
         // Ajouter automatiquement l'élément à l'assise active (inclut maintenant les poutres)
-        if (window.AssiseManager) {
+        if (window.AssiseManager && element.type !== 'slab') {
             const beforeY = element.position.y;
             window.AssiseManager.addElementToAssise(element.id);
             if (element.type === 'beam') {
@@ -2603,7 +2719,7 @@ class SceneManager {
         }
         
         // NOUVELLE FONCTIONNALITÉ : Joint horizontal automatique pour chaque élément de construction posé
-        if (!element.isVerticalJoint && !element.isHorizontalJoint && (element.type === 'brick' || element.type === 'block') && element.type !== 'insulation') {
+    if (!element.isVerticalJoint && !element.isHorizontalJoint && (element.type === 'brick' || element.type === 'block') && element.type !== 'insulation') {
             // console.log('🔧 Activation automatique du joint horizontal pour:', element.type, element.id);
             this.createAutomaticHorizontalJoint(element);
         }
@@ -5054,19 +5170,30 @@ class SceneManager {
                     assiseBottomY = previousAssiseHeight + elementHeight;
                     // console.log(`🔧 CORRECTION LOGIQUE: Joint AU-DESSUS de l'assise ${assiseIndex - 1} à ${assiseBottomY}cm (assise: ${previousAssiseHeight}cm + élément: ${elementHeight}cm)`);
                 } else {
-                    // Première assise : joint au niveau du sol
-                    // CORRECTION: Pour la première assise, le joint doit démarrer à Y=0
-                    assiseBottomY = jointHorizontal / 2; // Position pour que le centre soit à jointHorizontal/2, donc joint commence à Y=0
-                    // console.log(`🔧 Joint horizontal: Première assise, joint au sol démarrant à Y=0, centre à ${assiseBottomY}cm`);
+                    // Première assise : le joint doit démarrer à la hauteur de démarrage (base) de l'assise, PAS à Y=0
+                    let baseOffset = 0;
+                    try {
+                        if (window.AssiseManager) {
+                            // Déterminer le type d'assise normalisé pour récupérer l'offset
+                            const t = foundType || (referenceElement.blockType || referenceElement.type);
+                            const baseType = (typeof t === 'string' && t.includes('_')) ? t.split('_')[0] : t;
+                            baseOffset = window.AssiseManager.getBaseHeightForType(baseType);
+                        }
+                    } catch (e) {
+                        console.warn('⚠️[JOINT-H] Échec récupération baseOffset assise 0:', e);
+                    }
+                    assiseBottomY = baseOffset; // le joint démarre exactement au plan zéro défini pour l'assise 0
+                    // Centre = base + épaisseur/2
+                    if (window.enableJointDebug) console.log(`🧭[JOINT-H] Assise 0: baseOffset=${baseOffset}cm, jointHorizontal=${jointHorizontal}cm → centre=${assiseBottomY + (finalJointHeight/2)}cm`);
                 }
             }
             
             // Position du joint horizontal: pour toutes les assises, le joint commence à assiseBottomY
             let jointCenterY;
             if (assiseData && assiseData.assiseIndex === 0) {
-                // Pour la première assise, assiseBottomY contient déjà la position du centre
-                jointCenterY = assiseBottomY;
-                // console.log(`🔧 CORRECTION PREMIÈRE ASSISE: Joint centré à Y=${jointCenterY}cm, démarre à Y=0`);
+                // Pour la première assise, centre = baseOffset + épaisseur/2
+                jointCenterY = assiseBottomY + (finalJointHeight / 2);
+                if (window.enableJointDebug) console.log(`🧭[JOINT-H] Joint horizontal (assise 0) centré à Y=${jointCenterY}cm (base=${assiseBottomY} + h/2=${(finalJointHeight/2)})`);
             } else {
                 // Pour les autres assises, le joint commence à assiseBottomY et s'étend vers le haut
                 jointCenterY = assiseBottomY + (finalJointHeight / 2);
@@ -5494,7 +5621,6 @@ class SceneManager {
             'B9': '39×9×19 cm',
             'B14': '39×14×19 cm',
             'B19': '39×19×19 cm',
-            'B29': '39×29×19 cm',
             
             // Béton cellulaire
             'BC_60x5': '60×5×25 cm',

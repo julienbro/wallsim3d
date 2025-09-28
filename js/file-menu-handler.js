@@ -555,6 +555,8 @@ class FileMenuHandler {
         // Nettoyer le TabManager pour éviter les fuites de contexte WebGL
         if (window.TabManager && typeof window.TabManager.cleanup === 'function') {
             window.TabManager.cleanup();
+            // Marquer le début du chargement de projet
+            window.TabManager.isLoadingProject = true;
         }
 
         // Charger les éléments du projet
@@ -605,6 +607,32 @@ class FileMenuHandler {
         
         this.hasUnsavedChanges = false;
         this.updateProjectInfo();
+        
+        // Marquer la fin du chargement de projet
+        if (window.TabManager) {
+            setTimeout(() => {
+                window.TabManager.isLoadingProject = false;
+                
+                // Traiter les éléments en lot restants
+                if (window.TabManager.processBatchedElements) {
+                    window.TabManager.processBatchedElements();
+                }
+                
+                // Démarrer le traitement des aperçus en queue
+                setTimeout(() => {
+                    if (window.TabManager.processPreviewQueue) {
+                        window.TabManager.processPreviewQueue();
+                    }
+                }, 200);
+                
+                // Générer les aperçus 3D qui ont été ignorés pendant le chargement
+                setTimeout(() => {
+                    if (window.TabManager.generateMissedPreviews) {
+                        window.TabManager.generateMissedPreviews();
+                    }
+                }, 500); // Petit délai supplémentaire pour stabiliser
+            }, 1000); // Délai pour laisser les aperçus se stabiliser
+        }
     }
 
     /**

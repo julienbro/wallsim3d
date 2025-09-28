@@ -7,25 +7,43 @@ class BlockSelector {
             'B9': { length: 39, width: 9, height: 19, name: 'Bloc creux B9', category: 'hollow', weight: 12 },
             'B14': { length: 39, width: 14, height: 19, name: 'Bloc creux B14', category: 'hollow', weight: 15 },
             'B19': { length: 39, width: 19, height: 19, name: 'Bloc creux B19', category: 'hollow', weight: 18 },
-            'B29': { length: 39, width: 29, height: 19, name: 'Bloc creux B29', category: 'hollow', weight: 23 },
+            
+            // Blocs B29 spéciaux
+            'B29_PANNERESSE': { length: 39, width: 29, height: 19, name: 'Bloc B29 Panneresse', category: 'hollow', weight: 22 },
+            'B29_BOUTISSE': { length: 29, width: 39, height: 19, name: 'Bloc B29 Boutisse', category: 'hollow', weight: 22 },
             
             // Blocs creux coupés 3/4 (29cm)
             'B9_3Q': { length: 29, width: 9, height: 19, name: 'Bloc creux B9 3/4', category: 'cut', cutType: '3/4', baseBlock: 'B9', weight: 9 },
             'B14_3Q': { length: 29, width: 14, height: 19, name: 'Bloc creux B14 3/4', category: 'cut', cutType: '3/4', baseBlock: 'B14', weight: 11.25 },
             'B19_3Q': { length: 29, width: 19, height: 19, name: 'Bloc creux B19 3/4', category: 'cut', cutType: '3/4', baseBlock: 'B19', weight: 13.5 },
-            'B29_3Q': { length: 29, width: 29, height: 19, name: 'Bloc creux B29 3/4', category: 'cut', cutType: '3/4', baseBlock: 'B29', weight: 17.25 },
+            
+            // Blocs B29 Panneresse coupés 3/4
+            'B29_PANNERESSE_3Q': { length: 29, width: 29, height: 19, name: 'Bloc B29 Panneresse 3/4', category: 'cut', cutType: '3/4', baseBlock: 'B29_PANNERESSE', weight: 16.5 },
+            
+            // Blocs B29 Boutisse coupés 3/4  
+            'B29_BOUTISSE_3Q': { length: 22, width: 39, height: 19, name: 'Bloc B29 Boutisse 3/4', category: 'cut', cutType: '3/4', baseBlock: 'B29_BOUTISSE', weight: 16.5 },
             
             // Blocs creux coupés 1/2 (19cm)
             'B9_HALF': { length: 19, width: 9, height: 19, name: 'Bloc creux B9 1/2', category: 'cut', cutType: '1/2', baseBlock: 'B9', weight: 6 },
             'B14_HALF': { length: 19, width: 14, height: 19, name: 'Bloc creux B14 1/2', category: 'cut', cutType: '1/2', baseBlock: 'B14', weight: 7.5 },
             'B19_HALF': { length: 19, width: 19, height: 19, name: 'Bloc creux B19 1/2', category: 'cut', cutType: '1/2', baseBlock: 'B19', weight: 9 },
-            'B29_HALF': { length: 19, width: 29, height: 19, name: 'Bloc creux B29 1/2', category: 'cut', cutType: '1/2', baseBlock: 'B29', weight: 11.5 },
+            
+            // Blocs B29 Panneresse coupés 1/2
+            'B29_PANNERESSE_HALF': { length: 19, width: 29, height: 19, name: 'Bloc B29 Panneresse 1/2', category: 'cut', cutType: '1/2', baseBlock: 'B29_PANNERESSE', weight: 11 },
+            
+            // Blocs B29 Boutisse coupés 1/2
+            'B29_BOUTISSE_HALF': { length: 14, width: 39, height: 19, name: 'Bloc B29 Boutisse 1/2', category: 'cut', cutType: '1/2', baseBlock: 'B29_BOUTISSE', weight: 11 },
             
             // Blocs creux coupés 1/4 (9cm)
             'B9_1Q': { length: 9, width: 9, height: 19, name: 'Bloc creux B9 1/4', category: 'cut', cutType: '1/4', baseBlock: 'B9', weight: 3 },
             'B14_1Q': { length: 9, width: 14, height: 19, name: 'Bloc creux B14 1/4', category: 'cut', cutType: '1/4', baseBlock: 'B14', weight: 3.75 },
             'B19_1Q': { length: 9, width: 19, height: 19, name: 'Bloc creux B19 1/4', category: 'cut', cutType: '1/4', baseBlock: 'B19', weight: 4.5 },
-            'B29_1Q': { length: 9, width: 29, height: 19, name: 'Bloc creux B29 1/4', category: 'cut', cutType: '1/4', baseBlock: 'B29', weight: 5.75 },
+            
+            // Blocs B29 Panneresse coupés 1/4
+            'B29_PANNERESSE_1Q': { length: 9, width: 29, height: 19, name: 'Bloc B29 Panneresse 1/4', category: 'cut', cutType: '1/4', baseBlock: 'B29_PANNERESSE', weight: 5.5 },
+            
+            // Blocs B29 Boutisse coupés 1/4
+            'B29_BOUTISSE_1Q': { length: 7, width: 39, height: 19, name: 'Bloc B29 Boutisse 1/4', category: 'cut', cutType: '1/4', baseBlock: 'B29_BOUTISSE', weight: 5.5 },
             
             // Blocs creux B14 longueurs spécifiques
             'B14_34CM': { length: 34, width: 14, height: 19, name: 'Bloc creux B14 34cm', category: 'cut', cutType: '34cm', baseBlock: 'B14', weight: 13.1 },
@@ -340,6 +358,30 @@ class BlockSelector {
                         } else {
                             // Fallback vers le type générique
                             assiseType = 'CELLULAIRE';
+                        }
+                        break;
+                    case 'hollow':
+                        // Blocs creux classiques ou personnalisés: déduire assise de base
+                        if (type.startsWith('B29_PANNERESSE')) {
+                            assiseType = 'B29_PANNERESSE';
+                        } else if (type.startsWith('B29_BOUTISSE')) {
+                            assiseType = 'B29_BOUTISSE';
+                        } else if (type.startsWith('B9')) {
+                            assiseType = 'B9';
+                        } else if (type.startsWith('B14')) {
+                            assiseType = 'B14';
+                        } else if (type.startsWith('B19')) {
+                            assiseType = 'B19';
+                        } else if (type.includes('_CUSTOM_')) {
+                            // Extraire la base avant _CUSTOM_
+                            const base = type.split('_CUSTOM_')[0];
+                            if (['B9','B14','B19','B29_PANNERESSE','B29_BOUTISSE'].includes(base)) {
+                                assiseType = base;
+                            } else {
+                                assiseType = 'CREUX';
+                            }
+                        } else {
+                            assiseType = 'CREUX'; // Fallback générique
                         }
                         break;
                     case 'argex':

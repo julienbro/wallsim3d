@@ -540,7 +540,7 @@ class MetreTabManager {
                 if (element.id) {
             // Chercher les patterns comme B9_HALF, BC_60x5_3Q, etc. dans l'ID
             const cutPatterns = ['_3Q', '_HALF', '_1Q'];
-            const basePatterns = ['B9', 'B14', 'B19', 'B29', 'BC_60x5', 'BC_60x7', 'BC_60x10', 'BC_60x15', 'BC_60x17', 'BC_60x20', 'BC_60x24', 'BC_60x30', 'BC_60x36', 'ARGEX_39x9', 'ARGEX_39x14', 'ARGEX_39x19', 'TC_50x10', 'TC_50x14', 'TC_50x19'];
+            const basePatterns = ['B9', 'B14', 'B19', 'B29_BOUTISSE', 'B29_PANNERESSE', 'BC_60x5', 'BC_60x7', 'BC_60x10', 'BC_60x15', 'BC_60x17', 'BC_60x20', 'BC_60x24', 'BC_60x30', 'BC_60x36', 'ARGEX_39x9', 'ARGEX_39x14', 'ARGEX_39x19', 'TC_50x10', 'TC_50x14', 'TC_50x19'];
             
             for (const basePattern of basePatterns) {
                 if (element.id.includes(basePattern)) {
@@ -562,12 +562,19 @@ class MetreTabManager {
             'B9': { length: 39, width: 9, height: 19 },
             'B14': { length: 39, width: 14, height: 19 },
             'B19': { length: 39, width: 19, height: 19 },
-            'B29': { length: 39, width: 29, height: 19 },
             // Blocs 3/4
             'B9_3Q': { length: 29, width: 9, height: 19 },
             'B14_3Q': { length: 29, width: 14, height: 19 },
             'B19_3Q': { length: 29, width: 19, height: 19 },
-            'B29_3Q': { length: 29, width: 29, height: 19 },
+            // Blocs B29 spéciaux
+            'B29_BOUTISSE': { length: 39, width: 29, height: 19 },
+            'B29_PANNERESSE': { length: 29, width: 39, height: 19 },
+            'B29_BOUTISSE_3Q': { length: 29, width: 29, height: 19 },
+            'B29_PANNERESSE_3Q': { length: 22, width: 39, height: 19 },
+            'B29_BOUTISSE_HALF': { length: 19, width: 29, height: 19 },
+            'B29_PANNERESSE_HALF': { length: 14, width: 39, height: 19 },
+            'B29_BOUTISSE_1Q': { length: 9, width: 29, height: 19 },
+            'B29_PANNERESSE_1Q': { length: 7, width: 39, height: 19 },
             // Blocs béton cellulaire
             'BC20': { length: 60, width: 20, height: 25 },
             'BC25': { length: 60, width: 25, height: 25 },
@@ -587,7 +594,7 @@ class MetreTabManager {
         if (window.BlockSelector && window.BlockSelector.getCurrentType) {
             const currentType = window.BlockSelector.getCurrentType();
             const baseType = currentType.split('_')[0];
-            if (['B9', 'B14', 'B19', 'B29', 'BC20', 'BC25', 'BC30'].includes(baseType)) {
+            if (['B9', 'B14', 'B19', 'BC20', 'BC25', 'BC30'].includes(baseType)) {
                 return currentType;
             }
         }
@@ -601,6 +608,7 @@ class MetreTabManager {
             'block': 'Bloc',
             'insulation': 'Isolant',
             'joint': 'Joint',
+            'slab': 'Dalle',
             'glb': 'Modèle 3D (GLB)',
             'gltf': 'Modèle 3D (GLTF)',
             'diba': 'Membrane (Diba)'

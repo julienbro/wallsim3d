@@ -33,6 +33,14 @@ class TabManager {
             autres: new Map()
         };
         
+        // Système de traitement par lots pour le chargement de projet
+        this.batchedElements = [];
+        this.batchProcessTimer = null;
+        
+        // Système de queue pour les aperçus 3D
+        this.previewQueue = [];
+        this.previewQueueActive = false;
+        
         // console.log('🏗️ CONSTRUCTEUR TabManager - couleurs définies:', {
         //     brick: this.selectedBrickJointColor,
         //     block: this.selectedBlockJointColor
@@ -122,13 +130,129 @@ class TabManager {
      */
     disposeSharedRenderer() {
         if (this.sharedRenderer) {
+            // Nettoyer la scène avant de disposer du renderer
+            if (this.sharedScene) {
+                this.sharedScene.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => mat.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
+                this.sharedScene.clear();
+            }
+            
+            // Disposer du renderer
             this.sharedRenderer.dispose();
             this.sharedRenderer = null;
         }
         this.sharedScene = null;
         this.sharedCamera = null;
         this.rendererInitialized = false;
-        console.log('🧹 Renderer WebGL partagé nettoyé');
+    }
+
+    /**
+     * Génère les aperçus 3D manqués pendant le chargement de projet
+     */
+    generateMissedPreviews() {
+        if (this.isLoadingProject) {
+            return;
+        }
+
+        const containers = document.querySelectorAll('.reuse-preview canvas');
+        let generatedCount = 0;
+        
+        containers.forEach((canvas, index) => {
+            const container = canvas.closest('.reuse-item');
+            if (container) {
+                const elementType = container.dataset.elementType;
+                const cutValue = container.dataset.cutValue || '1/1';
+                const previewId = canvas.id;
+                
+                if (canvas.width === 0 || canvas.height === 0) {
+                    // Délai progressif pour éviter la surcharge
+                    setTimeout(() => {
+                        this.generate3DPreview(elementType, cutValue, previewId);
+                        generatedCount++;
+                    }, index * 100 + Math.random() * 200);
+                }
+            }
+        });
+        
+        if (generatedCount > 0) {
+            // Aperçus programmés
+        }
+    }
+
+    /**
+     * Traite la queue des aperçus 3D de manière progressive
+     */
+    processPreviewQueue() {
+        if (this.previewQueueActive || this.previewQueue.length === 0) {
+            return;
+        }
+
+        this.previewQueueActive = true;
+
+        const processNext = () => {
+            if (this.previewQueue.length === 0) {
+                this.previewQueueActive = false;
+                return;
+            }
+
+            const previewData = this.previewQueue.shift();
+            
+            try {
+                if (previewData.isGLB) {
+                    // Traitement GLB
+                    const glbKey = `${previewData.element.type}_${previewData.element.lengthValue || '300'}`;
+                    if (!this.pendingGLBPreviews) {
+                        this.pendingGLBPreviews = new Set();
+                    }
+                    
+                    if (!this.pendingGLBPreviews.has(glbKey) && this.pendingGLBPreviews.size < 3) {
+                        this.pendingGLBPreviews.add(glbKey);
+                        this.generateGLBPreview(previewData.element, previewData.previewId);
+                        
+                        setTimeout(() => {
+                            this.pendingGLBPreviews.delete(glbKey);
+                        }, 3000);
+                    } else {
+                        const container = document.getElementById(previewData.previewId);
+                        if (container) {
+                            this.showGLBFallbackPreview(container, previewData.element);
+                        }
+                    }
+                } else {
+                    // Traitement 3D normal
+                    this.generate3DPreview(previewData.element.type, previewData.element.cut, previewData.previewId);
+                }
+            } catch (error) {
+                // Erreur lors de la génération d'aperçu
+            }
+
+            // Utiliser requestIdleCallback pour éviter les violations setTimeout
+            const scheduleNext = () => {
+                if (window.requestIdleCallback) {
+                    window.requestIdleCallback(processNext, { timeout: 1000 });
+                } else {
+                    // Fallback pour les navigateurs sans requestIdleCallback
+                    setTimeout(processNext, 300 + Math.random() * 200);
+                }
+            };
+
+            scheduleNext();
+        };
+
+        // Démarrer le traitement avec requestIdleCallback
+        if (window.requestIdleCallback) {
+            window.requestIdleCallback(processNext, { timeout: 500 });
+        } else {
+            setTimeout(processNext, 100);
+        }
     }
 
     init() {
@@ -240,6 +364,10 @@ class TabManager {
         // Écouter l'événement de placement d'éléments pour les ajouter aux éléments réutilisables
         // Initialiser le cache pour éviter les traitements en double
         this.recentlyProcessedElements = new Set();
+        
+        // Flag pour éviter les créations multiples de renderer pendant le chargement
+        this.isLoadingProject = false;
+        this.pendingPreviews = new Set();
         
         document.addEventListener('elementPlaced', (e) => {
             const element = e.detail.element;
@@ -652,7 +780,23 @@ class TabManager {
     setupLibraryItems() {
         const libraryItems = document.querySelectorAll('.library-item');
         libraryItems.forEach(item => {
+            // Protection: ne pas laisser les clics sur les contrôles internes déclencher la sélection carte
+            const controls = item.querySelector('.item-controls');
+            if (controls) {
+                ['click','mousedown','mouseup'].forEach(evt => {
+                    controls.addEventListener(evt, (e) => {
+                        e.stopPropagation();
+                    });
+                });
+            }
             item.addEventListener('click', (e) => {
+                // ✅ Ne pas interférer avec l'édition des champs (ex: dimensions de dalle)
+                if (e.target && (
+                    e.target.matches('input, textarea, select') ||
+                    (typeof e.target.closest === 'function' && e.target.closest('input, textarea, select'))
+                )) {
+                    return;
+                }
                 // Ignorer le clic s'il vient d'un bouton de coupe
                 if (e.target.classList.contains('cut-btn-mini')) {
                     // console.log(`🚫 TabManager: Clic ignoré car vient d'un bouton cut-btn-mini`);
@@ -679,6 +823,52 @@ class TabManager {
                 this.selectLibraryItem(itemType, item);
             });
         });
+
+        // Synchroniser les champs de la dalle personnalisée avec les champs globaux et le fantôme
+        try {
+            const slabItem = document.getElementById('slab-custom-item');
+            if (slabItem) {
+                const lenInput = slabItem.querySelector('.slab-length');
+                const widInput = slabItem.querySelector('.slab-width');
+                const heiInput = slabItem.querySelector('.slab-height');
+                const Lf = document.getElementById('elementLength');
+                const Wf = document.getElementById('elementWidth');
+                const Hf = document.getElementById('elementHeight');
+
+                const syncAndUpdate = () => {
+                    if (Lf && lenInput) Lf.value = parseInt(lenInput.value) || 100;
+                    if (Wf && widInput) Wf.value = parseInt(widInput.value) || 100;
+                    if (Hf && heiInput) Hf.value = parseInt(heiInput.value) || 15;
+                    // Activer le mode dalle si pas déjà actif
+                    if (window.ConstructionTools) {
+                        if (window.ConstructionTools.currentMode !== 'slab') {
+                            if (typeof window.ConstructionTools.setMode === 'function') {
+                                window.ConstructionTools.setMode('slab');
+                            } else {
+                                window.ConstructionTools.currentMode = 'slab';
+                            }
+                            if (typeof window.ConstructionTools.createGhostElement === 'function') {
+                                window.ConstructionTools.createGhostElement();
+                            }
+                        }
+                    }
+                    if (window.ConstructionTools && typeof window.ConstructionTools.updateGhostElement === 'function') {
+                        window.ConstructionTools.updateGhostElement();
+                    }
+                    if (window.ToolsTabManager && typeof window.ToolsTabManager.updateActiveElementPreview === 'function') {
+                        window.ToolsTabManager.updateActiveElementPreview();
+                    }
+                };
+
+                ['input','change'].forEach(evt => {
+                    if (lenInput) lenInput.addEventListener(evt, syncAndUpdate);
+                    if (widInput) widInput.addEventListener(evt, syncAndUpdate);
+                    if (heiInput) heiInput.addEventListener(evt, syncAndUpdate);
+                });
+            }
+        } catch (e) {
+            console.warn('⚠️ Synchronisation des champs dalle échouée:', e);
+        }
 
         // Gestion des boutons d'import GLB avec délégation d'événements
         const importButtons = document.querySelectorAll('.btn-import-glb');
@@ -1039,7 +1229,8 @@ class TabManager {
 
     // === GESTION DES BOUTONS DE COUPE MINI ===
     setupCutButtonsMini() {
-        const cutButtonsMini = document.querySelectorAll('.cut-btn-mini');
+        // Ne cibler que les vrais boutons de coupe (avec métadonnées requises)
+        const cutButtonsMini = document.querySelectorAll('.cut-btn-mini[data-cut][data-base-type]');
         if (window.DEBUG_MODE) console.log(`🔍 TabManager: ${cutButtonsMini.length} boutons cut-btn-mini trouvés`);
         
         if (cutButtonsMini.length === 0) {
@@ -1049,7 +1240,7 @@ class TabManager {
         }
         
         cutButtonsMini.forEach((button, index) => {
-            // Calculer et afficher la longueur sur le bouton au chargement
+            // Calculer et afficher la longueur sur le bouton au chargement (si métadonnées valides)
             this.updateButtonTooltip(button);
             
             // Supprimer les anciens event listeners s'ils existent
@@ -1062,6 +1253,10 @@ class TabManager {
                 
                 const cutType = button.dataset.cut;
                 const baseType = button.dataset.baseType;
+                if (!cutType || !baseType) {
+                    // Bouton non conforme (ex: "Sélectionner" de la dalle) → ignorer
+                    return;
+                }
                 
                 // Utiliser une micro-tâche pour éviter les violations de performance
                 Promise.resolve().then(() => {
@@ -1079,8 +1274,9 @@ class TabManager {
     }
 
     updateButtonTooltip(button) {
-        const cutType = button.dataset.cut;
-        const baseType = button.dataset.baseType;
+        const cutType = button.dataset?.cut;
+        const baseType = button.dataset?.baseType;
+        if (!cutType || !baseType) return; // Pas un bouton de coupe classique
         // Spécifique poutres: afficher directement la longueur en cm
         if (window.BeamProfiles && window.BeamProfiles.isBeamType && window.BeamProfiles.isBeamType(baseType)) {
             if (cutType === 'P') {
@@ -1104,6 +1300,7 @@ class TabManager {
     }
 
     selectCutTypeMini(cutType, baseType, buttonElement) {
+        if (!cutType || !baseType) return; // sécurité
         // // // // console.log(`🎯 TabManager: selectCutTypeMini démarré - ${cutType} pour ${baseType}`);
         
         // Récupérer l'item parent pour l'utiliser plus tard
@@ -1577,6 +1774,13 @@ class TabManager {
     }
 
     syncCutWithSelectors(finalType, cutType, baseType, cutDimensions) {
+        // Sécurité: si baseType est absent, ignorer (cas non applicable aux coupes)
+        if (!baseType || typeof baseType !== 'string') {
+            if (window.DEBUG_TAB_MANAGER) {
+                console.warn('⚠️ TabManager: syncCutWithSelectors appelé sans baseType valide, ignored.', { finalType, cutType, baseType });
+            }
+            return;
+        }
         // Déterminer le sous-onglet basé sur le type de base
         let targetSubTab = 'briques';
         let targetMode = 'brick';
@@ -1661,6 +1865,16 @@ class TabManager {
             if (window.ConstructionTools) {
                 window.ConstructionTools.createGhostElement();
                 // console.log(`👻 Fantôme mis à jour avec ${finalType} (${cutDimensions.length}×${cutDimensions.width}×${cutDimensions.height}cm)`);
+                
+                // 🆕 CORRECTION B29: Forcer le repositionnement pour les blocs B29
+                if (baseType === 'B29_PANNERESSE' || baseType === 'B29_BOUTISSE') {
+                    setTimeout(() => {
+                        if (typeof window.ConstructionTools.forceB29GhostRepositioning === 'function') {
+                            window.ConstructionTools.forceB29GhostRepositioning();
+                            console.log(`🎯 Repositionnement forcé B29 appliqué pour ${baseType}`);
+                        }
+                    }, 200); // Attendre que le fantôme soit créé
+                }
             }
         }, 100);
     }
@@ -1974,6 +2188,60 @@ class TabManager {
                 break;
 
             case 'planchers':
+                {
+                    const lower = String(itemType || '').toLowerCase();
+                    // ✅ Cas spécial: dalle personnalisée (procédural, pas GLB)
+                    if (lower === 'dalle' || lower === 'slab' || lower.includes('dalle')) {
+                        try {
+                            // Lire dimensions depuis l'item si disponibles
+                            let L = 100, W = 100, H = 15;
+                            if (itemElement) {
+                                const lenInput = itemElement.querySelector('.slab-length');
+                                const widInput = itemElement.querySelector('.slab-width');
+                                const heiInput = itemElement.querySelector('.slab-height');
+                                if (lenInput) L = parseInt(lenInput.value) || L;
+                                if (widInput) W = parseInt(widInput.value) || W;
+                                if (heiInput) H = parseInt(heiInput.value) || H;
+                            }
+
+                            // Répercuter dans les champs globaux pour cohérence UI
+                            const Lf = document.getElementById('elementLength');
+                            const Wf = document.getElementById('elementWidth');
+                            const Hf = document.getElementById('elementHeight');
+                            if (Lf) Lf.value = L;
+                            if (Wf) Wf.value = W;
+                            if (Hf) Hf.value = H;
+
+                            // Activer le mode dalle et créer le fantôme
+                            if (window.ConstructionTools) {
+                                if (typeof window.ConstructionTools.setMode === 'function') {
+                                    window.ConstructionTools.setMode('slab');
+                                } else {
+                                    window.ConstructionTools.currentMode = 'slab';
+                                }
+                                if (typeof window.ConstructionTools.createGhostElement === 'function') {
+                                    window.ConstructionTools.createGhostElement();
+                                }
+                            }
+
+                            // Mettre à jour l'onglet outils pour l'aperçu
+                            if (window.ToolsTabManager && window.ToolsTabManager.updateActiveElementPreview) {
+                                setTimeout(() => window.ToolsTabManager.updateActiveElementPreview(), 100);
+                            }
+                        } catch (e) {
+                            console.warn('⚠️ TabManager: Erreur lors de la sélection de la dalle:', e);
+                        }
+                        // Rester dans la bibliothèque
+                        break;
+                    }
+
+                    // Gestion des éléments GLB - pas de synchronisation avec des sélecteurs spécifiques
+                    if (window.DEBUG_TAB_MANAGER) {
+                        console.log(`📦 TabManager: Élément GLB ${itemType} de catégorie ${elementCategory} - aucune synchronisation nécessaire`);
+                    }
+                    // Ne pas basculer d'onglet automatiquement pour les GLB, rester dans la bibliothèque
+                    break;
+                }
             case 'outils':
                 // Gestion des éléments GLB - pas de synchronisation avec des sélecteurs spécifiques
                 if (window.DEBUG_TAB_MANAGER) {
@@ -2029,6 +2297,13 @@ class TabManager {
         // Gestion explicite Diba (membrane étanchéité)
         if (itemType && itemType.toLowerCase() === 'diba') {
             return 'etancheite';
+        }
+        // ✅ Gestion explicite Dalle personnalisée / Slab (procédural)
+        if (itemType) {
+            const lower = String(itemType).toLowerCase();
+            if (lower === 'dalle' || lower === 'slab' || lower.includes('dalle')) {
+                return 'planchers';
+            }
         }
         
         // D'abord, vérifier si c'est un élément GLB basé sur l'élément DOM
@@ -3577,6 +3852,92 @@ class TabManager {
             return;
         }
         
+        // Cas spécial: dalle personnalisée → champs éditables L × l × H
+        if (element.type === 'slab') {
+            const dims = element.dimensions || { length: 100, width: 100, height: 15 };
+            selectedElementProperties.innerHTML = `
+                <div class="element-info selected" data-type="construction">
+                    <h4>Propriétés - Dalle</h4>
+                    <div class="property-row">
+                        <strong>Type:</strong>
+                        <span>Dalle</span>
+                    </div>
+                    <div class="property-row">
+                        <strong>ID:</strong>
+                        <span class="property-value-id">${element.userData?.elementId || element.id || 'N/A'}</span>
+                    </div>
+                    <div class="property-row">
+                        <strong>Dimensions (cm):</strong>
+                        <label style="margin-left:6px;">L</label>
+                        <input type="number" class="slab-prop-input slab-prop-length" value="${dims.length}" min="1" step="1" style="width:70px;margin-left:4px;">
+                        <label style="margin-left:8px;">l</label>
+                        <input type="number" class="slab-prop-input slab-prop-width" value="${dims.width}" min="1" step="1" style="width:70px;margin-left:4px;">
+                        <label style="margin-left:8px;">H</label>
+                        <input type="number" class="slab-prop-input slab-prop-height" value="${dims.height}" min="1" step="1" style="width:70px;margin-left:4px;">
+                    </div>
+                    <div class="property-row">
+                        <strong>Position:</strong>
+                        <span class="property-value-coordinates">${element.position ? 
+                            `X:${element.position.x.toFixed(1)} Y:${element.position.y.toFixed(1)} Z:${element.position.z.toFixed(1)}` : 
+                            'N/A'}</span>
+                    </div>
+                </div>
+            `;
+
+            // Écouteurs: appliquer en live et à la fin de saisie, en re-ancorant la base au sol
+            const applyUpdate = () => {
+                const lenEl = document.querySelector('.slab-prop-length');
+                const widEl = document.querySelector('.slab-prop-width');
+                const heiEl = document.querySelector('.slab-prop-height');
+                if (!lenEl || !widEl || !heiEl) return;
+                let L = parseFloat(lenEl.value);
+                let W = parseFloat(widEl.value);
+                let H = parseFloat(heiEl.value);
+                if (!isFinite(L) || L <= 0) L = 1;
+                if (!isFinite(W) || W <= 0) W = 1;
+                if (!isFinite(H) || H <= 0) H = 1;
+
+                try {
+                    // Mettre à jour la géométrie
+                    if (element.updateDimensions) {
+                        element.updateDimensions(L, W, H);
+                    } else if (element.dimensions) {
+                        // fallback minimal
+                        element.dimensions.length = L; element.dimensions.width = W; element.dimensions.height = H;
+                        if (element.updateMeshPosition) element.updateMeshPosition();
+                    }
+                    // Re-anchorer au sol: centre à H/2
+                    if (element.updatePosition) {
+                        element.updatePosition(element.position.x, H / 2, element.position.z);
+                    } else {
+                        element.position.y = H / 2;
+                        if (element.updateMeshPosition) element.updateMeshPosition();
+                    }
+
+                    // Rafraîchir Métré et réafficher propriétés pour coordonnées/dimensions
+                    if (window.MetreTabManager && window.MetreTabManager.refreshData) {
+                        window.MetreTabManager.refreshData();
+                    }
+                    // Re-render les propriétés pour mettre à jour les valeurs affichées
+                    this.updatePropertiesForSelectedElement(element);
+                } catch (e) {
+                    console.error('❌ Erreur mise à jour dimensions dalle:', e);
+                }
+            };
+
+            const inputs = selectedElementProperties.querySelectorAll('.slab-prop-input');
+            inputs.forEach(inp => {
+                inp.addEventListener('input', () => {
+                    // Mise à jour ghost non nécessaire ici; appliquer live avec debounce léger si besoin
+                });
+                inp.addEventListener('change', applyUpdate);
+                inp.addEventListener('blur', applyUpdate);
+            });
+
+            return; // ne pas exécuter le rendu générique ci-dessous
+        }
+
+        // Par défaut: rendu générique en lecture seule
         selectedElementProperties.innerHTML = `
             <div class="element-info selected" data-type="construction">
                 <h4>Propriétés - Élément de construction</h4>
@@ -4299,6 +4660,30 @@ class TabManager {
             return;
         }
 
+        // Système de traitement par lots pendant le chargement de projet
+        if (this.isLoadingProject) {
+            if (!this.batchedElements) {
+                this.batchedElements = [];
+            }
+            
+            // Ajouter l'élément au lot
+            this.batchedElements.push(element);
+            
+            // Limiter la taille du lot pour éviter les surcharges
+            if (this.batchedElements.length > 200) {
+                return;
+            }
+            
+            // Traitement différé par lots pour éviter les violations de setTimeout
+            if (!this.batchProcessTimer) {
+                this.batchProcessTimer = setTimeout(() => {
+                    this.processBatchedElements();
+                    this.batchProcessTimer = null;
+                }, 50); // Court délai pour grouper les éléments
+            }
+            return;
+        }
+
         // Détection spéciale pour les éléments GLB
         if (element.type === 'glb' || element.name?.startsWith('GLB_') || 
             (element.userData && element.userData.isGLB)) {
@@ -4337,6 +4722,62 @@ class TabManager {
         } else {
             console.warn('⚠️ Type d\'élément non défini:', element);
         }
+    }
+
+    // 📦 Traiter les éléments en lot pendant le chargement de projet
+    processBatchedElements() {
+        if (!this.batchedElements || this.batchedElements.length === 0) {
+            return;
+        }
+
+        // Traiter les éléments par petits groupes pour éviter les blocages
+        const batchSize = 10;
+        let processed = 0;
+        
+        const processBatch = () => {
+            const endIndex = Math.min(processed + batchSize, this.batchedElements.length);
+            
+            for (let i = processed; i < endIndex; i++) {
+                const element = this.batchedElements[i];
+                
+                // Traitement direct sans récursion
+                if (element.type === 'glb' || element.name?.startsWith('GLB_') || 
+                    (element.userData && element.userData.isGLB)) {
+                    
+                    const glbInfo = window.lastPlacedGLBInfo;
+                    if (glbInfo) {
+                        this.addUsedGLBElement(glbInfo);
+                    }
+                } else {
+                    const elementType = element.blockType || element.type;
+                    if (elementType) {
+                        const elementData = {
+                            cut: element.cut || '1/1',
+                            dimensions: element.dimensions || {
+                                length: element.length || 0,
+                                width: element.width || 0, 
+                                height: element.height || 0
+                            }
+                        };
+                        
+                        this.addUsedElement(elementType, elementData);
+                    }
+                }
+            }
+            
+            processed = endIndex;
+            
+            // Continuer avec le lot suivant de manière asynchrone
+            if (processed < this.batchedElements.length && !this.isLoadingProject) {
+                setTimeout(processBatch, 10);
+            } else if (processed >= this.batchedElements.length) {
+                // Nettoyer quand terminé
+                this.batchedElements = [];
+            }
+        };
+        
+        // Démarrer le traitement
+        processBatch();
     }
 
     // 📦 Ajouter un élément GLB aux éléments réutilisables
@@ -4528,49 +4969,26 @@ class TabManager {
         `;
         
         // Générer l'aperçu 3D après l'ajout au DOM avec limitation
-        setTimeout(() => {
-            // Traitement spécial pour les éléments GLB avec vérification anti-spam
-            if (element.path && element.path.endsWith('.glb')) {
-                // Vérifier si un aperçu pour ce type GLB est déjà en cours de génération
-                const glbKey = `${element.type}_${element.lengthValue || '300'}`;
-                if (!this.pendingGLBPreviews) {
-                    this.pendingGLBPreviews = new Set();
-                }
-                
-                if (!this.pendingGLBPreviews.has(glbKey)) {
-                    // Vérifier aussi le nombre total de previews en cours
-                    if (this.pendingGLBPreviews.size < 3) { // Maximum 3 types GLB en preview simultané
-                        this.pendingGLBPreviews.add(glbKey);
-                        this.generateGLBPreview(element, `preview-${key}`);
-                        
-                        // Nettoyer après un délai
-                        setTimeout(() => {
-                            this.pendingGLBPreviews.delete(glbKey);
-                        }, 3000);
-                    } else {
-                        console.log(`⏳ Trop de types GLB en preview (${this.pendingGLBPreviews.size}), utilisé fallback`);
-                        const container = document.getElementById(`preview-${key}`);
-                        if (container) {
-                            this.showGLBFallbackPreview(container, element);
-                        }
-                    }
+        // Complètement éviter les aperçus 3D pendant le chargement de projet
+        if (!this.isLoadingProject) {
+            // Ajouter à la queue au lieu d'un setTimeout immédiat
+            const previewData = {
+                element: element,
+                previewId: `preview-${key}`,
+                isGLB: element.path && element.path.endsWith('.glb')
+            };
+            
+            this.previewQueue.push(previewData);
+            
+            // Démarrer le traitement de la queue si pas déjà actif (avec délai plus long)
+            if (!this.previewQueueActive) {
+                if (window.requestIdleCallback) {
+                    window.requestIdleCallback(() => this.processPreviewQueue(), { timeout: 1000 });
                 } else {
-                    // Limiter les logs répétitifs - seulement tous les 10 appels
-                    if (!this.fallbackLogCount) this.fallbackLogCount = 0;
-                    this.fallbackLogCount++;
-                    if (this.fallbackLogCount % 10 === 1) {
-                        console.log(`⏳ Aperçu GLB pour ${glbKey} déjà en cours, utilisé fallback (x${this.fallbackLogCount})`);
-                    }
-                    // Utiliser un aperçu fallback immédiat
-                    const container = document.getElementById(`preview-${key}`);
-                    if (container) {
-                        this.showGLBFallbackPreview(container, element);
-                    }
+                    setTimeout(() => this.processPreviewQueue(), 500 + Math.random() * 300);
                 }
-            } else {
-                this.generate3DPreview(element.type, element.cut, `preview-${key}`);
             }
-        }, Math.random() * 500 + 200); // Délai aléatoire plus étalé (200-700ms)
+        }
         
         // Ajouter l'événement de clic pour sélectionner l'élément (éviter les boutons de coupe)
         item.addEventListener('click', (e) => {
@@ -5279,9 +5697,24 @@ TabManager.prototype.generate3DPreview = function(elementType, cutType, containe
         return;
     }
 
+    // Éviter les créations multiples pendant le chargement de projet
+    if (this.isLoadingProject && this.pendingPreviews.size > 20) {
+        console.warn('⚠️ Trop d\'aperçus en attente pendant le chargement, utilisation de CSS fallback');
+        this.generateCSSFallbackPreview(elementType, cutType, container);
+        return;
+    }
+
+    // Marquer cet aperçu comme en cours
+    const previewKey = `${elementType}_${cutType}_${container}`;
+    if (this.pendingPreviews.has(previewKey)) {
+        return; // Éviter les doublons
+    }
+    this.pendingPreviews.add(previewKey);
+
     // Vérifier si Three.js est disponible
     if (typeof THREE === 'undefined') {
         console.warn('⚠️ Three.js non disponible pour les aperçus 3D');
+        this.pendingPreviews.delete(previewKey);
         return;
     }
 
@@ -5294,6 +5727,7 @@ TabManager.prototype.generate3DPreview = function(elementType, cutType, containe
         if (!this.sharedRenderer || !this.sharedScene || !this.sharedCamera) {
             console.warn('⚠️ Renderer partagé non disponible, utilisation de CSS fallback');
             this.generateCSSFallbackPreview(elementType, cutType, container);
+            this.pendingPreviews.delete(previewKey);
             return;
         }
 
@@ -5338,6 +5772,9 @@ TabManager.prototype.generate3DPreview = function(elementType, cutType, containe
         console.warn('⚠️ Erreur lors de la création de l\'aperçu 3D:', error);
         // Fallback vers aperçu CSS
         this.generateCSSFallbackPreview(elementType, cutType, container);
+    } finally {
+        // Nettoyer le cache des aperçus en cours
+        this.pendingPreviews.delete(previewKey);
     }
 };
 
@@ -5380,7 +5817,8 @@ TabManager.prototype.createElementMesh = function(elementType, cutType) {
         'B9': { size: [3.9, 1.9, 0.9], color: 0x888888 },
         'B14': { size: [3.9, 1.9, 1.4], color: 0x999999 },
         'B19': { size: [3.9, 1.9, 1.9], color: 0x777777 },
-        'B29': { size: [3.9, 1.9, 2.9], color: 0x666666 },
+        'B29_BOUTISSE': { size: [3.9, 1.9, 2.9], color: 0x666666 },
+        'B29_PANNERESSE': { size: [2.9, 1.9, 3.9], color: 0x555555 },
         
         // Béton cellulaire
         'BC_60x5': { size: [6.0, 2.5, 0.5], color: 0xcccccc },
@@ -5437,6 +5875,11 @@ TabManager.prototype.cleanup = function() {
         this.reusableElements.blocs.clear();
         this.reusableElements.autres.clear();
     }
+    
+    // Réinitialiser les flags de chargement
+    this.isLoadingProject = false;
+    this.pendingPreviews.clear();
+    this.recentlyProcessedElements.clear();
     
     console.log('✅ Nettoyage du TabManager terminé');
 }
@@ -5507,7 +5950,7 @@ TabManager.prototype._performLibraryHighlightingUpdate = function() {
                 targetElement = currentBrick.type;
             }
         }
-    } else if (currentMode === 'block' && ['CREUX', 'CELLULAIRE', 'ARGEX', 'TERRE_CUITE', 'B9', 'B14', 'B19', 'B29', 'BC5', 'BC7', 'BC10', 'BC15', 'BC17', 'BC20', 'BC24', 'BC30', 'BC36', 'ARGEX9', 'ARGEX14', 'ARGEX19', 'TC10', 'TC14', 'TC19'].includes(currentType)) {
+    } else if (currentMode === 'block' && ['CREUX', 'CELLULAIRE', 'ARGEX', 'TERRE_CUITE', 'B9', 'B14', 'B19', 'B29_BOUTISSE', 'B29_PANNERESSE', 'BC5', 'BC7', 'BC10', 'BC15', 'BC17', 'BC20', 'BC24', 'BC30', 'BC36', 'ARGEX9', 'ARGEX14', 'ARGEX19', 'TC10', 'TC14', 'TC19'].includes(currentType)) {
         // Pour les blocs, vérifier s'il s'agit d'un bloc personnalisé
         if (window.BlockSelector && window.BlockSelector.getCurrentBlockData) {
             const currentBlock = window.BlockSelector.getCurrentBlockData();

@@ -2528,8 +2528,7 @@ class ToolsTabManager {
         const blockConfigs = {
             'B9': { size: [3.9, 0.9, 1.9], color: 0x888888 },   // Plus large que haut
             'B14': { size: [3.9, 1.4, 1.9], color: 0x999999 },  // Bloc moyen
-            'B19': { size: [3.9, 1.9, 1.9], color: 0x777777 },  // Bloc grand
-            'B29': { size: [3.9, 2.9, 1.9], color: 0x666666 }   // Très grand bloc
+            'B19': { size: [3.9, 1.9, 1.9], color: 0x777777 }   // Bloc grand
         };
         
         return blockConfigs[blockType] || blockConfigs['B9'];

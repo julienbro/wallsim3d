@@ -111,7 +111,10 @@ class LibraryPreview3D {
             'B9': { size: [3.9, 1.9, 0.9], color: 0x888888 },
             'B14': { size: [3.9, 1.9, 1.4], color: 0x999999 },
             'B19': { size: [3.9, 1.9, 1.9], color: 0x777777 },
-            'B29': { size: [3.9, 1.9, 2.9], color: 0x666666 },
+            
+            // Blocs B29 spéciaux
+            'B29_PANNERESSE': { size: [3.9, 1.9, 2.9], color: 0x666666 },
+            'B29_BOUTISSE': { size: [2.9, 1.9, 3.9], color: 0x555555 },
             
             // Béton cellulaire (X=longueur, Y=hauteur, Z=épaisseur)
             'BC_60x5': { size: [6.0, 2.5, 0.5], color: 0xcccccc },
@@ -207,7 +210,12 @@ class LibraryPreview3D {
             'L120': { size: [12.0, 1.0, 2.5], color: 0x555555 },
             'L140': { size: [14.0, 1.0, 2.5], color: 0x555555 },
             'L160': { size: [16.0, 1.0, 2.5], color: 0x555555 },
-            'L180': { size: [18.0, 1.0, 2.5], color: 0x555555 }
+            'L180': { size: [18.0, 1.0, 2.5], color: 0x555555 },
+
+            // Dalle personnalisée (aperçu bibliothèque) — 100x15x100 cm
+            // Utilise une teinte béton légèrement plus claire
+            'dalle': { size: [10.0, 1.5, 10.0], color: 0x888888 },
+            'slab': { size: [10.0, 1.5, 10.0], color: 0x888888 }
         };
 
         const config = brickConfigs[type] || brickConfigs['M50'];
@@ -375,7 +383,9 @@ class LibraryPreview3D {
             // Briques 
             'M50', 'M57', 'M60', 'M65', 'M90', 'M50_CHANT', 'M50_CHANT',
             // Blocs creux
-            'B9', 'B14', 'B19', 'B29',
+            'B9', 'B14', 'B19',
+            // Blocs B29 spéciaux
+            'B29_PANNERESSE', 'B29_BOUTISSE',
             // Béton cellulaire
             'BC_60x5', 'BC_60x7', 'BC_60x10', 'BC_60x15', 'BC_60x17', 
             'BC_60x20', 'BC_60x24', 'BC_60x30', 'BC_60x36',
@@ -401,6 +411,8 @@ class LibraryPreview3D {
             'LRM50', 'LRM60', 'LRM80', 'LRM100', 'LRM120', 'LRM140', 'LRM160', 'LRM180', 'LRM200',
             // Linteaux
             'L120', 'L140', 'L160', 'L180',
+            // Dalle personnalisée (procédurale)
+            'dalle',
             // Poutres acier (procédural)
             ...(window.BeamProfiles ? window.BeamProfiles.listAllTypes() : [])
         ];
@@ -410,7 +422,7 @@ class LibraryPreview3D {
             this.generateStaticPreview(type, '1/1');
             
             // Aperçus des coupes (pas pour tous les types)
-            if (!type.startsWith('PUR') && !type.startsWith('LAINEROCHE') && !type.startsWith('L')) {
+            if (!type.startsWith('PUR') && !type.startsWith('LAINEROCHE') && !type.startsWith('L') && type !== 'dalle') {
                 ['3/4', '1/2', '1/4', 'P'].forEach(cut => {
                     this.generateStaticPreview(type, cut);
                 });

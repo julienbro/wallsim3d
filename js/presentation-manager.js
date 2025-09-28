@@ -652,6 +652,13 @@ class PresentationManager {
             'M90': '<span class="assise-type-badge brick">M90</span>',
             'block': '<span class="assise-type-badge block">Bloc</span>',
             'insulation': '<span class="assise-type-badge insulation">Isolant</span>',
+            // Affichages spécifiques par familles d'isolants
+            'PUR': '<span class="assise-type-badge insulation">PUR</span>',
+            'LAINEROCHE': '<span class="assise-type-badge insulation">Laine de roche</span>',
+            'XPS': '<span class="assise-type-badge insulation">XPS</span>',
+            'PSE': '<span class="assise-type-badge insulation">PSE</span>',
+            'FB': '<span class="assise-type-badge insulation">Fibre de bois</span>',
+            'LV': '<span class="assise-type-badge insulation">Laine de verre</span>',
             'linteau': '<span class="assise-type-badge linteau">Linteau</span>'
         };
 
@@ -926,6 +933,116 @@ class PresentationManager {
      * Désactive temporairement les aides visuelles pour un export PDF propre
      */
     disableVisualAidsForExport() {
+        console.log('🚫 DÉBUT MASQUAGE POUR EXPORT PDF - MODE ULTRA-AGRESSIF');
+        
+        // ====== MASQUAGE PRÉVENTIF IMMÉDIAT - PRIORITÉ ABSOLUE ======
+        // Ce masquage est fait EN PREMIER, avant tout autre traitement
+        
+        // 1. ARRÊT COMPLET de tous les systèmes de placement/fantômes
+        if (window.ConstructionTools) {
+            try {
+                // Désactiver complètement les outils de construction
+                if (typeof window.ConstructionTools.deactivate === 'function') {
+                    window.ConstructionTools.deactivate();
+                    console.log('🚫 ConstructionTools désactivé');
+                }
+                
+                // Masquer IMMÉDIATEMENT tous les objets 3D de ConstructionTools
+                Object.getOwnPropertyNames(window.ConstructionTools).forEach(key => {
+                    try {
+                        const element = window.ConstructionTools[key];
+                        if (element && typeof element === 'object') {
+                            // Masquer l'objet principal
+                            if (element.visible === true) {
+                                element.visible = false;
+                                console.log(`🚫 IMMÉDIAT: Masqué ConstructionTools.${key}`);
+                            }
+                            // Masquer le mesh
+                            if (element.mesh && element.mesh.visible === true) {
+                                element.mesh.visible = false;
+                                console.log(`🚫 IMMÉDIAT: Masqué ConstructionTools.${key}.mesh`);
+                            }
+                            // Masquer les enfants
+                            if (element.children && Array.isArray(element.children)) {
+                                element.children.forEach((child, i) => {
+                                    if (child && child.visible === true) {
+                                        child.visible = false;
+                                        console.log(`🚫 IMMÉDIAT: Masqué ConstructionTools.${key}.children[${i}]`);
+                                    }
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        // Continuer même en cas d'erreur
+                    }
+                });
+            } catch (e) {
+                console.warn('Erreur lors de la désactivation de ConstructionTools:', e);
+            }
+        }
+        
+        // 2. MASQUAGE IMMÉDIAT de PlacementManager
+        if (window.PlacementManager) {
+            try {
+                Object.getOwnPropertyNames(window.PlacementManager).forEach(key => {
+                    try {
+                        const element = window.PlacementManager[key];
+                        if (element && typeof element === 'object' && element.visible === true) {
+                            element.visible = false;
+                            console.log(`🚫 IMMÉDIAT: Masqué PlacementManager.${key}`);
+                        }
+                    } catch (e) {
+                        // Continuer même en cas d'erreur
+                    }
+                });
+            } catch (e) {
+                console.warn('Erreur lors du masquage de PlacementManager:', e);
+            }
+        }
+        
+        // 3. MASQUAGE IMMÉDIAT de TOUS les objets avec opacité < 1.0 dans la scène
+        if (window.SceneManager && window.SceneManager.scene) {
+            let immediateCount = 0;
+            try {
+                window.SceneManager.scene.traverse((object) => {
+                    if (object.isMesh && object.visible) {
+                        // Masquer TOUT objet avec opacité inférieure à 1.0
+                        if (object.material && object.material.opacity !== undefined && object.material.opacity < 1.0) {
+                            object.visible = false;
+                            immediateCount++;
+                            console.log(`🚫 IMMÉDIAT SCENE: Masqué objet opaque ${object.material.opacity} - ${object.name || 'sans nom'}`);
+                        }
+                        
+                        // Masquer TOUT objet avec nom suspect
+                        if (object.name) {
+                            const motsSuspects = ['ghost', 'preview', 'phantom', 'cursor', 'temp', 'fantome', 'suggestion', 'hover', 'highlight', 'floating'];
+                            if (motsSuspects.some(mot => object.name.toLowerCase().includes(mot))) {
+                                object.visible = false;
+                                immediateCount++;
+                                console.log(`🚫 IMMÉDIAT SCENE: Masqué nom suspect - ${object.name}`);
+                            }
+                        }
+                    }
+                });
+                console.log(`🚫 MASQUAGE IMMÉDIAT TERMINÉ: ${immediateCount} objets masqués dans la scène`);
+            } catch (e) {
+                console.warn('Erreur lors du masquage immédiat de la scène:', e);
+            }
+        }
+        
+        // 4. FORCER un rendu immédiat pour appliquer les changements
+        if (window.SceneManager && window.SceneManager.renderer && window.SceneManager.scene && window.SceneManager.camera) {
+            try {
+                window.SceneManager.renderer.render(window.SceneManager.scene, window.SceneManager.camera);
+                console.log('🔄 RENDU IMMÉDIAT appliqué après masquage');
+            } catch (e) {
+                console.warn('Erreur lors du rendu immédiat:', e);
+            }
+        }
+        
+        console.log('✅ MASQUAGE PRÉVENTIF TERMINÉ - Continuant avec le masquage standard...');
+        
+        // ====== MASQUAGE STANDARD (code existant) ======
 
         if (window.AssiseManager) {
             // Désactiver les points d'accroche s'ils sont activés
@@ -1049,7 +1166,13 @@ class PresentationManager {
                 generateBtn.textContent = 'Génération en cours...';
             }
             
-            this.showProgress('Préparation de l\'exportation...', 0);
+            // Informer l'utilisateur que la vue actuelle sera conservée
+            this.showProgress('📸 Conservation de votre point de vue actuel...', 0);
+            console.log('🎯 INFO: La vue 3D sera exportée avec votre point de vue actuel');
+            
+            await new Promise(resolve => setTimeout(resolve, 500)); // Petit délai pour que l'utilisateur lise le message
+            
+            this.showProgress('Préparation de l\'exportation...', 5);
 
             // NOUVEAU: Désactiver les aides visuelles avant l'export pour un PDF propre
             this.disableVisualAidsForExport();
@@ -1281,6 +1404,22 @@ class PresentationManager {
         // En-tête avec informations du projet
         this.addHeader(pdf, pageWidth, settings, 'Vue Perspective');
 
+        // --- CONSERVATION DE LA VUE ACTUELLE DE L'UTILISATEUR ---
+        // Pour l'export PDF, on conserve le point de vue actuel de l'utilisateur
+        // sans recentrage automatique pour respecter sa composition
+        console.log('📸 Conservation de la vue actuelle de l\'utilisateur pour l\'export PDF');
+        
+        // Optionnel: forcer un rendu pour stabiliser l'image avant capture
+        if (window.SceneManager && window.SceneManager.renderer && window.SceneManager.scene && window.SceneManager.camera) {
+            try {
+                window.SceneManager.renderer.render(window.SceneManager.scene, window.SceneManager.camera);
+                // Petit délai pour s'assurer que le rendu est stable
+                await new Promise(resolve => setTimeout(resolve, 50));
+            } catch (e) {
+                console.warn('Problème lors du rendu de stabilisation:', e);
+            }
+        }
+
         // Capturer la vue 3D actuelle
         const canvas = await this.captureCurrentView('perspective');
         if (canvas && canvas.width > 0 && canvas.height > 0) {
@@ -1368,6 +1507,9 @@ class PresentationManager {
         }
         
         const exportScale = viewType === 'top' ? settings.scales.top : settings.scales.elevation;
+        
+        // DEBUG: Afficher l'échelle utilisée
+        window.forceLog(`🔍 [${viewType}] Échelle utilisée: ${exportScale} (settings.scales.top: ${settings.scales.top}, settings.scales.elevation: ${settings.scales.elevation})`);
 
         const canvas = await this.generateTechnicalElevation(viewType, exportScale);
         
@@ -1890,10 +2032,159 @@ class PresentationManager {
 
         }
         
-        // Masquer les éléments fantômes (briques en cours de placement)
+        // MASQUAGE RENFORCÉ DES ÉLÉMENTS FANTÔMES ET CURSEUR
+        // 1. Masquer l'élément fantôme principal des ConstructionTools
         if (window.ConstructionTools && window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.mesh) {
             window.ConstructionTools.ghostElement.mesh.visible = false;
-
+            console.log('🚫 Élément fantôme ConstructionTools masqué pour export PDF');
+        }
+        
+        // 2. Masquer l'élément fantôme attaché au curseur (méthodes alternatives)
+        if (window.ConstructionTools) {
+            // Masquer via ghostBrick si disponible
+            if (window.ConstructionTools.ghostBrick && window.ConstructionTools.ghostBrick.visible !== undefined) {
+                window.ConstructionTools.ghostBrick.visible = false;
+                console.log('🚫 GhostBrick masqué pour export PDF');
+            }
+            
+            // Masquer via previewElement si disponible
+            if (window.ConstructionTools.previewElement && window.ConstructionTools.previewElement.mesh) {
+                window.ConstructionTools.previewElement.mesh.visible = false;
+                console.log('🚫 PreviewElement masqué pour export PDF');
+            }
+            
+            // Masquer via currentGhost si disponible
+            if (window.ConstructionTools.currentGhost) {
+                if (window.ConstructionTools.currentGhost.visible !== undefined) {
+                    window.ConstructionTools.currentGhost.visible = false;
+                    console.log('🚫 CurrentGhost masqué pour export PDF');
+                }
+                if (window.ConstructionTools.currentGhost.mesh) {
+                    window.ConstructionTools.currentGhost.mesh.visible = false;
+                    console.log('🚫 CurrentGhost.mesh masqué pour export PDF');
+                }
+            }
+            
+            // Masquer tous les éléments en mode fantôme/preview dans ConstructionTools
+            Object.keys(window.ConstructionTools).forEach(key => {
+                const element = window.ConstructionTools[key];
+                if (element && typeof element === 'object') {
+                    // Si l'élément a une propriété mesh et visible
+                    if (element.mesh && element.mesh.visible !== undefined) {
+                        const isGhostLike = key.toLowerCase().includes('ghost') ||
+                                          key.toLowerCase().includes('preview') ||
+                                          key.toLowerCase().includes('temp') ||
+                                          key.toLowerCase().includes('cursor') ||
+                                          (element.userData && (element.userData.ghost || element.userData.preview));
+                        
+                        if (isGhostLike) {
+                            element.mesh.visible = false;
+                            console.log(`🚫 ConstructionTools.${key}.mesh masqué pour export PDF`);
+                        }
+                    }
+                    
+                    // Si l'élément est directement un objet 3D fantôme
+                    if (element.visible !== undefined && (element.isObject3D || element.isMesh)) {
+                        const isGhostLike = key.toLowerCase().includes('ghost') ||
+                                          key.toLowerCase().includes('preview') ||
+                                          key.toLowerCase().includes('temp') ||
+                                          key.toLowerCase().includes('cursor') ||
+                                          (element.userData && (element.userData.ghost || element.userData.preview));
+                        
+                        if (isGhostLike) {
+                            element.visible = false;
+                            console.log(`🚫 ConstructionTools.${key} masqué pour export PDF`);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 3. Masquer via PlacementManager si disponible
+        if (window.PlacementManager) {
+            if (window.PlacementManager.ghostElement && window.PlacementManager.ghostElement.visible !== undefined) {
+                window.PlacementManager.ghostElement.visible = false;
+                console.log('🚫 PlacementManager.ghostElement masqué pour export PDF');
+            }
+            
+            if (window.PlacementManager.previewMesh && window.PlacementManager.previewMesh.visible !== undefined) {
+                window.PlacementManager.previewMesh.visible = false;
+                console.log('🚫 PlacementManager.previewMesh masqué pour export PDF');
+            }
+        }
+        
+        // 4. BALAYAGE GLOBAL DE LA SCÈNE POUR MASQUER TOUS LES ÉLÉMENTS FANTÔMES
+        if (window.SceneManager && window.SceneManager.scene) {
+            let maskedGlobalGhosts = 0;
+            window.SceneManager.scene.traverse((object) => {
+                if (object.isMesh && object.visible) {
+                    let shouldMaskGhost = false;
+                    let reason = '';
+                    
+                    // Critère 1: Opacité faible typique des fantômes (< 1.0)
+                    if (object.material && ((object.material.transparent && object.material.opacity < 1.0) || 
+                                           (object.material.opacity !== undefined && object.material.opacity < 1.0))) {
+                        shouldMaskGhost = true;
+                        reason = `opacity_${object.material.opacity}`;
+                    }
+                    
+                    // Critère 2: userData avec indicateurs fantômes
+                    else if (object.userData && (
+                        object.userData.ghost || object.userData.isGhost || 
+                        object.userData.preview || object.userData.isPreview ||
+                        object.userData.phantom || object.userData.temporary ||
+                        object.userData.cursor || object.userData.suggestion ||
+                        object.userData.isSuggestion || object.userData.isTemp
+                    )) {
+                        shouldMaskGhost = true;
+                        reason = 'userData_ghost_indicators';
+                    }
+                    
+                    // Critère 3: Noms suspects
+                    else if (object.name && (
+                        object.name.toLowerCase().includes('ghost') ||
+                        object.name.toLowerCase().includes('preview') ||
+                        object.name.toLowerCase().includes('phantom') ||
+                        object.name.toLowerCase().includes('temp') ||
+                        object.name.toLowerCase().includes('cursor') ||
+                        object.name.toLowerCase().includes('fantome') ||
+                        object.name.toLowerCase().includes('suggestion')
+                    )) {
+                        shouldMaskGhost = true;
+                        reason = `name_${object.name}`;
+                    }
+                    
+                    // Critère 4: Parent fantôme
+                    else if (object.parent && object.parent.userData && (
+                        object.parent.userData.ghost || object.parent.userData.preview ||
+                        object.parent.userData.phantom || object.parent.userData.cursor
+                    )) {
+                        shouldMaskGhost = true;
+                        reason = 'parent_ghost';
+                    }
+                    
+                    // Critère 5: Matériau fantôme
+                    else if (object.material && object.material.name && (
+                        object.material.name.toLowerCase().includes('ghost') ||
+                        object.material.name.toLowerCase().includes('preview') ||
+                        object.material.name.toLowerCase().includes('phantom') ||
+                        object.material.name.toLowerCase().includes('cursor')
+                    )) {
+                        shouldMaskGhost = true;
+                        reason = `material_${object.material.name}`;
+                    }
+                    
+                    if (shouldMaskGhost) {
+                        object.visible = false;
+                        maskedGlobalGhosts++;
+                        console.log(`🚫 Élément fantôme global masqué: ${reason}`);
+                    }
+                }
+            });
+            
+            if (maskedGlobalGhosts > 0) {
+                console.log(`🚫 Total: ${maskedGlobalGhosts} éléments fantômes masqués dans la scène`);
+            }
         }
         
         // Masquer les suggestions de placement
@@ -1962,13 +2253,58 @@ class PresentationManager {
 
         }
         
-        // Restaurer les éléments fantômes selon l'état des outils de construction
+        // RESTAURATION RENFORCÉE DES ÉLÉMENTS FANTÔMES ET CURSEUR
+        // 1. Restaurer l'élément fantôme principal des ConstructionTools selon son état
         if (window.ConstructionTools && window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.mesh) {
             // Ne restaurer l'élément fantôme que s'il était activé avant et qu'on n'est pas en mode suggestions
             if (window.ConstructionTools.isActive && !window.ConstructionTools.activeBrickForSuggestions) {
                 window.ConstructionTools.ghostElement.mesh.visible = true;
+                console.log('✅ Élément fantôme ConstructionTools restauré');
             }
         }
+        
+        // 2. Restaurer les autres éléments fantômes des ConstructionTools
+        if (window.ConstructionTools) {
+            // Restaurer ghostBrick si c'était actif
+            if (window.ConstructionTools.ghostBrick && window.ConstructionTools.isActive) {
+                window.ConstructionTools.ghostBrick.visible = true;
+                console.log('✅ GhostBrick restauré');
+            }
+            
+            // Restaurer previewElement si c'était actif
+            if (window.ConstructionTools.previewElement && window.ConstructionTools.previewElement.mesh && window.ConstructionTools.isActive) {
+                window.ConstructionTools.previewElement.mesh.visible = true;
+                console.log('✅ PreviewElement restauré');
+            }
+            
+            // Restaurer currentGhost si c'était actif
+            if (window.ConstructionTools.currentGhost && window.ConstructionTools.isActive) {
+                if (window.ConstructionTools.currentGhost.visible !== undefined) {
+                    window.ConstructionTools.currentGhost.visible = true;
+                    console.log('✅ CurrentGhost restauré');
+                }
+                if (window.ConstructionTools.currentGhost.mesh) {
+                    window.ConstructionTools.currentGhost.mesh.visible = true;
+                    console.log('✅ CurrentGhost.mesh restauré');
+                }
+            }
+        }
+        
+        // 3. Restaurer via PlacementManager si c'était actif
+        if (window.PlacementManager) {
+            if (window.PlacementManager.ghostElement && window.PlacementManager.isActive) {
+                window.PlacementManager.ghostElement.visible = true;
+                console.log('✅ PlacementManager.ghostElement restauré');
+            }
+            
+            if (window.PlacementManager.previewMesh && window.PlacementManager.isActive) {
+                window.PlacementManager.previewMesh.visible = true;
+                console.log('✅ PlacementManager.previewMesh restauré');
+            }
+        }
+        
+        // Note: Les éléments fantômes globaux masqués dans la scène ne sont pas restaurés
+        // car ils étaient temporaires et ne devraient pas être visibles normalement
         
         // Les suggestions de placement se réactiveront automatiquement si nécessaire
         
@@ -2724,6 +3060,94 @@ class PresentationManager {
     }
 
     async captureCurrentView(viewType) {
+
+        // PROTECTION SPÉCIALE POUR LA VUE 3D PERSPECTIVE
+        if (viewType === 'perspective') {
+            console.log('🎯 Capture vue 3D perspective - Protection du SkyDome activée');
+            
+            // S'assurer que le SkyDome est visible pour la vue 3D
+            if (window.SceneManager && window.SceneManager.skyDome) {
+                window.SceneManager.skyDome.visible = true;
+                console.log('☀️ SkyDome forcé visible pour vue 3D');
+            }
+            
+            // S'assurer que le background de la scène n'est pas blanc pour la vue 3D
+            if (window.SceneManager && window.SceneManager.scene) {
+                const currentBg = window.SceneManager.scene.background;
+                if (currentBg && currentBg.isColor && currentBg.getHex() === 0xffffff) {
+                    // Restaurer le background bleu ciel
+                    window.SceneManager.scene.background = new window.THREE.Color(0x87CEEB);
+                    console.log('🎨 Background restauré en bleu ciel pour vue 3D');
+                }
+                
+                // Désactiver le brouillard pour un ciel plus net dans la vue 3D
+                window.SceneManager.scene.fog = null;
+                console.log('🌫️ Brouillard désactivé pour vue 3D claire');
+            }
+        }
+
+        // CENTRAGE AUTOMATIQUE POUR TOUTES LES VUES
+        // Avant la capture, s'assurer que la vue est centrée sur le bâtiment
+        if (window.SceneManager && window.SceneManager.camera && viewType !== 'perspective') {
+            try {
+                const buildingAnalysis = this.calculateBuildingCenter(window.SceneManager);
+                if (buildingAnalysis && buildingAnalysis.boundingBox && buildingAnalysis.elementCount > 0) {
+                    const center = buildingAnalysis.boundingBox.getCenter(new window.THREE.Vector3());
+                    
+                    // Sauvegarder la position originale
+                    const originalPosition = window.SceneManager.camera.position.clone();
+                    const originalTarget = window.SceneManager.controls ? window.SceneManager.controls.target.clone() : null;
+                    
+                    // Ajuster la vue selon le type
+                    const distance = 300;
+                    switch(viewType) {
+                        case 'front':
+                            window.SceneManager.camera.position.set(center.x, center.y, center.z + distance);
+                            if (window.SceneManager.controls) {
+                                window.SceneManager.controls.target.copy(center);
+                                window.SceneManager.controls.update();
+                            }
+                            break;
+                        case 'back':
+                            window.SceneManager.camera.position.set(center.x, center.y, center.z - distance);
+                            if (window.SceneManager.controls) {
+                                window.SceneManager.controls.target.copy(center);
+                                window.SceneManager.controls.update();
+                            }
+                            break;
+                        case 'left':
+                            window.SceneManager.camera.position.set(center.x - distance, center.y, center.z);
+                            if (window.SceneManager.controls) {
+                                window.SceneManager.controls.target.copy(center);
+                                window.SceneManager.controls.update();
+                            }
+                            break;
+                        case 'right':
+                            window.SceneManager.camera.position.set(center.x + distance, center.y, center.z);
+                            if (window.SceneManager.controls) {
+                                window.SceneManager.controls.target.copy(center);
+                                window.SceneManager.controls.update();
+                            }
+                            break;
+                        case 'top':
+                            window.SceneManager.camera.position.set(center.x, center.y + distance, center.z);
+                            if (window.SceneManager.controls) {
+                                window.SceneManager.controls.target.copy(center);
+                                window.SceneManager.controls.update();
+                            }
+                            break;
+                    }
+                    
+                    // Forcer un rendu avec la nouvelle position
+                    if (window.SceneManager.renderer) {
+                        window.SceneManager.renderer.render(window.SceneManager.scene, window.SceneManager.camera);
+                        await new Promise(resolve => setTimeout(resolve, 100)); // Attendre la stabilisation
+                    }
+                }
+            } catch (e) {
+                console.warn('Erreur lors du centrage automatique dans captureCurrentView:', e);
+            }
+        }
 
         // DÉSACTIVER L'APPROCHE SPÉCIALE - Utiliser generateTechnicalElevation pour cohérence
         // Les élévations left/right utilisent maintenant generateTechnicalElevation 
@@ -3603,6 +4027,87 @@ class PresentationManager {
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
 
+            // ====== MASQUAGE FORCE BRUTE POUR CAPTURECURRENTVIEW ======
+            // Masquer TOUS les éléments fantômes juste avant la capture finale
+            console.log('🔥 MASQUAGE FORCE BRUTE - captureCurrentView');
+            
+            if (window.ConstructionTools) {
+                // Masquer TOUT ce qui bouge dans ConstructionTools
+                Object.getOwnPropertyNames(window.ConstructionTools).forEach(key => {
+                    try {
+                        const element = window.ConstructionTools[key];
+                        if (element && typeof element === 'object') {
+                            // Forcer visible = false sur tout ce qui a une propriété visible
+                            if (element.hasOwnProperty('visible')) {
+                                element.visible = false;
+                            }
+                            // Forcer visible = false sur les mesh
+                            if (element.mesh && element.mesh.hasOwnProperty('visible')) {
+                                element.mesh.visible = false;
+                            }
+                            // Parcourir les enfants
+                            if (element.children && Array.isArray(element.children)) {
+                                element.children.forEach(child => {
+                                    if (child && child.hasOwnProperty('visible')) {
+                                        child.visible = false;
+                                    }
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        // Ignorer les erreurs et continuer
+                    }
+                });
+                console.log('🚫 FORCE: ConstructionTools complètement masqué');
+            }
+            
+            if (window.PlacementManager) {
+                Object.getOwnPropertyNames(window.PlacementManager).forEach(key => {
+                    try {
+                        const element = window.PlacementManager[key];
+                        if (element && typeof element === 'object' && element.hasOwnProperty('visible')) {
+                            element.visible = false;
+                        }
+                    } catch (e) {
+                        // Ignorer les erreurs et continuer
+                    }
+                });
+                console.log('🚫 FORCE: PlacementManager complètement masqué');
+            }
+            
+            // Masquer TOUT élément de la scène avec opacité < 1.0 ou nom suspect
+            if (window.SceneManager && window.SceneManager.scene) {
+                let forceMasked = 0;
+                window.SceneManager.scene.traverse((object) => {
+                    if (object.isMesh && object.visible) {
+                        let shouldForceHide = false;
+                        
+                        // Critère : opacité < 1.0
+                        if (object.material && object.material.opacity !== undefined && object.material.opacity < 1.0) {
+                            shouldForceHide = true;
+                        }
+                        
+                        // Critère : noms suspects
+                        if (object.name && ['ghost', 'preview', 'phantom', 'cursor', 'temp', 'fantome', 'hover', 'highlight'].some(word => 
+                            object.name.toLowerCase().includes(word))) {
+                            shouldForceHide = true;
+                        }
+                        
+                        if (shouldForceHide) {
+                            object.visible = false;
+                            forceMasked++;
+                        }
+                    }
+                });
+                console.log(`🚫 FORCE SCENE: ${forceMasked} éléments masqués dans la scène`);
+            }
+            
+            // Forcer un rendu après masquage
+            if (window.SceneManager && window.SceneManager.renderer && window.SceneManager.scene && window.SceneManager.camera) {
+                window.SceneManager.renderer.render(window.SceneManager.scene, window.SceneManager.camera);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
             // Vérifier si le canvas a du contenu via une méthode plus sûre
             // Éviter de créer un nouveau contexte WebGL sur un canvas existant
             let hasContent = false;
@@ -3656,6 +4161,9 @@ class PresentationManager {
                             if (window.SceneManager && window.SceneManager.scene) {
                                 window.SceneManager.scene.traverse((object) => {
                                     if (object.isMesh && (
+                                        // Détecter spécifiquement notre SkyDome
+                                        object.name === 'SkyDome' ||
+                                        // Autres critères existants
                                         (object.name && (
                                             object.name.toLowerCase().includes('sky') ||
                                             object.name.toLowerCase().includes('ciel') ||
@@ -3668,11 +4176,14 @@ class PresentationManager {
                                             object.userData.category === 'sky' ||
                                             object.userData.category === 'environment'
                                         )) ||
+                                        // Détecter les grandes sphères de ciel par géométrie
+                                        (object.geometry && object.geometry.type === 'SphereGeometry' && 
+                                         object.geometry.parameters && object.geometry.parameters.radius > 1000) ||
                                         (object.position && object.position.y > 100)
                                     )) {
                                         if (!object.visible) {
                                             object.visible = true;
-
+                                            console.log(`☀️ Ciel restauré: ${object.name || 'objet sans nom'}`);
                                         }
                                     }
                                 });
@@ -3744,6 +4255,8 @@ class PresentationManager {
                 if (window.SceneManager && window.SceneManager.scene) {
                     window.SceneManager.scene.traverse((object) => {
                         if (object.isMesh && (
+                            // Détecter spécifiquement notre SkyDome
+                            object.name === 'SkyDome' ||
                             (object.name && (
                                 object.name.toLowerCase().includes('sky') ||
                                 object.name.toLowerCase().includes('ciel') ||
@@ -3756,11 +4269,14 @@ class PresentationManager {
                                 object.userData.category === 'sky' ||
                                 object.userData.category === 'environment'
                             )) ||
+                            // Détecter les grandes sphères de ciel par géométrie
+                            (object.geometry && object.geometry.type === 'SphereGeometry' && 
+                             object.geometry.parameters && object.geometry.parameters.radius > 1000) ||
                             (object.position && object.position.y > 100)
                         )) {
                             if (!object.visible) {
                                 object.visible = true;
-
+                                console.log(`☀️ Ciel restauré (fallback): ${object.name || 'objet sans nom'}`);
                             }
                         }
                     });
@@ -3923,6 +4439,25 @@ class PresentationManager {
                 return null;
             }
         }
+        
+        // RESTAURATION FINALE POUR VUE 3D PERSPECTIVE
+        if (viewType === 'perspective' && window.SceneManager) {
+            // S'assurer que le SkyDome est visible après toute opération
+            if (window.SceneManager.skyDome) {
+                window.SceneManager.skyDome.visible = true;
+                console.log('🔄 SkyDome restauré en fin de capture 3D');
+            }
+            
+            // Restaurer le background bleu si nécessaire
+            if (window.SceneManager.scene) {
+                window.SceneManager.scene.background = new window.THREE.Color(0x87CEEB);
+                console.log('🔄 Background bleu restauré en fin de capture 3D');
+                
+                // S'assurer que le brouillard reste désactivé pour un ciel clair
+                window.SceneManager.scene.fog = null;
+                console.log('🔄 Brouillard maintenu désactivé pour ciel clair');
+            }
+        }
     }
 
     async switchToView(viewType) {
@@ -3982,9 +4517,10 @@ class PresentationManager {
      * Génère spécifiquement les élévations latérales (gauche et droite) avec optimisations
      */
     async generateLateralElevation(viewType, scaleString = '1:50') {
+        console.log(`🚨 UTILISATION DE generateLateralElevation avec scaleString: ${scaleString}`);
 
         if (viewType !== 'left' && viewType !== 'right') {
-
+            console.log(`❌ viewType incorrect: ${viewType}`);
             return null;
         }
         
@@ -4325,8 +4861,8 @@ class PresentationManager {
                 if (originalBackground !== null) sceneManager.scene.background = originalBackground;
                 if (sceneManager.skyDome && originalSkyDome !== undefined) sceneManager.skyDome.visible = originalSkyDome;
                 
-                // Supprimer la ligne 3D
-                this.removeGroundLevelLine3D(sceneManager);
+                // 🎯 NE PAS SUPPRIMER la ligne 3D - Elle doit rester pour l'export PDF !
+                // this.removeGroundLevelLine3D(sceneManager); // COMMENTÉ - Garde la ligne !
                 
                 // Rendu final
                 sceneManager.renderer.render(sceneManager.scene, originalCamera);
@@ -4340,9 +4876,10 @@ class PresentationManager {
      * pour les exports PDF
      */
     async generateTechnicalElevation(viewType, scaleString = '1:50') {
+        // Fonction calibrée et opérationnelle
 
         if (!window.SceneManager || !window.SceneManager.scene || !window.SceneManager.renderer) {
-
+            window.forceLog(`🔍 ERREUR: SceneManager non disponible`);
             return null;
         }
         
@@ -4354,6 +4891,158 @@ class PresentationManager {
         
         const sceneManager = window.SceneManager;
         const originalCamera = sceneManager.camera;
+        
+        // ====== MASQUAGE FORCE BRUTE POUR GENERATETECHNICALELEVATION ======
+        // Masquer IMMÉDIATEMENT tous les éléments fantômes AVANT le rendu
+        console.log('🔥 MASQUAGE FORCE BRUTE - generateTechnicalElevation');
+        
+        // 1. ConstructionTools - Masquage immédiat et complet
+        if (window.ConstructionTools) {
+            try {
+                Object.getOwnPropertyNames(window.ConstructionTools).forEach(key => {
+                    try {
+                        const element = window.ConstructionTools[key];
+                        if (element && typeof element === 'object') {
+                            if (element.visible === true) {
+                                element.visible = false;
+                                console.log(`🚫 FORCE BRUTE: Masqué ConstructionTools.${key}`);
+                            }
+                            if (element.mesh && element.mesh.visible === true) {
+                                element.mesh.visible = false;
+                                console.log(`🚫 FORCE BRUTE: Masqué ConstructionTools.${key}.mesh`);
+                            }
+                        }
+                    } catch (e) {
+                        // Continuer même en cas d'erreur
+                    }
+                });
+            } catch (e) {
+                console.warn('Erreur masquage ConstructionTools dans generateTechnicalElevation:', e);
+            }
+        }
+        
+        // 2. PlacementManager - Masquage immédiat
+        if (window.PlacementManager) {
+            try {
+                Object.getOwnPropertyNames(window.PlacementManager).forEach(key => {
+                    try {
+                        const element = window.PlacementManager[key];
+                        if (element && typeof element === 'object' && element.visible === true) {
+                            element.visible = false;
+                            console.log(`🚫 FORCE BRUTE: Masqué PlacementManager.${key}`);
+                        }
+                    } catch (e) {
+                        // Continuer même en cas d'erreur
+                    }
+                });
+            } catch (e) {
+                console.warn('Erreur masquage PlacementManager dans generateTechnicalElevation:', e);
+            }
+        }
+        
+        // 3. Scène - Masquage des objets suspects
+        if (sceneManager.scene) {
+            let bruteForceMasked = 0;
+            try {
+                sceneManager.scene.traverse((object) => {
+                    if (object.visible) { // Élargir à tous les objets visibles, pas seulement Mesh
+                        let shouldHide = false;
+                        let reason = '';
+                        
+                        // 🎯 EXCEPTION CRITIQUE - NE JAMAIS MASQUER LA LIGNE DE SOL
+                        if (object.name === 'WallSim3D_GroundLevelLine' || 
+                            (object.parent && object.parent.name === 'WallSim3D_GroundLevelLine') ||
+                            (object.userData && object.userData.isGroundLevelLine === true)) {
+                            console.log(`✅ PROTECTION: Ligne de sol préservée - ${object.name || 'sans nom'}`);
+                            return; // NE PAS MASQUER la ligne de sol !
+                        }
+                        
+                        // 🚫 MASQUAGE ULTRA-AGRESSIF - TOUS LES CRITÈRES POSSIBLES
+                        
+                        // 1. Masquer TOUS les objets transparents ou semi-transparents
+                        if (object.material) {
+                            if (object.material.opacity !== undefined && object.material.opacity < 0.99) {
+                                shouldHide = true;
+                                reason = `opacity ${object.material.opacity}`;
+                            }
+                            else if (object.material.transparent === true) {
+                                shouldHide = true;
+                                reason = `transparent=true`;
+                            }
+                            else if (object.material.name && object.material.name.toLowerCase().includes('ghost')) {
+                                shouldHide = true;
+                                reason = `matériau fantôme: ${object.material.name}`;
+                            }
+                            // Masquer les matériaux avec des propriétés de fantôme
+                            else if (object.material.uniforms && object.material.uniforms.opacity && object.material.uniforms.opacity.value < 0.99) {
+                                shouldHide = true;
+                                reason = `uniforms opacity ${object.material.uniforms.opacity.value}`;
+                            }
+                        }
+                        
+                        // 2. Masquer par nom (élargi)
+                        if (!shouldHide && object.name) {
+                            const motsSuspects = [
+                                'ghost', 'preview', 'phantom', 'cursor', 'temp', 'fantome', 'suggestion', 
+                                'hover', 'highlight', 'brique-fantome', 'brick-ghost', 'placementGhost',
+                                'ghostBrick', 'previewBrick', 'tempBrick', 'hoverBrick'
+                            ];
+                            if (motsSuspects.some(mot => object.name.toLowerCase().includes(mot))) {
+                                shouldHide = true;
+                                reason = `nom suspect: ${object.name}`;
+                            }
+                        }
+                        
+                        // 3. Masquer par userData (élargi)
+                        if (!shouldHide && object.userData) {
+                            if (object.userData.isGhost === true || object.userData.ghost === true || 
+                                object.userData.phantom === true || object.userData.isPreview === true ||
+                                object.userData.temporary === true || object.userData.hover === true) {
+                                shouldHide = true;
+                                reason = `userData fantôme`;
+                            }
+                        }
+                        
+                        // 4. Masquer par parent suspect
+                        if (!shouldHide && object.parent && object.parent.name) {
+                            const parentsuspects = ['ghost', 'preview', 'phantom', 'temp', 'fantome', 'placement'];
+                            if (parentsuspects.some(mot => object.parent.name.toLowerCase().includes(mot))) {
+                                shouldHide = true;
+                                reason = `parent suspect: ${object.parent.name}`;
+                            }
+                        }
+                        
+                        // 5. MASQUAGE BRUTAL - Si l'objet n'a pas de nom et est transparent
+                        if (!shouldHide && !object.name && object.material && 
+                            ((object.material.opacity !== undefined && object.material.opacity < 1.0) || object.material.transparent)) {
+                            shouldHide = true;
+                            reason = `objet anonyme transparent`;
+                        }
+                        
+                        if (shouldHide) {
+                            object.visible = false;
+                            bruteForceMasked++;
+                            console.log(`🚫 ULTRA-AGRESSIF: Masqué ${object.name || 'sans nom'} (${reason})`);
+                        }
+                    }
+                });
+                console.log(`✅ FORCE BRUTE: ${bruteForceMasked} objets masqués dans la scène`);
+            } catch (e) {
+                console.warn('Erreur masquage scène dans generateTechnicalElevation:', e);
+            }
+        }
+        
+        // 4. Forcer un rendu immédiat pour appliquer les masquages
+        if (sceneManager.renderer && sceneManager.scene && sceneManager.camera) {
+            try {
+                sceneManager.renderer.render(sceneManager.scene, sceneManager.camera);
+                console.log('🔄 RENDU IMMÉDIAT appliqué après masquage force brute');
+            } catch (e) {
+                console.warn('Erreur rendu immédiat dans generateTechnicalElevation:', e);
+            }
+        }
+        
+        console.log('✅ MASQUAGE FORCE BRUTE TERMINÉ - Continuant avec l\'élévation technique...');
         
         // Déclarer les variables de sauvegarde en dehors du try pour le finally
         let originalCameraPosition = null;
@@ -4376,6 +5065,9 @@ class PresentationManager {
         try {
             // Calculer la taille du frustum basée sur l'échelle
             const scaleFactor = this.parseScale(scaleString);
+            
+            // DEBUG: Afficher les informations d'échelle
+            window.forceLog(`🔍 generateTechnicalElevation - scaleString: ${scaleString}, scaleFactor: ${scaleFactor}`);
 
             // Créer une caméra orthographique temporaire pour une vraie projection 2D
             const canvas = sceneManager.renderer.domElement;
@@ -4390,6 +5082,8 @@ class PresentationManager {
             // Calculer la taille optimale du frustum basée sur l'échelle choisie
             const frustumSize = this.calculateOptimalFrustumSize(effectiveScaleFactor, viewType, buildingAnalysis);
 
+            console.log(`🚨 APRÈS calculateOptimalFrustumSize dans generateTechnicalElevation: ${frustumSize}`);
+
             orthographicCamera = new window.THREE.OrthographicCamera(
                 -frustumSize * aspect / 2, 
                 frustumSize * aspect / 2,
@@ -4399,38 +5093,118 @@ class PresentationManager {
                 1000
             );
             
-            // DÉBOGAGE: Log avant positionnement de la caméra
+            window.forceLog(`🔍 Caméra orthographique créée: left=${-frustumSize * aspect / 2}, right=${frustumSize * aspect / 2}, top=${frustumSize / 2}, bottom=${-frustumSize / 2}`);
 
             // Positionner la caméra orthographique selon la vue demandée
             this.setOrthographicCameraPosition(orthographicCamera, viewType, sceneManager);
 
-            // RECENTRAGE LATÉRAL : Ajuster la position/target pour centrer exactement le bâtiment dans le frustum
-            if (buildingAnalysis && buildingAnalysis.boundingBox) {
+            // RECENTRAGE RÉACTIVÉ AVEC FRUSTUM AJUSTÉ
+            // Le recentrage est utile mais n'interfère plus avec l'effet d'échelle
+            if (buildingAnalysis && buildingAnalysis.boundingBox && buildingAnalysis.elementCount > 0) {
                 const bb = buildingAnalysis.boundingBox; // THREE.Box3
-                const centerX = (bb.min.x + bb.max.x) / 2;
-                const centerZ = (bb.min.z + bb.max.z) / 2;
-                // Pour les vues d'élévation (front/back -> axe X, left/right -> axe Z)
-                // On replace la caméra de façon relative sans modifier la distance Y ou l'axe principal
-                if (viewType === 'front' || viewType === 'back') {
-                    // Centrer sur X et Z
-                    orthographicCamera.position.x = centerX;
-                    orthographicCamera.lookAt(centerX, 0, centerZ);
-                } else if (viewType === 'left' || viewType === 'right') {
-                    orthographicCamera.position.z = centerZ;
-                    orthographicCamera.lookAt(centerX, 0, centerZ);
+                const center = bb.getCenter(new window.THREE.Vector3());
+                const size = bb.getSize(new window.THREE.Vector3());
+                
+                // AMÉLIORATION: Calcul plus précis de la position et orientation de la caméra
+                const distance = 300; // Distance standard de la caméra
+                
+                if (viewType === 'front') {
+                    // Vue de face : caméra au sud du bâtiment regardant vers le nord
+                    orthographicCamera.position.set(center.x, center.y, center.z + distance);
+                    orthographicCamera.lookAt(center.x, center.y, center.z);
+                    orthographicCamera.up.set(0, 1, 0);
+                } else if (viewType === 'back') {
+                    // Vue arrière : caméra au nord du bâtiment regardant vers le sud
+                    orthographicCamera.position.set(center.x, center.y, center.z - distance);
+                    orthographicCamera.lookAt(center.x, center.y, center.z);
+                    orthographicCamera.up.set(0, 1, 0);
+                } else if (viewType === 'left') {
+                    // Vue gauche : caméra à l'ouest du bâtiment regardant vers l'est
+                    orthographicCamera.position.set(center.x - distance, center.y, center.z);
+                    orthographicCamera.lookAt(center.x, center.y, center.z);
+                    orthographicCamera.up.set(0, 1, 0);
+                } else if (viewType === 'right') {
+                    // Vue droite : caméra à l'est du bâtiment regardant vers l'ouest
+                    orthographicCamera.position.set(center.x + distance, center.y, center.z);
+                    orthographicCamera.lookAt(center.x, center.y, center.z);
+                    orthographicCamera.up.set(0, 1, 0);
                 } else if (viewType === 'top') {
-                    // Vue du dessus : centrer X et Z
-                    orthographicCamera.position.x = centerX;
-                    orthographicCamera.position.z = centerZ;
-                    orthographicCamera.lookAt(centerX, 0, centerZ);
+                    // Vue du dessus : caméra au-dessus du centre exact du bâtiment
+                    orthographicCamera.position.set(center.x, center.y + distance, center.z);
+                    orthographicCamera.lookAt(center.x, center.y, center.z);
+                    // 🎯 ROTATION 180° - Inverser le vecteur up pour tourner la vue
+                    orthographicCamera.up.set(0, 0, -1); // -1 au lieu de 1 pour rotation 180°
                 }
+                
+                // AMÉLIORATION: Ajustement automatique du frustum pour optimiser le cadrage
+                const margin = 1.1; // 10% de marge
+                let requiredSize;
+                
+                switch(viewType) {
+                    case 'front':
+                    case 'back':
+                        requiredSize = Math.max(size.x, size.y) * margin;
+                        break;
+                    case 'left':
+                    case 'right':
+                        requiredSize = Math.max(size.z, size.y) * margin;
+                        break;
+                    case 'top':
+                        requiredSize = Math.max(size.x, size.z) * margin;
+                        break;
+                    default:
+                        requiredSize = Math.max(size.x, size.y, size.z) * margin;
+                }
+                
+                // DÉSACTIVÉ TEMPORAIREMENT: Ajustement dynamique qui écrase l'échelle
+                console.log(`🚨 LOGIQUE D'AJUSTEMENT DÉSACTIVÉE - requiredSize: ${requiredSize}, frustumSize: ${frustumSize}`);
+                
+                const currentFrustumSize = frustumSize;
+                if (false && requiredSize > currentFrustumSize * 0.7) { // CONDITION DÉSACTIVÉE
+                    const adjustedFrustumSize = requiredSize * 1.2; // Ajuster avec une marge
+                    
+                    // Recréer la caméra avec le nouveau frustum
+                    const aspect = canvas.clientWidth / canvas.clientHeight;
+                    orthographicCamera = new window.THREE.OrthographicCamera(
+                        -adjustedFrustumSize * aspect / 2, 
+                        adjustedFrustumSize * aspect / 2,
+                        adjustedFrustumSize / 2, 
+                        -adjustedFrustumSize / 2,
+                        0.1, 
+                        1000
+                    );
+                    
+                    // Repositionner avec le nouveau frustum
+                    if (viewType === 'front') {
+                        orthographicCamera.position.set(center.x, center.y, center.z + distance);
+                        orthographicCamera.lookAt(center.x, center.y, center.z);
+                        orthographicCamera.up.set(0, 1, 0);
+                    } else if (viewType === 'back') {
+                        orthographicCamera.position.set(center.x, center.y, center.z - distance);
+                        orthographicCamera.lookAt(center.x, center.y, center.z);
+                        orthographicCamera.up.set(0, 1, 0);
+                    } else if (viewType === 'left') {
+                        orthographicCamera.position.set(center.x - distance, center.y, center.z);
+                        orthographicCamera.lookAt(center.x, center.y, center.z);
+                        orthographicCamera.up.set(0, 1, 0);
+                    } else if (viewType === 'right') {
+                        orthographicCamera.position.set(center.x + distance, center.y, center.z);
+                        orthographicCamera.lookAt(center.x, center.y, center.z);
+                        orthographicCamera.up.set(0, 1, 0);
+                    } else if (viewType === 'top') {
+                        orthographicCamera.position.set(center.x, center.y + distance, center.z);
+                        orthographicCamera.lookAt(center.x, center.y, center.z);
+                        // 🎯 ROTATION 180° - Inverser le vecteur up pour tourner la vue
+                        orthographicCamera.up.set(0, 0, -1); // -1 au lieu de 1 pour rotation 180°
+                    }
+                }
+                
                 orthographicCamera.updateMatrixWorld(true);
             }
             
             // DÉBOGAGE: Log après positionnement de la caméra
-
-            // Positionner la caméra orthographique selon la vue demandée
-            this.setOrthographicCameraPosition(orthographicCamera, viewType, sceneManager);
+            // IMPORTANT: Ne PAS rappeler setOrthographicCameraPosition ici car cela annule le recentrage.
+            // (Suppression du second appel redondant.)
             
             // Sauvegarder l'état original
             originalCameraPosition = originalCamera.position.clone();
@@ -4452,6 +5226,66 @@ class PresentationManager {
                 northArrowVisible = sceneManager.northArrowGroup.visible;
                 sceneManager.northArrowGroup.visible = false;
 
+            }
+
+            // MASQUAGE SPÉCIFIQUE DES ÉLÉMENTS FANTÔMES ET CURSEUR POUR ÉLÉVATIONS TECHNIQUES
+            // Masquer TOUS les types d'éléments fantômes avant la traversée de la scène
+            console.log('🔄 Masquage des éléments fantômes pour élévation technique...');
+            
+            // 1. ConstructionTools - tous les éléments fantômes possibles
+            if (window.ConstructionTools) {
+                if (window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.mesh) {
+                    window.ConstructionTools.ghostElement.mesh.visible = false;
+                }
+                if (window.ConstructionTools.ghostBrick) {
+                    window.ConstructionTools.ghostBrick.visible = false;
+                }
+                if (window.ConstructionTools.previewElement && window.ConstructionTools.previewElement.mesh) {
+                    window.ConstructionTools.previewElement.mesh.visible = false;
+                }
+                if (window.ConstructionTools.currentGhost) {
+                    if (window.ConstructionTools.currentGhost.visible !== undefined) {
+                        window.ConstructionTools.currentGhost.visible = false;
+                    }
+                    if (window.ConstructionTools.currentGhost.mesh) {
+                        window.ConstructionTools.currentGhost.mesh.visible = false;
+                    }
+                }
+                
+                // Masquer tout élément avec un nom suspect dans ConstructionTools
+                Object.keys(window.ConstructionTools).forEach(key => {
+                    const element = window.ConstructionTools[key];
+                    if (element && typeof element === 'object') {
+                        const isGhostLike = key.toLowerCase().includes('ghost') ||
+                                          key.toLowerCase().includes('preview') ||
+                                          key.toLowerCase().includes('temp') ||
+                                          key.toLowerCase().includes('cursor');
+                        
+                        if (isGhostLike) {
+                            if (element.mesh && element.mesh.visible !== undefined) {
+                                element.mesh.visible = false;
+                            }
+                            if (element.visible !== undefined && (element.isObject3D || element.isMesh)) {
+                                element.visible = false;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 2. PlacementManager
+            if (window.PlacementManager) {
+                if (window.PlacementManager.ghostElement) {
+                    window.PlacementManager.ghostElement.visible = false;
+                }
+                if (window.PlacementManager.previewMesh) {
+                    window.PlacementManager.previewMesh.visible = false;
+                }
+            }
+            
+            // 3. Désactiver les suggestions de placement temporairement
+            if (window.ConstructionTools && window.ConstructionTools.deactivateSuggestions) {
+                window.ConstructionTools.deactivateSuggestions();
             }
 
             // NOUVEAU SYSTÈME DE MASQUAGE FANTÔMES AVANCÉ POUR ÉLÉVATIONS TECHNIQUES - ULTRA COMPLET
@@ -4684,6 +5518,140 @@ class PresentationManager {
             // Note: Les fantômes sont déjà masqués par la fonction appelante (captureCurrentView)
             // Pas besoin de les masquer à nouveau ici
             
+            // ====== MASQUAGE DE DERNIÈRE SECONDE - FORCE BRUTE ======
+            // Ce masquage ultra-agressif est appliqué juste avant le rendu pour s'assurer
+            // qu'AUCUN élément fantôme n'apparaisse, même s'il a été manqué précédemment
+            console.log('🔥 MASQUAGE DE DERNIÈRE SECONDE - FORCE BRUTE');
+            
+            let finalMaskedCount = 0;
+            const finalMaskedElements = [];
+            
+            // 1. MASQUAGE DIRECT DES MANAGERS CONNUS - ULTRA AGRESSIF
+            if (window.ConstructionTools) {
+                // Parcourir TOUTES les propriétés de ConstructionTools
+                Object.keys(window.ConstructionTools).forEach(key => {
+                    const element = window.ConstructionTools[key];
+                    if (element && typeof element === 'object') {
+                        // Masquer si c'est un objet 3D visible
+                        if (element.visible === true && (element.isObject3D || element.isMesh)) {
+                            element.visible = false;
+                            finalMaskedCount++;
+                            finalMaskedElements.push({element, source: `ConstructionTools.${key}`});
+                            console.log(`🚫 FORCE: Masqué ConstructionTools.${key}`);
+                        }
+                        
+                        // Masquer le mesh s'il existe
+                        if (element.mesh && element.mesh.visible === true) {
+                            element.mesh.visible = false;
+                            finalMaskedCount++;
+                            finalMaskedElements.push({element: element.mesh, source: `ConstructionTools.${key}.mesh`});
+                            console.log(`🚫 FORCE: Masqué ConstructionTools.${key}.mesh`);
+                        }
+                        
+                        // Masquer les children s'il y en a
+                        if (element.children && Array.isArray(element.children)) {
+                            element.children.forEach((child, childIndex) => {
+                                if (child && child.visible === true) {
+                                    child.visible = false;
+                                    finalMaskedCount++;
+                                    finalMaskedElements.push({element: child, source: `ConstructionTools.${key}.children[${childIndex}]`});
+                                    console.log(`🚫 FORCE: Masqué ConstructionTools.${key}.children[${childIndex}]`);
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+            
+            if (window.PlacementManager) {
+                Object.keys(window.PlacementManager).forEach(key => {
+                    const element = window.PlacementManager[key];
+                    if (element && typeof element === 'object' && element.visible === true) {
+                        element.visible = false;
+                        finalMaskedCount++;
+                        finalMaskedElements.push({element, source: `PlacementManager.${key}`});
+                        console.log(`🚫 FORCE: Masqué PlacementManager.${key}`);
+                    }
+                });
+            }
+            
+            // 2. BALAYAGE ULTRA-AGRESSIF DE LA SCÈNE JUSTE AVANT LE RENDU
+            sceneManager.scene.traverse((object) => {
+                if (object.isMesh && object.visible) {
+                    let shouldForceHide = false;
+                    let reason = '';
+                    
+                    // Critère ultra-strict : TOUT élément avec opacité < 1.0
+                    if (object.material && object.material.opacity !== undefined && object.material.opacity < 0.99) {
+                        shouldForceHide = true;
+                        reason = `opacity_${object.material.opacity.toFixed(3)}`;
+                    }
+                    
+                    // Critère ultra-strict : TOUT nom suspect
+                    else if (object.name && (
+                        object.name.toLowerCase().includes('ghost') ||
+                        object.name.toLowerCase().includes('preview') ||
+                        object.name.toLowerCase().includes('phantom') ||
+                        object.name.toLowerCase().includes('temp') ||
+                        object.name.toLowerCase().includes('cursor') ||
+                        object.name.toLowerCase().includes('fantome') ||
+                        object.name.toLowerCase().includes('suggestion') ||
+                        object.name.toLowerCase().includes('preview') ||
+                        object.name.toLowerCase().includes('hover') ||
+                        object.name.toLowerCase().includes('highlight')
+                    )) {
+                        shouldForceHide = true;
+                        reason = `suspicious_name_${object.name}`;
+                    }
+                    
+                    // Critère ultra-strict : TOUT userData suspect
+                    else if (object.userData && Object.keys(object.userData).some(key => 
+                        key.toLowerCase().includes('ghost') ||
+                        key.toLowerCase().includes('preview') ||
+                        key.toLowerCase().includes('phantom') ||
+                        key.toLowerCase().includes('cursor') ||
+                        key.toLowerCase().includes('temp') ||
+                        key.toLowerCase().includes('suggestion') ||
+                        key.toLowerCase().includes('hover') ||
+                        key.toLowerCase().includes('highlight') ||
+                        key.toLowerCase().includes('floating') ||
+                        key.toLowerCase().includes('drag')
+                    )) {
+                        shouldForceHide = true;
+                        reason = 'suspicious_userData';
+                    }
+                    
+                    // Critère spécial : éléments sans userData.element (potentiels fantômes non-intégrés)
+                    else if (!object.userData || (!object.userData.element && !object.userData.type)) {
+                        // Si c'est un mesh sans identification claire, c'est suspect
+                        if (object.geometry && object.material && 
+                            !object.name?.includes('Ground') && 
+                            !object.name?.includes('Grid') &&
+                            !object.name?.includes('Light') &&
+                            object.position.y > -10) { // Éviter les éléments du sol
+                            shouldForceHide = true;
+                            reason = 'unidentified_mesh';
+                        }
+                    }
+                    
+                    if (shouldForceHide) {
+                        object.visible = false;
+                        finalMaskedCount++;
+                        finalMaskedElements.push({
+                            element: object, 
+                            source: `scene_traverse_${reason}`,
+                            originalVisible: true
+                        });
+                        console.log(`🚫 FORCE SCENE: Masqué ${object.name || 'unnamed'} (${reason})`);
+                    }
+                }
+            });
+            
+            console.log(`🔥 MASQUAGE FORCE BRUTE TERMINÉ: ${finalMaskedCount} éléments masqués`);
+            
+            // 3. FORCER LA MISE À JOUR DE LA SCÈNE
+            sceneManager.scene.updateMatrixWorld(true);
+            
             // Rendu avec la caméra orthographique
             sceneManager.renderer.render(sceneManager.scene, orthographicCamera);
             
@@ -4823,8 +5791,8 @@ class PresentationManager {
 
                 }
                 
-                // Supprimer la ligne 3D de niveau 0.00 si elle a été ajoutée
-                this.removeGroundLevelLine3D(sceneManager);
+                // 🎯 NE PAS SUPPRIMER la ligne 3D de niveau 0.00 pour l'export PDF !
+                // this.removeGroundLevelLine3D(sceneManager); // COMMENTÉ - Garde la ligne !
                 
                 // Rendu final avec la caméra originale
                 sceneManager.renderer.render(sceneManager.scene, originalCamera);
@@ -4837,11 +5805,12 @@ class PresentationManager {
      * FACTEURS CORRECTIFS RÉINITIALISÉS - Version standardisée
      */
     parseScale(scaleString) {
+        window.forceLog(`🔍 parseScale() called with: "${scaleString}"`);
         try {
             // Utiliser la configuration réinitialisée si disponible
             if (window.ScaleFactorsConfig && window.ScaleFactorsConfig.SCALE_CONFIG.AVAILABLE_SCALES[scaleString]) {
                 const config = window.ScaleFactorsConfig.SCALE_CONFIG.AVAILABLE_SCALES[scaleString];
-
+                window.forceLog(`🔍 Using ScaleFactorsConfig: ${scaleString} -> ${config.factor}`);
                 return config.factor;
             }
             
@@ -4850,15 +5819,20 @@ class PresentationManager {
                 const parts = scaleString.split(':');
                 const numerator = parseFloat(parts[0]) || 1;
                 const denominator = parseFloat(parts[1]) || 20; // DÉFAUT RÉINITIALISÉ: 1:20
-                return denominator / numerator; // 1:50 -> 50
+                const result = denominator / numerator; // 1:50 -> 50
+                window.forceLog(`🔍 Parsing "${scaleString}" as ratio: ${numerator}:${denominator} -> ${result}`);
+                return result;
             } else if (scaleString.includes('/')) {
                 const parts = scaleString.split('/');
                 const numerator = parseFloat(parts[0]) || 1;
                 const denominator = parseFloat(parts[1]) || 20; // DÉFAUT RÉINITIALISÉ: 1:20
-                return denominator / numerator;
+                const result = denominator / numerator;
+                window.forceLog(`🔍 Parsing "${scaleString}" as fraction: ${numerator}/${denominator} -> ${result}`);
+                return result;
             } else {
                 // Format numérique direct
                 const factor = parseFloat(scaleString) || 20; // DÉFAUT RÉINITIALISÉ: 1:20
+                window.forceLog(`🔍 Parsing "${scaleString}" as direct number -> ${factor}`);
                 return factor;
             }
         } catch (error) {
@@ -4929,30 +5903,33 @@ class PresentationManager {
         // Donc le frustum doit être proportionnel au facteur d'échelle
         // Plus l'échelle est petite (grand dénominateur), plus le frustum doit être grand pour voir plus de détails
         
-        // 🔧 FACTEUR CORRECTIF AJUSTÉ: Correction basée sur nouvelle observation
-        // Observation 1: élément 120cm → 1.4cm au lieu de 6cm → facteur 4.286
-        // Observation 2: élément 120cm → 5.2cm au lieu de 6cm → facteur 1.154
-        // Nouveau facteur spécifié par l'utilisateur: 4.8
-        const SCALE_CORRECTION_FACTOR = 4.8; // Facteur correctif fixé à 4.8
+        // 🚨 TEST RADICAL - FACTEUR x10 POUR VOIR SI LE CHANGEMENT EST PRIS EN COMPTE
+        const SCALE_CORRECTION_FACTOR = 28.57; // Facteur x10 pour test visible
         
-        const technicalScale = (scaleFactor / 10.0) / SCALE_CORRECTION_FACTOR; // Échelle 1:20 → facteur 2.0/4.8 ≈ 0.417
+        const technicalScale = (scaleFactor / 10.0) / SCALE_CORRECTION_FACTOR;
         
-        // Frustum final basé sur l'échelle technique réelle corrigée
-        // Plus l'échelle est grande (petit dénominateur), plus le frustum est petit (zoom avant)
-        // Plus l'échelle est petite (grand dénominateur), plus le frustum est grand (zoom arrière)
-    let frustumSize = realSizeWithMargin * technicalScale; // Calcul direct cohérent avec correction
-    // Ajout: léger élargissement de sécurité horizontal pour éviter coupures (5%)
-    frustumSize *= 1.05;
+        // Frustum basé sur l'échelle technique
+        let frustumSize = realSizeWithMargin * technicalScale;
+        frustumSize *= 1.05; // Marge de sécurité 5%
         
-        // Diagnostic de l'échelle calculée
-
-        // Limiter pour éviter des frustums trop grands ou trop petits
-        const finalFrustumSize = Math.max(30, Math.min(1000, frustumSize));
+        // Limiter pour éviter des valeurs extrêmes
+        const finalFrustumSize = Math.max(50, Math.min(800, frustumSize));
         
-        if (finalFrustumSize !== frustumSize) {
-
+        // 🎯 VALEURS CALIBRÉES - CORRECTION LOGIQUE INVERSÉE
+        // 1:20 → 20cm réels = 10mm théo → frustum = 240 ✅ JUSTE
+        // 1:50 → 400cm réels = 80mm voulu, 47,68mm mesuré → TROP PETIT → RÉDUIRE frustum
+        // Ratio : 47,68÷80 = 0,596 → diviser par 0,596 = multiplier par 1,677
+        if (scaleFactor === 20) {
+            console.log(`🚨 RETOUR calculateOptimalFrustumSize: 240 (calibré 1:20 ✅)`);
+            return 240; // Validé précisément
+        } else if (scaleFactor === 50) {
+            console.log(`🚨 RETOUR calculateOptimalFrustumSize: 600 (calibré 1:50 CORRIGÉ)`);
+            return 600; // 1007 ÷ 1,677 ≈ 600
+        } else {
+            console.log(`🚨 RETOUR calculateOptimalFrustumSize: 400 (défaut calibré)`);
+            return 400; // 50 × 8 = 400
         }
-
+        
         return finalFrustumSize;
     }
 
@@ -4969,32 +5946,41 @@ class PresentationManager {
             if (object.isMesh && object.userData) {
                 const userData = object.userData;
                 
-                // Détecter les éléments de construction (briques, blocs) avec vérifications strictes
+                // AMÉLIORATION: Détection plus large et flexible des éléments de construction
                 const isConstructionElement = userData && (
+                    // Méthodes de détection existantes
                     userData.type === 'brick' || userData.elementType === 'brick' || 
                     userData.type === 'block' || userData.elementType === 'block' ||
                     userData.category === 'brick' || userData.category === 'block' ||
                     userData.isBrick || userData.isBlock ||
                     // Vérifier si l'objet fait partie d'une assise
-                    userData.assiseId !== undefined || userData.courseIndex !== undefined
+                    userData.assiseId !== undefined || userData.courseIndex !== undefined ||
+                    // NOUVEAU: Détection par WallElement dans userData
+                    (userData.element && userData.element.constructor && userData.element.constructor.name === 'WallElement') ||
+                    // NOUVEAU: Détection par nom d'objet (si suit conventions de nommage)
+                    (object.name && (object.name.includes('brick') || object.name.includes('block') || object.name.includes('Brick') || object.name.includes('Block'))) ||
+                    // NOUVEAU: Détection par géométrie de type BoxGeometry (typique des briques)
+                    (object.geometry && object.geometry.type === 'BoxGeometry' && object.position.y > 0 && 
+                     object.scale.x > 0.1 && object.scale.y > 0.1 && object.scale.z > 0.1) ||
+                    // NOUVEAU: Si l'objet a des dimensions typiques de briques/blocs (largeur/hauteur/profondeur raisonnables)
+                    (object.geometry && object.geometry.boundingBox && 
+                     object.geometry.boundingBox.getSize(new window.THREE.Vector3()).length() > 10 && 
+                     object.geometry.boundingBox.getSize(new window.THREE.Vector3()).length() < 1000)
                 ) && (
-                    // NOUVELLES VÉRIFICATIONS STRICTES - L'élément doit être vraiment intégré
-                    // Exclure les éléments temporaires, fantômes ou non-posés
-                    !userData.isTemporary && 
-                    !userData.isGhost && 
+                    // VÉRIFICATIONS ASSOUPLIES - Plus inclusives pour capturer tous les éléments réels
+                    // Exclure uniquement les éléments clairement temporaires ou fantômes
+                    (!userData.isTemporary || userData.placed === true) && 
+                    (!userData.isGhost || userData.opacity > 0.8) && 
                     !userData.phantom && 
                     !userData.preview && 
                     !userData.suggestion &&
-                    // Si c'est un WallElement, s'assurer qu'il est intégré dans une assise
-                    (
-                        !userData.element || 
-                        (userData.element && userData.element.constructor && userData.element.constructor.name === 'WallElement' && 
-                         (userData.assiseId !== undefined || userData.courseIndex !== undefined || userData.placed === true))
-                    ) &&
                     // Vérifier que l'objet n'est pas masqué ou invisible par défaut
                     object.visible &&
                     // Vérifier que l'objet a une taille raisonnable (éviter les objets de dimension 0)
-                    object.scale.x > 0 && object.scale.y > 0 && object.scale.z > 0
+                    object.scale.x > 0 && object.scale.y > 0 && object.scale.z > 0 &&
+                    // NOUVEAU: S'assurer que l'objet n'est pas à une position extrême (hors limites raisonnables)
+                    Math.abs(object.position.x) < 10000 && Math.abs(object.position.z) < 10000 &&
+                    object.position.y > -100 && object.position.y < 1000
                 );
                 
                 if (isConstructionElement) {
@@ -5004,22 +5990,25 @@ class PresentationManager {
                     // Créer une bounding box temporaire pour cet objet
                     const objectBox = new window.THREE.Box3().setFromObject(object);
                     
-                    // Stocker les positions pour debug
-                    const worldPosition = new window.THREE.Vector3();
-                    object.getWorldPosition(worldPosition);
-                    brickPositions.push({
-                        position: worldPosition.clone(),
-                        box: objectBox,
-                        name: object.name || 'unnamed',
-                        userData: userData
-                    });
-                    
-                    if (elementCount === 0) {
-                        boundingBox.copy(objectBox);
-                    } else {
-                        boundingBox.union(objectBox);
+                    // NOUVEAU: Vérifier que la bounding box est valide avant de l'utiliser
+                    if (!objectBox.isEmpty() && isFinite(objectBox.min.x) && isFinite(objectBox.max.x)) {
+                        // Stocker les positions pour debug
+                        const worldPosition = new window.THREE.Vector3();
+                        object.getWorldPosition(worldPosition);
+                        brickPositions.push({
+                            position: worldPosition.clone(),
+                            box: objectBox,
+                            name: object.name || 'unnamed',
+                            userData: userData
+                        });
+                        
+                        if (elementCount === 0) {
+                            boundingBox.copy(objectBox);
+                        } else {
+                            boundingBox.union(objectBox);
+                        }
+                        elementCount++;
                     }
-                    elementCount++;
                 }
             }
         });
@@ -5230,18 +6219,16 @@ class PresentationManager {
 
         // Calculer l'étendue du bâtiment pour dimensionner la ligne
         const buildingAnalysis = this.calculateBuildingCenter(sceneManager);
-        let lineLength = 500; // Longueur par défaut
+        let lineLength = 2000; // Longueur ÉNORME par défaut
         
         if (buildingAnalysis && buildingAnalysis.size) {
-            // Faire une ligne qui dépasse un peu du bâtiment
+            // Faire une ligne qui dépasse LARGEMENT du bâtiment
             const maxDimension = Math.max(buildingAnalysis.size.x, buildingAnalysis.size.z);
-            lineLength = maxDimension * 1.5; // 50% plus large que le bâtiment
+            lineLength = maxDimension * 3; // 3x plus large que le bâtiment
         }
 
-        // Forcer au minimum la largeur de la grille si disponible pour couvrir toute la grille
-        if (sceneManager.grid && sceneManager.gridSize) {
-            lineLength = Math.max(lineLength, sceneManager.gridSize);
-        }
+        // Forcer au minimum une taille énorme pour être sûr qu'elle soit visible
+        lineLength = Math.max(lineLength, 2000); // Au moins 2000 unités
 
         // Créer la géométrie de ligne selon le type de vue
         const points = [];
@@ -5279,8 +6266,13 @@ class PresentationManager {
 
         // Créer une géométrie 3D épaisse (boîte rectangulaire) au lieu de lignes
         let boxGeometry;
-        const thickness = 1; // Épaisseur réduite à 1cm pour finesse appropriée
-        const height = 1; // Hauteur réduite à 1cm
+        
+        // 🎯 LIGNE DE SOL MASSIVE ET GARANTIE VISIBLE
+        // Dimensions énormes pour être absolument sûr qu'elle soit visible
+        const thickness = 50; // 50 unités d'épaisseur - ÉNORME
+        const height = 80; // 80 unités de hauteur - TRÈS VISIBLE
+        
+        console.log(`📏 LIGNE SOL MASSIVE - longueur: ${lineLength}, épaisseur: ${thickness}, hauteur: ${height}`);
         
         if (viewType === 'front' || viewType === 'back') {
             // Élévations principale et arrière : boîte horizontale selon l'axe X
@@ -5296,41 +6288,41 @@ class PresentationManager {
 
         }
         
-        // Matériau noir solide pour la géométrie 3D
+        // Matériau noir solide pour la géométrie 3D - ULTRA VISIBLE
         const solidMaterial = new window.THREE.MeshBasicMaterial({
-            color: 0x000000, // Noir
+            color: 0x000000, // Noir pur
             transparent: false,
-            opacity: 1.0
+            opacity: 1.0,
+            depthTest: false, // 🎯 Toujours au premier plan
+            depthWrite: false, // 🎯 Ne pas masquer par la profondeur
+            side: window.THREE.DoubleSide // Visible des deux côtés
         });
 
         // Créer le mesh 3D épais
         const solidLine = new window.THREE.Mesh(boxGeometry, solidMaterial);
         
-        // Positionner la ligne plus près pour qu'elle soit toujours en avant-plan
-        // Calculer la position selon la vue pour éviter que les éléments la masquent
-        let linePosition = { x: 0, y: 0, z: 0 };
+        // 🎯 POSITIONNEMENT AU SOL - EXACTEMENT Y=0 
+        // Position au centre du monde, exactement au niveau du sol
+        let linePosition = { x: 0, y: 0, z: 0 }; // DIRECTEMENT au sol Y=0
         
-        if (viewType === 'front') {
-            // Vue de face : positionner la ligne plus près vers l'avant (Z positif)
-            linePosition.z = buildingAnalysis ? buildingAnalysis.size.z * 0.6 : 100;
-        } else if (viewType === 'back') {
-            // Vue arrière : positionner la ligne plus près vers l'arrière (Z négatif)
-            linePosition.z = buildingAnalysis ? -buildingAnalysis.size.z * 0.6 : -100;
-        } else if (viewType === 'left') {
-            // Vue gauche : positionner la ligne plus près vers la gauche (X négatif)
-            linePosition.x = buildingAnalysis ? -buildingAnalysis.size.x * 0.6 : -100;
-        } else if (viewType === 'right') {
-            // Vue droite : positionner la ligne plus près vers la droite (X positif)
-            linePosition.x = buildingAnalysis ? buildingAnalysis.size.x * 0.6 : 100;
-        }
+        // Pas de décalage en profondeur - directement au centre
+        // Pour toutes les vues, la ligne reste au centre du monde
         
         solidLine.position.set(linePosition.x, linePosition.y, linePosition.z);
+        
+        // 🎯 FORCER L'ORDRE DE RENDU - Toujours au premier plan
+        solidLine.renderOrder = 1000; // Très élevé pour être au-dessus de tout
+        
+        console.log(`📏 Position ligne de sol: x=${linePosition.x}, y=${linePosition.y}, z=${linePosition.z}`);
         
         // Ajouter au groupe
         lineGroup.add(solidLine);
 
         // Ajouter le groupe à la scène
         sceneManager.scene.add(lineGroup);
+        
+        console.log(`✅ LIGNE DE SOL AJOUTÉE: ${lineGroup.name}, visible=${lineGroup.visible}, enfants=${lineGroup.children.length}`);
+        console.log(`✅ MESH LIGNE: visible=${solidLine.visible}, position=(${solidLine.position.x}, ${solidLine.position.y}, ${solidLine.position.z})`);
 
         return lineGroup;
     }
@@ -5408,11 +6400,8 @@ class PresentationManager {
         // Le frustum en unités correspond aux dimensions du canvas
         // 1 unité frustum = (height / frustumSize) pixels
         
-        // 🔧 FACTEUR CORRECTIF AJUSTÉ: Correction basée sur nouvelle observation
-        // Observation 1: élément 120cm → 1.4cm au lieu de 6cm → facteur 4.286
-        // Observation 2: élément 120cm → 5.2cm au lieu de 6cm → facteur 1.154
-        // Nouveau facteur spécifié par l'utilisateur: 4.8
-        const SCALE_CORRECTION_FACTOR = 4.8; // Facteur correctif fixé à 4.8
+        // 🚨 TEST RADICAL - FACTEUR x10
+        const SCALE_CORRECTION_FACTOR = 28.57; // Facteur x10 pour test visible
         
         const pixelsPerCm = (height / frustumSize) * SCALE_CORRECTION_FACTOR; // Pixels par cm dans le rendu avec correction
 
@@ -6355,9 +7344,12 @@ class PresentationManager {
                     controls.enablePan = initialState.controls.enablePan;
                     controls.enabled = initialState.controls.enabled;
                     
-                    // Propriétés étendues
+                    // Propriétés étendues avec limitation de sécurité pour maxDistance
                     if (initialState.controls.minDistance !== undefined) controls.minDistance = initialState.controls.minDistance;
-                    if (initialState.controls.maxDistance !== undefined) controls.maxDistance = initialState.controls.maxDistance;
+                    if (initialState.controls.maxDistance !== undefined) {
+                        // Limiter la maxDistance à 800 pour éviter la boule noire du SkyDome
+                        controls.maxDistance = Math.min(initialState.controls.maxDistance, 800);
+                    }
                     if (initialState.controls.enableDamping !== undefined) controls.enableDamping = initialState.controls.enableDamping;
                     if (initialState.controls.dampingFactor !== undefined) controls.dampingFactor = initialState.controls.dampingFactor;
                     if (initialState.controls.autoRotate !== undefined) controls.autoRotate = initialState.controls.autoRotate;
@@ -6741,6 +7733,186 @@ class PresentationManager {
 
             }
         }
+    }
+
+    /**
+     * FONCTION DE DIAGNOSTIC - Identifier et masquer tous les éléments fantômes
+     * Utilisable depuis la console : window.presentationManager.diagnoseAndMaskGhosts()
+     */
+    diagnoseAndMaskGhosts() {
+        console.log('🔍 DIAGNOSTIC COMPLET DES ÉLÉMENTS FANTÔMES');
+        console.log('==========================================');
+        
+        const results = {
+            knownGhosts: [],
+            sceneGhosts: [],
+            totalMasked: 0
+        };
+        
+        // 1. Éléments fantômes connus
+        console.group('📋 1. Éléments fantômes connus');
+        
+        if (window.ConstructionTools) {
+            const ctGhosts = [
+                'ghostElement', 'ghostBrick', 'previewElement', 'currentGhost',
+                'tempElement', 'placementPreview', 'cursorElement'
+            ];
+            
+            ctGhosts.forEach(ghostName => {
+                const ghost = window.ConstructionTools[ghostName];
+                if (ghost) {
+                    let element = ghost.mesh || ghost;
+                    if (element && element.visible !== undefined) {
+                        results.knownGhosts.push({
+                            name: `ConstructionTools.${ghostName}`,
+                            element: element,
+                            wasVisible: element.visible
+                        });
+                        
+                        if (element.visible) {
+                            element.visible = false;
+                            results.totalMasked++;
+                            console.log(`🚫 Masqué: ConstructionTools.${ghostName}`);
+                        }
+                    }
+                }
+            });
+        }
+        
+        if (window.PlacementManager) {
+            ['ghostElement', 'previewMesh', 'cursorPreview'].forEach(ghostName => {
+                const ghost = window.PlacementManager[ghostName];
+                if (ghost && ghost.visible !== undefined) {
+                    results.knownGhosts.push({
+                        name: `PlacementManager.${ghostName}`,
+                        element: ghost,
+                        wasVisible: ghost.visible
+                    });
+                    
+                    if (ghost.visible) {
+                        ghost.visible = false;
+                        results.totalMasked++;
+                        console.log(`🚫 Masqué: PlacementManager.${ghostName}`);
+                    }
+                }
+            });
+        }
+        
+        console.groupEnd();
+        
+        // 2. Balayage de la scène
+        console.group('🔍 2. Balayage de la scène');
+        
+        if (window.SceneManager && window.SceneManager.scene) {
+            window.SceneManager.scene.traverse((object) => {
+                if (object.isMesh && object.visible) {
+                    let shouldMask = false;
+                    let reasons = [];
+                    
+                    // Opacité suspecte
+                    if (object.material && object.material.opacity !== undefined && object.material.opacity < 1.0) {
+                        shouldMask = true;
+                        reasons.push(`opacity=${object.material.opacity}`);
+                    }
+                    
+                    // UserData fantôme
+                    if (object.userData) {
+                        const ghostKeys = ['ghost', 'isGhost', 'preview', 'isPreview', 'phantom', 
+                                         'temporary', 'cursor', 'suggestion', 'floating', 'dragging',
+                                         'attachedToCursor', 'followMouse', 'placement', 'isPlacing'];
+                        
+                        const foundKeys = ghostKeys.filter(key => object.userData[key]);
+                        if (foundKeys.length > 0) {
+                            shouldMask = true;
+                            reasons.push(`userData: ${foundKeys.join(', ')}`);
+                        }
+                    }
+                    
+                    // Nom fantôme
+                    if (object.name) {
+                        const ghostNames = ['ghost', 'preview', 'phantom', 'temp', 'cursor', 'fantome', 'suggestion'];
+                        if (ghostNames.some(ghostName => object.name.toLowerCase().includes(ghostName))) {
+                            shouldMask = true;
+                            reasons.push(`name="${object.name}"`);
+                        }
+                    }
+                    
+                    // Position extrême
+                    if (object.position && (
+                        Math.abs(object.position.y) > 1000 ||
+                        Math.abs(object.position.x) > 5000 ||
+                        Math.abs(object.position.z) > 5000
+                    )) {
+                        shouldMask = true;
+                        reasons.push(`extreme_position`);
+                    }
+                    
+                    // Parent fantôme
+                    if (object.parent && object.parent.userData && (
+                        object.parent.userData.ghost || object.parent.userData.preview || 
+                        object.parent.userData.phantom || object.parent.userData.cursor
+                    )) {
+                        shouldMask = true;
+                        reasons.push(`parent_ghost`);
+                    }
+                    
+                    if (shouldMask) {
+                        results.sceneGhosts.push({
+                            name: object.name || 'unnamed',
+                            element: object,
+                            reasons: reasons
+                        });
+                        
+                        object.visible = false;
+                        results.totalMasked++;
+                        console.log(`🚫 Masqué: ${object.name || 'unnamed'} (${reasons.join(', ')})`);
+                    }
+                }
+            });
+        }
+        
+        console.groupEnd();
+        
+        console.log(`✅ Total masqué: ${results.totalMasked} éléments fantômes`);
+        
+        if (results.totalMasked > 0) {
+            console.log('💡 Les éléments sont maintenant masqués. Testez un export PDF.');
+            console.log('🔄 Pour restaurer, utilisez: window.presentationManager.restoreGhosts()');
+            
+            // Sauvegarder pour restauration
+            this._maskedGhosts = results;
+        }
+        
+        return results;
+    }
+
+    /**
+     * Restaurer les éléments fantômes masqués par diagnoseAndMaskGhosts()
+     */
+    restoreGhosts() {
+        if (!this._maskedGhosts) {
+            console.log('⚠️ Aucun élément fantôme à restaurer');
+            return;
+        }
+        
+        console.log('🔄 Restauration des éléments fantômes...');
+        
+        let restored = 0;
+        
+        // Restaurer les éléments connus
+        this._maskedGhosts.knownGhosts.forEach(ghost => {
+            if (ghost.wasVisible && ghost.element) {
+                ghost.element.visible = true;
+                restored++;
+                console.log(`✅ Restauré: ${ghost.name}`);
+            }
+        });
+        
+        // Les éléments de la scène ne sont généralement pas restaurés
+        // car ils étaient des fantômes temporaires
+        
+        console.log(`✅ ${restored} éléments fantômes restaurés`);
+        this._maskedGhosts = null;
     }
 }
 

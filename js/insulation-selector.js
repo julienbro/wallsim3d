@@ -873,9 +873,15 @@ class InsulationSelector {
             }
         }
         
-        // Synchroniser le type d'assise avec le mode isolant (même si on est déjà en mode insulation)
-        if (window.AssiseManager && window.AssiseManager.currentType !== 'insulation') {
-            window.AssiseManager.setCurrentType('insulation', true);
+        // Synchroniser le type d'assise avec le mode isolant (utiliser la famille d'isolant)
+        if (window.AssiseManager) {
+            // Déterminer la famille (PUR, LAINEROCHE, XPS, PSE, FB, LV) depuis le type de base
+            const upperBase = (baseType || '').toUpperCase();
+            const match = upperBase.match(/^(PUR|LAINEROCHE|XPS|PSE|FB|LV)/);
+            const family = match ? match[1] : 'insulation';
+            if (window.AssiseManager.currentType !== family) {
+                window.AssiseManager.setCurrentType(family, true);
+            }
         }
         
         // Changer de mode seulement si nécessaire, en préservant les dimensions

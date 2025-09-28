@@ -9,12 +9,15 @@ class AssiseManager {
         
         // Types d'éléments supportés - incluant les sous-types de briques et blocs
     this.supportedTypes = ['brick', 'block', 'insulation', 'custom', 'joint', 'linteau', 'beam', 'diba']; // ajout beam + diba (membrane, pas de joints)
+
+    // Familles d'isolants pour assises séparées (nouveau)
+    this.insulationFamilies = ['PUR', 'LAINEROCHE', 'XPS', 'PSE', 'FB', 'LV'];
         
         // Sous-types de briques supportés pour gestion d'assise indépendante
         this.brickSubTypes = ['M50', 'M57', 'M60', 'M65', 'M90'];
         
         // Sous-types de blocs supportés pour gestion d'assise indépendante
-        this.blockSubTypes = ['CREUX', 'CELLULAIRE', 'ARGEX', 'TERRE_CUITE', 'B9', 'B14', 'B19', 'B29', 'BC5', 'BC7', 'BC10', 'BC15', 'BC17', 'BC20', 'BC24', 'BC30', 'BC36', 'ARGEX9', 'ARGEX14', 'ARGEX19', 'TC10', 'TC14', 'TC19'];
+        this.blockSubTypes = ['CREUX', 'CELLULAIRE', 'ARGEX', 'TERRE_CUITE', 'B9', 'B14', 'B19', 'B29_PANNERESSE', 'B29_BOUTISSE', 'BC5', 'BC7', 'BC10', 'BC15', 'BC17', 'BC20', 'BC24', 'BC30', 'BC36', 'ARGEX9', 'ARGEX14', 'ARGEX19', 'TC10', 'TC14', 'TC19'];
         
         // Sous-types de linteaux supportés pour gestion d'assise indépendante
         this.linteauSubTypes = ['LINTEAU_L120', 'LINTEAU_L140', 'LINTEAU_L160', 'LINTEAU_L180', 'LINTEAU_L200'];
@@ -23,7 +26,14 @@ class AssiseManager {
         this.glbSubTypes = ['hourdis_13_60', 'hourdis_16_60'];
         
         // Extension des types supportés avec les sous-types de briques, blocs, linteaux et GLB
-        this.allSupportedTypes = [...this.supportedTypes, ...this.brickSubTypes, ...this.blockSubTypes, ...this.linteauSubTypes, ...this.glbSubTypes];
+        this.allSupportedTypes = [
+            ...this.supportedTypes,
+            ...this.brickSubTypes,
+            ...this.blockSubTypes,
+            ...this.linteauSubTypes,
+            ...this.glbSubTypes,
+            ...this.insulationFamilies
+        ];
         
         // 🔧 NOUVELLE MÉTHODE: Vérification dynamique des types personnalisés
         this.customTypeCache = new Set();
@@ -40,12 +50,19 @@ class AssiseManager {
         
         // Hauteur du joint par assise individuelle : Map<type, Map<assiseIndex, jointHeight>>
         this.jointHeightByAssise = new Map();
+
+    // Hauteur de démarrage (offset) par type d'assise, en cm
+    // Permet de définir la hauteur absolue du plan zéro de l'assise 0 pour chaque type
+    this.baseHeightByType = new Map();
         
         for (const type of this.allSupportedTypes) {
             // CORRECTION: Les isolants, hourdis, poutres et diba n'ont pas de joints horizontaux
-            const defaultJointHeight = (type === 'insulation' || type.includes('hourdis') || type === 'beam' || type === 'diba') ? 0 : 1.2; // beam & diba sans joint horizontal
+            const defaultJointHeight = (this.isInsulationType(type) || type.includes('hourdis') || type === 'beam' || type === 'diba') ? 0 : 1.2; // beam & diba sans joint horizontal
             this.jointHeightByType.set(type, defaultJointHeight);
             this.jointHeightByAssise.set(type, new Map());
+
+            // Par défaut, pas d'offset de base (0 cm). On laisse 0 aussi pour hourdis/insulation/beam/diba
+            this.baseHeightByType.set(type, 0);
         }
         
         this.showAssiseGrids = false;
@@ -110,6 +127,38 @@ class AssiseManager {
                 } catch(e) { console.error('dumpIsoState error', e); }
             };
         }
+    }
+
+    // Détecter si un type est un type/famille d'isolant géré (PUR, LAINEROCHE, ... ou 'insulation')
+    isInsulationType(type) {
+        if (!type) return false;
+        const up = String(type).toUpperCase();
+        if (up === 'INSULATION' || up === 'ISOLANT') return true;
+        // Famille exacte (PUR, LAINEROCHE, XPS, PSE, FB, LV)
+        if (this.insulationFamilies.includes(up)) return true;
+        // Commence par une famille (ex: PUR5, LAINEROCHE6, XPS30)
+        return this.insulationFamilies.some(f => up.startsWith(f));
+    }
+
+    // Convertir un nom d'isolant (ex: PUR5, LAINEROCHE6, insulation) en famille d'assise (PUR, LAINEROCHE, ...)
+    getInsulationFamilyFromType(type) {
+        if (!type) return 'insulation';
+        const up = String(type).toUpperCase();
+        // Familles directes
+        if (this.insulationFamilies.includes(up)) return up;
+        // Spécifiques (PUR5, LAINEROCHE7, XPS30, ...)
+        for (const fam of this.insulationFamilies) {
+            if (up.startsWith(fam)) return fam;
+        }
+        // Libellés génériques provenant de l'UI
+        if (up === 'INSULATION' || up === 'ISOLANT' || up.startsWith('ISOLATION')) {
+            try {
+                const cur = window.InsulationSelector?.getCurrentInsulation?.();
+                if (cur) return this.getInsulationFamilyFromType(cur);
+            } catch(e) {}
+            return 'PUR'; // défaut raisonnable
+        }
+        return 'insulation';
     }
 
     /**
@@ -181,6 +230,14 @@ class AssiseManager {
         return type === 'CELLULAIRE' || (type && type.startsWith('BC'));
     }
 
+    // Utilitaire: Vérifier si un type est Terre Cuite (TERRE_CUITE ou TC*)
+    isTerracottaType(type) {
+        if (!type) return false;
+        if (type === 'TERRE_CUITE') return true;
+        if (type.startsWith('TC')) return true; // TC10, TC14, TC19, etc.
+        return false;
+    }
+
     // Initialiser les structures de données pour tous les types supportés
     initializeTypeStructures() {
         for (const type of this.allSupportedTypes) {
@@ -219,7 +276,7 @@ class AssiseManager {
     // Getter pour la hauteur du joint d'un type donné
     getJointHeightForType(type) {
         // 🔧 ISOLANTS: Toujours retourner 0 pour les isolants (pas de joints horizontaux)
-        if (type === 'insulation' || type === 'beam') {
+        if (this.isInsulationType(type) || type === 'beam') {
             return 0;
         }
         
@@ -306,12 +363,55 @@ class AssiseManager {
         this.setJointHeightForType(this.currentType, height);
     }
 
+    // === HAUTEUR DE DÉMARRAGE (BASE HEIGHT) PAR TYPE ===
+
+    getBaseHeightForType(type) {
+        // Protection
+        if (!this.baseHeightByType) this.baseHeightByType = new Map();
+        // Types personnalisés/coupés: utiliser le type de base
+        let effectiveType = type;
+        if (type.includes('_CUSTOM_')) effectiveType = type.split('_CUSTOM_')[0];
+        else if (type.endsWith('_P')) effectiveType = type.slice(0, -2);
+        else if (type.includes('_HALF') || type.includes('_3Q') || type.includes('_1Q')) effectiveType = type.split('_')[0];
+        else if (/_\d+CM$/i.test(type)) effectiveType = type.replace(/_\d+CM$/i, '');
+        return this.baseHeightByType.get(effectiveType) ?? 0;
+    }
+
+    setBaseHeightForType(type, height) {
+        const h = Math.max(0, Number.isFinite(height) ? height : 0);
+        if (!this.baseHeightByType) this.baseHeightByType = new Map();
+        // Normaliser le type
+        let effectiveType = type;
+        if (type.includes('_CUSTOM_')) effectiveType = type.split('_CUSTOM_')[0];
+        else if (type.endsWith('_P')) effectiveType = type.slice(0, -2);
+        else if (type.includes('_HALF') || type.includes('_3Q') || type.includes('_1Q')) effectiveType = type.split('_')[0];
+        else if (/_\d+CM$/i.test(type)) effectiveType = type.replace(/_\d+CM$/i, '');
+
+        // Calculer delta pour un repositionnement relatif immàdiat
+        const oldBase = this.baseHeightByType.get(effectiveType) || 0;
+        const delta = h - oldBase;
+
+        // Poutres / hourdis / diba / insulation: autoriser offset mais par défaut 0
+        this.baseHeightByType.set(effectiveType, h);
+
+        // Recalculer toutes les assises de ce type et repositionner
+        this.recalculateAssiseHeightsForType(effectiveType);
+        this.updateUI();
+        this.updateSnapPointHeight();
+        // Le snapPoint peut être désactivé; forcer la MAJ des marqueurs d'aide pour suivre la nouvelle base
+        try { this.updateAttachmentMarkers(); } catch(e) { console.warn('updateAttachmentMarkers error', e); }
+        // Repositionner le fantôme si présent
+        try { window.ConstructionTools?.repositionGhostToCurrentAssise?.(); } catch(e) {}
+        // ✅ Déplacer aussi les joints existants pour ce type (incluant les horizontaux de l'assise 0)
+        try { this.updateVerticalJointsForType(effectiveType); } catch(e) { console.warn('updateVerticalJointsForType error', e); }
+    }
+
     // === GESTION DES HAUTEURS DE JOINT PAR ASSISE INDIVIDUELLE ===
     
     // Obtenir la hauteur de joint d'une assise spécifique
     getJointHeightForAssise(type, assiseIndex) {
         // 🔧 ISOLANTS: Toujours retourner 0 pour les isolants (pas de joints horizontaux)
-        if (type === 'insulation') {
+        if (this.isInsulationType(type)) {
             return 0;
         }
         
@@ -328,6 +428,9 @@ class AssiseManager {
             effectiveType = type.slice(0, -2);
         } else if (type.includes('_HALF') || type.includes('_3Q') || type.includes('_1Q')) {
             effectiveType = type.split('_')[0];
+        } else if (/_\d+CM$/i.test(type)) {
+            // Couper les suffixes de coupe dimensionnels (ex: _34CM, _4CM)
+            effectiveType = type.replace(/_\d+CM$/i, '');
         }
         
         const jointsByType = this.jointHeightByAssise.get(effectiveType);
@@ -366,6 +469,9 @@ class AssiseManager {
             effectiveType = type.slice(0, -2);
         } else if (type.includes('_HALF') || type.includes('_3Q') || type.includes('_1Q')) {
             effectiveType = type.split('_')[0];
+        } else if (/_\d+CM$/i.test(type)) {
+            // Couper les suffixes de coupe dimensionnels (ex: _34CM, _4CM)
+            effectiveType = type.replace(/_\d+CM$/i, '');
         }
         
         if (!this.jointHeightByAssise.has(effectiveType)) {
@@ -469,11 +575,22 @@ class AssiseManager {
                 assise.jointGridMesh.position.y = newHeight + this.getMaxElementHeightInAssiseForType(type, index);
             }
             
-            // Mettre à jour la position des éléments de cette assise
+            // Mettre à jour la position des éléments de cette assise (hors joints)
             for (const elementId of assise.elements) {
-                const element = this.findElementById(elementId);
-                if (element) {
-                    this.updateElementPositionInAssise(element, type, index);
+                // Préférer l'objet élément du SceneManager pour que la position logique soit à jour
+                const elementData = window.SceneManager?.elements?.get(elementId);
+                if (elementData) {
+                    // Ignorer les joints; ils seront mis à jour séparément
+                    if (elementData.isVerticalJoint || elementData.isHorizontalJoint || elementData.type === 'joint') {
+                        continue;
+                    }
+                    this.updateElementPositionInAssise(elementData, type, index);
+                } else {
+                    // Fallback sur le mesh si l'objet de données n'est pas disponible
+                    const mesh = this.findElementById(elementId);
+                    if (mesh) {
+                        this.updateElementPositionInAssise(mesh, type, index);
+                    }
                 }
             }
         }
@@ -578,6 +695,18 @@ class AssiseManager {
             return true; // Simuler le succàs pour àviter les erreurs
         }
         
+        // PROTECTION B29: Empêcher le basculement automatique depuis B29 vers CREUX
+        if (this.currentType && (this.currentType === 'B29_PANNERESSE' || this.currentType === 'B29_BOUTISSE')) {
+            if (type === 'CREUX' || type === 'block') {
+                console.log(`🎯 PROTECTION B29: Empêchement basculement ${this.currentType} → ${type} (skipToolChange: ${skipToolChange})`);
+                // Autoriser seulement les changements explicites (pas les automatiques)
+                if (skipToolChange) {
+                    console.log(`🎯 PROTECTION B29: Changement automatique refusé, conservation de ${this.currentType}`);
+                    return true; // Simuler le succès mais garder le type B29
+                }
+            }
+        }
+        
         // Extraire le type de base si c'est un type de coupe
         let baseType = type;
         if (type && typeof type === 'string' && type.includes('_')) {
@@ -591,11 +720,11 @@ class AssiseManager {
         }
 
         // Normalisation des types d'isolants (PUR5, XPS30, etc.) vers le type générique 'insulation'
+        // Normalisation des types d'isolants (PUR5, XPS30, etc.) vers la famille (PUR, LAINEROCHE, ...)
         if (typeof baseType === 'string') {
-            const insulationPrefixes = ['PUR', 'LAINEROCHE', 'XPS', 'PSE', 'FB', 'LV'];
             const upper = baseType.toUpperCase();
-            if (insulationPrefixes.some(p => upper.startsWith(p))) {
-                baseType = 'insulation';
+            if (this.insulationFamilies.some(p => upper.startsWith(p))) {
+                baseType = this.getInsulationFamilyFromType(upper);
             }
         }
         
@@ -654,19 +783,22 @@ class AssiseManager {
             console.log(`🔄 Type ${baseType} déjà initialisé sur assise`, this.currentAssiseByType.get(baseType));
         }
         
-        // Activer automatiquement l'outil de construction correspondant pour les types principaux
-        if (!skipToolChange && !this.brickSubTypes.includes(baseType) && !this.linteauSubTypes.includes(baseType) && baseType !== 'custom' && window.ConstructionTools) {
-            const toolModeMap = {
-                'brick': 'brick',
-                'block': 'block',
-                'insulation': 'insulation',
-                'linteau': 'linteau'
-            };
-            
-            const targetMode = toolModeMap[baseType];
+        // Activer automatiquement l'outil de construction correspondant, y compris pour les familles d'isolants
+        if (!skipToolChange && window.ConstructionTools) {
+            let targetMode = null;
+            if (baseType === 'brick' || this.brickSubTypes.includes(baseType)) {
+                targetMode = 'brick';
+            } else if (baseType === 'block' || this.blockSubTypes.includes(baseType)) {
+                targetMode = 'block';
+            } else if (baseType === 'linteau' || this.linteauSubTypes.includes(baseType)) {
+                targetMode = 'linteau';
+            } else if (baseType === 'insulation' || this.isInsulationType(baseType)) {
+                // Nouveau: si on choisit PUR/XPS/... on bascule bien en mode isolant
+                targetMode = 'insulation';
+            }
+
             if (targetMode && window.ConstructionTools.currentMode !== targetMode) {
-                // console.log(`Activation automatique de l'outil: ${targetMode}`);
-                window.ConstructionTools.setMode(targetMode, true); // preserveDimensions = true pour àviter changements non dàsiràs
+                window.ConstructionTools.setMode(targetMode, true); // preserveDimensions = true
             }
         }
         
@@ -770,9 +902,17 @@ class AssiseManager {
                 return;
             }
             
-            // Gestion des blocs (incluant tous les sous-types comme CREUX, CELLULAR, etc.)
-            if (type === 'block' || type === 'CREUX' || type === 'CELLULAR' || type === 'HOLLOW' || 
-                (typeof type === 'string' && (type.startsWith('B') || type.includes('CREUX') || type.includes('CELLULAR')))) {
+            // Gestion des blocs (incluant tous les sous-types comme CREUX, CELLULAR, TERRE_CUITE/TC*, etc.)
+            if (
+                type === 'block' || type === 'CREUX' || type === 'CELLULAR' || type === 'HOLLOW' ||
+                type === 'TERRE_CUITE' ||
+                (typeof type === 'string' && (
+                    type.startsWith('B') ||
+                    type.startsWith('TC') ||
+                    type.includes('CREUX') ||
+                    type.includes('CELLULAR')
+                ))
+            ) {
                 if (window.BlockSelector) {
                     console.log(`🧱 BlockSelector disponible, currentBlock actuel:`, window.BlockSelector.currentBlock);
                     
@@ -784,8 +924,14 @@ class AssiseManager {
                         defaultBlock = 'B14';
                     } else if (type === 'B19') {
                         defaultBlock = 'B19';
-                    } else if (type === 'B29') {
-                        defaultBlock = 'B29';
+                    } else if (type === 'B29_PANNERESSE') {
+                        // CORRECTION: Pour les assises B29_PANNERESSE, utiliser un bloc B29_PANNERESSE de base
+                        defaultBlock = 'B29_PANNERESSE';
+                        console.log(`🎯 Type B29_PANNERESSE détecté, sélection du bloc B29_PANNERESSE`);
+                    } else if (type === 'B29_BOUTISSE') {
+                        // CORRECTION: Pour les assises B29_BOUTISSE, utiliser un bloc B29_BOUTISSE de base
+                        defaultBlock = 'B29_BOUTISSE';
+                        console.log(`🎯 Type B29_BOUTISSE détecté, sélection du bloc B29_BOUTISSE`);
                     } else if (type === 'BC5') {
                         defaultBlock = 'BC_60x5';
                     } else if (type === 'BC7') {
@@ -804,6 +950,15 @@ class AssiseManager {
                         defaultBlock = 'BC_60x30';
                     } else if (type === 'BC36') {
                         defaultBlock = 'BC_60x36';
+                    } else if (type === 'TERRE_CUITE') {
+                        // Fallback générique terre cuite: choisir la largeur la plus courante 14cm
+                        defaultBlock = 'TC_50x14';
+                    } else if (type === 'TC10') {
+                        defaultBlock = 'TC_50x10';
+                    } else if (type === 'TC14') {
+                        defaultBlock = 'TC_50x14';
+                    } else if (type === 'TC19') {
+                        defaultBlock = 'TC_50x19';
                     } else {
                         // Fallback vers B14 pour les types génériques
                         defaultBlock = 'B14';
@@ -851,8 +1006,8 @@ class AssiseManager {
                 return;
             }
             
-            // Gestion des isolants
-            if (type === 'insulation') {
+            // Gestion des isolants (générique ou familles PUR/LAINEROCHE/XPS/PSE/FB/LV)
+            if (type === 'insulation' || this.isInsulationType(type)) {
                 if (window.InsulationSelector) {
                     console.log(`🧱 Sélection de l'isolant de base`);
                     
@@ -1129,9 +1284,23 @@ class AssiseManager {
             // Mettre à jour les marqueurs d'accroche
             this.updateAttachmentMarkers();
             
-            // CORRECTION: Déplacer l'élément fantôme à la hauteur de l'assise active avec logs détaillés
+            // CORRECTION: Mettre à jour le fantôme (position ET type si nécessaire)
             if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
                 const assiseHeight = this.getAssiseHeightForType(type, index); // UTILISER LA BONNE FONCTION
+                
+                // CORRECTION: Pour les types B29, déclencher une re-création simple du fantôme
+                if (type === 'B29_PANNERESSE' || type === 'B29_BOUTISSE') {
+                    console.log(`👻 CHANGEMENT ASSISE B29 - Re-création fantôme pour type ${type}`);
+                    
+                    // Déclencher une re-création plus douce via setTimeout pour éviter les conflits
+                    setTimeout(() => {
+                        if (window.ConstructionTools && window.ConstructionTools.createGhostElement) {
+                            window.ConstructionTools.createGhostElement();
+                            console.log(`👻 FANTÔME B29 - Re-créé via setTimeout`);
+                        }
+                    }, 150); // Délai plus long que le debounce de updateGhostElement (100ms)
+                }
+                
                 // Vérification de sécurité pour dimensions
                 if (window.ConstructionTools.ghostElement.dimensions && window.ConstructionTools.ghostElement.dimensions.height) {
                     const ghostHeight = window.ConstructionTools.ghostElement.dimensions.height;
@@ -1184,6 +1353,16 @@ class AssiseManager {
     // Màthode de compatibilité
     setActiveAssise(index) {
         return this.setActiveAssiseForType(this.currentType, index);
+    }
+
+    // Récupérer l'index de l'assise active pour un type spécifique
+    getCurrentAssiseIndexForType(type) {
+        // Utiliser la vérification étendue qui gère aussi les types dérivés (ex: M65_HALF, B14_HALF, etc.)
+        if (!type || !this.isSupportedType(type)) {
+            console.warn(`Type non supporté: ${type}`);
+            return 0;
+        }
+        return this.currentAssiseByType.get(type.split('_')[0]) || this.currentAssiseByType.get(type) || 0;
     }
 
     // Supprimer une assise d'un type spécifique
@@ -1300,29 +1479,34 @@ class AssiseManager {
     }
 
     calculateAssiseHeightForType(type, index) {
+        const baseOffset = this.getBaseHeightForType(type);
         if (index === 0) {
             // 🔧 HOURDIS: L'assise 0 des hourdis commence à Y=0 (pas de joint de base)
             if (type.includes('hourdis')) {
-                return 0;
+                return baseOffset; // offset s'applique quand même
             }
             
             // 🔧 ISOLANTS: L'assise 0 des isolants commence à Y=0 (pas de joint horizontal)
-            if (type === 'insulation') {
-                return 0;
+            if (this.isInsulationType(type)) {
+                return baseOffset;
             }
 
             // 🔧 BÉTON CELLULAIRE (CELLULAIRE et BC5, BC7, BC10, etc.): Assise 0 = 1.2cm mortier
             if (this.isCellularConcreteType(type)) {
-                return 1.2; // 1.2 cm sur la première assise
+                return baseOffset + 1.2; // 1.2 cm sur la première assise, décalé d'un offset
+            }
+            // 🔧 TERRE CUITE (TERRE_CUITE, TC10, TC14, TC19): Assise 0 = 1.2cm mortier
+            if (this.isTerracottaType(type)) {
+                return baseOffset + 1.2;
             }
             
             // Assise 0 pour autres types : utilise la hauteur de joint spécifique ou celle par défaut du type
             const jointHeight = this.getJointHeightForAssise(type, 0);
-            return jointHeight;
+            return baseOffset + jointHeight;
         }
         
         // Pour les assises supàrieures, calculer en accumulant les hauteurs individuelles
-        let totalHeight = 0;
+        let totalHeight = baseOffset; // démarrer à l'offset de base
         
         // Accumulation depuis l'assise 0 jusqu'à l'assise demandàe
         for (let i = 0; i <= index; i++) {
@@ -1331,11 +1515,14 @@ class AssiseManager {
             if (i === 0) {
                 // Assise 0 : seulement la hauteur du joint (ou règle spéciale)
                 if (this.isCellularConcreteType(type)) {
-                    totalHeight = 1.2; // mortier base
+                    totalHeight = baseOffset + 1.2; // mortier base + offset
                 } else if (type === 'insulation') {
-                    totalHeight = 0; // déjà 0
+                } else if (this.isInsulationType(type)) {
+                    totalHeight = baseOffset; // déjà offset
+                } else if (this.isTerracottaType(type)) {
+                    totalHeight = baseOffset + 1.2; // base mortier + offset
                 } else {
-                    totalHeight = jointHeightForThisAssise;
+                    totalHeight = baseOffset + jointHeightForThisAssise;
                 }
                 continue;
             }
@@ -1343,12 +1530,16 @@ class AssiseManager {
             // Assises suivantes : hauteur de l'élément + joint suivant (sauf exceptions)
             const elementHeight = this.getDefaultElementHeight(type);
 
-            if (type === 'insulation') {
+            if (this.isInsulationType(type)) {
                 // Pas de joint horizontal pour isolants
                 totalHeight += elementHeight;
             } else if (this.isCellularConcreteType(type)) {
                 // Colle très fine 1mm = 0.1cm pour TOUTES les assises > 0 (BC5, BC7, CELLULAIRE, etc.)
                 const thinJoint = 0.1; // 1 mm
+                totalHeight += elementHeight + thinJoint;
+            } else if (this.isTerracottaType(type)) {
+                // Terre cuite: joints fins 1mm (0.1cm) pour toutes les assises > 0
+                const thinJoint = 0.1;
                 totalHeight += elementHeight + thinJoint;
             } else {
                 totalHeight += elementHeight + jointHeightForThisAssise;
@@ -1392,7 +1583,7 @@ class AssiseManager {
         }
         
         // CORRECTION: Pour les isolants, essayer d'utiliser le InsulationSelector s'il est disponible
-        if (type === 'insulation' && window.InsulationSelector) {
+        if (this.isInsulationType(type) && window.InsulationSelector) {
             try {
                 const currentInsulation = window.InsulationSelector.getCurrentInsulationData();
                 if (currentInsulation && currentInsulation.height) {
@@ -1454,7 +1645,8 @@ class AssiseManager {
             'B9': 19,         // Blocs creux B9 (largeur 9cm) - hauteur 19 cm
             'B14': 19,        // Blocs creux B14 (largeur 14cm) - hauteur 19 cm
             'B19': 19,        // Blocs creux B19 (largeur 19cm) - hauteur 19 cm
-            'B29': 19,        // Blocs creux B29 (largeur 29cm) - hauteur 19 cm
+            'B29_PANNERESSE': 19,    // Blocs B29 Panneresse (39×29cm) - hauteur 19 cm
+            'B29_BOUTISSE': 19,  // Blocs B29 Boutisse (29×39cm) - hauteur 19 cm
             
             // Sous-types de béton cellulaire spécifiques (tous 25 cm de hauteur)
             'BC5': 25,        // Béton cellulaire BC5 (largeur 5cm) - hauteur 25 cm
@@ -1523,37 +1715,262 @@ class AssiseManager {
 
     // Dàtecter le sous-type de bloc à partir de ses propriétés
     detectBlockSubType(element) {
-        console.log('🔍 [DEBUG-DETECT] detectBlockSubType appelé avec element:', {
+        console.log('🚨 [BC5-DEBUG] === DÉBUT DÉTECTION detectBlockSubType ===');
+        console.log('🚨 [BC5-DEBUG] Element passé:', {
             id: element?.id,
             type: element?.type,
-            blockType: element?.blockType
+            blockType: element?.blockType,
+            userData: element?.userData
         });
+        
+        // CORRECTION: Essayer d'abord element.blockType directement (y compris Bxx/BC/ARGEX/TC et customs)
+        if (element && element.blockType) {
+            console.log('🚨 [BC-CORRECTION] element.blockType détecté:', element.blockType);
+            
+            // 0) Détection rapide des blocs creux Bxx (gère aussi _CUSTOM_ et suffixes de coupe)
+            if (typeof element.blockType === 'string') {
+                let bt = element.blockType;
+                // Enlever suffixe _CUSTOM_...
+                if (bt.includes('_CUSTOM_')) bt = bt.split('_CUSTOM_')[0];
+                // Enlever suffixes de coupe standards
+                const cutSuffixes = ['_3Q','_HALF','_1Q'];
+                for (const s of cutSuffixes) { if (bt.endsWith(s)) { bt = bt.slice(0, -s.length); break; } }
+                // Enlever suffixes longueur spécifiques (ex: _34CM, _4CM, _3CM)
+                bt = bt.replace(/_\d+CM$/i, '');
+                // Détection Bxx
+                if (bt.startsWith('B29_PANNERESSE')) { console.log('🔎 [DIRECT] B29_PANNERESSE détecté via blockType'); return 'B29_PANNERESSE'; }
+                if (bt.startsWith('B29_BOUTISSE')) { console.log('🔎 [DIRECT] B29_BOUTISSE détecté via blockType'); return 'B29_BOUTISSE'; }
+                if (bt.startsWith('B9')) { console.log('🔎 [DIRECT] B9 détecté via blockType'); return 'B9'; }
+                if (bt.startsWith('B14')) { console.log('🔎 [DIRECT] B14 détecté via blockType'); return 'B14'; }
+                if (bt.startsWith('B19')) { console.log('🔎 [DIRECT] B19 détecté via blockType'); return 'B19'; }
+            }
+
+            // CORRECTION COMPLÈTE: Détecter TOUS les blocs BC avec ORDRE SPÉCIFIQUE (du plus grand au plus petit)
+            // Commencer par les dimensions les plus grandes pour éviter les faux positifs
+            if (element.blockType.includes('60x36')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC36 détecté directement → RETOUR BC36');
+                return 'BC36';
+            }
+            if (element.blockType.includes('60x30')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC30 détecté directement → RETOUR BC30');
+                return 'BC30';
+            }
+            if (element.blockType.includes('60x24')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC24 détecté directement → RETOUR BC24');
+                return 'BC24';
+            }
+            if (element.blockType.includes('60x20')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC20 détecté directement → RETOUR BC20');
+                return 'BC20';
+            }
+            if (element.blockType.includes('60x19')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC20 (60x19) détecté directement → RETOUR BC20');
+                return 'BC20';
+            }
+            if (element.blockType.includes('60x17')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC17 détecté directement → RETOUR BC17');
+                return 'BC17';
+            }
+            if (element.blockType.includes('60x15')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC15 détecté directement → RETOUR BC15');
+                return 'BC15';
+            }
+            if (element.blockType.includes('60x14')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC15 (60x14) détecté directement → RETOUR BC15');
+                return 'BC15';
+            }
+            if (element.blockType.includes('60x10')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC10 détecté directement → RETOUR BC10');
+                return 'BC10';
+            }
+            if (element.blockType.includes('60x9')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC10 (60x9) détecté directement → RETOUR BC10');
+                return 'BC10';
+            }
+            if (element.blockType.includes('60x7')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC7 détecté directement → RETOUR BC7');
+                return 'BC7';
+            }
+            if (element.blockType.includes('60x5')) {
+                console.log('🚨 [BC-CORRECTION] ✅ BC5 détecté directement → RETOUR BC5');
+                return 'BC5';
+            }
+            
+            // CORRECTION ARGEX: Détection directe des blocs ARGEX (ordre décroissant aussi)
+            if (element.blockType.includes('39x19')) {
+                console.log('🚨 [ARGEX-DEBUG] ✅ ARGEX19 détecté directement → RETOUR ARGEX19');
+                return 'ARGEX19';
+            }
+            if (element.blockType.includes('39x14')) {
+                console.log('🚨 [ARGEX-DEBUG] ✅ ARGEX14 détecté directement → RETOUR ARGEX14');
+                return 'ARGEX14';
+            }
+            if (element.blockType.includes('39x9')) {
+                console.log('🚨 [ARGEX-DEBUG] ✅ ARGEX9 détecté directement → RETOUR ARGEX9');
+                return 'ARGEX9';
+            }
+            
+            // CORRECTION TERRE CUITE: Détection directe des blocs terre cuite (ordre décroissant)
+            if (element.blockType.includes('50x19')) {
+                console.log('🚨 [TC-DEBUG] ✅ TC19 détecté directement → RETOUR TC19');
+                return 'TC19';
+            }
+            if (element.blockType.includes('50x14')) {
+                console.log('🚨 [TC-DEBUG] ✅ TC14 détecté directement → RETOUR TC14');
+                return 'TC14';
+            }
+            if (element.blockType.includes('50x10')) {
+                console.log('🚨 [TC-DEBUG] ✅ TC10 détecté directement → RETOUR TC10');
+                return 'TC10';
+            }
+            
+            console.log('🚨 [BC-CORRECTION] Aucun type spécialisé détecté directement, passage à la logique BlockSelector');
+        } else {
+            console.log('🚨 [BC-CORRECTION] Pas de element.blockType, passage à la logique BlockSelector');
+        }
+        // console.log('🆕🆕🆕 [DETECTBLOCKSUBTYPE] VERSION V4 - ULTRA FORCE RELOAD - FIX B14_34CM 🆕🆕🆕');
+        // console.log('� [DETECTBLOCKSUBTYPE] DEBUT DE LA FONCTION');
+        // console.log('�🔍 [DEBUG-DETECT] detectBlockSubType appelé avec element:', {
+        //     id: element?.id,
+        //     type: element?.type,
+        //     blockType: element?.blockType
+        // });
+        // console.log('🔍 [ELEMENT-DETAILS] TOUTES les propriétés element:', {
+        //     id: element?.id,
+        //     type: element?.type,
+        //     blockType: element?.blockType,
+        //     dimensions: element?.dimensions,
+        //     material: element?.material,
+        //     cut: element?.cut
+        // });
         
         if (!element || element.type !== 'block') {
             console.log('🔍 [DEBUG-DETECT] Element invalide ou pas un bloc, retour null');
             return null;
         }
         
+        // console.log('ELEMENT EST UN BLOC VALIDE - TEST BLOCKSELECTOR');
+        // console.warn('========== BLOCKSELECTOR DEBUG ==========');
+        // console.warn('window.BlockSelector existe?', !!window.BlockSelector);
+        // console.warn('window.BlockSelector.getCurrentBlockData existe?', !!(window.BlockSelector?.getCurrentBlockData));
+        // console.warn('window.BlockSelector.currentBlock existe?', !!(window.BlockSelector?.currentBlock));
+        
+        // console.warn('🚀 AVANT IF BLOCKSELECTOR - window.BlockSelector:', window.BlockSelector);
+        // console.warn('🚀 AVANT IF BLOCKSELECTOR - typeof:', typeof window.BlockSelector);
+        // console.warn('🚀 AVANT IF BLOCKSELECTOR - truthy?', !!window.BlockSelector);
+        
         // Si le BlockSelector est disponible, utiliser les informations du bloc courant
         if (window.BlockSelector) {
+            // console.warn('� ENTRÉE DANS IF BLOCKSELECTOR !!!!');
+            // console.warn('�🔍 [DEBUG-DETECT] BlockSelector disponible - ENTREE DANS LE BLOC');
             try {
+                // console.warn('� TRY BLOCK DEBUT !!!!');
+                // console.warn('�🔍 [DEBUG-DETECT] Début try block');
                 const currentBlock = window.BlockSelector.getCurrentBlockData();
+                // console.warn('🚀 APRÈS getCurrentBlockData');
                 const blockType = window.BlockSelector.currentBlock;
-                
-                console.log('🔍 [DEBUG-DETECT] BlockSelector data:', {
-                    currentBlock: currentBlock,
-                    blockType: blockType,
-                    category: currentBlock?.category
-                });
+                // console.warn('🚀 APRÈS currentBlock, blockType:', blockType);
 
-                if (currentBlock && currentBlock.category === 'hollow') {
-                    console.log('🔍 [DEBUG-DETECT] Bloc détecté comme hollow, blockType:', blockType);
+                // TRAITEMENT PRIORITAIRE: blocs personnalisés (custom) doivent hériter de leur baseBlock
+                if (currentBlock && currentBlock.isCustom && currentBlock.baseBlock) {
+                    const base = currentBlock.baseBlock;
+                    console.log('🧩 [CUSTOM-DETECT] Bloc personnalisé détecté, baseBlock =', base);
+                    // 1) Blocs creux Bxx (hollow)
+                    if (base === 'B9' || base === 'B14' || base === 'B19' || base === 'B29_PANNERESSE' || base === 'B29_BOUTISSE') {
+                        return base;
+                    }
+                    // 2) Béton cellulaire (BC_/BCA_ → BCxx)
+                    if (base.startsWith('BC_') || base.startsWith('BCA_')) {
+                        if (base.includes('60x36')) return 'BC36';
+                        if (base.includes('60x30')) return 'BC30';
+                        if (base.includes('60x24')) return 'BC24';
+                        if (base.includes('60x20') || base.includes('60x19')) return 'BC20';
+                        if (base.includes('60x17')) return 'BC17';
+                        if (base.includes('60x15') || base.includes('60x14')) return 'BC15';
+                        if (base.includes('60x10') || base.includes('60x9')) return 'BC10';
+                        if (base.includes('60x7')) return 'BC7';
+                        if (base.includes('60x5')) return 'BC5';
+                        return 'CELLULAIRE';
+                    }
+                    // 3) Blocs ARGEX (ARGEX_39x*) → ARGEXxx
+                    if (base.startsWith('ARGEX_')) {
+                        if (base.includes('39x19')) return 'ARGEX19';
+                        if (base.includes('39x14')) return 'ARGEX14';
+                        if (base.includes('39x9')) return 'ARGEX9';
+                        return 'ARGEX';
+                    }
+                    // 4) Terre cuite (TC_50x*) → TCxx
+                    if (base.startsWith('TC_')) {
+                        if (base.includes('50x19')) return 'TC19';
+                        if (base.includes('50x14')) return 'TC14';
+                        if (base.includes('50x10')) return 'TC10';
+                        return 'TERRE_CUITE';
+                    }
+                    // 5) Fallback: si on n'a pas reconnu, essayer d'extraire depuis l'identifiant complet
+                    const fromId = (blockType || '').split('_CUSTOM_')[0] || base;
+                    if (fromId === 'B9' || fromId === 'B14' || fromId === 'B19' || fromId === 'B29_PANNERESSE' || fromId === 'B29_BOUTISSE') {
+                        return fromId;
+                    }
+                    if (fromId.includes('60x36')) return 'BC36';
+                    if (fromId.includes('60x30')) return 'BC30';
+                    if (fromId.includes('60x24')) return 'BC24';
+                    if (fromId.includes('60x20') || fromId.includes('60x19')) return 'BC20';
+                    if (fromId.includes('60x17')) return 'BC17';
+                    if (fromId.includes('60x15') || fromId.includes('60x14')) return 'BC15';
+                    if (fromId.includes('60x10') || fromId.includes('60x9')) return 'BC10';
+                    if (fromId.includes('60x7')) return 'BC7';
+                    if (fromId.includes('60x5')) return 'BC5';
+                    if (fromId.includes('39x19')) return 'ARGEX19';
+                    if (fromId.includes('39x14')) return 'ARGEX14';
+                    if (fromId.includes('39x9')) return 'ARGEX9';
+                    if (fromId.includes('50x19')) return 'TC19';
+                    if (fromId.includes('50x14')) return 'TC14';
+                    if (fromId.includes('50x10')) return 'TC10';
+                    // En dernier recours, retourner la catégorie générique si disponible
+                    const cat = currentBlock.category;
+                    if (cat === 'hollow') return 'CREUX';
+                    if (cat === 'cellular' || cat === 'cellular-assise') return 'CELLULAIRE';
+                    if (cat === 'argex') return 'ARGEX';
+                    if (cat === 'terracotta') return 'TERRE_CUITE';
+                }
+                
+                // console.warn('🔍 [FLOW] IMMÉDIAT - Test getCurrentBlockData:', currentBlock);
+                // console.warn('🔍 [FLOW] IMMÉDIAT - category:', currentBlock?.category);
+                // console.warn('🔍 [FLOW] IMMÉDIAT - typeof currentBlock:', typeof currentBlock);
+                // console.warn('🔍 [FLOW] IMMÉDIAT - currentBlock existe?', !!currentBlock);
+                
+                // console.warn('� currentBlock complet:', currentBlock);
+                // console.warn('🚀 currentBlock.category:', currentBlock?.category);
+                
+                // Log détaillé AVANT tous les tests
+                // console.log('🔍 [FLOW] Tests des catégories - currentBlock:', currentBlock);
+                // console.log('🔍 [FLOW] category est:', currentBlock?.category);
+                // console.log('🔍 [FLOW] Test hollow:', currentBlock && (currentBlock.category === 'hollow'));
+                // console.log('🔍 [FLOW] Test cut:', currentBlock && (currentBlock.category === 'cut'));
+                // console.log('🔍 [FLOW] Test cellular:', currentBlock && (currentBlock.category === 'cellular'));
+                
+                // console.warn('�🔍 [DEBUG-DETECT] BlockSelector data:', {
+                //     currentBlock: currentBlock,
+                //     blockType: blockType,
+                //     category: currentBlock?.category
+                // });
+                
+                // console.log('🔍 [FLOW] AVANT TEST DES CATÉGORIES');
+                // console.log('🔍 [FLOW] currentBlock existe?', !!currentBlock);
+                // console.log('🔍 [FLOW] category:', currentBlock?.category);
+                console.log('🔍 [FLOW] Test complet: currentBlock && currentBlock.category === "hollow"');
+                console.log('🔍 [FLOW] Résultat test:', currentBlock && (currentBlock.category === 'hollow'));
+                
+                // IMPORTANT: ne pas traiter 'cut' ici pour éviter un fallback CREUX intempestif sur les coupes TC/BC/ARGEX
+                if (currentBlock && (currentBlock.category === 'hollow')) {
+                    console.warn('🔍 [DEBUG-DETECT] Bloc détecté comme hollow, blockType:', blockType, 'category:', currentBlock.category);
                     
                     // Utiliser blockType pour identifier le sous-type spécifique
                     // Gérer les suffixes de coupe (_3Q, _HALF, _1Q, _CUSTOM_)
                     let baseBlockType = blockType;
+                    console.log('🔍 [DEBUG-DETECT] blockType original pour B29:', blockType);
                     if (blockType && typeof blockType === 'string') {
-                        const cutSuffixes = ['_3Q', '_HALF', '_1Q'];
+                        const cutSuffixes = ['_3Q', '_HALF', '_1Q', '_34CM', '_4CM'];
                         for (const suffix of cutSuffixes) {
                             if (blockType.endsWith(suffix)) {
                                 baseBlockType = blockType.replace(suffix, '');
@@ -1568,7 +1985,12 @@ class AssiseManager {
                         }
                     }
                     
-                    console.log('🔍 [DEBUG-DETECT] Test du baseBlockType:', baseBlockType);
+                    console.warn('🔍 [DEBUG-DETECT] Test du baseBlockType:', baseBlockType);
+                    
+                    console.log('🔍 [FLOW] === DÉBUT TESTS B14 ===');
+                    console.log('🔍 [FLOW] baseBlockType === "B14"?', baseBlockType === 'B14');
+                    console.log('🔍 [FLOW] typeof baseBlockType:', typeof baseBlockType);
+                    console.log('🔍 [FLOW] baseBlockType value:', JSON.stringify(baseBlockType));
                     
                     if (baseBlockType === 'B9') {
                         console.log('🔍 [DEBUG-DETECT] ✅ Identifié comme B9');
@@ -1576,22 +1998,28 @@ class AssiseManager {
                     }
                     if (baseBlockType === 'B14') {
                         console.log('🔍 [DEBUG-DETECT] ✅ Identifié comme B14');
+                        console.log('🔍 [FLOW] === RETOUR B14 ===');
                         return 'B14';
                     }
                     if (baseBlockType === 'B19') {
                         console.log('🔍 [DEBUG-DETECT] ✅ Identifié comme B19');
                         return 'B19';
                     }
-                    if (baseBlockType === 'B29') {
-                        console.log('🔍 [DEBUG-DETECT] ✅ Identifié comme B29');
-                        return 'B29';
+                    if (baseBlockType === 'B29_PANNERESSE') {
+                        console.warn('🔍 [DEBUG-DETECT] ✅ Identifié comme B29_PANNERESSE');
+                        return 'B29_PANNERESSE';
+                    }
+                    if (baseBlockType === 'B29_BOUTISSE') {
+                        console.log('🔍 [DEBUG-DETECT] ✅ Identifié comme B29_BOUTISSE');
+                        return 'B29_BOUTISSE';
                     }
                     
                     // Fallback vers le type générique - MAIS AVEC PLUS DE DEBUG
                     console.log('🔍 [DEBUG-DETECT] ⚠️ Aucun type spécifique trouvé pour baseBlockType:', baseBlockType);
                     console.log('🔍 [DEBUG-DETECT] ⚠️ blockType original:', blockType);
                     console.log('🔍 [DEBUG-DETECT] ⚠️ currentBlock:', currentBlock);
-                    console.log('🔍 [DEBUG-DETECT] ⚠️ Fallback vers CREUX');
+                    // Ici on reste dans la catégorie hollow uniquement
+                    console.log('🔍 [DEBUG-DETECT] ⚠️ Fallback vers CREUX (catégorie hollow)');
                     return 'CREUX';
                 }
                 
@@ -1646,43 +2074,153 @@ class AssiseManager {
                     return 'CELLULAIRE';
                 }
                 
+                // Traitement DÉDIÉ aux blocs coupés (toutes familles : creux, cellular, argex, terre cuite)
                 if (currentBlock && currentBlock.category === 'cut') {
+                    console.log('🔍 [DEBUG-CUT] Bloc avec catégorie cut détecté, blockType:', blockType);
+                    
                     // Extraire le type de base en supprimant les suffixes de coupe
                     let baseType = blockType;
                     if (blockType && typeof blockType === 'string') {
-                        const cutSuffixes = ['_3Q', '_HALF', '_1Q'];
+                        // Liste complète des suffixes de coupe possibles
+                        const cutSuffixes = ['_3Q', '_HALF', '_1Q', '_34CM', '_4CM'];
                         for (const suffix of cutSuffixes) {
                             if (blockType.endsWith(suffix)) {
                                 baseType = blockType.replace(suffix, '');
+                                console.log('🔍 [DEBUG-CUT] Suffixe de coupe détecté:', suffix, '→ baseType:', baseType);
                                 break;
                             }
+                        }
+                        
+                        // Cas spécial pour les coupes avec dimensions (ex: B14_34CM, B29_BOUTISSE_4CM)
+                        if (baseType === blockType) {
+                            // Si aucun suffixe standard trouvé, chercher des patterns de dimensions
+                            const dimensionPattern = /_\d+CM$/;
+                            if (dimensionPattern.test(blockType)) {
+                                baseType = blockType.replace(dimensionPattern, '');
+                                console.log('🔍 [DEBUG-CUT] Pattern dimension détecté → baseType:', baseType);
+                            }
+                        }
+                    }
+                    
+                    console.log('🔍 [DEBUG-CUT] BaseType final:', baseType);
+                    
+                    // Spécial TERRE CUITE: si baseType est générique, essayer d'hériter du sous-type précis
+                    if (baseType === 'TERRE_CUITE') {
+                        // 1) Si BlockSelector fournit baseBlock (ex: TC14), l'utiliser
+                        if (currentBlock.baseBlock && typeof currentBlock.baseBlock === 'string' && currentBlock.baseBlock.startsWith('TC')) {
+                            console.log('🔍 [DEBUG-CUT] TERRE_CUITE générique → usage baseBlock:', currentBlock.baseBlock);
+                            return currentBlock.baseBlock;
+                        }
+                        // 2) Sinon, si l'assise courante est un sous-type TCxx, le conserver pour rester sur la même pile
+                        if (this.currentType && typeof this.currentType === 'string' && this.currentType.startsWith('TC')) {
+                            console.log('🔍 [DEBUG-CUT] TERRE_CUITE générique → héritage currentType:', this.currentType);
+                            return this.currentType;
                         }
                     }
                     
                     // Pour les blocs coupés, utiliser la même assise que le bloc entier d'origine
                     if (baseType === 'B9') {
+                        console.log('🔍 [DEBUG-CUT] ✅ Retour B9');
                         return 'B9';
                     }
                     if (baseType === 'B14') {
+                        console.log('🔍 [DEBUG-CUT] ✅ Retour B14');
                         return 'B14';
                     }
                     if (baseType === 'B19') {
+                        console.log('🔍 [DEBUG-CUT] ✅ Retour B19');
                         return 'B19';
                     }
-                    if (baseType === 'B29') {
-                        return 'B29';
+                    if (baseType === 'B29_PANNERESSE') {
+                        console.log('🔍 [DEBUG-CUT] ✅ Retour B29_PANNERESSE');
+                        return 'B29_PANNERESSE';
+                    }
+                    if (baseType === 'B29_BOUTISSE') {
+                        console.log('🔍 [DEBUG-CUT] ✅ Retour B29_BOUTISSE');
+                        return 'B29_BOUTISSE';
                     }
                     
                     // Blocs cellulaires coupés : même logique que les entiers
-                    if (baseType.includes('60x5')) return 'BC5';
-                    if (baseType.includes('60x7')) return 'BC7';
-                    if (baseType.includes('60x10')) return 'BC10';
-                    if (baseType.includes('60x15')) return 'BC15';
-                    if (baseType.includes('60x17')) return 'BC17';
-                    if (baseType.includes('60x20')) return 'BC20';
-                    if (baseType.includes('60x24')) return 'BC24';
-                    if (baseType.includes('60x30')) return 'BC30';
-                    if (baseType.includes('60x36')) return 'BC36';
+                    console.log('🔍 [DEBUG-CUT] Test des blocs BC coupés avec baseType:', baseType);
+                    if (baseType.includes('60x5')) {
+                        console.log('🔍 [DEBUG-CUT] ✅ BC5 coupé détecté → BC5');
+                        return 'BC5';
+                    }
+                    if (baseType.includes('60x7')) {
+                        console.log('🔍 [DEBUG-CUT] ✅ BC7 coupé détecté → BC7');
+                        return 'BC7';
+                    }
+                    if (baseType.includes('60x10')) {
+                        console.log('🔍 [DEBUG-CUT] ✅ BC10 coupé détecté → BC10');
+                        return 'BC10';
+                    }
+                    if (baseType.includes('60x15')) {
+                        console.log('🔍 [DEBUG-CUT] ✅ BC15 coupé détecté → BC15');
+                        return 'BC15';
+                    }
+                    if (baseType.includes('60x17')) {
+                        console.log('🔍 [DEBUG-CUT] ✅ BC17 coupé détecté → BC17');
+                        return 'BC17';
+                    }
+                    if (baseType.includes('60x20')) {
+                        console.log('🔍 [DEBUG-CUT] ✅ BC20 coupé détecté → BC20');
+                        return 'BC20';
+                    }
+                    if (baseType.includes('60x24')) {
+                        console.log('🔍 [DEBUG-CUT] ✅ BC24 coupé détecté → BC24');
+                        return 'BC24';
+                    }
+                    if (baseType.includes('60x30')) {
+                        console.log('🔍 [DEBUG-CUT] ✅ BC30 coupé détecté → BC30');
+                        return 'BC30';
+                    }
+                    if (baseType.includes('60x36')) {
+                        console.log('🔍 [DEBUG-CUT] ✅ BC36 coupé détecté → BC36');
+                        return 'BC36';
+                    }
+                    
+                    // CORRECTION BC5: Gestion spéciale pour les blocs BC_ et BCA_ coupés
+                    if (baseType.startsWith('BC_') || baseType.startsWith('BCA_')) {
+                        console.log('🔍 [DEBUG-CUT] Bloc BC_ ou BCA_ coupé détecté, analyse du baseType:', baseType);
+                        if (baseType.includes('60x5')) {
+                            console.log('🔍 [DEBUG-CUT] ✅ BC_/BCA_ avec 60x5 → BC5');
+                            return 'BC5';
+                        }
+                        if (baseType.includes('60x7')) {
+                            console.log('🔍 [DEBUG-CUT] ✅ BC_/BCA_ avec 60x7 → BC7');
+                            return 'BC7';
+                        }
+                        if (baseType.includes('60x10') || baseType.includes('60x9')) {
+                            console.log('🔍 [DEBUG-CUT] ✅ BC_/BCA_ avec 60x10/60x9 → BC10');
+                            return 'BC10';
+                        }
+                        if (baseType.includes('60x15') || baseType.includes('60x14')) {
+                            console.log('🔍 [DEBUG-CUT] ✅ BC_/BCA_ avec 60x15/60x14 → BC15');
+                            return 'BC15';
+                        }
+                        if (baseType.includes('60x17')) {
+                            console.log('🔍 [DEBUG-CUT] ✅ BC_/BCA_ avec 60x17 → BC17');
+                            return 'BC17';
+                        }
+                        if (baseType.includes('60x20') || baseType.includes('60x19')) {
+                            console.log('🔍 [DEBUG-CUT] ✅ BC_/BCA_ avec 60x20/60x19 → BC20');
+                            return 'BC20';
+                        }
+                        if (baseType.includes('60x24')) {
+                            console.log('🔍 [DEBUG-CUT] ✅ BC_/BCA_ avec 60x24 → BC24');
+                            return 'BC24';
+                        }
+                        if (baseType.includes('60x30')) {
+                            console.log('🔍 [DEBUG-CUT] ✅ BC_/BCA_ avec 60x30 → BC30');
+                            return 'BC30';
+                        }
+                        if (baseType.includes('60x36')) {
+                            console.log('🔍 [DEBUG-CUT] ✅ BC_/BCA_ avec 60x36 → BC36');
+                            return 'BC36';
+                        }
+                        console.log('🔍 [DEBUG-CUT] ⚠️ BC_/BCA_ sans dimensions reconnues, fallback vers CELLULAIRE');
+                        return 'CELLULAIRE';
+                    }
                     
                     // Blocs ARGEX coupés : détecter le sous-type selon les dimensions
                     if (baseType.includes('39x9')) return 'ARGEX9';
@@ -1694,13 +2232,23 @@ class AssiseManager {
                     if (baseType.includes('50x14')) return 'TC14';
                     if (baseType.includes('50x19')) return 'TC19';
                     
-                    // Autres types de blocs coupés - utiliser baseType au lieu de blockType
+                    console.log('🔍 [DEBUG-CUT] Autres types de blocs coupés - utiliser baseType au lieu de blockType');
+                    console.log('🔍 [DEBUG-CUT] baseType avant fallback:', baseType);
                     if (baseType === 'cellular' || baseType === 'CELLULAIRE') {
+                        console.log('🔍 [DEBUG-CUT] ✅ Retour CELLULAIRE');
                         return 'CELLULAIRE';
                     }
-                    if (baseType === 'argex' || baseType === 'ARGEX') return 'ARGEX';
-                    if (baseType === 'terracotta' || baseType === 'TERRE_CUITE') return 'TERRE_CUITE';
+                    if (baseType === 'argex' || baseType === 'ARGEX') {
+                        console.log('🔍 [DEBUG-CUT] ✅ Retour ARGEX');
+                        return 'ARGEX';
+                    }
+                    if (baseType === 'terracotta' || baseType === 'TERRE_CUITE') {
+                        console.log('🔍 [DEBUG-CUT] ✅ Retour TERRE_CUITE');
+                        return 'TERRE_CUITE';
+                    }
                     
+                    console.log('🔍 [DEBUG-CUT] ❌ FALLBACK VERS CREUX - baseType non reconnu:', baseType);
+                    console.log('🔍 [DEBUG-CUT] ❌ blockType original était:', blockType);
                     return 'CREUX';
                 }
                 
@@ -1721,19 +2269,43 @@ class AssiseManager {
                 }
                 
             } catch (error) {
+                console.warn('🔍 [DEBUG-DETECT] ERREUR dans try block:', error);
                 console.error('Erreur dans detectBlockSubType:', error);
             }
         } else {
-            
+            console.warn('🔍 [DEBUG-DETECT] BlockSelector non disponible, passage au fallback');
         }
         
         // Fallback : utiliser les propriétés de l'élément lui-même
+        console.warn('🔍 [DEBUG-DETECT] Fallback - element.blockType:', element.blockType);
         if (element.blockType) {
+            const blockSubTypes = ['CREUX', 'CELLULAIRE', 'ARGEX', 'TERRE_CUITE', 'B9', 'B14', 'B19', 'B29_PANNERESSE', 'B29_BOUTISSE', 'BC5', 'BC7', 'BC10', 'BC15', 'BC17', 'BC20', 'BC24', 'BC30', 'BC36', 'ARGEX9', 'ARGEX14', 'ARGEX19', 'TC10', 'TC14', 'TC19'];
             
-            const blockSubTypes = ['CREUX', 'CELLULAIRE', 'ARGEX', 'TERRE_CUITE', 'B9', 'B14', 'B19', 'B29', 'BC5', 'BC7', 'BC10', 'BC15', 'BC17', 'BC20', 'BC24', 'BC30', 'BC36', 'ARGEX9', 'ARGEX14', 'ARGEX19', 'TC10', 'TC14', 'TC19'];
-            if (blockSubTypes.includes(element.blockType)) {
-                
-                return element.blockType;
+            // Gérer les suffixes de coupe dans le fallback
+            let baseBlockType = element.blockType;
+            console.warn('🔍 [DEBUG-DETECT] blockType original dans fallback:', element.blockType);
+            if (element.blockType && typeof element.blockType === 'string') {
+                const cutSuffixes = ['_3Q', '_HALF', '_1Q'];
+                for (const suffix of cutSuffixes) {
+                    if (element.blockType.endsWith(suffix)) {
+                        baseBlockType = element.blockType.replace(suffix, '');
+                        console.warn('🔍 [DEBUG-DETECT] Suffixe de coupe détecté dans fallback:', suffix, 'baseBlockType:', baseBlockType);
+                        break;
+                    }
+                }
+                // Gérer les suffixes custom (_CUSTOM_XX_W_XX_H_XX)
+                if (element.blockType.includes('_CUSTOM_')) {
+                    baseBlockType = element.blockType.split('_CUSTOM_')[0];
+                    console.warn('🔍 [DEBUG-DETECT] Suffixe custom détecté dans fallback, baseBlockType:', baseBlockType);
+                }
+                // Gérer les suffixes dimension (ex: _34CM, _4CM)
+                baseBlockType = baseBlockType.replace(/_\d+CM$/i, '');
+            }
+            
+            console.warn('🔍 [DEBUG-DETECT] Test baseBlockType dans fallback:', baseBlockType, 'dans blockSubTypes?', blockSubTypes.includes(baseBlockType));
+            if (blockSubTypes.includes(baseBlockType)) {
+                console.warn('🔍 [DEBUG-DETECT] ✅ Fallback trouvé avec baseBlockType:', baseBlockType);
+                return baseBlockType;
             }
         }
 
@@ -1820,20 +2392,36 @@ class AssiseManager {
         
         // LOG DES DIMENSIONS DE L'ELEMENT À CE MOMENT
         if (element) {
-            console.warn('========== DIMENSIONS ELEMENT DANS ASSISE ==========');
-            console.log('Dimensions element dans addElementToAssise:', {
-                id: element.id,
-                type: element.type,
-                width: element.width,
-                height: element.height,
-                depth: element.depth,
-                length: element.length,
-                dimensions: element.dimensions
-            });
+            // console.warn('========== DIMENSIONS ELEMENT DANS ASSISE ==========');
+            // console.log('Dimensions element dans addElementToAssise:', {
+            //     id: element.id,
+            //     type: element.type,
+            //     width: element.width,
+            //     height: element.height,
+            //     depth: element.depth,
+            //     length: element.length,
+            //     dimensions: element.dimensions
+            // });
         }
         
     // Poutres désormais gérées (assise dédiée 'beam')
         let elementType = this.currentType; // Par défaut
+        
+        // Protection: si c'est un isolant, on bascule directement sur la famille d'isolant et on évite toute détection bloc
+        if (element && element.type === 'insulation') {
+            let family = 'insulation';
+            try {
+                const t = element.insulationType || window.InsulationSelector?.currentInsulation || '';
+                const m = (t || '').toUpperCase().match(/^(PUR|LAINEROCHE|XPS|PSE|FB|LV)/);
+                family = m ? m[1] : 'insulation';
+            } catch(e) {}
+            elementType = family;
+            if (this.currentType !== family) {
+                this.setCurrentType(family, true);
+            }
+            this.addElementToAssiseForType(elementType, elementId, assiseIndex);
+            return; // ne pas continuer sur la logique blocs/briques
+        }
         
         if (element && element.type) {
             // Pour les joints, utiliser le type courant (après basculement automatique)
@@ -1869,18 +2457,18 @@ class AssiseManager {
                     this._lastDetectedBlock = element.id;
                 }
 
-                // CORRECTION IMPORTANTE : Si on est déjà sur un type spécifique (B9, B14, etc.)
-                // et que l'élément est un bloc, garder ce type au lieu de détecter "CREUX"
-                const currentSpecificTypes = ['B9', 'B14', 'B19', 'B29'];
+                // CORRECTION IMPORTANTE : Toujours détecter le type réel du bloc placé
+                const currentSpecificTypes = ['B9', 'B14', 'B19', 'B29_PANNERESSE', 'B29_BOUTISSE'];
                 let blockSubType = null;
                 
-                if (currentSpecificTypes.includes(this.currentType)) {
-                    console.log('🏗️ [DEBUG-ASSISE] Déjà sur un type spécifique:', this.currentType, '- Conservation du type');
+                // Toujours détecter le type réel d'abord
+                blockSubType = this.detectBlockSubType(element);
+                console.log('🏗️ [DEBUG-ASSISE] detectBlockSubType retourné:', blockSubType);
+                
+                // Si aucun type détecté et qu'on est sur un type spécifique, le conserver
+                if (!blockSubType && currentSpecificTypes.includes(this.currentType)) {
+                    console.log('🏗️ [DEBUG-ASSISE] Aucun type détecté, conservation du type courant:', this.currentType);
                     blockSubType = this.currentType;
-                } else {
-                    // Bloc détecté, tentative de détection du sous-type
-                    blockSubType = this.detectBlockSubType(element);
-                    console.log('🏗️ [DEBUG-ASSISE] detectBlockSubType retourné:', blockSubType);
                 }
 
                 if (blockSubType) {
@@ -1905,15 +2493,19 @@ class AssiseManager {
                     if (this.currentType !== targetAssiseType) {
                         console.log('🏗️ [DEBUG-ASSISE] Basculement vers assise type:', targetAssiseType, 'depuis:', this.currentType);
                         
-                        // CORRECTION : Conserver l'index d'assise actuel lors du changement de type
-                        const currentAssiseIndex = this.currentAssiseByType.get(this.currentType) || 0;
-                        console.log('🏗️ [DEBUG-ASSISE] Conservation de l\'index d\'assise:', currentAssiseIndex);
+                        // CORRECTION : Ne PAS conserver l'index d'assise lors du changement de type de bloc
+                        // Chaque type de bloc commence sur son assise 0 par défaut
+                        console.log('🏗️ [DEBUG-ASSISE] Réinitialisation sur assise 0 pour le nouveau type de bloc');
                         
                         this.setCurrentType(targetAssiseType, true); // skipToolChange = true
                         
-                        // Définir le même index pour le nouveau type
-                        this.currentAssiseByType.set(targetAssiseType, currentAssiseIndex);
-                        console.log('🏗️ [DEBUG-ASSISE] Index conservé pour le nouveau type:', targetAssiseType, 'index:', currentAssiseIndex);
+                        // CORRECTION: Forcer l'assise 0 pour les nouveaux types de blocs (sauf si explicitement défini)
+                        if (!this.currentAssiseByType.has(targetAssiseType)) {
+                            this.currentAssiseByType.set(targetAssiseType, 0);
+                            console.log('🏗️ [DEBUG-ASSISE] Nouveau type initialisé sur assise 0:', targetAssiseType);
+                        } else {
+                            console.log('🏗️ [DEBUG-ASSISE] Type existant, conservation assise courante:', this.currentAssiseByType.get(targetAssiseType));
+                        }
                         
                     } else {
                         console.log('🏗️ [DEBUG-ASSISE] Déjà sur le bon type d\'assise:', targetAssiseType);
@@ -1946,7 +2538,17 @@ class AssiseManager {
             }
             // Mapper le type de l'élément vers les types d'assise supportés
             else if (this.allSupportedTypes.includes(element.type)) {
-                elementType = element.type;
+                // Spécial ISOLANT: ne pas écraser la famille par le générique 'insulation'
+                if (element.type === 'insulation') {
+                    // Déterminer la famille depuis currentType, InsulationSelector ou fallback 'insulation'
+                    let fam = this.getInsulationFamilyFromType(this.currentType);
+                    if (!this.isInsulationType(fam) && window.InsulationSelector) {
+                        try { fam = this.getInsulationFamilyFromType(window.InsulationSelector.currentInsulation); } catch(e) {}
+                    }
+                    elementType = this.isInsulationType(fam) ? fam : 'insulation';
+                } else {
+                    elementType = element.type;
+                }
                 // console.log(`🔧 Type supporté directement: ${element.type}`); // désactivé
             } else {
                 // Log supprimé: Type non supporté (debug construction)
@@ -1955,12 +2557,13 @@ class AssiseManager {
             // Log supprimé: élément non trouvé ou sans type
         }
 
-        // NORMALISATION SUPPLÉMENTAIRE ISOLANT (libellés UI ex: 'Isolant PUR5')
+        // NORMALISATION SUPPLÉMENTAIRE ISOLANT (libellés UI ex: 'Isolant PUR5') → mapper vers la famille
         if (elementType && typeof elementType === 'string') {
             const up = elementType.toUpperCase();
             if (up.startsWith('ISOLANT') || up.startsWith('ISOLATION') || up.includes(' ISOLANT')) {
                 const prev = elementType;
-                elementType = 'insulation';
+                const famMatch = up.match(/(PUR|LAINEROCHE|XPS|PSE|FB|LV)/);
+                elementType = famMatch ? famMatch[1] : 'insulation';
                 if (window._isoGhostLog) {
                     window._isoGhostLog('NORMALIZE_ISOLANT_ELEMENT_TYPE', { previous: prev, normalized: elementType });
                 }
@@ -1989,12 +2592,12 @@ class AssiseManager {
         
         console.log('🏗️ [DEBUG-ASSISE] ✅ Élément ajouté avec succès à l\'assise', assiseIndex, 'de type', elementType);
 
-        // LOG SPÉCIFIQUE ISOLANT
-        if (elementType === 'insulation') {
+        // LOG SPÉCIFIQUE ISOLANT (par famille)
+        if (this.isInsulationType(elementType)) {
             try {
                 const idx = assiseIndex;
-                const assiseHeight = this.getAssiseHeightForType('insulation', idx);
-                const currentAssise = this.currentAssiseByType.get('insulation');
+                const assiseHeight = this.getAssiseHeightForType(elementType, idx);
+                const currentAssise = this.currentAssiseByType.get(elementType);
                 const ghost = window.ConstructionTools?.ghostElement;
                 const ghostY = ghost ? Math.round((ghost.position?.y || 0) * 100)/100 : null;
                 let anomaly = null;
@@ -2017,7 +2620,8 @@ class AssiseManager {
                     computedAssiseHeight: assiseHeight,
                     ghostY,
                     ghostExpectedCenterY: assiseHeight + (ghost?.dimensions?.height||0)/2,
-                    elementCountInAssise: this.assisesByType.get('insulation')?.get(idx)?.elements.size,
+                    family: elementType,
+                    elementCountInAssise: this.assisesByType.get(elementType)?.get(idx)?.elements.size,
                     anomaly
                 });
             } catch(e) { /* ignore */ }
@@ -2045,10 +2649,10 @@ class AssiseManager {
         }
 
         // Après création potentielle de l'assise, log pré-ajout pour isolants
-        if (type === 'insulation') {
+        if (this.isInsulationType(type)) {
             try {
                 const beforeCount = assisesForType.get(assiseIndex)?.elements.size || 0;
-                window._isoGhostLog('PRE_ADD_TO_ASSISE_INSULATION', { assiseIndex, beforeCount });
+                window._isoGhostLog('PRE_ADD_TO_ASSISE_INSULATION', { family: type, assiseIndex, beforeCount });
             } catch(e) {}
         }
         
@@ -2146,25 +2750,28 @@ class AssiseManager {
                 console.error(`  ? ERREUR! Face infàrieure à ${actualBaseY} cm au lieu de ${assiseHeight} cm`);
             }
             
-            // NOUVELLE FONCTIONNALITà: Mise à jour automatique de la hauteur de joint de l'assise
-            // selon les paramàtres de l'élément placé (pour les blocs cellulaires notamment)
+            // NOUVELLE FONCTIONNALITÉ: Mise à jour automatique de la hauteur de joint de l'assise
+            // selon les paramètres de l'élément placé (CIBLÉ pour le béton cellulaire uniquement)
             // PROTECTION ANTI-BOUCLE INFINIE: Ne pas synchroniser pendant un repositionnement
-            if (!this.isRepositioning && window.ConstructionTools && (element.type === 'block' || element.material === 'cellular-concrete' || element.material === 'cellular-assise')) {
-                const jointSettings = window.ConstructionTools.getJointSettingsForElement(element);
-                if (jointSettings && jointSettings.createJoints) {
-                    // Convertir mm en cm pour la hauteur de joint horizontal
-                    const jointHeightCm = jointSettings.horizontalThickness / 10;
-                    
-                    // Vàrifier si la hauteur de joint a ràellement changà pour àviter les mises à jour inutiles
-                    const currentJointHeight = this.getJointHeightForAssise(type, assiseIndex);
-                    if (Math.abs(currentJointHeight - jointHeightCm) > 0.001) {
-                        // Mettre à jour la hauteur de joint pour cette assise spécifique
-                        this.setJointHeightForAssise(type, assiseIndex, jointHeightCm);
-                        
-            // Log supprimé: SYNCHRONISATION JOINT
-                        // Nettoyage immédiat des joints horizontaux cellulaires en double (mortier + colle)
-                        if (type === 'CELLULAR' && window.ConstructionTools && typeof window.ConstructionTools.dedupeCellularHorizontalJoints === 'function') {
-                            window.ConstructionTools.dedupeCellularHorizontalJoints();
+            if (!this.isRepositioning && window.ConstructionTools) {
+                // Synchroniser UNIQUEMENT pour les types béton cellulaire (CELLULAIRE/BC*)
+                const isCellularType = this.isCellularConcreteType(type);
+                if (isCellularType) {
+                    const jointSettings = window.ConstructionTools.getJointSettingsForElement(element);
+                    if (jointSettings && jointSettings.createJoints) {
+                        // Convertir mm en cm pour la hauteur de joint horizontal
+                        const jointHeightCm = jointSettings.horizontalThickness / 10;
+
+                        // Vérifier si la hauteur de joint a réellement changé pour éviter les mises à jour inutiles
+                        const currentJointHeight = this.getJointHeightForAssise(type, assiseIndex);
+                        if (Math.abs(currentJointHeight - jointHeightCm) > 0.001) {
+                            // Mettre à jour la hauteur de joint pour cette assise spécifique
+                            this.setJointHeightForAssise(type, assiseIndex, jointHeightCm);
+
+                            // Nettoyage immédiat des joints horizontaux cellulaires en double (mortier + colle)
+                            if ((type === 'CELLULAR' || type === 'CELLULAIRE') && window.ConstructionTools && typeof window.ConstructionTools.dedupeCellularHorizontalJoints === 'function') {
+                                window.ConstructionTools.dedupeCellularHorizontalJoints();
+                            }
                         }
                     }
                 }
@@ -2748,9 +3355,10 @@ class AssiseManager {
         // événements pour les contràles d'assise
         const assiseSelect = document.getElementById('assiseSelect');
         const jointHeightInput = document.getElementById('jointHeight');
-        const addAssiseBtn = document.getElementById('addAssise');
+    const addAssiseBtn = document.getElementById('addAssise');
         const removeAssiseBtn = document.getElementById('removeAssise');
         const toggleGridsBtn = document.getElementById('toggleAssiseGrids');
+    const baseHeightInput = document.getElementById('baseHeight');
         
         //         // console.log('Bouton addAssise trouvé:', !!addAssiseBtn);
         
@@ -2764,6 +3372,17 @@ class AssiseManager {
             jointHeightInput.addEventListener('input', (e) => {
                 this.setJointHeight(parseFloat(e.target.value));
             });
+        }
+        if (baseHeightInput) {
+            // Supprimer l'ancien listener si présent
+            if (this.handleBaseHeightInput) {
+                baseHeightInput.removeEventListener('input', this.handleBaseHeightInput);
+            }
+            this.handleBaseHeightInput = (e) => {
+                const v = parseFloat(e.target.value);
+                this.setBaseHeightForType(this.currentType, isNaN(v) ? 0 : v);
+            };
+            baseHeightInput.addEventListener('input', this.handleBaseHeightInput);
         }
         
         if (addAssiseBtn) {
@@ -2786,18 +3405,25 @@ class AssiseManager {
                 
                 // CORRECTION SUPPLÉMENTAIRE : Forcer la mise à jour du fantôme après création d'assise
                 if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
-                    const assiseHeight = this.getAssiseHeightForType(this.currentType, newIndex);
-                    if (window.ConstructionTools.ghostElement.dimensions && window.ConstructionTools.ghostElement.dimensions.height) {
-                        const ghostHeight = window.ConstructionTools.ghostElement.dimensions.height;
-                        const ghostY = assiseHeight + ghostHeight / 2;
-                        
-                        window.ConstructionTools.ghostElement.updatePosition(
-                            window.ConstructionTools.ghostElement.position.x,
-                            ghostY,
-                            window.ConstructionTools.ghostElement.position.z
-                        );
-                        
-                        console.log(`🎯 BOUTON AJOUT ASSISE - Fantôme forcé à la position: Type ${this.currentType}, Assise ${newIndex}, Hauteur ${ghostY}cm (assise: ${assiseHeight}cm)`);
+                    // 🆕 CORRECTION B29: Utiliser repositionGhostToCurrentAssise() qui contient la logique B29 corrigée
+                    if (typeof window.ConstructionTools.repositionGhostToCurrentAssise === 'function') {
+                        console.log(`🎯 BOUTON AJOUT ASSISE - Repositionnement via repositionGhostToCurrentAssise: Type ${this.currentType}, Assise ${newIndex}`);
+                        window.ConstructionTools.repositionGhostToCurrentAssise();
+                    } else {
+                        // Fallback vers l'ancien système pour compatibilité
+                        const assiseHeight = this.getAssiseHeightForType(this.currentType, newIndex);
+                        if (window.ConstructionTools.ghostElement.dimensions && window.ConstructionTools.ghostElement.dimensions.height) {
+                            const ghostHeight = window.ConstructionTools.ghostElement.dimensions.height;
+                            const ghostY = assiseHeight + ghostHeight / 2;
+                            
+                            window.ConstructionTools.ghostElement.updatePosition(
+                                window.ConstructionTools.ghostElement.position.x,
+                                ghostY,
+                                window.ConstructionTools.ghostElement.position.z
+                            );
+                            
+                            console.log(`🎯 BOUTON AJOUT ASSISE - Fantôme forcé à la position: Type ${this.currentType}, Assise ${newIndex}, Hauteur ${ghostY}cm (assise: ${assiseHeight}cm)`);
+                        }
                     }
                 }
 
@@ -3088,6 +3714,14 @@ class AssiseManager {
                 jointHeightInput.title = '';
             }
         }
+        // Mettre à jour l'affichage de la hauteur de démarrage
+        const baseHeightInput = document.getElementById('baseHeight');
+        if (baseHeightInput) {
+            baseHeightInput.value = this.getBaseHeightForType(this.currentType).toFixed(1);
+            // Autoriser pour tous les types; si besoin, on peut restreindre
+            baseHeightInput.disabled = false;
+            baseHeightInput.title = '';
+        }
         
         // Mettre à jour les statistiques (pour le type actuel)
         const assiseCountSpan = document.getElementById('assiseCount');
@@ -3214,9 +3848,7 @@ class AssiseManager {
         if (!globalAssiseList) return;
 
     // Collecter toutes les assises de tous les types
-    // Règle demandée: on n'affiche toutes les assises (y compris vides) d'un type
-    // QUE si sa première assise (index 0) est remplie.
-    // Sinon, on affiche uniquement les assises ayant des éléments (ou marquées createdByCopyIntermediate)
+    // Règle demandée: si une assise est remplie, afficher aussi l'assise inférieure même si elle est vide
         const allAssises = [];
         for (const type of this.allSupportedTypes) {
             const assisesForType = this.assisesByType.get(type);
@@ -3224,6 +3856,15 @@ class AssiseManager {
 
             // Déterminer l'index maximum existant pour ce type
             const maxIndex = Math.max(...Array.from(assisesForType.keys()));
+
+            // Identifier les assises remplies pour ce type
+            const filledAssises = [];
+            for (let index = 0; index <= maxIndex; index++) {
+                const assise = assisesForType.get(index);
+                if (assise && this.getNonJointElementCountForType(type, index) > 0) {
+                    filledAssises.push(index);
+                }
+            }
 
             for (let index = 0; index <= maxIndex; index++) {
                 const assise = assisesForType.get(index) || null;
@@ -3233,11 +3874,23 @@ class AssiseManager {
                 // Vérifier si la première assise est remplie
                 const firstAssiseFilled = this.getNonJointElementCountForType(type, 0) > 0;
 
-                // Si la première n'est pas remplie, on filtre les vides (sauf intermédiaires copiées)
-                if (!firstAssiseFilled) {
-                    const show = elementCount > 0 || assise.createdByCopyIntermediate === true;
-                    if (!show) continue;
+                // Nouvelle logique : toujours afficher l'assise inférieure à une assise remplie
+                let shouldShow = false;
+                
+                // Toujours afficher si l'assise a des éléments
+                if (elementCount > 0 || assise.createdByCopyIntermediate === true) {
+                    shouldShow = true;
                 }
+                // Afficher toutes les assises si la première est remplie
+                else if (firstAssiseFilled) {
+                    shouldShow = true;
+                }
+                // Afficher l'assise inférieure si l'assise suivante est remplie
+                else if (filledAssises.some(filledIndex => filledIndex === index + 1)) {
+                    shouldShow = true;
+                }
+
+                if (!shouldShow) continue;
 
                 allAssises.push({
                     type,
@@ -3751,6 +4404,25 @@ class AssiseManager {
         return this.getAssiseHeight(currentAssiseIndex);
     }
 
+    // Obtenir la hauteur de l'assise active pour un type spécifique (plus robuste)
+    getCurrentAssiseHeightForType(type) {
+        // Si aucun type spécifié, utiliser le type actuel
+        if (!type) {
+            type = this.currentType;
+        }
+        
+        // Pour les types B29, s'assurer d'utiliser le bon type d'assise
+        if (type && (type.startsWith('B29_PANNERESSE') || type.startsWith('B29_BOUTISSE'))) {
+            // Utiliser directement le type spécifique pour B29
+            const currentAssiseIndex = this.currentAssiseByType.get(type) || 0;
+            return this.getAssiseHeightForType(type, currentAssiseIndex);
+        } else {
+            // Pour les autres types, utiliser la logique standard
+            const currentAssiseIndex = this.currentAssiseByType.get(type) || 0;
+            return this.getAssiseHeightForType(type, currentAssiseIndex);
+        }
+    }
+
     updateSnapPointHeight() {
         if (!this.snapPoint) return;
         
@@ -3985,8 +4657,9 @@ class AssiseManager {
             depthWrite: false
         });
         
-        const jointMarker = new THREE.Mesh(jointMarkerGeometry, jointMarkerMaterial);
-        jointMarker.position.set(jointX, markerY + 0.05, jointZ);
+    const jointMarker = new THREE.Mesh(jointMarkerGeometry, jointMarkerMaterial);
+    // Positionner le plateau de joint à +1mm au-dessus de la grille
+    jointMarker.position.set(jointX, markerY + 0.1, jointZ);
         jointMarker.rotation.x = -Math.PI / 2; // Horizontal
         jointMarker.rotation.z = joint.rotation; // Màme rotation que le joint
         
@@ -4134,7 +4807,7 @@ class AssiseManager {
 
     // Dàtecter si un élément est un bloc creux
     isHollowBlock(element) {
-        // Vàrifier d'abord si l'élément a un ID contenant B suivi d'un chiffre (B9, B14, B19, B29)
+        // Vàrifier d'abord si l'élément a un ID contenant B suivi d'un chiffre (B9, B14, B19)
         if (element.id && /^B\d+/.test(element.id)) {
             return true;
         }
@@ -4743,7 +5416,6 @@ class AssiseManager {
             'B9': 'Assise B9',
             'B14': 'Assise B14',
             'B19': 'Assise B19',
-            'B29': 'Assise B29',
             
             // Sous-types béton cellulaire
             'BC5': 'Assise BC5',
@@ -5024,22 +5696,14 @@ class AssiseManager {
                     newJointHeight              // Nouvelle hauteur (àpaisseur du joint)
                 );
                 
-                // CORRECTION: Recalculer la position Y en fonction de l'assise
+                // CORRECTION: Recalculer la position Y en fonction de l'assise (incluant base offset) pour TOUTES les assises
                 let newPositionY;
-                if (elementAssiseIndex === 0) {
-                    // Pour l'assise 0, le joint horizontal va de Y=0 à Y=jointHeight
-                    // Son centre doit donc àtre à jointHeight/2
-                    newPositionY = newJointHeight / 2;
-                    // Log supprimé: joint horizontal assise 0
-                } else if (elementAssiseIndex !== null && elementAssiseIndex > 0) {
-                    // Pour les autres assises, calculer la position relative
+                if (elementAssiseIndex !== null && elementAssiseIndex >= 0) {
                     const assiseHeight = this.calculateAssiseHeightForType(jointAssiseType, elementAssiseIndex);
                     newPositionY = assiseHeight - newJointHeight / 2;
-                    // Log supprimé: joint horizontal autre assise
                 } else {
-                    // Fallback : rester au sol si assise non trouvée
+                    // Fallback : si assise introuvable, garder joint au-dessus de 0
                     newPositionY = newJointHeight / 2;
-                    // Log supprimé: joint horizontal fallback
                 }
                 
                 element.updatePosition(
@@ -5304,8 +5968,15 @@ class AssiseManager {
             centerY = assiseHeight + elementHeight / 2;
         }
         
-        // Positionner l'élément (mesh.position.y repràsente le centre)
-        mesh.position.y = centerY;
+        // Positionner l'élément
+        if (elementOrMesh.updatePosition && elementOrMesh.position) {
+            // Mettre à jour via l'API de l'élément (maintient SceneManager.elements en phase)
+            elementOrMesh.updatePosition(elementOrMesh.position.x, centerY, elementOrMesh.position.z);
+        } else {
+            // Fallback direct sur le mesh
+            mesh.position.y = centerY;
+        }
+        if (window.enableJointDebug) console.log(`🧭[ASSISE-OFFSET] reposition ${elementId} @assise ${assiseIndex} → centerY=${centerY.toFixed(2)}`);
         
         // Vàrification finale
         const actualBaseY = centerY - elementHeight / 2;

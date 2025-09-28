@@ -660,7 +660,7 @@ class MaterialLibrary {
                 section: 'compatibilite'
             },
             'concrete': {
-                name: 'Béton (ancien)',
+                name: 'Béton',
                 color: 0x888888,
                 roughness: 0.9,
                 metalness: 0.0,

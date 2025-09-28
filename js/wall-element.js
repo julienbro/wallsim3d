@@ -53,6 +53,12 @@ class WallElement {
         // Stocker les informations sur le type de bloc/brique pour déterminer le matériau
         this.blockType = options.blockType || null;
         this.brickType = options.brickType || null;
+        // Séparer les types pour l'isolant
+        this.insulationType = options.insulationType || null;
+        if (this.type === 'insulation' && this.blockType) {
+            console.warn('🔒 Sécurité: blockType fourni pour un isolant - suppression pour éviter une mauvaise détection', this.blockType);
+            this.blockType = null;
+        }
         
         // Nouveau: Détecter si c'est un élément GLB
         this.isGLBElement = this.checkIfGLBElement(options);
@@ -235,9 +241,9 @@ class WallElement {
             // console.log('🔧 Type bloc détecté, blockType:', blockType);
             if (blockType) {
                 // Blocs terre cuite → brique rouge classique
-                if (blockType.startsWith('TC_')) {
-                    // console.log('🔧 Bloc terre cuite → brique-rouge-classique');
-                    return 'brique-rouge-classique';
+                if (blockType.startsWith('TC_') || blockType === 'TERRE_CUITE' || blockType.startsWith('TC')) {
+                    // console.log('🔧 Bloc terre cuite → terracotta');
+                    return 'terracotta';
                 }
                 // Blocs béton cellulaire → béton cellulaire blanc
                 else if (blockType.startsWith('BC_') || blockType.startsWith('BCA_')) {
@@ -245,9 +251,12 @@ class WallElement {
                     return 'cellular-concrete';
                 }
             }
-            // Tous les autres blocs (B9, B14, B19, B29, etc.) → brique grise
+            // Tous les autres blocs (B9, B14, B19, etc.) → brique grise
             // console.log('🔧 Autres blocs → brique-grise');
             return 'brique-grise';
+        } else if (options.type === 'slab') {
+            // Dalles personnalisées → béton
+            return 'concrete';
         } else if (options.type === 'joint') {
             // Tous les joints → gris souris
             return 'joint-gris-souris';
@@ -1004,6 +1013,9 @@ class WallElement {
             position: this.position,
             dimensions: this.dimensions,
             rotation: this.rotation,
+            blockType: this.blockType || undefined,
+            brickType: this.brickType || undefined,
+            insulationType: this.insulationType || undefined,
             beamType: this.beamType || undefined,
             beamLengthCm: this.beamLengthCm || undefined,
             assiseName: this.assiseName || undefined,
@@ -1024,6 +1036,9 @@ class WallElement {
             width: data.dimensions.width,
             height: data.dimensions.height,
             rotation: data.rotation,
+            blockType: data.blockType,
+            brickType: data.brickType,
+            insulationType: data.insulationType,
             beamType: data.beamType,
             beamLengthCm: data.beamLengthCm
             ,assiseName: data.assiseName
