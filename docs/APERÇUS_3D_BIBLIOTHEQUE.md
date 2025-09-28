@@ -65,7 +65,6 @@ checkWebGLSupport() {
 - **B9** : 39×9×19 cm (Gris clair)
 - **B14** : 39×14×19 cm (Gris moyen)
 - **B19** : 39×19×19 cm (Gris foncé)
-- **B29** : 39×29×19 cm (Gris très foncé)
 
 ### Béton Cellulaire
 - **BC_60x5** : 60×5×25 cm
