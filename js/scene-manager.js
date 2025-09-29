@@ -671,37 +671,34 @@ class SceneManager {
         if (this._mouseMoveThrottle) {
             return;
         }
-        
         this._mouseMoveThrottle = setTimeout(() => {
             this._mouseMoveThrottle = null;
         }, 4); // Réduit à 4ms pour ~240fps maximum
-        
-        const rect = this.renderer.domElement.getBoundingClientRect();
-        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-        // Détecter le mouvement réel de la souris pour réafficher la brique fantôme
-        if (this.isMouseInScene) {
-            const currentPosition = { x: event.clientX, y: event.clientY };
-            
-            // Vérifier si la souris bouge réellement (seuil réduit pour plus de réactivité)
-            const deltaX = Math.abs(currentPosition.x - this.lastMousePosition.x);
-            const deltaY = Math.abs(currentPosition.y - this.lastMousePosition.y);
-            const isRealMovement = deltaX > 1 || deltaY > 1; // Seuil réduit à 1px
-            
-            if (isRealMovement && !this.mouseMovingInScene) {
-                this.mouseMovingInScene = true;
-                
-                // Réafficher la brique fantôme seulement lors d'un mouvement réel
-                if (window.ConstructionTools && window.ConstructionTools.ghostElement && 
-                    window.ConstructionTools.showGhost && !window.ConstructionTools.activeBrickForSuggestions &&
-                    window.ConstructionTools.ghostElement.mesh) {
-                    window.ConstructionTools.ghostElement.mesh.visible = true;
-                    // console.log('👻 Brique fantôme réaffichée - mouvement détecté');
+        // Mettre à jour la position de la souris
+        const canvas = (this.renderer && this.renderer.domElement) ? this.renderer.domElement : document.getElementById('threejs-canvas');
+        if (canvas && canvas.getBoundingClientRect) {
+            const rect = canvas.getBoundingClientRect();
+            const currentPosition = {
+                x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                y: -((event.clientY - rect.top) / rect.height) * 2 + 1
+            };
+            this.mouse.x = currentPosition.x;
+            this.mouse.y = currentPosition.y;
+
+            // Détecter le mouvement réel de la souris pour réafficher la brique fantôme
+            if (this.isMouseInScene) {
+                const deltaX = Math.abs(currentPosition.x - (this.lastMousePosition?.x ?? currentPosition.x));
+                const deltaY = Math.abs(currentPosition.y - (this.lastMousePosition?.y ?? currentPosition.y));
+                const isRealMovement = (deltaX + deltaY) > 0.0005; // seuil léger
+                if (isRealMovement && !this.mouseMovingInScene) {
+                    this.mouseMovingInScene = true;
+                    if (window.ConstructionTools && window.ConstructionTools.ghostElement && window.ConstructionTools.showGhost && !window.ConstructionTools.activeBrickForSuggestions) {
+                        window.ConstructionTools.ghostElement.mesh.visible = true;
+                    }
                 }
+                this.lastMousePosition = currentPosition;
             }
-            
-            this.lastMousePosition = currentPosition;
         }
 
         // Mise à jour de la position du curseur (immédiate pour la réactivité)
@@ -5311,24 +5308,24 @@ class SceneManager {
         if (!element) return false;
         
         // Vérifier par le blockType (le plus fiable)
-        if (element.blockType && (/_HALF$|_1Q$|_3Q$/i.test(element.blockType))) {
+        if (element.blockType && (/_HALF$|_1Q$|_3Q$|_34CM$|_4CM$/i.test(element.blockType))) {
             console.log('🔧 Bloc coupé détecté par blockType:', element.blockType);
             return true;
         }
         
         // Vérifier par le type
-        if (element.type && (/_HALF$|_1Q$|_3Q$/i.test(element.type))) {
+        if (element.type && (/_HALF$|_1Q$|_3Q$|_34CM$|_4CM$/i.test(element.type))) {
             console.log('🔧 Bloc coupé détecté par type:', element.type);
             return true;
         }
         
         // Vérifier par l'id/userData
-        if (element.id && (/_HALF|_1Q|_3Q/i.test(element.id))) {
+        if (element.id && (/_HALF|_1Q|_3Q|_34CM|_4CM/i.test(element.id))) {
             console.log('🔧 Bloc coupé détecté par id:', element.id);
             return true;
         }
         
-        if (element.userData && element.userData.blockType && (/_HALF$|_1Q$|_3Q$/i.test(element.userData.blockType))) {
+        if (element.userData && element.userData.blockType && (/_HALF$|_1Q$|_3Q$|_34CM$|_4CM$/i.test(element.userData.blockType))) {
             console.log('🔧 Bloc coupé détecté par userData.blockType:', element.userData.blockType);
             return true;
         }
@@ -5336,7 +5333,7 @@ class SceneManager {
         // Vérifier via les sélecteurs actuels si disponibles
         if (window.BlockSelector && window.BlockSelector.getCurrentBlock) {
             const currentBlock = window.BlockSelector.getCurrentBlock();
-            if (currentBlock && (/_HALF$|_1Q$|_3Q$/i.test(currentBlock))) {
+            if (currentBlock && (/_HALF$|_1Q$|_3Q$|_34CM$|_4CM$/i.test(currentBlock))) {
                 console.log('🔧 Bloc coupé détecté via BlockSelector actuel:', currentBlock);
                 return true;
             }
@@ -5344,7 +5341,7 @@ class SceneManager {
         
         if (window.BrickSelector && window.BrickSelector.currentBrick) {
             const currentBrick = window.BrickSelector.currentBrick;
-            if (currentBrick && (/_HALF$|_1Q$|_3Q$/i.test(currentBrick))) {
+            if (currentBrick && (/_HALF$|_1Q$|_3Q$|_34CM$|_4CM$/i.test(currentBrick))) {
                 console.log('🔧 Bloc coupé détecté via BrickSelector actuel:', currentBrick);
                 return true;
             }

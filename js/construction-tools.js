@@ -4145,7 +4145,7 @@ class ConstructionTools {
                     
                     // === BLOCS B14 ENTIERS → différents types ===
                     'B14_B14': '1401',       // B14 entier → B14 entier
-                    'B14_B14_HALF': '4611',  // B14 entier → B14 demi (série 4611-4620 pour éviter conflit avec B14_HALF→B14_HALF)
+                    'B14_B14_HALF': '4641',  // B14 entier → B14 demi (séparé de B14_HALF→B14 avec série 4641-4650)
                     'B14_B14_3Q': '1403',    // B14 entier → B14 3/4
                     'B14_B14_1Q': '1404',    // B14 entier → B14 1/4
                     
@@ -4264,10 +4264,6 @@ class ConstructionTools {
                     'B29_BOUTISSE_1Q_B29_BOUTISSE': '2925',       // B29 Boutisse 1/4 → B29 Boutisse entier
                     'B29_BOUTISSE_1Q_B29_BOUTISSE_3Q': '2927',    // B29 Boutisse 1/4 → B29 Boutisse 3/4
                     'B29_BOUTISSE_1Q_B29_BOUTISSE_1Q': '2928',    // B29 Boutisse 1/4 → B29 Boutisse 1/4
-                    
-                    // === BLOCS B14_HALF → différents types (séparation des doublons) ===
-                    'B14_HALF_B14': '4611',        // B14 demi → B14 entier (série 4611-4620)
-                    'B14_HALF_B14_HALF': '4601',   // B14 demi → B14 demi (série 4601-4610)
                     
                     // Fallback vers l'ancien système si combinaison non trouvée
                     'B9': '09',   // Blocs B9 entiers -> 09xx
@@ -4542,13 +4538,7 @@ class ConstructionTools {
                 '950403': { x: 0, z: -20 }, '950404': { x: 0, z: -20 }, // Perpendiculaires frontales (950403 et 950404 reculent 25cm en Z total)
                 '950405': { x: 0, z: 10 }, '950406': { x: 0, z: 10 }, // Perpendiculaires dorsales
                 
-                // === SYSTÈME BLOCS B14 (14XX) ===
-                // Continuité longitudinale B14
-                '1401': { x: 0, z: 0 }, '1402': { x: 0, z: 0 },
-                // Perpendiculaires B14
-                '1403': { x: -5, z: 2 }, '1404': { x: 0, z: 2 }, '1405': { x: -5, z: 0 }, '1406': { x: 0, z: 0 },
-                // Angles panneresse B14
-                '1407': { x: 10, z: 7 }, '1408': { x: 5, z: 7 }, '1409': { x: 10, z: -5 }, '1410': { x: 5, z: -5 },
+                // === (supprimé) doublon SYSTÈME BLOCS B14 (14XX) : conservé plus bas dans la section SPÉCIFIQUES ===
                 
                 // === SYSTÈME BLOCS B19 (19XX) ===
                 // Continuité longitudinale B19
@@ -4573,12 +4563,20 @@ class ConstructionTools {
                 '460101': { x: -20, z: 0 }, '460102': { x: -20, z: 0 }, // B14_HALF→B14_HALF nouvelles positions (460101 et 460102 avancent de 5cm en X depuis -25)
                 '460103': { x: -25, z: 2 }, '460104': { x: 0, z: 2 }, '460105': { x: -25, z: -5 }, '460106': { x: 0, z: -5 }, // B14_HALF→B14_HALF nouvelles positions (460103 recule de 25cm en X + avance de 2cm en Z, 460104 avance de 2cm en Z, 460105 recule de 25cm en X + 5cm en Z, 460106 recule de 5cm en Z)
                 
-                // B14_HALF sur B14 entier (4611-4620) - Séparation pour éviter doublons avec B14_HALF sur B14_HALF
+                // B14 entier sur B14 demi (4641-4650) - Nouvelle série pour éviter doublons avec B14_HALF→B14
+                '4641': { x: -20, z: 0 }, '4642': { x: -20, z: 0 }, // B14→B14_HALF Continuité (mirroir 4611/4612)
+                '4643': { x: -25, z: 2 }, '4644': { x: 0, z: 2 },   // B14→B14_HALF Perpendiculaires frontales (mirroir 4613/4614)
+                '4645': { x: -25, z: -5 }, '4646': { x: 0, z: -5 }, // B14→B14_HALF Perpendiculaires dorsales (mirroir 4615/4616)
+                '464101': { x: 0, z: 0 }, '464102': { x: 0, z: 0 },
+                '464103': { x: -5, z: 2 }, '464104': { x: 0, z: 2 }, '464105': { x: -5, z: 15 }, '464106': { x: 0, z: 15 },
+                '464107': { x: 10, z: 7 }, '464108': { x: 5, z: 7 }, '464109': { x: 10, z: 10 }, '464110': { x: 5, z: 10 },
+
+                // B14_HALF sur B14 entier (4611-4620) - Série dédiée pour la direction inverse
                 '4611': { x: -20, z: 0 }, '4612': { x: -20, z: 0 }, // B14_HALF→B14 Continuité
                 '4613': { x: -25, z: 2 }, '4614': { x: 0, z: 2 }, // B14_HALF→B14 Perpendiculaires frontales
                 '4615': { x: -25, z: -5 }, '4616': { x: 0, z: -5 }, // B14_HALF→B14 Perpendiculaires dorsales
-                '461101': { x: 0, z: 0 }, '461102': { x: 0, z: 0 }, // B14_HALF→B14 nouvelles positions (461101 avance de 20cm en X depuis -20, 461102 avance de 15cm en X depuis -15)
-                '461103': { x: -5, z: 2 }, '461104': { x: 0, z: 2 }, '461105': { x: -5, z: 15 }, '461106': { x: 0, z: 15 }, // B14_HALF→B14 nouvelles positions (461103 avance de 20cm en X depuis -25, 461104 avance de 2cm en Z, 461105 avance de 20cm en X depuis -25, 461106 avance de 40cm en Z depuis -25)
+                '461101': { x: -20, z: 0 }, '461102': { x: 0, z: 0 }, // B14_HALF→B14 nouvelles positions (461101 recule de 20cm en X, 461102 avance de 15cm en X depuis -15)
+                '461103': { x: -25, z: 2 }, '461104': { x: 0, z: 2 }, '461105': { x: -25, z: -25 }, '461106': { x: 0, z: -25 }, // B14_HALF→B14 nouvelles positions (461103 recule de 20cm en X, 461104 avance de 2cm en Z, 461105 recule de 20cm en X et de 40cm en Z, 461106 recule de 40cm en Z)
                 '461107': { x: 10, z: 7 }, '461108': { x: 5, z: 7 }, '461109': { x: 10, z: 10 }, '461110': { x: 5, z: 10 }, // B14_HALF→B14 positions supplémentaires (461107 avance de 15cm en X + 2cm en Z depuis -5/5, 461108 avance de 10cm en X + 12cm en Z depuis -5/-5, 461109 avance de 15cm en X + 20cm en Z depuis -5/-10, 461110 avancé de 10cm supplémentaires)
                 '4611057': { x: -5, z: 8 }, // B14_HALF→B14 position spéciale 4611057 (créée et avancée de 20cm en X depuis -25)
                 
@@ -4586,15 +4584,15 @@ class ConstructionTools {
                 '4621': { x: -20, z: 0 }, '4622': { x: -15, z: 0 }, // B14_HALF→B14_3Q Continuité
                 '4623': { x: -25, z: 2 }, '4624': { x: 0, z: 2 }, // B14_HALF→B14_3Q Perpendiculaires frontales
                 '4625': { x: -25, z: -10 }, '4626': { x: 0, z: -10 }, // B14_HALF→B14_3Q Perpendiculaires dorsales
-                '462101': { x: -20, z: 0 }, '462102': { x: 0, z: 0 }, // B14_HALF→B14_3Q nouvelles positions
+                '462101': { x: -20, z: 0 }, '462102': { x: 10, z: 0 }, // B14_HALF→B14_3Q nouvelles positions (462102 avance de 10cm en X)
                 '462103': { x: -25, z: 2 }, '462104': { x: 0, z: 2 }, '462105': { x: -25, z: -15 }, '462106': { x: 0, z: -15 }, // B14_HALF→B14_3Q nouvelles positions
                 
                 // B14_HALF sur B14_1Q (4631-4640) - Nouvelle série pour éviter doublons
                 '4631': { x: -25, z: 0 }, '4632': { x: -10, z: 0 }, // B14_HALF→B14_1Q Continuité
                 '4633': { x: -30, z: 3 }, '4634': { x: -5, z: 3 }, // B14_HALF→B14_1Q Perpendiculaires frontales
                 '4635': { x: -30, z: -12 }, '4636': { x: -5, z: -12 }, // B14_HALF→B14_1Q Perpendiculaires dorsales
-                '463101': { x: -25, z: 0 }, '463102': { x: -5, z: 0 }, // B14_HALF→B14_1Q nouvelles positions
-                '463103': { x: -30, z: 3 }, '463104': { x: -5, z: 3 }, '463105': { x: -30, z: -18 }, '463106': { x: -5, z: -18 }, // B14_HALF→B14_1Q nouvelles positions
+                '463101': { x: -20, z: 0 }, '463102': { x: 30, z: 0 }, // B14_HALF→B14_1Q nouvelles positions (463101 +5cm en X, 463102 +10cm en X supplémentaires)
+                '463103': { x: -25, z: 2 }, '463104': { x: 0, z: 2 }, '463105': { x: -25, z: 5 }, '463106': { x: 0, z: 5 }, // 463103/463105 +5cm en X; 463104/463106 +5cm en X; 463103/463104 -1cm en Z; 463105/463106 +23cm en Z
                 
                 '8501': { x: 0, z: 0 }, '8502': { x: 0, z: 0 }, // B19_HALF Continuité
                 '8503': { x: -10, z: 0 }, '8504': { x: 0, z: 0 }, '8505': { x: -10, z: 21 }, '8506': { x: 0, z: 21 }, // B19_HALF Perpendiculaires
@@ -7737,7 +7735,8 @@ class ConstructionTools {
             const isCutType = (el) => {
                 if(!el) return false;
                 const t = (el.blockType || el.type || '');
-                const isCut = /(_HALF|_1Q|_3Q)$/i.test(t);
+                // Considérer également les coupes dimensionnelles (ex: _34CM, _4CM)
+                const isCut = /(_HALF|_1Q|_3Q|_34CM|_4CM)$/i.test(t);
                 if (dbg && isCut) console.log(`🧪[JOINT-DBG] Type coupé détecté: ${el.id} (${t})`);
                 return isCut;
             };
@@ -8041,7 +8040,7 @@ class ConstructionTools {
         
         // CORRECTION SPÉCIALE POUR BLOCS COUPÉS (_HALF, _1Q, _3Q)
         // Si l'élément est un bloc coupé, on réduit les exigences d'adjacence
-        const isElementCut = element.blockType && /(_HALF|_1Q|_3Q)$/i.test(element.blockType);
+    const isElementCut = element.blockType && /(_HALF|_1Q|_3Q|_34CM|_4CM)$/i.test(element.blockType);
         
         if (dbg && isElementCut) {
             console.log('🧪[JOINT-DBG] Bloc coupé détecté:', element.blockType, 'adjacency actuelle:', adjacency);
@@ -8311,8 +8310,8 @@ class ConstructionTools {
         let maxDistance = jointSettings.verticalThickness / 10; // Conversion mm vers cm
         
         // Ajuster pour les types coupés
-        const isCut1 = element1.blockType && /(_HALF|_1Q|_3Q)$/i.test(element1.blockType);
-        const isCut2 = element2.blockType && /(_HALF|_1Q|_3Q)$/i.test(element2.blockType);
+    const isCut1 = element1.blockType && /(_HALF|_1Q|_3Q|_34CM|_4CM)$/i.test(element1.blockType);
+    const isCut2 = element2.blockType && /(_HALF|_1Q|_3Q|_34CM|_4CM)$/i.test(element2.blockType);
         
         if (isCut1 || isCut2) {
             maxDistance = Math.max(maxDistance * 1.5 + 1.0, 2.5); // Tolérance élargie pour types coupés
