@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Modale Échelle de Cotation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #2a2a3e;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            color: #007acc;
+            margin-bottom: 20px;
+        }
+
+        .test-button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+        }
+
+        .test-button:hover {
+            background: linear-gradient(135deg, #0098ff 0%, #007acc 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid #007acc;
+        }
+
+        .status h3 {
+            margin-top: 0;
+            color: #00bcd4;
+        }
+
+        .info-box {
+            background: rgba(0, 188, 212, 0.1);
+            border: 1px solid rgba(0, 188, 212, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        /* Styles de la modale */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #2a2a3e 0%, #1e1e2e 100%);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            border: 1px solid rgba(100, 100, 120, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(100, 100, 120, 0.3);
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #e0e0e0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-body {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .modal-body p {
+            margin-bottom: 25px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        .scale-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .scale-choice-btn {
+            flex: 1;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
+            border: 2px solid rgba(100, 150, 200, 0.5);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scale-choice-btn:hover {
+            background: linear-gradient(135deg, #0098ff 0%, #007acc 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 122, 204, 0.4);
+        }
+
+        .scale-choice-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 8px rgba(0, 122, 204, 0.3);
+        }
+
+        .scale-choice-btn i {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .scale-choice-btn .subtitle {
+            font-size: 12px;
+            font-weight: normal;
+            opacity: 0.8;
+        }
+
+        .comparison-table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: left;
+        }
+
+        .comparison-table th {
+            background: rgba(0, 122, 204, 0.2);
+            font-weight: bold;
+        }
+
+        .comparison-table tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1><i class="fas fa-ruler"></i> Test - Modale de sélection d'échelle</h1>
+        
+        <div class="info-box">
+            <strong>Description :</strong> Cette page teste la modale permettant de choisir l'échelle de cotation (1/20 ou 1/50) 
+            pour l'outil de mesure. Les tailles des éléments de cotation (textes, flèches, lignes) sont adaptées selon l'échelle choisie.
+        </div>
+
+        <h2>Actions de test</h2>
+        <button class="test-button" onclick="openModal()">
+            <i class="fas fa-eye"></i> Afficher la modale
+        </button>
+        <button class="test-button" onclick="testScale120()">
+            <i class="fas fa-search-plus"></i> Tester échelle 1/20
+        </button>
+        <button class="test-button" onclick="testScale150()">
+            <i class="fas fa-search-minus"></i> Tester échelle 1/50
+        </button>
+        <button class="test-button" onclick="compareScales()">
+            <i class="fas fa-balance-scale"></i> Comparer les échelles
+        </button>
+
+        <div class="status" id="status">
+            <h3><i class="fas fa-info-circle"></i> État actuel</h3>
+            <p id="statusText">Aucune échelle sélectionnée</p>
+            <div id="scaleValues"></div>
+        </div>
+
+        <div id="comparisonTable" style="display: none;">
+            <h3>Comparaison des valeurs</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Paramètre</th>
+                        <th>Échelle 1/50</th>
+                        <th>Échelle 1/20</th>
+                        <th>Facteur</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><i class="fas fa-text-height"></i> Échelle de texte</td>
+                        <td>30</td>
+                        <td>45</td>
+                        <td>×1.5</td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-text-height"></i> Hauteur de texte</td>
+                        <td>8</td>
+                        <td>12</td>
+                        <td>×1.5</td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-arrows-alt-v"></i> Offset dimension</td>
+                        <td>2.0</td>
+                        <td>3.0</td>
+                        <td>×1.5</td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-arrows-alt-v"></i> Offset mesure</td>
+                        <td>1.5</td>
+                        <td>2.25</td>
+                        <td>×1.5</td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-arrow-right"></i> Taille des flèches</td>
+                        <td>2.5</td>
+                        <td>3.75</td>
+                        <td>×1.5</td>
+                    </tr>
+                    <tr>
+                        <td><i class="fas fa-grip-lines"></i> Épaisseur des lignes</td>
+                        <td>4</td>
+                        <td>4</td>
+                        <td>×1.0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modale de sélection d'échelle -->
+    <div id="measurementScaleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-ruler"></i> Échelle de cotation</h2>
+            </div>
+            <div class="modal-body">
+                <p>
+                    Choisissez l'échelle à laquelle vous allez coter :
+                </p>
+                <div class="scale-buttons">
+                    <button class="scale-choice-btn" data-scale="20" onclick="selectScale(20)">
+                        <i class="fas fa-ruler-combined"></i>
+                        <span>1/20</span>
+                        <span class="subtitle">Détails agrandis</span>
+                    </button>
+                    <button class="scale-choice-btn" data-scale="50" onclick="selectScale(50)">
+                        <i class="fas fa-ruler-horizontal"></i>
+                        <span>1/50</span>
+                        <span class="subtitle">Vue d'ensemble</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulation des valeurs de base
+        const baseValues = {
+            textScale: 30,
+            textHeight: 8,
+            dimensionLabelOffset: 2.0,
+            measureLabelOffset: 1.5,
+            arrowSize: 2.5,
+            lineWidth: 4
+        };
+
+        let currentScale = null;
+        let currentValues = { ...baseValues };
+
+        function openModal() {
+            const modal = document.getElementById('measurementScaleModal');
+            modal.classList.add('show');
+            updateStatus('Modale affichée - En attente de sélection...');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('measurementScaleModal');
+            modal.classList.remove('show');
+        }
+
+        function selectScale(scale) {
+            currentScale = scale;
+            applyScale(scale);
+            closeModal();
+            updateStatus(`Échelle 1/${scale} sélectionnée !`);
+        }
+
+        function applyScale(scale) {
+            if (scale === 20) {
+                // Échelle 1/20 : éléments plus grands (×1.5)
+                currentValues = {
+                    textScale: baseValues.textScale * 1.5,
+                    textHeight: baseValues.textHeight * 1.5,
+                    dimensionLabelOffset: baseValues.dimensionLabelOffset * 1.5,
+                    measureLabelOffset: baseValues.measureLabelOffset * 1.5,
+                    arrowSize: baseValues.arrowSize * 1.5,
+                    lineWidth: baseValues.lineWidth
+                };
+            } else if (scale === 50) {
+                // Échelle 1/50 : tailles de base
+                currentValues = { ...baseValues };
+            }
+            displayValues();
+        }
+
+        function testScale120() {
+            selectScale(20);
+        }
+
+        function testScale150() {
+            selectScale(50);
+        }
+
+        function compareScales() {
+            const table = document.getElementById('comparisonTable');
+            table.style.display = table.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusText').innerHTML = `<strong>${message}</strong>`;
+        }
+
+        function displayValues() {
+            const valuesDiv = document.getElementById('scaleValues');
+            valuesDiv.innerHTML = `
+                <h4>Valeurs actuelles :</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li>📏 <strong>Échelle :</strong> 1/${currentScale}</li>
+                    <li>📝 <strong>Échelle de texte :</strong> ${currentValues.textScale}</li>
+                    <li>📏 <strong>Hauteur de texte :</strong> ${currentValues.textHeight}</li>
+                    <li>↕️ <strong>Offset dimension :</strong> ${currentValues.dimensionLabelOffset}</li>
+                    <li>↕️ <strong>Offset mesure :</strong> ${currentValues.measureLabelOffset}</li>
+                    <li>➡️ <strong>Taille des flèches :</strong> ${currentValues.arrowSize}</li>
+                    <li>━ <strong>Épaisseur des lignes :</strong> ${currentValues.lineWidth}</li>
+                </ul>
+            `;
+        }
+
+        // Fermeture avec Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                updateStatus('Modale fermée avec Escape');
+            }
+        });
+
+        // Clic en dehors de la modale
+        document.getElementById('measurementScaleModal').addEventListener('click', (e) => {
+            if (e.target.id === 'measurementScaleModal') {
+                closeModal();
+                updateStatus('Modale fermée en cliquant à l\'extérieur');
+            }
+        });
+
+        // Message d'accueil
+        updateStatus('Prêt pour les tests ! Cliquez sur un bouton pour commencer.');
+    </script>
+</body>
+</html>

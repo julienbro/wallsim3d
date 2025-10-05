@@ -2,32 +2,32 @@
 .main-tabs {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-bottom: 20px;
+    gap: 4px;
+    margin-bottom: 16px;
     background: var(--quaternary-bg);
     border-radius: 8px;
-    padding: 6px;
+    padding: 4px;
 }
 
 .tabs-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 3px;
+    gap: 2px;
 }
 
 .main-tab {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 12px 8px;
+    gap: 4px;
+    padding: 9px 6px;
     background: linear-gradient(180deg, var(--tertiary-bg) 0%, var(--secondary-bg) 100%);
     border: 1px solid var(--border-light);
     border-radius: 6px;
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
     text-align: center;
     position: relative;
@@ -68,7 +68,7 @@
 }
 
 .main-tab .tab-icon {
-    font-size: 18px;
+    font-size: 16px;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
@@ -1887,6 +1887,50 @@ body {
 .modal-footer .btn {
     padding: 10px 20px;
     min-width: 100px;
+}
+
+/* Modale de sélection d'échelle pour l'outil de mesure */
+#measurementScaleModal .modal-content {
+    max-width: 400px;
+}
+
+#measurementScaleModal .modal-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#measurementScaleModal .scale-choice-btn {
+    flex: 1;
+    padding: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
+    border: 2px solid rgba(100, 150, 200, 0.5);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+#measurementScaleModal .scale-choice-btn:hover {
+    background: linear-gradient(135deg, #0098ff 0%, #007acc 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 122, 204, 0.4);
+}
+
+#measurementScaleModal .scale-choice-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 8px rgba(0, 122, 204, 0.3);
+}
+
+#measurementScaleModal .scale-choice-btn i {
+    font-size: 24px;
+    margin-bottom: 5px;
 }
 
 /* Animation pour les briques */

@@ -3,6 +3,28 @@
    Remplace toutes les valeurs hardcodées par les variables
    ========================================= */
 
+/* Réduction de 20% des onglets principaux */
+.main-tabs {
+    gap: 4px !important;
+    padding: 4px !important;
+    margin-bottom: 16px !important;
+}
+
+.main-tabs .tabs-row {
+    gap: 2px !important;
+}
+
+.main-tabs .main-tab {
+    padding: 8px 6px !important;
+    gap: 4px !important;
+    font-size: 10px !important;
+    min-height: unset !important;
+}
+
+.main-tabs .main-tab .tab-icon {
+    font-size: 16px !important;
+}
+
 /* Correction des outils de mesure */
 .measurement-controls {
     position: fixed;

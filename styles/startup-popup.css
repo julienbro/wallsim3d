@@ -21,14 +21,16 @@
     padding: 0px;
     box-shadow: none;
     text-align: center;
-    min-width: 500px;
-    max-width: 600px;
+    min-width: 400px;
+    max-width: 480px;
     border: none;
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     transition: all 0.3s ease;
+    transform: scale(0.8);
+    transform-origin: center;
 }
 
 .startup-popup::before {
@@ -426,8 +428,8 @@
 /* Popup étendue quand il y a une sauvegarde automatique */
 .startup-popup.has-autosave {
     flex-direction: row;
-    max-width: 800px;
-    min-width: 700px;
+    max-width: 640px;
+    min-width: 560px;
     gap: 0;
     align-items: flex-start;
 }
@@ -440,7 +442,7 @@
 
 /* Colonne de restauration à droite */
 .autosave-column {
-    width: 280px;
+    width: 224px;
     background: transparent;
     border-radius: 0;
     padding: 16px;
@@ -705,8 +707,8 @@
 @media (max-width: 900px) {
     .startup-popup.has-autosave {
         flex-direction: column;
-        max-width: 500px;
-        min-width: 400px;
+        max-width: 400px;
+        min-width: 320px;
     }
     
     .startup-popup.has-autosave .startup-content {
@@ -726,7 +728,7 @@
 
 @media (max-width: 480px) {
     .startup-popup.has-autosave {
-        min-width: 350px;
+        min-width: 280px;
         padding: 20px;
     }
     
