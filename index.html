@@ -2672,10 +2672,16 @@
                                 </div>
                             </div>
 
-                            <!-- Contenu onglet Textures (à implémenter plus tard) -->
+                            <!-- Contenu onglet Textures -->
                             <div id="material-textures-tab" class="material-tab-content">
-                                <div class="material-loading">
-                                    <span>Textures à venir...</span>
+                                <div class="material-section" data-section="textures-dynamic">
+                                    <div class="material-section-header">
+                                        <span>🖼️ TEXTURES</span>
+                                        <span class="expand-icon">▼</span>
+                                    </div>
+                                    <div class="material-section-content">
+                                        <div class="texture-grid" id="textures-grid"></div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -3987,6 +3993,20 @@
     <script src="js/scale-factors-config.js"></script>
     
     <script src="js/presentation-manager.js"></script>
+    <!-- Inline fallback for textures manifest (used by TexturesManager if fetch fails) -->
+    <script id="textures-manifest" type="application/json">[
+      { "id": "acier", "name": "Acier", "file": "acier.png" },
+      { "id": "beton_1", "name": "Béton 1", "file": "beton_1.png" },
+      { "id": "blocbeton", "name": "Bloc Béton", "file": "blocbeton.jpg" },
+      { "id": "bois_pin_1", "name": "Bois Pin 1", "file": "bois_pin_1.png" },
+      { "id": "brique_brune_1", "name": "Brique Brune 1", "file": "brique_brune_1.png" },
+      { "id": "brique_claire_1", "name": "Brique Claire 1", "file": "brique_claire_1.png" },
+      { "id": "brique_grise_1", "name": "Brique Grise 1", "file": "brique_grise_1.png" },
+      { "id": "brique_grise_2", "name": "Brique Grise 2", "file": "brique_grise_2.png" },
+      { "id": "brique_rouge_1", "name": "Brique Rouge 1", "file": "brique_rouge_1.png" },
+      { "id": "fer_rouille_1", "name": "Fer Rouillé 1", "file": "Fer_rouille_1.png" },
+      { "id": "laine_de_roche", "name": "Laine de Roche", "file": "laine_de_roche.png" }
+    ]</script>
 
     <!-- Modale de sélection d'échelle pour l'outil de mesure -->
     <div id="measurementScaleModal" class="modal" style="display: none;">
@@ -4912,6 +4932,7 @@
     <script src="js/materials.js"></script>
     <script src="js/extended-material-manager.js"></script>
     <script src="js/material-painter.js"></script>
+    <script src="js/textures-manager.js"></script>
     <script src="js/wall-element.js?v=20250811-1045-BLOCKTYPE-FINAL-FIX"></script>
     <script src="js/assise-manager.js?v=SHOW-EMPTY-BELOW-FILLED-V1"></script>
     <script src="js/cut-button-manager.js"></script>
