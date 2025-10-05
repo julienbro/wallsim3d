@@ -859,6 +859,86 @@ class MaterialLibrary {
     getThreeJSMaterial(materialId) {
         const materialData = this.getMaterial(materialId);
         
+        // Support texture-backed materials
+        if (materialData && materialData.mapUrl) {
+            const loader = new THREE.TextureLoader();
+
+            // Charger la texture et n'appeler needsUpdate qu'une fois l'image disponible
+            const repeat = materialData.repeat || { x: 1, y: 1 };
+            const texture = loader.load(
+                materialData.mapUrl,
+                (tex) => {
+                    // onLoad: config complète une fois l'image présente
+                    tex.wrapS = THREE.RepeatWrapping;
+                    tex.wrapT = THREE.RepeatWrapping;
+                    tex.repeat.set(repeat.x, repeat.y);
+                    if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+                    tex.generateMipmaps = true;
+                    tex.anisotropy = (window.SceneManager && window.SceneManager.renderer && window.SceneManager.renderer.capabilities.getMaxAnisotropy)
+                        ? window.SceneManager.renderer.capabilities.getMaxAnisotropy()
+                        : 4;
+                    tex.needsUpdate = true;
+                },
+                undefined,
+                (err) => {
+                    console.warn('Texture load error:', materialData.mapUrl, err);
+                }
+            );
+
+            const mat = new THREE.MeshLambertMaterial({
+                color: 0xFFFFFF,
+                map: texture
+            });
+            // Robust visibility flags
+            mat.transparent = false;
+            mat.opacity = 1.0;
+            mat.alphaTest = 0.0;
+            mat.depthWrite = true;
+            mat.depthTest = true;
+            mat.side = THREE.DoubleSide;
+            mat.name = materialId;
+            mat.needsUpdate = true;
+
+            // Optionals for normal/roughness maps if later added
+            if (materialData.normalMapUrl) {
+                const n = loader.load(
+                    materialData.normalMapUrl,
+                    (nm) => {
+                        if (THREE.SRGBColorSpace && THREE.NoColorSpace) nm.colorSpace = THREE.NoColorSpace;
+                        nm.needsUpdate = true;
+                        mat.needsUpdate = true;
+                    }
+                );
+                mat.normalMap = n;
+            }
+            if (materialData.roughnessMapUrl) {
+                // Switch to Standard if roughness map provided
+                const std = new THREE.MeshStandardMaterial({
+                    color: 0xFFFFFF,
+                    map: texture,
+                    roughness: materialData.roughness ?? 1.0,
+                    metalness: materialData.metalness ?? 0.0
+                });
+                // Charger la roughnessMap et ne mettre à jour qu'après chargement
+                const rtex = loader.load(
+                    materialData.roughnessMapUrl,
+                    (rt) => {
+                        std.roughnessMap = rt;
+                        std.needsUpdate = true;
+                    }
+                );
+                std.transparent = false;
+                std.opacity = 1.0;
+                std.alphaTest = 0.0;
+                std.depthWrite = true;
+                std.depthTest = true;
+                std.side = THREE.DoubleSide;
+                std.name = materialId;
+                return std;
+            }
+            return mat;
+        }
+        
         // Utiliser les propriétés du matériau, mais corriger les isolants problématiques
         const isTransparent = materialData.transparent || false;
         const opacity = materialData.opacity !== undefined ? materialData.opacity : 1.0;

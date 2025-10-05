@@ -22,7 +22,14 @@ class ExtendedMaterialManager {
         // Onglets Couleurs/Textures
         const materialTabs = document.querySelectorAll('.material-tab');
         materialTabs.forEach(tab => {
-            tab.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
+            tab.addEventListener('click', (e) => {
+                const tabId = (e.currentTarget && e.currentTarget.dataset)
+                    ? e.currentTarget.dataset.tab
+                    : (e.target && e.target.closest('.material-tab')?.dataset.tab);
+                if (tabId) {
+                    this.switchTab(tabId);
+                }
+            });
         });
 
         // Recherche
@@ -231,17 +238,20 @@ class ExtendedMaterialManager {
         document.querySelectorAll('.material-tab').forEach(tab => {
             tab.classList.remove('active');
         });
-        document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-        
+        const btn = document.querySelector(`[data-tab="${tabId}"]`);
+        if (btn) btn.classList.add('active');
+
         // Changer le contenu affiché
         document.querySelectorAll('.material-tab-content').forEach(content => {
             content.classList.remove('active');
         });
-        
+
         if (tabId === 'colors') {
-            document.getElementById('material-colors-tab').classList.add('active');
+            const colors = document.getElementById('material-colors-tab');
+            if (colors) colors.classList.add('active');
         } else if (tabId === 'textures') {
-            document.getElementById('material-textures-tab').classList.add('active');
+            const textures = document.getElementById('material-textures-tab');
+            if (textures) textures.classList.add('active');
         }
     }
 

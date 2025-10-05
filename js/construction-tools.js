@@ -7105,6 +7105,21 @@ class ConstructionTools {
                 const currentBlockId = window.BlockSelector.getCurrentBlock ? window.BlockSelector.getCurrentBlock() : null;
                 if (currentBlock && currentBlock.category) {
                     const category = currentBlock.category;
+                    // Petit utilitaire local pour garantir l'existence du matériau texture
+                    const ensureTextureMaterial = (texId, relPath, displayName = 'Texture') => {
+                        if (!window.MaterialLibrary) return texId;
+                        if (!window.MaterialLibrary.materials[texId]) {
+                            window.MaterialLibrary.materials[texId] = {
+                                name: displayName,
+                                color: 0xFFFFFF,
+                                mapUrl: relPath,
+                                section: 'modernes-composites',
+                                description: `Texture depuis ${relPath}`,
+                                isTexture: true
+                            };
+                        }
+                        return texId;
+                    };
                     
                     // Béton cellulaire (toutes variantes) → matériau blanc
                     // - category === 'cellular' (BC_...)
@@ -7112,9 +7127,15 @@ class ConstructionTools {
                     if (category === 'cellular' || category === 'cellular-assise') {
                         return 'cellular-concrete';
                     }
-                    // Blocs creux → matériau gris
+                    // Blocs creux
                     else if (category === 'hollow') {
-                        return 'concrete'; // Matériau gris pour blocs creux
+                        // B9/B14/B19/B29 doivent utiliser la texture bloc béton
+                        const id = (currentBlockId || '').toUpperCase();
+                        if (id.startsWith('B9') || id.startsWith('B14') || id.startsWith('B19') || id.startsWith('B29')) {
+                            return ensureTextureMaterial('tex-blocbeton', 'assets/textures/blocbeton.jpg', 'Bloc Béton (Texture)');
+                        }
+                        // Autres blocs creux → gris par défaut
+                        return 'concrete';
                     }
                     // Terre cuite → matériau rouge terre cuite
                     else if (category === 'terracotta') {
@@ -7126,7 +7147,14 @@ class ConstructionTools {
                         if (currentBlock.baseBlock && (currentBlock.baseBlock.startsWith('BC_') || currentBlock.baseBlock.startsWith('BCA_'))) {
                             return 'cellular-concrete';
                         }
-                        // Sinon, blocs creux coupés → gris
+                        // Sinon, blocs creux coupés: si base B9/B14/B19/B29 → texture bloc béton
+                        if (currentBlock.baseBlock) {
+                            const base = currentBlock.baseBlock.toUpperCase();
+                            if (base.startsWith('B9') || base.startsWith('B14') || base.startsWith('B19') || base.startsWith('B29')) {
+                                return ensureTextureMaterial('tex-blocbeton', 'assets/textures/blocbeton.jpg', 'Bloc Béton (Texture)');
+                            }
+                        }
+                        // Autres cas → gris
                         return 'concrete';
                     }
                 }
@@ -7139,6 +7167,21 @@ class ConstructionTools {
             // Fallback avec l'ancienne logique si BlockSelector n'est pas disponible
             if (window.currentBlockDimensions && window.currentBlockDimensions.type) {
                 const blockType = window.currentBlockDimensions.type;
+                // B9/B14/B19/B29 → texture bloc béton
+                if (blockType.startsWith('B9') || blockType.startsWith('B14') || blockType.startsWith('B19') || blockType.startsWith('B29')) {
+                    // S'assurer que le matériau existe
+                    if (window.MaterialLibrary && !window.MaterialLibrary.materials['tex-blocbeton']) {
+                        window.MaterialLibrary.materials['tex-blocbeton'] = {
+                            name: 'Bloc Béton (Texture)',
+                            color: 0xFFFFFF,
+                            mapUrl: 'assets/textures/blocbeton.jpg',
+                            section: 'modernes-composites',
+                            description: 'Texture depuis assets/textures/blocbeton.jpg',
+                            isTexture: true
+                        };
+                    }
+                    return 'tex-blocbeton';
+                }
                 if (blockType.startsWith('TC_') || blockType === 'TERRE_CUITE' || blockType.startsWith('TC')) {
                     return 'terracotta'; // Blocs terre cuite → rouge terre cuite
                 } else if (blockType.startsWith('BC_') || blockType.startsWith('BCA_')) {

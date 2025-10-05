@@ -599,18 +599,30 @@ class WallElement {
         if (this.mesh) {
             this.mesh.material.dispose();
             const newMaterial = window.MaterialLibrary.getThreeJSMaterial(materialId);
-            
+
             // CORRECTION SPÉCIALE: Forcer l'opacité pour les isolants lors du changement de matériau
             if (this.type === 'insulation' || materialId === 'rock-wool' || materialId === 'insulation') {
-                // console.log('🔧 CORRECTION ISOLANT setMaterial: Forçage opacité pour', materialId, 'type:', this.type);
                 newMaterial.transparent = false;
                 newMaterial.opacity = 1.0;
                 newMaterial.alphaTest = 0.1;
                 newMaterial.side = THREE.DoubleSide;
                 newMaterial.needsUpdate = true;
             }
-            
+
+            // Sécurité visibilité pour toutes matières
+            newMaterial.depthWrite = true;
+            newMaterial.depthTest = true;
+            newMaterial.alphaTest = newMaterial.alphaTest ?? 0.0;
+            newMaterial.side = newMaterial.side ?? THREE.DoubleSide;
+            newMaterial.transparent = false;
+            newMaterial.opacity = 1.0;
+            newMaterial.needsUpdate = true;
+
             this.mesh.material = newMaterial;
+            // S'assurer que le mesh est bien visible
+            this.mesh.visible = true;
+            this.mesh.castShadow = true;
+            this.mesh.receiveShadow = true;
         }
     }
 
