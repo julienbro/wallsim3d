@@ -2698,6 +2698,30 @@ class TabManager {
                 this.toggleAllJoints(e.target.checked);
             });
         }
+        // Auto joints verticaux (garde globale côté SceneManager)
+        const autoVerticalJoints = document.getElementById('autoVerticalJoints');
+        if (autoVerticalJoints) {
+            // Init: refléter l'état courant du SceneManager si disponible
+            if (window.SceneManager && typeof window.SceneManager.autoVerticalJoints === 'boolean') {
+                autoVerticalJoints.checked = window.SceneManager.autoVerticalJoints;
+            }
+            autoVerticalJoints.addEventListener('change', (e) => {
+                if (window.SceneManager && window.SceneManager.setAutoVerticalJoints) {
+                    window.SceneManager.setAutoVerticalJoints(e.target.checked);
+                }
+                console.log(`🧭 Joints verticaux automatiques (global): ${e.target.checked}`);
+            });
+        }
+        // Profondeur du joint (cm)
+        const jointRecessDepth = document.getElementById('jointRecessDepth');
+        if (jointRecessDepth) {
+            jointRecessDepth.addEventListener('change', (e) => {
+                const depth = Math.max(0, parseFloat(e.target.value || '0'));
+                if (window.ConstructionTools && window.ConstructionTools.setJointRecessDepthCm) {
+                    window.ConstructionTools.setJointRecessDepthCm(depth);
+                }
+            });
+        }
 
         // Synchronisation des paramètres
         const syncJointSettings = document.getElementById('syncJointSettings');
@@ -2834,6 +2858,7 @@ class TabManager {
             { id: 'brickJointThickness', value: defaultValues.brickThickness },
             { id: 'blockJointThickness', value: defaultValues.blockThickness },
             { id: 'blockJointColor', value: defaultValues.color },
+            { id: 'jointRecessDepth', value: 0 },
             { id: 'showBrickJoints', checked: defaultValues.showJoints },
             { id: 'showBlockJoints', checked: defaultValues.showJoints },
             { id: 'showAllJoints', checked: defaultValues.showJoints },
@@ -2913,6 +2938,7 @@ class TabManager {
             const blockColor = this.selectedBlockJointColor?.hex || '#9E9E9E';
             const autoBrickJoints = document.getElementById('autoBrickJoints')?.checked || true;
             const autoBlockJoints = document.getElementById('autoBlockJoints')?.checked || true;
+            const recessDepth = parseFloat(document.getElementById('jointRecessDepth')?.value || '0') || 0;
 
             // console.log('🔧 COULEURS TRANSMISES à ConstructionTools:', { brickColor, blockColor });
 
@@ -2923,6 +2949,7 @@ class TabManager {
             window.ConstructionTools.setBlockJointColor?.(blockColor);
             window.ConstructionTools.setAutoBrickJoints?.(autoBrickJoints);
             window.ConstructionTools.setAutoBlockJoints?.(autoBlockJoints);
+            window.ConstructionTools.setJointRecessDepthCm?.(recessDepth);
 
             // console.log('🔧 États initiaux des joints synchronisés');
         }
@@ -3327,14 +3354,6 @@ class TabManager {
     }
 
     setupProjetTab() {
-        // Vider le projet
-        const clearProject = document.getElementById('clearProject');
-        if (clearProject) {
-            clearProject.addEventListener('click', () => {
-                this.clearProject();
-            });
-        }
-
         // Réinitialiser la vue
         const resetView = document.getElementById('resetView');
         if (resetView) {
@@ -3378,27 +3397,7 @@ class TabManager {
         });
     }
 
-    clearProject() {
-        if (confirm('Êtes-vous sûr de vouloir vider le projet ? Cette action est irréversible.')) {
-            if (window.SceneManager && typeof window.SceneManager.clearAll === 'function') {
-                window.SceneManager.clearAll();
-            }
-            
-            // Vider tous les champs du projet
-            const projectFields = ['projectName', 'projectDesigner', 'projectClass', 'projectNotes', 'detailedProcedure', 'procedureRecommendations'];
-            projectFields.forEach(fieldId => {
-                const field = document.getElementById(fieldId);
-                if (field) {
-                    field.value = '';
-                    // Supprimer aussi de localStorage
-                    localStorage.removeItem(`wallsim_${fieldId}`);
-                }
-            });
-            
-            this.updateProjectStats();
-            // console.log('🗑️ Projet vidé - Tous les champs et éléments effacés');
-        }
-    }
+    // clearProject action removed with the button in the Project tab
 
     updateProjectStats() {
         const stats = this.getProjectStats();
@@ -4166,69 +4165,77 @@ class TabManager {
                                        (wallElement.userData && wallElement.userData.parentElementId);
                     }
                     
-                    if (jointParentId === elementId) {
-                        // Déterminer le type de joint
-                        let jointType = 'unknown';
-                        if (userData.isVerticalJoint || elementData.isVerticalJoint) {
-                            // 1) Priorité: attribut explicite du côté
-                            const sideExplicit = userData.verticalJointSide || elementData.verticalJointSide;
-                            if (sideExplicit === 'left' || sideExplicit === 'right') {
-                                jointType = sideExplicit;
-                            } else {
-                                // 2) Calcul robuste via transformation inverse dans l'espace local de l'élément
-                                try {
-                                    // Cloner positions pour éviter mutation
-                                    const jointWorld = object.position.clone ? object.position.clone() : { x: object.position.x, y: object.position.y, z: object.position.z };
-                                    const elementWorld = element.position.clone ? element.position.clone() : { x: element.position.x, y: element.position.y, z: element.position.z };
-                                    const rot = element.rotation || 0;
-                                    const cos = Math.cos(-rot);
-                                    const sin = Math.sin(-rot);
-                                    // Offset joint relatif
-                                    const dx = jointWorld.x - elementWorld.x;
-                                    const dz = jointWorld.z - elementWorld.z;
-                                    // Rotation inverse pour obtenir coord locale X
-                                    const localX = dx * cos - dz * sin;
-                                    // Seuil: moitié de la longueur + marge
-                                    const halfLen = (element.dimensions?.length || 0) / 2;
-                                    const margin = 0.1; // petite marge numérique
-                                    if (localX < -halfLen - margin) {
-                                        jointType = 'left';
-                                    } else if (localX > halfLen + margin) {
-                                        jointType = 'right';
-                                    } else {
-                                        // 3) Fallback ultime: comparaison X monde
-                                        if (jointWorld.x < elementWorld.x) jointType = 'left';
-                                        else if (jointWorld.x > elementWorld.x) jointType = 'right';
-                                        else jointType = 'vertical';
-                                    }
-                                    if (window.DEBUG_JOINT_DETECTION) {
-                                        console.log('🧪 Joint vertical detection', {
-                                            elementId: elementId,
-                                            jointObj: object.name || object.id,
-                                            dx, dz, localX, halfLen, margin,
-                                            decided: jointType
-                                        });
-                                    }
-                                } catch (e) {
-                                    // Fallback simple si erreur
-                                    if (object.position.x < element.position.x) jointType = 'left';
-                                    else if (object.position.x > element.position.x) jointType = 'right';
-                                    else jointType = 'vertical';
-                                    if (window.DEBUG_JOINT_DETECTION) {
-                                        console.warn('⚠️ Fallback joint side detection', { elementId: elementId, error: e });
-                                    }
-                                }
-                            }
-                        } else if (userData.isHorizontalJoint || elementData.isHorizontalJoint) {
-                            jointType = 'horizontal';
+                    // Fonction utilitaire locale pour déterminer le côté du joint par rapport à l'élément
+                    const decideJointTypeRelativeToElement = () => {
+                        if (userData.isHorizontalJoint || elementData.isHorizontalJoint) return 'horizontal';
+                        let jointType = 'vertical';
+                        const sideExplicit = userData.verticalJointSide || elementData.verticalJointSide;
+                        if (sideExplicit === 'left' || sideExplicit === 'right') {
+                            return sideExplicit;
                         }
-                        
+                        try {
+                            const jointWorld = object.position.clone ? object.position.clone() : { x: object.position.x, y: object.position.y, z: object.position.z };
+                            const elementWorld = element.position.clone ? element.position.clone() : { x: element.position.x, y: element.position.y, z: element.position.z };
+                            const rot = element.rotation || 0;
+                            const cos = Math.cos(-rot);
+                            const sin = Math.sin(-rot);
+                            const dx = jointWorld.x - elementWorld.x;
+                            const dz = jointWorld.z - elementWorld.z;
+                            const localX = dx * cos - dz * sin;
+                            const halfLen = (element.dimensions?.length || 0) / 2;
+                            const margin = 0.1;
+                            if (localX < -halfLen - margin) jointType = 'left';
+                            else if (localX > halfLen + margin) jointType = 'right';
+                            return jointType;
+                        } catch (e) {
+                            if (object.position.x < element.position.x) return 'left';
+                            if (object.position.x > element.position.x) return 'right';
+                            return 'vertical';
+                        }
+                    };
+
+                    // 1) Cas classique: joint explicitement rattaché au parent
+                    if (jointParentId === elementId) {
+                        const jointType = decideJointTypeRelativeToElement();
                         associatedJoints.push({
                             object: object,
                             type: jointType,
                             visible: object.visible,
                             id: userData.elementId || elementData.elementId || object.name
                         });
+                    } else {
+                        // 2) Fallback: joint voisin non rattaché mais collé au côté de cet élément
+                        // Cela arrive si le joint a été créé en se basant sur l'élément adjacent.
+                        try {
+                            const jointType = decideJointTypeRelativeToElement();
+                            // Seulement pour les joints verticaux
+                            if (jointType === 'left' || jointType === 'right') {
+                                const jointWorld = object.position.clone ? object.position.clone() : { x: object.position.x, y: object.position.y, z: object.position.z };
+                                const elementWorld = element.position.clone ? element.position.clone() : { x: element.position.x, y: element.position.y, z: element.position.z };
+                                const rot = element.rotation || 0;
+                                const cos = Math.cos(-rot);
+                                const sin = Math.sin(-rot);
+                                const dx = jointWorld.x - elementWorld.x;
+                                const dz = jointWorld.z - elementWorld.z;
+                                const localX = dx * cos - dz * sin;
+                                const localZ = dx * sin + dz * cos;
+                                const halfLen = (element.dimensions?.length || 0) / 2;
+                                const halfWid = (element.dimensions?.width || 0) / 2;
+                                // Proximité au plan latéral X=±halfLen et à l'intérieur de la largeur du bloc
+                                const xNear = Math.abs(Math.abs(localX) - halfLen) <= 2.0; // 2 cm de tolérance
+                                const zInside = Math.abs(localZ) <= (halfWid + 2.0); // petite marge
+                                if (xNear && zInside) {
+                                    associatedJoints.push({
+                                        object: object,
+                                        type: jointType,
+                                        visible: object.visible,
+                                        id: userData.elementId || elementData.elementId || object.name
+                                    });
+                                }
+                            }
+                        } catch (e) {
+                            // ignorer les erreurs de géométrie
+                        }
                     }
                 }
             }
@@ -4354,7 +4361,8 @@ class TabManager {
         const jointStates = {
             left: leftToggle ? leftToggle.classList.contains('active') : false,
             right: rightToggle ? rightToggle.classList.contains('active') : false,
-            horizontal: horizontalToggle ? horizontalToggle.classList.contains('active') : true
+            // Par défaut, ne pas créer de joint horizontal si le toggle n'existe pas
+            horizontal: horizontalToggle ? horizontalToggle.classList.contains('active') : false
         };
         
         // Initialiser structures de mémorisation

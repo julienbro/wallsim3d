@@ -574,14 +574,31 @@ class FileMenuHandler {
         // Appliquer les paramètres
         this.applyProjectSettings(projectData.settings);
 
+        // Restaurer les champs Projet (onglet Projet)
+        const nameField = document.getElementById('projectName');
+        const designerField = document.getElementById('projectDesigner');
+        const classField = document.getElementById('projectClass');
+        const notesField = document.getElementById('projectNotes');
+        if (nameField && typeof projectData.name === 'string') nameField.value = projectData.name;
+        if (designerField && typeof projectData.designer === 'string') designerField.value = projectData.designer;
+        if (classField && typeof projectData.class === 'string') classField.value = projectData.class;
+        if (notesField && typeof projectData.notes === 'string') notesField.value = projectData.notes;
+
         // Restaurer les champs Mode Opératoire si présents
         if (projectData.detailedProcedure !== undefined) {
             const dp = document.getElementById('detailedProcedure');
             if (dp) dp.value = projectData.detailedProcedure;
+            // Si un éditeur riche est présent, synchroniser le contenu
+            if (window.detailedProcedureEditor && typeof window.detailedProcedureEditor.setContent === 'function') {
+                try { window.detailedProcedureEditor.setContent(projectData.detailedProcedure || ''); } catch {}
+            }
         }
         if (projectData.procedureRecommendations !== undefined) {
             const pr = document.getElementById('procedureRecommendations');
             if (pr) pr.value = projectData.procedureRecommendations;
+            if (window.recommendationsEditor && typeof window.recommendationsEditor.setContent === 'function') {
+                try { window.recommendationsEditor.setContent(projectData.procedureRecommendations || ''); } catch {}
+            }
         }
         
         // Restaurer les mesures, annotations et textes si présents
@@ -646,6 +663,17 @@ class FileMenuHandler {
             ? window.SceneManager.exportScene() 
             : { elements: [] };
 
+        // Récupérer les champs Projet (depuis l'UI)
+        const uiProjectName = (document.getElementById('projectName')?.value || '').trim();
+        const uiDesigner = (document.getElementById('projectDesigner')?.value || '').trim();
+        const uiClass = (document.getElementById('projectClass')?.value || '').trim();
+        const uiNotes = (document.getElementById('projectNotes')?.value || '').trim();
+
+        // Garder currentProject.name synchronisé si un nom est saisi
+        if (uiProjectName) {
+            this.currentProject.name = uiProjectName;
+        }
+
         const projectData = {
             ...this.currentProject,
             modified: new Date().toISOString(),
@@ -654,6 +682,11 @@ class FileMenuHandler {
                 ...this.currentProject.settings,
                 ...sceneData.settings
             },
+            // Champs Projet
+            name: this.currentProject.name || uiProjectName || this.currentProject?.name || 'Projet sans nom',
+            designer: uiDesigner,
+            class: uiClass,
+            notes: uiNotes,
             detailedProcedure: (document.getElementById('detailedProcedure')?.value || '').trim(),
             procedureRecommendations: (document.getElementById('procedureRecommendations')?.value || '').trim(),
             // Inclure les données des mesures, annotations et textes sauvegardées
@@ -682,6 +715,16 @@ class FileMenuHandler {
                 ...sceneData.settings
             };
         }
+
+        // Récupérer les champs Projet (depuis l'UI)
+        const uiProjectName = (document.getElementById('projectName')?.value || '').trim();
+        const uiDesigner = (document.getElementById('projectDesigner')?.value || '').trim();
+        const uiClass = (document.getElementById('projectClass')?.value || '').trim();
+        const uiNotes = (document.getElementById('projectNotes')?.value || '').trim();
+        if (uiProjectName) this.currentProject.name = uiProjectName;
+        this.currentProject.designer = uiDesigner;
+        this.currentProject.class = uiClass;
+        this.currentProject.notes = uiNotes;
 
         // Récupérer les données des mesures, annotations et textes
         if (window.MeasurementAnnotationManager) {
@@ -1612,6 +1655,12 @@ class FileMenuHandler {
 
     saveToLocalStorage(suffix = '') {
         if (this.currentProject) {
+            // Toujours rafraîchir les données du projet (éléments, mesures, annotations, textes) avant de sauvegarder
+            try {
+                this.updateProjectData();
+            } catch (e) {
+                console.warn('⚠️ Échec de la mise à jour du projet avant la sauvegarde locale:', e);
+            }
             const key = suffix ? `wallsim3d_${suffix}` : 'wallsim3d_current_project';
             const data = this.exportProjectData();
             localStorage.setItem(key, data);

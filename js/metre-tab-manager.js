@@ -89,6 +89,13 @@ class MetreTabManager {
             // TEMPORAIRE: Toujours rafraîchir pour débogage
             this.refreshData();
         });
+
+        // Rafraîchir quand un élément est peint (application texture/couleur)
+        document.addEventListener('elementPainted', () => {
+            if (this.isTabActive()) {
+                this.refreshData();
+            }
+        });
     }
 
     setupTabListener() {
@@ -149,6 +156,12 @@ class MetreTabManager {
         const materialData = window.MaterialLibrary ? 
             window.MaterialLibrary.getMaterial(element.material) : null;
 
+        // Détecter si l'élément a reçu une peinture personnalisée
+        const isPainted = !!(element.userData && element.userData.isCustomMaterial === true);
+        const paintedMaterialName = isPainted
+            ? (element.userData.customMaterialName || (materialData ? materialData.name : element.material))
+            : null;
+
         // Déterminer le type spécifique de brique ou bloc
         const brickType = this.getBrickType(element);
         const blockType = this.getBlockType(element);
@@ -175,6 +188,8 @@ class MetreTabManager {
             material: element.material,
             materialName: materialData ? materialData.name : element.material,
             materialColor: materialData ? materialData.color : '#cccccc',
+            isPainted: isPainted,
+            paintedMaterialName: paintedMaterialName,
             dimensions: {
                 length: element.dimensions.length,
                 width: element.dimensions.width,
@@ -749,12 +764,23 @@ class MetreTabManager {
                 // Séparer par type de brique ET par coupe
                 const baseType = element.brickType.split('_')[0]; // Enlever les suffixes de coupe
                 const cutDisplay = element.cutDisplay || 'Entier';
-                groupKey = `Brique ${baseType} - ${cutDisplay}`;
+                if (element.isPainted) {
+                    // Séparer aussi par matériau peint
+                    const paintedLabel = element.paintedMaterialName || element.materialName || 'Peinte';
+                    groupKey = `Brique ${baseType} - ${cutDisplay} (Peinte: ${paintedLabel})`;
+                } else {
+                    groupKey = `Brique ${baseType} - ${cutDisplay}`;
+                }
             } else if (element.type === 'block' && element.blockType) {
                 // Séparer par type de bloc ET par coupe
                 const baseType = element.blockType.split('_')[0]; // Enlever les suffixes de coupe
                 const cutDisplay = element.cutDisplay || 'Entier';
-                groupKey = `Bloc ${baseType} - ${cutDisplay}`;
+                if (element.isPainted) {
+                    const paintedLabel = element.paintedMaterialName || element.materialName || 'Peinte';
+                    groupKey = `Bloc ${baseType} - ${cutDisplay} (Peinte: ${paintedLabel})`;
+                } else {
+                    groupKey = `Bloc ${baseType} - ${cutDisplay}`;
+                }
             } else {
                 // Pour les autres types, ajouter la coupe si différente d'entier
                 const cutDisplay = element.cutDisplay || 'Entier';

@@ -17,6 +17,10 @@ class SceneManager {
         this.showGrid = false;
         this.showAxes = false; // Les axes sont masqués par défaut
         
+        // Vue courante (nom brut et portée canonique pour le filtrage des annotations)
+        this.currentViewName = 'iso';
+        this.currentViewScope = '3d'; // 'left' | 'right' | 'front' | 'back' | 'top' | '3d'
+        
         // Paramètres de la caméra - positions ajustées pour être moins proches
         this.cameraPositions = {
             // Vues existantes
@@ -56,6 +60,34 @@ class SceneManager {
 
         // Outil de maintenance: flag pour éviter double normalisation
         this._beamNormalizationRun = false;
+
+        // Préférence: création automatique des joints verticaux (désactivée par défaut)
+        // Lorsqu'elle est à false, aucune création automatique de joints verticaux n'a lieu
+        this.autoVerticalJoints = false;
+    }
+
+    // Convertit un nom de vue en une portée canonique utilisée pour filtrer annotations/cotations
+    getCanonicalViewScope(viewName) {
+        if (!viewName) return '3d';
+        const v = String(viewName).toLowerCase();
+        // Alias vers des familles
+    if (v === 'left') return 'left';
+    if (v === 'right' || v === 'side') return 'right';
+        if (v === 'front' || v === 'face') return 'front';
+        if (v === 'back') return 'back';
+        if (v === 'top' || v === 'topview') return 'top';
+        // Toutes les vues en perspective/isométriques → 3d
+        if (['iso', 'isometric', 'perspective', 'frontleft', 'frontright', 'backleft', 'backright'].includes(v)) {
+            return '3d';
+        }
+        // Par défaut, considérer comme 3D
+        return '3d';
+    }
+
+    // Active/désactive la création automatique des joints verticaux durant les placements/suggestions
+    setAutoVerticalJoints(enabled) {
+        this.autoVerticalJoints = !!enabled;
+        console.log(`⚙️ Auto joints verticaux: ${this.autoVerticalJoints ? 'activés' : 'désactivés'}`);
     }
 
     // Normaliser toutes les poutres: base exactement à Y=0 (après pivot coin min)
@@ -894,9 +926,34 @@ class SceneManager {
                                         && placedElement && window.ConstructionTools;
                                     
                                     if (shouldCreateVerticalJoint) {
-                                        // console.log('🔧 DEBUG: Création automatique de joint pour', suggestionType);
-                                        // Passer aussi la brique de référence pour déterminer le bon côté
-                                        this.createAutomaticJointForPerpendicular(placedElement, suggestionType, capturedReferenceElement);
+                                        // Ne considère comme "lettre" que les codes comportant des lettres A-Z.
+                                        // Les codes purement numériques (ex: 090103) doivent utiliser la logique générique.
+                                        const letterCode = ghost && ghost.mesh && ghost.mesh.userData && ghost.mesh.userData.letter;
+                                        const hasAlphaLetter = typeof letterCode === 'string' && /[A-Za-z]/.test(letterCode);
+                                        const hasPerpLetter = isPerpendicularSuggestion && hasAlphaLetter;
+                                        if (isAngleSuggestion) {
+                                            // On laisse la logique d'angle dédiée (plus bas) gérer et on évite la création générique pour prévenir les doublons
+                                            console.log('🧪 JOINT-DEBUG (anim): skip generic auto-joint (angle) → logique dédiée');
+                                        } else if (hasPerpLetter) {
+                                            console.log('🧪 JOINT-DEBUG (anim): skip generic auto-joint (perpendiculaire + lettre) pour éviter un override');
+                                        } else {
+                                            // console.log('🔧 DEBUG: Création automatique de joint pour', suggestionType);
+                                            // Passer aussi la brique de référence pour déterminer le bon côté
+                                            // Garde: éviter la création générique pour 910103 en cas 1/4 → entier (on laissera l'override 1/4 gérer)
+                                            const isHalfToFull910103 = (suggestionType.startsWith('perpendiculaire') && letterCode === '910103' && placedElement && !this.isCutBlock(placedElement) && capturedReferenceElement && this.isCutBlock(capturedReferenceElement));
+                                            if (isHalfToFull910103) {
+                                                console.log('🧪 JOINT-DEBUG (anim-perp): skip generic for 910103 (1/4 → entier), override half-block will handle');
+                                            } else {
+                                                try {
+                                                    // Sauvegarder la lettre du fantôme sur l'élément placé pour que la fonction interne y accède même si currentGhost disparaît
+                                                    if (placedElement) {
+                                                        placedElement.userData = placedElement.userData || {};
+                                                        placedElement.userData._perpGhostLetterCode = letterCode || null;
+                                                    }
+                                                } catch(_) {}
+                                                this.createAutomaticJointForPerpendicular(placedElement, suggestionType, capturedReferenceElement);
+                                            }
+                                        }
                                     } else {
                                         // console.log('⚠️ DEBUG: Conditions non remplies pour création automatique de joint de boutisse');
                                     }
@@ -928,67 +985,324 @@ class SceneManager {
                                     // LOGIQUE UNIVERSELLE DE JOINTS VERTICAUX AUTOMATIQUES
                                     if (suggestionType === 'continuation' && ghost.mesh.userData.letter) {
                                         const position = ghost.mesh.userData.letter;
-                                        // console.log('🔧 LOGIQUE UNIVERSELLE: Position détectée =', position);
-                                        
-                                        // Déterminer le côté du joint selon la position
-                                        const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
-                                        const targetElement = placedElement || this.getLastPlacedElement();
-                                        
-                                        if (isLeftSide) {
-                                            // console.log('🔧 UNIVERSEL: Création joint vertical gauche pour position', position);
-                                            this.createAutomaticLeftVerticalJoint(targetElement);
+                                        // Cas spécial numérique: 910102/950102 → joint GAUCHE sur la brique d'origine (référence)
+                                        if (position === '910102' || position === '950102') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log(`🧪 JOINT-DEBUG (anim-continuation): ${position} → GAUCHE (référence)`, { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '090401') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 090401 → DROIT (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                    try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '430401') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 430401 → DROIT (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                    try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '140402') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 140402 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '144002') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 144002 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === 'TEH' || position === 'TEJ' || position === 'EEH' || position === 'EEJ' || position === 'EET' || position === 'EEV') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): TEH/TEJ/EEH/EEJ/EET/EEV → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '191002') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation override): 191002 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '190510') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation override): 190510 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '850110') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation override): 850110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '297110') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation override): 297110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '292110') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation override): 292110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '752102') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation override): 752102 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '750110') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation override): 750110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '290110') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation override): 290110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '830201' || position === '830401' || position === '850107' || position === '850109' || position === '850401' || position === '190507' || position === '190509' || position === '290107' || position === '290109' || position === '290207' || position === '290209' || position === '290401' || position === '290501' || position === '290601' || position === '292107' || position === '292109' || position === '292201' || position === '292301' || position === '292401' || position === '292501' || position === '297107' || position === '217109' || position === '750107' || position === '750109') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log(`🧪 JOINT-DEBUG (anim-continuation override): ${position} → DROIT (référence)`, { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                    try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
                                         } else {
-                                            // console.log('🔧 UNIVERSEL: Création joint vertical droit pour position', position);
-                                            this.createAutomaticRightVerticalJoint(targetElement);
+                                            const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
+                                            const targetElement = placedElement || this.getLastPlacedElement();
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation):', { letter: position, isLeftSide, targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    const side = isLeftSide ? 'left' : 'right';
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, side);
+                                                    try { this.activateJointControlInterface(side); } catch(_) {}
+                                                }
+                                            } catch(_) {}
                                         }
                                     }
                                     
                                     // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position C
-                                    if (suggestionType === 'perpendiculaire-frontale-droite' && ghost.mesh.userData.letter === 'C') {
-                                        // Utiliser l'élément nouvellement placé au lieu de referenceElement
-                                        this.createAutomaticLeftVerticalJoint(placedElement || this.getLastPlacedElement());
+                                    const __letterCodeAnim = ghost.mesh.userData.letter || '';
+                                    const __baseLetterAnim = typeof __letterCodeAnim === 'string' ? __letterCodeAnim.slice(-1) : __letterCodeAnim;
+                                    console.log('🧪 JOINT-DEBUG (anim):', {
+                                        suggestionType,
+                                        letter: __letterCodeAnim,
+                                        baseLetter: __baseLetterAnim,
+                                        placedId: placedElement?.id,
+                                        referenceId: capturedReferenceElement?.id
+                                    });
+                                    if (suggestionType === 'perpendiculaire-frontale-droite' && __baseLetterAnim === 'C') {
+                                        console.log('🧪 JOINT-DEBUG (anim): règle C/frontale-droite → côté GAUCHE');
+                                        // Créer directement le joint (ignorer le flag auto global pour perpendiculaire)
+                                        try {
+                                            const target = placedElement || this.getLastPlacedElement();
+                                            if (window.ConstructionTools && target) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(target, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                        try {
+                                            if (placedElement) {
+                                                placedElement.userData = placedElement.userData || {};
+                                                placedElement.userData.perpJointForced = true;
+                                            }
+                                        } catch(_) {}
                                     }
                                     
                                     // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position D
-                                    if (suggestionType === 'perpendiculaire-frontale-gauche' && ghost.mesh.userData.letter === 'D') {
-                                        // Utiliser l'élément nouvellement placé au lieu de referenceElement
-                                        this.createAutomaticLeftVerticalJoint(placedElement || this.getLastPlacedElement());
+                                    if (suggestionType === 'perpendiculaire-frontale-gauche' && __baseLetterAnim === 'D') {
+                                        console.log('🧪 JOINT-DEBUG (anim): règle D/frontale-gauche → côté GAUCHE');
+                                        // Créer directement le joint (ignorer le flag auto global pour perpendiculaire)
+                                        try {
+                                            const target = placedElement || this.getLastPlacedElement();
+                                            if (window.ConstructionTools && target) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(target, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                        try {
+                                            if (placedElement) {
+                                                placedElement.userData = placedElement.userData || {};
+                                                placedElement.userData.perpJointForced = true;
+                                            }
+                                        } catch(_) {}
                                     }
                                     
                                     // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position E
-                                    if (suggestionType === 'perpendiculaire-dorsale-droite' && ghost.mesh.userData.letter === 'E') {
-                                        // Utiliser l'élément nouvellement placé au lieu de referenceElement
-                                        this.createAutomaticRightVerticalJoint(placedElement || this.getLastPlacedElement());
+                                    if (suggestionType === 'perpendiculaire-dorsale-droite' && __baseLetterAnim === 'E') {
+                                        console.log('🧪 JOINT-DEBUG (anim): règle E/dorsale-droite → côté DROIT');
+                                        // Créer directement le joint (ignorer le flag auto global pour perpendiculaire)
+                                        try {
+                                            const target = placedElement || this.getLastPlacedElement();
+                                            if (window.ConstructionTools && target) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(target, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                        try {
+                                            if (placedElement) {
+                                                placedElement.userData = placedElement.userData || {};
+                                                placedElement.userData.perpJointForced = true;
+                                            }
+                                        } catch(_) {}
                                     }
                                     
                                     // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position F
-                                    if (suggestionType === 'perpendiculaire-dorsale-gauche' && ghost.mesh.userData.letter === 'F') {
-                                        // Utiliser l'élément nouvellement placé au lieu de referenceElement
-                                        this.createAutomaticRightVerticalJoint(placedElement || this.getLastPlacedElement());
+                                    if (suggestionType === 'perpendiculaire-dorsale-gauche' && __baseLetterAnim === 'F') {
+                                        console.log('🧪 JOINT-DEBUG (anim): règle F/dorsale-gauche → côté DROIT');
+                                        // Créer directement le joint (ignorer le flag auto global pour perpendiculaire)
+                                        try {
+                                            const target = placedElement || this.getLastPlacedElement();
+                                            if (window.ConstructionTools && target) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(target, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                        try {
+                                            if (placedElement) {
+                                                placedElement.userData = placedElement.userData || {};
+                                                placedElement.userData.perpJointForced = true;
+                                            }
+                                        } catch(_) {}
                                     }
                                     
-                                    // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position G - sur la brique de référence
-                                    if (suggestionType === 'angle-panneresse-droite' && ghost.mesh.userData.letter === 'G') {
-                                        // Utiliser la brique de référence (celle qui était déjà posée)
-                                        this.createAutomaticRightVerticalJoint(capturedReferenceElement);
+                                    // Préparer code et base-letter pour les angles (gère aussi les codes combinés comme HEH)
+                                    const __angleCodeAnim = (ghost && ghost.mesh && ghost.mesh.userData && ghost.mesh.userData.letter) || '';
+                                    const __angleBaseAnim = __angleCodeAnim.slice(-1);
+
+                                    // SPECIAL-CASE (anim): 090107/090109/090207/090209/910107/910109/140109/140107/140307/140309/143407/143409/430107/430109/430207/430210/464107/464109/190107/190109/190507/190509/191207/191209/290107/290109/290207/290209/290401/290501/290601/292107/292109/292201/292301/292401/297107/217109/750107/750109/850107/850109/850401 → DROIT (référence), 090110/090208/090210/140110/140108/140310/143410/464110/190110/191210/191102/850110/190510/290110/292110/297110/750110/752102 → GAUCHE (référence)
+                                    if (isAngleSuggestion && (
+                                        __angleCodeAnim === '090107' || __angleCodeAnim === '090109' ||
+                                        __angleCodeAnim === '090207' || __angleCodeAnim === '090209' ||
+                                        __angleCodeAnim === '910107' || __angleCodeAnim === '910109' ||
+                                        __angleCodeAnim === '140109' || __angleCodeAnim === '140107' || __angleCodeAnim === '140307' || __angleCodeAnim === '140309' || __angleCodeAnim === '143407' || __angleCodeAnim === '143409' || __angleCodeAnim === '430107' || __angleCodeAnim === '430109' || __angleCodeAnim === '430207' || __angleCodeAnim === '430210' || __angleCodeAnim === '464107' || __angleCodeAnim === '464109' || __angleCodeAnim === '190107' || __angleCodeAnim === '190109' || __angleCodeAnim === '190507' || __angleCodeAnim === '190509' || __angleCodeAnim === '191207' || __angleCodeAnim === '191209' || __angleCodeAnim === '290107' || __angleCodeAnim === '290109' || __angleCodeAnim === '290207' || __angleCodeAnim === '290209' || __angleCodeAnim === '290401' || __angleCodeAnim === '290501' || __angleCodeAnim === '290601' || __angleCodeAnim === '292107' || __angleCodeAnim === '292109' || __angleCodeAnim === '292201' || __angleCodeAnim === '292301' || __angleCodeAnim === '292401' || __angleCodeAnim === '297107' || __angleCodeAnim === '217109' || __angleCodeAnim === '750107' || __angleCodeAnim === '750109' || __angleCodeAnim === '850107' || __angleCodeAnim === '850109' || __angleCodeAnim === '850401' ||
+                                        __angleCodeAnim === '090110' || __angleCodeAnim === '090208' || __angleCodeAnim === '090210' || __angleCodeAnim === '140110' || __angleCodeAnim === '140108' || __angleCodeAnim === '140310' || __angleCodeAnim === '143410' || __angleCodeAnim === '464110' || __angleCodeAnim === '190110' || __angleCodeAnim === '191210' || __angleCodeAnim === '191102' || __angleCodeAnim === '850110' || __angleCodeAnim === '190510' || __angleCodeAnim === '290110' || __angleCodeAnim === '292110' || __angleCodeAnim === '297110' || __angleCodeAnim === '750110'
+                                    )) {
+                                        try {
+                                            const target = capturedReferenceElement;
+                                            if (window.ConstructionTools && target) {
+                                                const side = (__angleCodeAnim === '090110' || __angleCodeAnim === '090208' || __angleCodeAnim === '090210' || __angleCodeAnim === '140110' || __angleCodeAnim === '140108' || __angleCodeAnim === '140310' || __angleCodeAnim === '143410' || __angleCodeAnim === '464110' || __angleCodeAnim === '190110' || __angleCodeAnim === '191210' || __angleCodeAnim === '191102' || __angleCodeAnim === '850110' || __angleCodeAnim === '190510' || __angleCodeAnim === '290110' || __angleCodeAnim === '292110' || __angleCodeAnim === '297110' || __angleCodeAnim === '750110' || __angleCodeAnim === '752102') ? 'left' : 'right';
+                                                console.log(`🧪 JOINT-DEBUG (anim-angle): ${__angleCodeAnim} → joint ${side.toUpperCase()} (référence)`, { code: __angleCodeAnim, targetId: target?.id });
+                                                window.ConstructionTools.createSpecificVerticalJoint(target, side);
+                                                try { this.activateJointControlInterface(side); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else {
+
+                                    // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position G
+                                    if (suggestionType === 'angle-panneresse-droite' && __angleBaseAnim === 'G') {
+                                        // Toujours sur la brique de référence
+                                        const target = capturedReferenceElement;
+                                        const side = 'right';
+                                        try {
+                                            if (window.ConstructionTools && target) {
+                                                const msg = (__angleCodeAnim === 'EEG') ? 'EEG détecté → joint DROIT (référence)' : 'base G détectée → joint DROIT (référence)';
+                                                console.log(`🧪 JOINT-DEBUG (anim-angle): ${msg}`, { targetId: target?.id });
+                                                window.ConstructionTools.createSpecificVerticalJoint(target, side);
+                                                try { this.activateJointControlInterface(side); } catch(_) {}
+                                            }
+                                        } catch(_) {}
                                     }
                                     
-                                    // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position I - sur la brique de référence
-                                    if (suggestionType === 'angle-panneresse-droite-arriere' && ghost.mesh.userData.letter === 'I') {
-                                        // Utiliser la brique de référence (celle qui était déjà posée)
-                                        this.createAutomaticRightVerticalJoint(capturedReferenceElement);
+                                    // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position I
+                                    if (suggestionType === 'angle-panneresse-droite-arriere' && __angleBaseAnim === 'I') {
+                                        // Toujours sur la brique de référence
+                                        const target = capturedReferenceElement;
+                                        const side = 'right';
+                                        try {
+                                            if (window.ConstructionTools && target) {
+                                                const msg = (__angleCodeAnim === 'EEI') ? 'EEI détecté → joint DROIT (référence)' : 'base I détectée → joint DROIT (référence)';
+                                                console.log(`🧪 JOINT-DEBUG (anim-angle): ${msg}`, { targetId: target?.id });
+                                                window.ConstructionTools.createSpecificVerticalJoint(target, side);
+                                                try { this.activateJointControlInterface(side); } catch(_) {}
+                                            }
+                                        } catch(_) {}
                                     }
                                     
                                     // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position H - sur la brique de référence
-                                    if (suggestionType === 'angle-panneresse-gauche' && ghost.mesh.userData.letter === 'H') {
-                                        // Utiliser la brique de référence (celle qui était déjà posée)
-                                        this.createAutomaticLeftVerticalJoint(capturedReferenceElement);
+                                    if (suggestionType === 'angle-panneresse-gauche') {
+                                        // Toujours sur la brique de référence
+                                        const target = capturedReferenceElement;
+                                        const side = 'left';
+                                        try {
+                                            if (window.ConstructionTools && target) {
+                                                const isEEH = (__angleCodeAnim === 'EEH');
+                                                const msg = isEEH ? 'EEH détecté → joint GAUCHE (référence)' : 'base H détectée → joint GAUCHE (référence)';
+                                                console.log(`🧪 JOINT-DEBUG (anim-angle): ${msg}`, { targetId: target?.id });
+                                                window.ConstructionTools.createSpecificVerticalJoint(target, side);
+                                                try { this.activateJointControlInterface(side); } catch(_) {}
+                                            }
+                                        } catch(_) {}
                                     }
                                     
                                     // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position J - sur la brique de référence
-                                    if (suggestionType === 'angle-panneresse-gauche-arriere' && ghost.mesh.userData.letter === 'J') {
-                                        // Utiliser la brique de référence (celle qui était déjà posée)
-                                        this.createAutomaticLeftVerticalJoint(capturedReferenceElement);
+                                    if (suggestionType === 'angle-panneresse-gauche-arriere' && __angleBaseAnim === 'J') {
+                                        // Toujours sur la brique de référence
+                                        const target = capturedReferenceElement;
+                                        const side = 'left';
+                                        try {
+                                            if (window.ConstructionTools && target) {
+                                                const msg = (__angleCodeAnim === 'EEJ') ? 'EEJ détecté → joint GAUCHE (référence)' : 'base J détectée → joint GAUCHE (référence)';
+                                                console.log(`🧪 JOINT-DEBUG (anim-angle): ${msg}`, { targetId: target?.id });
+                                                window.ConstructionTools.createSpecificVerticalJoint(target, side);
+                                                try { this.activateJointControlInterface(side); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    }
                                     }
                                     
                                     // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position S (boutisse) - sur la brique de référence
@@ -998,7 +1312,7 @@ class SceneManager {
                                     }
                                     
                                     // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position T (boutisse) - sur la brique de référence
-                                    if (suggestionType === 'angle-boutisse-gauche' && ghost.mesh.userData.letter === 'T') {
+                                    if (suggestionType === 'angle-boutisse-gauche' && (ghost.mesh.userData.letter === 'T' || ghost.mesh.userData.letter === 'EET')) {
                                         // Utiliser la brique de référence (celle qui était déjà posée)
                                         this.createAutomaticLeftVerticalJoint(capturedReferenceElement);
                                     }
@@ -1010,7 +1324,7 @@ class SceneManager {
                                     }
                                     
                                     // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position V (boutisse avant) - sur la brique de référence
-                                    if (suggestionType === 'angle-boutisse-gauche-avant' && ghost.mesh.userData.letter === 'V') {
+                                    if (suggestionType === 'angle-boutisse-gauche-avant' && (ghost.mesh.userData.letter === 'V' || ghost.mesh.userData.letter === 'EEV')) {
                                         // Utiliser la brique de référence (celle qui était déjà posée)
                                         this.createAutomaticLeftVerticalJoint(capturedReferenceElement);
                                     }
@@ -1126,9 +1440,16 @@ class SceneManager {
                                 //     suggestionType
                                 // });
                                 if (isPerpendicularSuggestion && placedElement && window.ConstructionTools) {
-                                    // console.log('🔧 DEBUG: Création automatique de joint pour', suggestionType);
-                                    // Passer aussi la brique de référence pour déterminer le bon côté
-                                    this.createAutomaticJointForPerpendicular(placedElement, suggestionType, capturedReferenceElement);
+                                    // Garde: éviter la création générique pour 910103 en cas 1/4 → entier (on laissera l'override 1/4 gérer)
+                                    const letterCode = ghost && ghost.mesh && ghost.mesh.userData && ghost.mesh.userData.letter;
+                                    const isHalfToFull910103 = (suggestionType.startsWith('perpendiculaire') && letterCode === '910103' && !this.isCutBlock(placedElement) && capturedReferenceElement && this.isCutBlock(capturedReferenceElement));
+                                    if (isHalfToFull910103) {
+                                        console.log('🧪 JOINT-DEBUG (fallback-perp): skip generic for 910103 (1/4 → entier), override half-block will handle');
+                                    } else {
+                                        // console.log('🔧 DEBUG: Création automatique de joint pour', suggestionType);
+                                        // Passer aussi la brique de référence pour déterminer le bon côté
+                                        this.createAutomaticJointForPerpendicular(placedElement, suggestionType, capturedReferenceElement);
+                                    }
                                 } else {
                                     // console.log('⚠️ DEBUG: Conditions non remplies pour création automatique de joint de boutisse (fallback)');
                                 }
@@ -1155,18 +1476,153 @@ class SceneManager {
                                 // LOGIQUE UNIVERSELLE DE JOINTS VERTICAUX AUTOMATIQUES (FALLBACK)
                                 if (suggestionType === 'continuation' && ghost.mesh.userData.letter) {
                                     const position = ghost.mesh.userData.letter;
-                                    console.log('🔧 LOGIQUE UNIVERSELLE (fallback): Position détectée =', position);
-                                    
-                                    // Déterminer le côté du joint selon la position
-                                    const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
-                                    const targetElement = placedElement || this.getLastPlacedElement();
-                                    
-                                    if (isLeftSide) {
-                                        console.log('🔧 UNIVERSEL (fallback): Création joint vertical gauche pour position', position);
-                                        this.createAutomaticLeftVerticalJoint(targetElement);
+                                    // Cas spécial numérique: 910102/950102 → joint GAUCHE sur la brique d'origine (référence)
+                                    if (position === '910102' || position === '950102') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log(`🧪 JOINT-DEBUG (fallback-continuation): ${position} → GAUCHE (référence)`, { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '090401') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 090401 → DROIT (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '430401') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 430401 → DROIT (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '140402') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 140402 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '144002') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 144002 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === 'TEH' || position === 'TEJ' || position === 'EEH' || position === 'EEJ') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): TEH/TEJ/EEH/EEJ → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '191002') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation override): 191002 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '190510') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation override): 190510 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '850110') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation override): 850110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '297110') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation override): 297110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '292110') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation override): 292110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '752102') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation override): 752102 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '750110') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation override): 750110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '290110') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation override): 290110 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '830201' || position === '830401' || position === '850107' || position === '850109' || position === '850401' || position === '190507' || position === '190509' || position === '290107' || position === '290109' || position === '290207' || position === '290209' || position === '290401' || position === '290501' || position === '290601' || position === '292107' || position === '292109' || position === '292201' || position === '292301' || position === '292401' || position === '292501' || position === '297107' || position === '217109' || position === '750107' || position === '750109') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log(`🧪 JOINT-DEBUG (fallback-continuation override): ${position} → DROIT (référence)`, { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
                                     } else {
-                                        console.log('🔧 UNIVERSEL (fallback): Création joint vertical droit pour position', position);
-                                        this.createAutomaticRightVerticalJoint(targetElement);
+                                        const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
+                                        const targetElement = placedElement || this.getLastPlacedElement();
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation):', { letter: position, isLeftSide, targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                const side = isLeftSide ? 'left' : 'right';
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, side);
+                                                try { this.activateJointControlInterface(side); } catch(_) {}
+                                            }
+                                        } catch(_) {}
                                     }
                                 }
 
@@ -1216,63 +1672,120 @@ class SceneManager {
                                 }
                                 
                                 // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position C
-                                if (suggestionType === 'perpendiculaire-frontale-droite' && ghost.mesh.userData.letter === 'C') {
+                                const __letterCodeFallback = ghost.mesh.userData.letter || '';
+                                const __baseLetterFallback = typeof __letterCodeFallback === 'string' ? __letterCodeFallback.slice(-1) : __letterCodeFallback;
+                                console.log('🧪 JOINT-DEBUG (fallback):', {
+                                    suggestionType,
+                                    letter: __letterCodeFallback,
+                                    baseLetter: __baseLetterFallback,
+                                    placedId: placedElement?.id,
+                                    referenceId: capturedReferenceElement?.id
+                                });
+                                if (suggestionType === 'perpendiculaire-frontale-droite' && __baseLetterFallback === 'C') {
+                                    console.log('🧪 JOINT-DEBUG (fallback): règle C/frontale-droite → côté GAUCHE');
                                     console.log('🔧 Position C détectée - Activation automatique du joint vertical gauche');
                                     // Utiliser l'élément nouvellement placé au lieu de referenceElement
                                     this.createAutomaticLeftVerticalJoint(placedElement || this.getLastPlacedElement());
                                 }
                                 
                                 // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position D
-                                if (suggestionType === 'perpendiculaire-frontale-gauche' && ghost.mesh.userData.letter === 'D') {
+                                if (suggestionType === 'perpendiculaire-frontale-gauche' && __baseLetterFallback === 'D') {
+                                    console.log('🧪 JOINT-DEBUG (fallback): règle D/frontale-gauche → côté GAUCHE');
                                     console.log('🔧 Position D détectée - Activation automatique du joint vertical gauche');
                                     // Utiliser l'élément nouvellement placé au lieu de referenceElement
                                     this.createAutomaticLeftVerticalJoint(placedElement || this.getLastPlacedElement());
                                 }
                                 
                                 // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position E
-                                if (suggestionType === 'perpendiculaire-dorsale-droite' && ghost.mesh.userData.letter === 'E') {
+                                if (suggestionType === 'perpendiculaire-dorsale-droite' && __baseLetterFallback === 'E') {
+                                    console.log('🧪 JOINT-DEBUG (fallback): règle E/dorsale-droite → côté DROIT');
                                     console.log('🔧 Position E détectée - Activation automatique du joint vertical droit');
                                     // Utiliser l'élément nouvellement placé au lieu de referenceElement
                                     this.createAutomaticRightVerticalJoint(placedElement || this.getLastPlacedElement());
                                 }
                                 
                                 // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position F
-                                if (suggestionType === 'perpendiculaire-dorsale-gauche' && ghost.mesh.userData.letter === 'F') {
+                                if (suggestionType === 'perpendiculaire-dorsale-gauche' && __baseLetterFallback === 'F') {
+                                    console.log('🧪 JOINT-DEBUG (fallback): règle F/dorsale-gauche → côté DROIT');
                                     console.log('🔧 Position F détectée - Activation automatique du joint vertical droit');
                                     // Utiliser l'élément nouvellement placé au lieu de referenceElement
                                     this.createAutomaticRightVerticalJoint(placedElement || this.getLastPlacedElement());
                                 }
                                 
-                                // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position G - sur la brique de référence
-                                if (suggestionType === 'angle-panneresse-droite' && ghost.mesh.userData.letter === 'G') {
-                                    console.log('🔧 Position G détectée - Activation automatique du joint vertical droit sur la brique de référence');
-                                    console.log('🔧 DEBUG: capturedReferenceElement pour G (fallback) =', capturedReferenceElement?.id);
-                                    // Utiliser la brique de référence (celle qui était déjà posée)
-                                    this.createAutomaticRightVerticalJoint(capturedReferenceElement);
+                                // Préparer code et base-letter pour les angles (fallback)
+                                const __angleCodeFallback2 = (ghost && ghost.mesh && ghost.mesh.userData && ghost.mesh.userData.letter) || '';
+                                const __angleBaseFallback2 = __angleCodeFallback2.slice(-1);
+
+                                // SPECIAL-CASE (fallback): 090107/090109/090207/090209/910107/910109/140109/140107/140307/140309/143407/143409/430107/430109/430207/430210/464107/464109/190107/190109/190507/190509/191207/191209/290107/290109/290207/290209/290401/290501/290601/292107/292109/292201/292301/292401/297107/217109/750107/750109/850107/850109/850401 → DROIT (référence), 090110/090208/090210/140110/140108/140310/143410/464110/190110/191210/191102/850110/190510/290110/292110/297110/750110/752102 → GAUCHE (référence)
+                                if ((suggestionType.startsWith('angle-')) && (
+                                    __angleCodeFallback2 === '090107' || __angleCodeFallback2 === '090109' ||
+                                    __angleCodeFallback2 === '090207' || __angleCodeFallback2 === '090209' ||
+                                    __angleCodeFallback2 === '910107' || __angleCodeFallback2 === '910109' ||
+                                    __angleCodeFallback2 === '140109' || __angleCodeFallback2 === '140107' || __angleCodeFallback2 === '140307' || __angleCodeFallback2 === '140309' || __angleCodeFallback2 === '143407' || __angleCodeFallback2 === '143409' || __angleCodeFallback2 === '430107' || __angleCodeFallback2 === '430109' || __angleCodeFallback2 === '430207' || __angleCodeFallback2 === '430210' || __angleCodeFallback2 === '464107' || __angleCodeFallback2 === '464109' || __angleCodeFallback2 === '190107' || __angleCodeFallback2 === '190109' || __angleCodeFallback2 === '190507' || __angleCodeFallback2 === '190509' || __angleCodeFallback2 === '191207' || __angleCodeFallback2 === '191209' || __angleCodeFallback2 === '290107' || __angleCodeFallback2 === '290109' || __angleCodeFallback2 === '290207' || __angleCodeFallback2 === '290209' || __angleCodeFallback2 === '290401' || __angleCodeFallback2 === '290501' || __angleCodeFallback2 === '290601' || __angleCodeFallback2 === '292107' || __angleCodeFallback2 === '292109' || __angleCodeFallback2 === '292201' || __angleCodeFallback2 === '292301' || __angleCodeFallback2 === '292401' || __angleCodeFallback2 === '297107' || __angleCodeFallback2 === '217109' || __angleCodeFallback2 === '750107' || __angleCodeFallback2 === '750109' || __angleCodeFallback2 === '850107' || __angleCodeFallback2 === '850109' || __angleCodeFallback2 === '850401' ||
+                                    __angleCodeFallback2 === '090110' || __angleCodeFallback2 === '090208' || __angleCodeFallback2 === '090210' || __angleCodeFallback2 === '140110' || __angleCodeFallback2 === '140108' || __angleCodeFallback2 === '140310' || __angleCodeFallback2 === '143410' || __angleCodeFallback2 === '464110' || __angleCodeFallback2 === '190110' || __angleCodeFallback2 === '191210' || __angleCodeFallback2 === '191102' || __angleCodeFallback2 === '850110' || __angleCodeFallback2 === '190510' || __angleCodeFallback2 === '290110' || __angleCodeFallback2 === '292110' || __angleCodeFallback2 === '297110' || __angleCodeFallback2 === '750110'
+                                )) {
+                                    try {
+                                        const target = capturedReferenceElement;
+                                        if (window.ConstructionTools && target) {
+                                            const side = (__angleCodeFallback2 === '090110' || __angleCodeFallback2 === '090208' || __angleCodeFallback2 === '090210' || __angleCodeFallback2 === '140110' || __angleCodeFallback2 === '140108' || __angleCodeFallback2 === '140310' || __angleCodeFallback2 === '143410' || __angleCodeFallback2 === '464110' || __angleCodeFallback2 === '190110' || __angleCodeFallback2 === '191210' || __angleCodeFallback2 === '191102' || __angleCodeFallback2 === '850110' || __angleCodeFallback2 === '190510' || __angleCodeFallback2 === '290110' || __angleCodeFallback2 === '292110' || __angleCodeFallback2 === '297110' || __angleCodeFallback2 === '750110' || __angleCodeFallback2 === '752102') ? 'left' : 'right';
+                                            console.log(`🧪 JOINT-DEBUG (fallback-angle): ${__angleCodeFallback2} → joint ${side.toUpperCase()} (référence)`, { code: __angleCodeFallback2, targetId: target?.id });
+                                            window.ConstructionTools.createSpecificVerticalJoint(target, side);
+                                            try { this.activateJointControlInterface(side); } catch(_) {}
+                                        }
+                                    } catch(_) {}
+                                } else {
+
+                                // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position G
+                                if (suggestionType === 'angle-panneresse-droite' && __angleBaseFallback2 === 'G') {
+                                    try {
+                                        const target = capturedReferenceElement;
+                                        if (window.ConstructionTools && target) {
+                                            const msg = (__angleCodeFallback2 === 'EEG') ? 'EEG détecté → joint DROIT (référence)' : 'base G détectée → joint DROIT (référence)';
+                                            console.log(`🧪 JOINT-DEBUG (fallback-angle): ${msg}`, { targetId: target?.id });
+                                            window.ConstructionTools.createSpecificVerticalJoint(target, 'right');
+                                            try { this.activateJointControlInterface('right'); } catch(_) {}
+                                        }
+                                    } catch(_) {}
                                 }
                                 
-                                // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position I - sur la brique de référence
-                                if (suggestionType === 'angle-panneresse-droite-arriere' && ghost.mesh.userData.letter === 'I') {
-                                    console.log('🔧 Position I détectée - Activation automatique du joint vertical droit sur la brique de référence');
-                                    console.log('🔧 DEBUG: capturedReferenceElement pour I (fallback) =', capturedReferenceElement?.id);
-                                    // Utiliser la brique de référence (celle qui était déjà posée)
-                                    this.createAutomaticRightVerticalJoint(capturedReferenceElement);
+                                // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position I
+                                if (suggestionType === 'angle-panneresse-droite-arriere' && __angleBaseFallback2 === 'I') {
+                                    try {
+                                        const target = capturedReferenceElement;
+                                        if (window.ConstructionTools && target) {
+                                            const msg = (__angleCodeFallback2 === 'EEI') ? 'EEI détecté → joint DROIT (référence)' : 'base I détectée → joint DROIT (référence)';
+                                            console.log(`🧪 JOINT-DEBUG (fallback-angle): ${msg}`, { targetId: target?.id });
+                                            window.ConstructionTools.createSpecificVerticalJoint(target, 'right');
+                                            try { this.activateJointControlInterface('right'); } catch(_) {}
+                                        }
+                                    } catch(_) {}
                                 }
                                 
-                                // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position H - sur la brique de référence
-                                if (suggestionType === 'angle-panneresse-gauche' && ghost.mesh.userData.letter === 'H') {
-                                    console.log('🔧 Position H détectée - Activation automatique du joint vertical gauche sur la brique de référence');
-                                    console.log('🔧 DEBUG: capturedReferenceElement pour H (fallback) =', capturedReferenceElement?.id);
-                                    // Utiliser la brique de référence (celle qui était déjà posée)
-                                    this.createAutomaticLeftVerticalJoint(capturedReferenceElement);
+                                // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position H
+                                if (suggestionType === 'angle-panneresse-gauche') {
+                                    try {
+                                        const target = capturedReferenceElement;
+                                        if (window.ConstructionTools && target) {
+                                            const msg = (__angleCodeFallback2 === 'EEH') ? 'EEH détecté → joint GAUCHE (référence)' : 'base H détectée → joint GAUCHE (référence)';
+                                            console.log(`🧪 JOINT-DEBUG (fallback-angle): ${msg}`, { targetId: target?.id });
+                                            window.ConstructionTools.createSpecificVerticalJoint(target, 'left');
+                                            try { this.activateJointControlInterface('left'); } catch(_) {}
+                                        }
+                                    } catch(_) {}
                                 }
                                 
-                                // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position J - sur la brique de référence
-                                if (suggestionType === 'angle-panneresse-gauche-arriere' && ghost.mesh.userData.letter === 'J') {
-                                    console.log('🔧 Position J détectée - Activation automatique du joint vertical gauche sur la brique de référence');
-                                    console.log('🔧 DEBUG: capturedReferenceElement pour J (fallback) =', capturedReferenceElement?.id);
-                                    // Utiliser la brique de référence (celle qui était déjà posée)
-                                    this.createAutomaticLeftVerticalJoint(capturedReferenceElement);
+                                // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position J
+                                if (suggestionType === 'angle-panneresse-gauche-arriere' && __angleBaseFallback2 === 'J') {
+                                    try {
+                                        const target = capturedReferenceElement;
+                                        if (window.ConstructionTools && target) {
+                                            const msg = (__angleCodeFallback2 === 'EEJ') ? 'EEJ détecté → joint GAUCHE (référence)' : 'base J détectée → joint GAUCHE (référence)';
+                                            console.log(`🧪 JOINT-DEBUG (fallback-angle): ${msg}`, { targetId: target?.id });
+                                            window.ConstructionTools.createSpecificVerticalJoint(target, 'left');
+                                            try { this.activateJointControlInterface('left'); } catch(_) {}
+                                        }
+                                    } catch(_) {}
+                                }
                                 }
                                 
                                 // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position S (boutisse) - sur la brique de référence
@@ -1284,8 +1797,8 @@ class SceneManager {
                                 }
                                 
                                 // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position T (boutisse) - sur la brique de référence
-                                if (suggestionType === 'angle-boutisse-gauche' && ghost.mesh.userData.letter === 'T') {
-                                    console.log('🔧 Position T (boutisse) détectée - Activation automatique du joint vertical gauche sur la brique de référence');
+                                if (suggestionType === 'angle-boutisse-gauche' && (ghost.mesh.userData.letter === 'T' || ghost.mesh.userData.letter === 'EET')) {
+                                    console.log(`🔧 Position ${ghost.mesh.userData.letter} (boutisse) détectée - Activation automatique du joint vertical gauche sur la brique de référence`);
                                     console.log('🔧 DEBUG: capturedReferenceElement pour T (fallback) =', capturedReferenceElement?.id);
                                     // Utiliser la brique de référence (celle qui était déjà posée)
                                     this.createAutomaticLeftVerticalJoint(capturedReferenceElement);
@@ -1300,8 +1813,8 @@ class SceneManager {
                                 }
                                 
                                 // NOUVELLE FONCTIONNALITÉ : Joint vertical automatique pour position V (boutisse avant) - sur la brique de référence
-                                if (suggestionType === 'angle-boutisse-gauche-avant' && ghost.mesh.userData.letter === 'V') {
-                                    console.log('🔧 Position V (boutisse avant) détectée - Activation automatique du joint vertical gauche sur la brique de référence');
+                                if (suggestionType === 'angle-boutisse-gauche-avant' && (ghost.mesh.userData.letter === 'V' || ghost.mesh.userData.letter === 'EEV')) {
+                                    console.log(`🔧 Position ${ghost.mesh.userData.letter} (boutisse avant) détectée - Activation automatique du joint vertical gauche sur la brique de référence`);
                                     console.log('🔧 DEBUG: capturedReferenceElement pour V (fallback) =', capturedReferenceElement?.id);
                                     // Utiliser la brique de référence (celle qui était déjà posée)
                                     this.createAutomaticLeftVerticalJoint(capturedReferenceElement);
@@ -1402,6 +1915,7 @@ class SceneManager {
                         mesh.userData.element.type === 'brick' || 
                         mesh.userData.element.type === 'block' || 
                         mesh.userData.element.type === 'insulation' ||
+                        mesh.userData.element.type === 'linteau' || // 🆕 autoriser la sélection des linteaux
                         mesh.userData.element.type === 'beam' || // 🆕 autoriser la sélection des poutres
                         mesh.userData.element.type === 'glb' ||
                         mesh.userData.element.isGLBModel
@@ -1562,11 +2076,65 @@ class SceneManager {
                         intersect.object.userData.element.type === 'brick' || 
                         intersect.object.userData.element.type === 'block' || 
                         intersect.object.userData.element.type === 'insulation' ||
+                        intersect.object.userData.element.type === 'linteau' || // 🆕 inclure les linteaux dans la sélection
                         intersect.object.userData.element.type === 'beam' || // 🆕 poutres sélectionnables
                         intersect.object.userData.element.type === 'glb' ||
                         intersect.object.userData.element.isGLBModel
                        );
             });
+
+            // ✅ MODE LINTEAU: placement direct au clic lorsque le fantôme est actif
+            // Objectif: éviter que la logique de sélection/suggestions bloque le placement
+            try {
+                const isLintelMode = !!(window.ConstructionTools && window.ConstructionTools.currentMode === 'linteau');
+                const ghost = window.ConstructionTools && window.ConstructionTools.ghostElement;
+                const hasActiveGhost = !!(ghost && ghost.mesh && ghost.mesh.visible);
+                const isSelectionModeNow = window.toolbarManager && window.toolbarManager.interactionMode === 'selection';
+
+                if (isLintelMode && hasActiveGhost && !isSelectionModeNow) {
+                    // Calculer une hauteur précise si on clique sur une face supérieure d'un bloc
+                    let placementYForTopFace = null;
+                    if (constructionIntersects.length > 0) {
+                        for (let i = 0; i < constructionIntersects.length; i++) {
+                            const intersect = constructionIntersects[i];
+                            const intersectElement = intersect.object.userData.element;
+                            if (intersectElement && (intersectElement.type === 'brick' || intersectElement.type === 'block')) {
+                                const face = intersect.face;
+                                const normal = face ? face.normal.clone() : null;
+                                if (normal) {
+                                    normal.transformDirection(intersect.object.matrixWorld);
+                                    if (normal.y > 0.8) { // face supérieure
+                                        const blockTop = intersectElement.position.y + (intersectElement.dimensions.height / 2);
+                                        const ghostHeight = ghost.dimensions?.height || 6.5;
+                                        let jh = 0;
+                                        try {
+                                            if (window.AssiseManager && typeof window.AssiseManager.getJointHeightForAssise === 'function') {
+                                                const currentType = window.AssiseManager.currentType;
+                                                const currentAssiseIndex = window.AssiseManager.currentAssiseByType.get(currentType) ?? 0;
+                                                jh = window.AssiseManager.getJointHeightForAssise(currentType, currentAssiseIndex) || 0;
+                                            }
+                                        } catch (_) { jh = 0; }
+                                        placementYForTopFace = blockTop + jh + ghostHeight / 2;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Utiliser la position X/Z du fantôme (déjà alignée avec le snap d'extrémité)
+                    const targetX = ghost.position.x;
+                    const targetZ = ghost.position.z;
+                    const targetRot = ghost.rotation || 0;
+                    const targetY = (placementYForTopFace !== null) ? placementYForTopFace : ghost.position.y;
+
+                    // Placer et sortir tout de suite
+                    this.placeElementAt(targetX, targetZ, targetRot, null, targetY);
+                    return;
+                }
+            } catch (e) {
+                console.warn('⚠️ Placement direct linteau: erreur non bloquante', e);
+            }
 
             // Si on clique sur un élément existant, gérer selon le mode d'interaction
             if (constructionIntersects.length > 0 || intersects.length > 0) {
@@ -1847,7 +2415,12 @@ class SceneManager {
                                                           (elementAssiseType && elementAssiseType.startsWith('B29_')) &&
                                                           currentType === 'CREUX');
                                     
-                                    if ((elementAssiseType !== currentType || elementAssiseIndex !== currentAssiseIndex) && !typeMatches && !isB29Exception) {
+                                    // EXCEPTION LINTEAU: En mode linteau, on autorise les suggestions même si l'élément de référence
+                                    // n'est pas dans l'assise 'linteau' (les linteaux se posent par-dessus d'autres assises).
+                                    const isLinteauMode = (currentType === 'linteau') ||
+                                                         (window.ConstructionTools && window.ConstructionTools.currentMode === 'linteau');
+                                    
+                                    if ((elementAssiseType !== currentType || elementAssiseIndex !== currentAssiseIndex) && !typeMatches && !isB29Exception && !isLinteauMode) {
                                         canCreateSuggestions = false;
                                         console.log('🚫 Suggestions bloquées - Élément', element.id, 
                                                   'dans assise', elementAssiseType, elementAssiseIndex, 
@@ -1856,6 +2429,8 @@ class SceneManager {
                                     } else {
                                         if (isB29Exception) {
                                             console.log('✅ Suggestions autorisées par exception B29 - Élément:', detectedElementType, 'dans assise:', elementAssiseType, 'courante:', currentType);
+                                        } else if (isLinteauMode) {
+                                            console.log('✅ Suggestions autorisées en mode LINTEAU - élément assise:', elementAssiseType, elementAssiseIndex, 'courante:', currentType, currentAssiseIndex);
                                         } else if (typeMatches && elementAssiseType !== currentType) {
                                             console.log('✅ Suggestions autorisées par type détecté - Élément type:', detectedElementType, 'assise courante:', currentType);
                                         } else {
@@ -1866,7 +2441,7 @@ class SceneManager {
                                 
                                 if (canCreateSuggestions) {
                                     // console.log('🎯 Mode pose - Création de suggestions adjacentes');
-                                    if (window.ConstructionTools.activateSuggestionsForBrick) {
+                                    if (window.ConstructionTools.activateSuggestionsForBrick && !(window.ConstructionTools && window.ConstructionTools.currentMode === 'linteau')) {
                                         window.ConstructionTools.activateSuggestionsForBrick(element);
                                         // 🔧 CAPTURE: Sauvegarder la brique de référence pour les joints automatiques
                                         this.lastReferenceBrick = element;
@@ -1909,7 +2484,7 @@ class SceneManager {
 
                                         // 1) Essayer d'activer les suggestions adjacentes quand on clique sur un élément existant
                                         try {
-                                            if (window.ConstructionTools && window.ConstructionTools.activateSuggestionsForBrick) {
+                                            if (window.ConstructionTools && window.ConstructionTools.activateSuggestionsForBrick && window.ConstructionTools.currentMode !== 'linteau') {
                                                 let canCreateSuggestions = true;
                                                 if (window.AssiseManager && window.AssiseManager.canSelectElement) {
                                                     // Autoriser les suggestions uniquement si l'élément appartient à son assise active
@@ -2584,6 +3159,17 @@ class SceneManager {
         // });
 
         const element = new WallElement(elementOptions);
+
+        // Spécial linteau: préserver la hauteur Y calculée au placement
+        // Évite que l'AssiseManager ne le recentre sur la grille d'assise
+        try {
+            if (type === 'linteau') {
+                element.preserveCustomY = true;
+                if (element.mesh && element.mesh.userData) {
+                    element.mesh.userData.preserveCustomY = true;
+                }
+            }
+        } catch (e) { /* no-op */ }
 
         // DEBUG: Log element APRÈS création
         // console.log('element APRÈS new WallElement:', {
@@ -3418,12 +4004,22 @@ class SceneManager {
     }
 
     setCameraView(viewName) {
-        const view = this.cameraPositions[viewName];
+        const view = this.cameraPositions[viewName] || this.cameraPositions['iso'];
         if (view && this.camera) {
             this.camera.position.set(...view.position);
             if (this.controls) {
                 this.controls.target.set(...view.target);
                 this.controls.update();
+            }
+            // Mettre à jour l'état de la vue courante et notifier
+            this.currentViewName = viewName;
+            this.currentViewScope = this.getCanonicalViewScope(viewName);
+            try {
+                document.dispatchEvent(new CustomEvent('cameraViewChanged', {
+                    detail: { viewName: viewName, scope: this.currentViewScope }
+                }));
+            } catch (e) {
+                console.warn('cameraViewChanged event dispatch failed:', e);
             }
         }
     }
@@ -3552,6 +4148,16 @@ class SceneManager {
                 
                 // Seconde passe : corriger les positions Y des joints horizontaux
                 this.correctJointPositions(elementsCreated);
+
+                // Troisième passe : réaligner tous les joints (verticaux et horizontaux) selon les assises
+                // Cela évite les déformations après chargement en recalculant à partir de la définition du plan zéro
+                if (window.AssiseManager && typeof window.AssiseManager.updateVerticalJoints === 'function') {
+                    try {
+                        window.AssiseManager.updateVerticalJoints();
+                    } catch (e) {
+                        console.warn('⚠️ Échec de la mise à jour des joints via AssiseManager après import:', e);
+                    }
+                }
             }
 
             if (sceneData.gridSpacing) {
@@ -4455,192 +5061,217 @@ class SceneManager {
 
     // Créer automatiquement un joint de boutisse pour les suggestions perpendiculaires, d'angle et de continuité
     createAutomaticJointForPerpendicular(placedElement, suggestionType, referenceElement) {
-        // console.log('🔧 Création automatique de joint pour suggestion:', suggestionType);
-        
+        console.log('🧪 JOINT-DEBUG createAutomaticJointForPerpendicular:init', {
+            suggestionType,
+            placedId: placedElement?.id,
+            referenceId: referenceElement?.id,
+            autoVerticalJoints: this.autoVerticalJoints
+        });
+        // Sécurité: uniquement briques/blocs (défini tôt car utilisé dans les branches ci-dessous)
+        const isBrickOrBlock = (el) => el && (el.type === 'brick' || el.type === 'block');
+        // Autoriser toujours les joints pour les placements perpendiculaires, même si l'auto global est OFF
+        const isPerpRequest = typeof suggestionType === 'string' && suggestionType.includes('perpendiculaire');
+        if (!this.autoVerticalJoints && !isPerpRequest) return;
+
+        // Si déjà forcé par le flux de placement (anim/fallback), éviter une deuxième décision contradictoire
+        if (isPerpRequest && placedElement && placedElement.userData && placedElement.userData.perpJointForced) {
+            console.log('🧪 JOINT-DEBUG createAutomaticJointForPerpendicular:skip-already-forced', {
+                suggestionType,
+                placedId: placedElement.id
+            });
+            return;
+        }
+
+        // Si on a une lettre de proposition (EEC/EEF, etc.), on laisse la logique de plus haut niveau gérer le côté
+        try {
+            let ghostLetterCode = window?.ConstructionTools?.currentGhost?.mesh?.userData?.letter;
+            // Fallback: utiliser la lettre persistée sur l'élément placé si disponible
+            if (!ghostLetterCode && placedElement?.userData?._perpGhostLetterCode) {
+                ghostLetterCode = placedElement.userData._perpGhostLetterCode;
+                console.log('🧪 JOINT-DEBUG createAutomaticJointForPerpendicular:using-persisted-letter', { ghostLetterCode });
+            }
+            if (isPerpRequest && ghostLetterCode) {
+                // Ignorer les codes purement numériques (ex: 090103) pour l'aiguillage par lettre
+                const isAlphaCode = typeof ghostLetterCode === 'string' && /[A-Za-z]/.test(ghostLetterCode);
+                const isNumericCode = typeof ghostLetterCode === 'string' && !/[A-Za-z]/.test(ghostLetterCode);
+                const base = typeof ghostLetterCode === 'string' ? ghostLetterCode.slice(-1) : ghostLetterCode;
+                if (placedElement?.userData?.perpJointForced) {
+                    console.log('🧪 JOINT-DEBUG createAutomaticJointForPerpendicular:skip-already-forced', {
+                        suggestionType,
+                        placedId: placedElement.id,
+                        letter: ghostLetterCode,
+                        baseLetter: base
+                    });
+                    return;
+                }
+                // Appliquer la règle lettre → côté si non encore forcé
+                let sideFromLetter = null;
+                if (isAlphaCode) {
+                    if (suggestionType.includes('perpendiculaire-frontale-droite') && base === 'C') sideFromLetter = 'left';
+                    else if (suggestionType.includes('perpendiculaire-frontale-gauche') && base === 'D') sideFromLetter = 'left';
+                    else if (suggestionType.includes('perpendiculaire-dorsale-droite') && base === 'E') sideFromLetter = 'right';
+                    else if (suggestionType.includes('perpendiculaire-dorsale-gauche') && base === 'F') sideFromLetter = 'right';
+                } else if (isNumericCode) {
+                    // Cas numérique (ex: 0901xx). Appliquer directement la règle de famille:
+                    // - Frontales (C/D) → joint GAUCHE sur la brique posée
+                    // - Dorsales (E/F)  → joint DROIT sur la brique posée
+                    if (suggestionType.includes('perpendiculaire-frontale')) sideFromLetter = 'left';
+                    else if (suggestionType.includes('perpendiculaire-dorsale')) sideFromLetter = 'right';
+                }
+
+                if (!sideFromLetter) {
+                    // Fallback: mapping par nom (droite -> joint gauche, gauche -> joint droit)
+                    if (/-droite/.test(suggestionType)) sideFromLetter = 'left';
+                    else if (/-gauche/.test(suggestionType)) sideFromLetter = 'right';
+                }
+
+                if (sideFromLetter) {
+                    console.log('🧪 JOINT-DEBUG createAutomaticJointForPerpendicular:apply-perp-letter', {
+                        suggestionType,
+                        letter: ghostLetterCode,
+                        baseLetter: base,
+                        chosenSide: sideFromLetter
+                    });
+                    // Créer sur l'élément placé (perpendiculaire)
+                    const targetEl = placedElement;
+                    if (isBrickOrBlock(targetEl)) {
+                        const ok = window.ConstructionTools.createSpecificVerticalJoint(targetEl, sideFromLetter);
+                        if (ok) {
+                            try { this.activateJointControlInterface(sideFromLetter); } catch (_) {}
+                            try {
+                                targetEl.userData = targetEl.userData || {};
+                                targetEl.userData.perpJointForced = true;
+                            } catch (_) {}
+                        }
+                    }
+                    return; // Ne pas continuer plus loin pour éviter une double décision
+                } else {
+                    console.log('🧪 JOINT-DEBUG createAutomaticJointForPerpendicular:no-letter-rule-fallback');
+                }
+            }
+        } catch (_) { /* no-op */ }
+
         // Vérifier que ConstructionTools est disponible
         if (!window.ConstructionTools || !window.ConstructionTools.createSpecificVerticalJoint) {
             console.warn('⚠️ ConstructionTools non disponible pour création automatique de joint');
             return;
         }
-        
+        if (!isBrickOrBlock(placedElement) && !isBrickOrBlock(referenceElement)) return;
+
+        // Ne pas créer en mode linteau
+        if ((window.ConstructionTools && window.ConstructionTools.currentMode === 'linteau') ||
+            (placedElement && placedElement.type === 'linteau') ||
+            (referenceElement && referenceElement.type === 'linteau')) return;
+
         try {
             let side = 'left'; // Par défaut
-            
-            // LOGIQUE SPÉCIALE POUR LES SUGGESTIONS DE CONTINUITÉ (blocs)
+
+            // Cas spécial: continuité (blocs)
             if (suggestionType.includes('continuity')) {
-                console.log('🔧 Traitement spécial pour suggestion de continuité de bloc');
-                
-                // Pour les continuités boutisse, déterminer le côté selon la position
-                if (suggestionType.includes('droite')) {
-                    side = 'left'; // continuity-boutisse-droite → joint à gauche du bloc placé
-                    console.log('🔧 Continuité droite → joint gauche sur le bloc placé');
-                } else if (suggestionType.includes('gauche')) {
-                    side = 'right'; // continuity-boutisse-gauche → joint à droite du bloc placé
-                    console.log('🔧 Continuité gauche → joint droit sur le bloc placé');
-                } else {
-                    // Fallback: déterminer selon la position relative
-                    if (referenceElement && placedElement) {
-                        const deltaX = placedElement.position.x - referenceElement.position.x;
-                        side = deltaX > 0 ? 'left' : 'right';
-                        console.log(`🔧 Continuité (fallback): deltaX=${deltaX.toFixed(2)} → joint ${side}`);
-                    }
+                if (suggestionType.includes('droite')) side = 'left';
+                else if (suggestionType.includes('gauche')) side = 'right';
+                else if (referenceElement && placedElement) {
+                    const deltaX = placedElement.position.x - referenceElement.position.x;
+                    side = deltaX > 0 ? 'left' : 'right';
                 }
-                
-                // Pour les continuités, créer le joint sur la brique placée
-                console.log(`🔧 Création de joint ${side} sur le bloc de continuité`);
                 const success = window.ConstructionTools.createSpecificVerticalJoint(placedElement, side);
-                
-                if (success) {
-                    console.log(`✅ Joint de continuité ${side} créé automatiquement`);
-                } else {
-                    console.warn('⚠️ Échec de la création automatique du joint de continuité');
-                }
-                return; // Sortir ici pour les continuités
+                if (!success) console.warn('⚠️ Échec de la création automatique du joint de continuité');
+                return;
             }
-            
-            // Si on a une brique de référence, calculer le côté selon la position relative
+
+            // Détermination du côté
             if (referenceElement && placedElement) {
                 const refPos = referenceElement.position;
-                const placedPos = placedElement.position;
                 const refRot = referenceElement.rotation || 0;
-                const placedRot = placedElement.rotation || 0;
-                
-                /*
-                console.log('🔧 DEBUG positions:', {
-                    reference: { x: refPos.x, z: refPos.z, rotation: refRot },
-                    placed: { x: placedPos.x, z: placedPos.z, rotation: placedRot },
-                    suggestionType
-                });
-                */
-                
-                // Calculer la différence de position
-                const deltaX = placedPos.x - refPos.x;
-                const deltaZ = placedPos.z - refPos.z;
-                
-                // Déterminer le côté selon la position relative et le type de suggestion
+                const dx = placedElement.position.x - refPos.x;
+                const dz = placedElement.position.z - refPos.z;
+                const cos = Math.cos(refRot), sin = Math.sin(refRot);
+                const localDxRef = dx * cos + dz * sin; // X local de la ref (fallback)
+
+                const isPerp = suggestionType.includes('perpendiculaire');
                 const isAngleBoutisseGauche = suggestionType.includes('angle-boutisse-gauche');
                 const isAngleBoutisseDroite = suggestionType.includes('angle-boutisse-droite');
-                const isAngleBoutisse = isAngleBoutisseGauche || isAngleBoutisseDroite;
-                const isPerpendiculaire = suggestionType.includes('perpendiculaire');
-                
-                if (Math.abs(deltaX) > Math.abs(deltaZ)) {
-                    // Mouvement principalement horizontal (gauche/droite)
-                    if (deltaX > 0) {
-                        if (isAngleBoutisseGauche) {
-                            side = 'left'; // angle-boutisse-gauche → joint gauche
-                        } else if (isAngleBoutisseDroite) {
-                            side = 'right'; // angle-boutisse-droite → joint droit
-                        } else if (isPerpendiculaire) {
-                            // Pour les perpendiculaires dorsales, logique spéciale
-                            if (suggestionType.includes('dorsale-droite')) {
-                                side = 'right'; // perpendiculaire-dorsale-droite → joint droit (corrigé)
-                            } else if (suggestionType.includes('dorsale-gauche')) {
-                                side = 'right'; // perpendiculaire-dorsale-gauche → joint droit (corrigé)
-                            } else {
-                                side = 'left'; // autres perpendiculaires → joint gauche
-                            }
-                        } else {
-                            side = 'right'; // logique normale pour autres cas
-                        }
+
+                if (isPerp) {
+                    // 1) Si l'info est dans le nom → priorité
+                    if (/-droite/.test(suggestionType)) {
+                        // Convention: "-droite" signifie le fantôme à droite de la référence → joint côté opposé (gauche) sur l'élément ciblé
+                        side = 'left';
+                    } else if (/-gauche/.test(suggestionType)) {
+                        // Idem: "-gauche" → joint côté droit
+                        side = 'right';
                     } else {
-                        if (isAngleBoutisseGauche) {
-                            side = 'right'; // angle-boutisse-gauche → joint droit
-                        } else if (isAngleBoutisseDroite) {
-                            side = 'left'; // angle-boutisse-droite → joint gauche
-                        } else if (isPerpendiculaire) {
-                            // Pour les perpendiculaires frontales, logique spéciale
-                            if (suggestionType.includes('frontale-gauche')) {
-                                side = 'left'; // perpendiculaire-frontale-gauche → joint gauche (corrigé)
-                            } else {
-                                side = 'right'; // autres perpendiculaires → joint droit
-                            }
-                        } else {
-                            side = 'left'; // logique normale pour autres cas
-                        }
+                        // 2) Choisir le côté selon la projection sur l'axe X local de la brique posée (depuis son vrai centre)
+                        const target = placedElement;
+                        const other = referenceElement;
+                        const tPos = target.position;
+                        const oPos = other.position;
+                        const dims = target.dimensions || { length: 19, width: 9, height: 5 };
+                        const tRot = target.rotation || 0;
+                        const c = Math.cos(tRot), s = Math.sin(tRot);
+                        // Centre monde (même convention que ConstructionTools)
+                        const centerOffsetX = dims.length / 2;
+                        const centerOffsetZ = -dims.width / 2;
+                        const rcx = centerOffsetX * c - centerOffsetZ * s;
+                        const rcz = centerOffsetX * s + centerOffsetZ * c;
+                        const center = { x: tPos.x + rcx, z: tPos.z + rcz };
+                        // Vecteur vers la brique d'origine projeté sur X local
+                        const vx = oPos.x - center.x;
+                        const vz = oPos.z - center.z;
+                        const localDx = vx * c + vz * s;
+                        const eps = 0.01; // cm, tolérance
+                        console.log('🧪 JOINT-DEBUG createAutomaticJointForPerpendicular:projection', { localDx, tRot, center, tPos, oPos, dims });
+                        if (localDx > eps) side = 'right';
+                        else if (localDx < -eps) side = 'left';
+                        else side = 'left'; // fallback stable
                     }
                 } else {
-                    // Mouvement principalement vertical (avant/arrière)
-                    // Pour les perpendiculaires, utiliser le nom de la suggestion pour déterminer le côté
-                    if (isPerpendiculaire) {
-                        // Logique spéciale pour perpendiculaires dorsales (logique inversée)
-                        if (suggestionType.includes('dorsale')) {
-                            if (suggestionType.includes('-gauche')) {
-                                side = 'right'; // perpendiculaire-dorsale-gauche → joint droit (inversé)
-                            } else if (suggestionType.includes('-droite')) {
-                                side = 'right'; // perpendiculaire-dorsale-droite → joint droit (corrigé)
-                            } else {
-                                side = deltaX >= 0 ? 'right' : 'left'; // inversé pour dorsales
-                            }
-                        } else {
-                            // Logique normale pour perpendiculaires frontales
-                            if (suggestionType.includes('-gauche')) {
-                                side = 'left'; // perpendiculaire-frontale-gauche → joint gauche
-                            } else if (suggestionType.includes('-droite')) {
-                                side = 'left'; // perpendiculaire-frontale-droite → joint gauche (corrigé)
-                            } else {
-                                side = deltaX >= 0 ? 'left' : 'right';
-                            }
-                        }
-                    } else {
-                        // Pour les angles, utiliser la position relative en X
-                        if (deltaX > 0) {
-                            if (isAngleBoutisseGauche) {
-                                side = 'left'; // angle-boutisse-gauche → joint gauche
-                            } else if (isAngleBoutisseDroite) {
-                                side = 'right'; // angle-boutisse-droite → joint droit
-                            } else {
-                                side = 'right'; // logique normale pour autres cas
-                            }
-                        } else {
-                            if (isAngleBoutisseGauche) {
-                                side = 'right'; // angle-boutisse-gauche → joint droit
-                            } else if (isAngleBoutisseDroite) {
-                                side = 'left'; // angle-boutisse-droite → joint gauche
-                            } else {
-                                side = 'left'; // logique normale pour autres cas
-                            }
-                        }
+                    // Angles: simplifié
+                    if (dx > 0) side = isAngleBoutisseGauche ? 'left' : 'right';
+                    else side = isAngleBoutisseDroite ? 'left' : 'left';
+                }
+            } else {
+                // Fallback sans référence
+                if (suggestionType === 'perpendiculaire-frontale-gauche' || suggestionType === 'perpendiculaire-dorsale-gauche') side = 'right';
+                else if (suggestionType === 'perpendiculaire-frontale-droite' || suggestionType === 'perpendiculaire-dorsale-droite') side = 'left';
+            }
+
+            // Choisir sur quel élément créer le joint
+            let targetElement = placedElement;
+            let targetDescription = 'nouvelle brique';
+            const isAngle = suggestionType.startsWith('angle-');
+            if (isAngle && referenceElement) {
+                targetElement = referenceElement;
+                targetDescription = 'brique de référence';
+            }
+
+            if (!isBrickOrBlock(targetElement)) return;
+            // Dernier filet: si code numérique dorsale/frontale a été détecté, imposer la règle côté avant création
+            try {
+                const persisted = placedElement?.userData?._perpGhostLetterCode;
+                const isNumeric = typeof persisted === 'string' && !!persisted && !/[A-Za-z]/.test(persisted);
+                if (isPerpRequest && isNumeric) {
+                    if (suggestionType.includes('perpendiculaire-frontale')) side = 'left';
+                    else if (suggestionType.includes('perpendiculaire-dorsale')) side = 'right';
+                    console.log('🧪 JOINT-DEBUG createAutomaticJointForPerpendicular:final-numeric-override', { persisted, enforcedSide: side });
+                }
+            } catch(_) {}
+
+            console.log('🧪 JOINT-DEBUG createAutomaticJointForPerpendicular:final', { chosenSide: side, targetId: targetElement?.id, referenceId: referenceElement?.id, suggestionType });
+            const success = window.ConstructionTools.createSpecificVerticalJoint(targetElement, side);
+            if (success) {
+                try { this.activateJointControlInterface(side); } catch (e) {}
+                // Créer aussi le joint complémentaire sur l'élément adjacent (référence) si pertinent
+                if (referenceElement && isBrickOrBlock(referenceElement)) {
+                    const otherSide = side === 'left' ? 'right' : 'left';
+                    try {
+                        window.ConstructionTools.createSpecificVerticalJoint(referenceElement, otherSide);
+                    } catch (e) {
+                        // Best-effort, ignorer les erreurs (déduplication interne possible)
                     }
                 }
-                
-                // console.log(`🔧 Position relative: deltaX=${deltaX.toFixed(2)}, deltaZ=${deltaZ.toFixed(2)} → Joint ${side} (côté référence)`);
             } else {
-                // Fallback vers l'ancienne logique si pas de référence
-                if (suggestionType === 'perpendiculaire-frontale-gauche' || suggestionType === 'perpendiculaire-dorsale-gauche') {
-                    side = 'right';
-                } else if (suggestionType === 'perpendiculaire-frontale-droite' || suggestionType === 'perpendiculaire-dorsale-droite') {
-                    side = 'left';
-                }
-                console.log(`🔧 Fallback (pas de référence): ${suggestionType} → Joint ${side}`);
-            }
-            
-            // Déterminer sur quelle brique créer le joint
-            let targetElement = placedElement; // Par défaut sur la nouvelle brique
-            let targetDescription = "nouvelle brique";
-            
-            // Pour les suggestions d'angle (boutisse et panneresse), créer le joint sur la brique de référence
-            if ((suggestionType === 'angle-boutisse-gauche' || 
-                 suggestionType === 'angle-boutisse-droite' ||
-                 suggestionType === 'angle-boutisse-gauche-avant' ||
-                 suggestionType === 'angle-boutisse-droite-avant' ||
-                 suggestionType === 'angle-boutisse-gauche-arriere' ||
-                 suggestionType === 'angle-boutisse-droite-arriere' ||
-                 suggestionType === 'angle-panneresse-gauche' ||
-                 suggestionType === 'angle-panneresse-droite' ||
-                 suggestionType === 'angle-panneresse-gauche-arriere' ||
-                 suggestionType === 'angle-panneresse-droite-arriere') && referenceElement) {
-                targetElement = referenceElement;
-                targetDescription = "brique de référence";
-                console.log('🔧 Suggestion d\'angle (boutisse/panneresse): joint créé sur la brique de référence');
-            }
-            
-            // Créer automatiquement le joint du côté déterminé
-            const success = window.ConstructionTools.createSpecificVerticalJoint(targetElement, side);
-            
-            if (success) {
-                // console.log(`✅ Joint de boutisse ${side} créé automatiquement (côté ${targetDescription})`);
-            } else {
-                console.warn('⚠️ Échec de la création automatique du joint de boutisse');
+                console.warn('⚠️ Échec de la création automatique du joint');
             }
         } catch (error) {
             console.error('❌ Erreur lors de la création automatique du joint:', error);
@@ -4891,6 +5522,10 @@ class SceneManager {
 
     // NOUVELLE FONCTIONNALITÉ : Créer automatiquement le joint vertical gauche pour position C
     createAutomaticLeftVerticalJoint(referenceElement) {
+        // Garde globale
+        if (!this.autoVerticalJoints) {
+            return;
+        }
         // console.log('🔧 Création automatique du joint vertical gauche pour position C');
         
         // Vérifier que ConstructionTools est disponible
@@ -4902,6 +5537,11 @@ class SceneManager {
         // Vérification supplémentaire de l'élément
         if (!referenceElement) {
             console.warn('⚠️ Aucun élément de référence fourni pour le joint vertical gauche');
+            return;
+        }
+
+        // Ne pas créer de joint si l'élément n'est pas une brique/bloc (ex: linteau, dalle, poutre, isolant)
+        if (referenceElement.type !== 'brick' && referenceElement.type !== 'block') {
             return;
         }
 
@@ -4938,6 +5578,10 @@ class SceneManager {
 
     // ANCIENNE FONCTION : Créer automatiquement le joint vertical droit (gardée pour compatibilité)
     createAutomaticRightVerticalJoint(referenceElement) {
+        // Garde globale
+        if (!this.autoVerticalJoints) {
+            return;
+        }
         // console.log('🔧 Création automatique du joint vertical droit');
         
         // Vérifier que ConstructionTools est disponible
@@ -4949,6 +5593,11 @@ class SceneManager {
         // Vérification supplémentaire de l'élément
         if (!referenceElement) {
             console.warn('⚠️ Aucun élément de référence fourni pour le joint vertical droit');
+            return;
+        }
+
+        // Ne pas créer de joint si l'élément n'est pas une brique/bloc (ex: linteau, dalle, poutre, isolant)
+        if (referenceElement.type !== 'brick' && referenceElement.type !== 'block') {
             return;
         }
 
@@ -5017,6 +5666,11 @@ class SceneManager {
         // Vérification supplémentaire de l'élément
         if (!referenceElement) {
             console.warn('⚠️ Aucun élément de référence fourni pour le joint horizontal');
+            return;
+        }
+
+        // Ne créer des joints horizontaux automatiques que pour briques/blocs
+        if (referenceElement.type !== 'brick' && referenceElement.type !== 'block') {
             return;
         }
 
@@ -5248,6 +5902,14 @@ class SceneManager {
             if (window.ConstructionTools && window.ConstructionTools.applyJointColorToElement) {
                 window.ConstructionTools.applyJointColorToElement(jointElement, referenceElement.type, referenceElement);
             }
+
+            // Appliquer le retrait si configuré
+            try {
+                const depth = window.ConstructionTools?.getJointRecessDepthCm?.() || 0;
+                if (depth > 0) {
+                    window.ConstructionTools.applyRecessToJointMesh(jointElement.mesh, depth);
+                }
+            } catch (e) { /* noop */ }
             
             // Ajouter à la scène (ajouter directement sans passer par addElement pour éviter la récursion)
             this.elements.set(jointElement.id, jointElement);
@@ -5403,8 +6065,192 @@ class SceneManager {
     // Méthode pour activer automatiquement le joint vertical pour les éléments adjacents
     // Gère tous les cas: blocs coupés (1/4, 1/2, 3/4) placés près de blocs entiers, et vice versa
     activateVerticalJointForHalfBlock(placedElement, referenceElement, suggestionType, suggestionLetter) {
+        // Garde globale
+        if (!this.autoVerticalJoints) {
+            return;
+        }
         if (!placedElement || !referenceElement || !window.ConstructionTools) return;
         
+        // OVERRIDE NUMÉRIQUE: 910102/950102 → activer le joint GAUCHE uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '910102' || suggestionLetter === '950102') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → GAUCHE (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
+                try { this.activateJointControlInterface('left'); } catch(_) {}
+                return; // Ne pas créer d'autres joints pour éviter les doublons
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B14: 140402/144002 → activer le joint GAUCHE uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '140402' || suggestionLetter === '144002') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → GAUCHE (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
+                try { this.activateJointControlInterface('left'); } catch(_) {}
+                return; // éviter doublons
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE (angles 1/4): 910107/910109 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '910107' || suggestionLetter === '910109') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B14: 430401 (continuation) → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '430401') {
+                console.log('🧪 JOINT-DEBUG (half-block override): 430401 → DROIT (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B14 4cm sur 3/4: 434001 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '434001') {
+                console.log('🧪 JOINT-DEBUG (half-block override): 434001 → DROIT (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B4: 411101 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '411101') {
+                console.log('🧪 JOINT-DEBUG (half-block override): 411101 → DROIT (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B19: 190107/190109 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '190107' || suggestionLetter === '190109') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B19: 830201/830401 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '830201' || suggestionLetter === '830401') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B19: 850401 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '850401') {
+                console.log('🧪 JOINT-DEBUG (half-block override): 850401 → DROIT (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B19: 850107/850109 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '850107' || suggestionLetter === '850109') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B19: 190507/190509 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '190507' || suggestionLetter === '190509') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B29: 290107/290109/290207/290209/290401/290501/290601/292107/292109/292201/292301/292401/292501/297107/217109/750107/750109 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '290107' || suggestionLetter === '290109' || suggestionLetter === '290207' || suggestionLetter === '290209' || suggestionLetter === '290401' || suggestionLetter === '290501' || suggestionLetter === '290601' || suggestionLetter === '292107' || suggestionLetter === '292109' || suggestionLetter === '292201' || suggestionLetter === '292301' || suggestionLetter === '292401' || suggestionLetter === '292501' || suggestionLetter === '297107' || suggestionLetter === '217109' || suggestionLetter === '750107' || suggestionLetter === '750109') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B19: 191002 → activer le joint GAUCHE uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '191002') {
+                console.log('🧪 JOINT-DEBUG (half-block override): 191002 → GAUCHE (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
+                try { this.activateJointControlInterface('left'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B19: 190510 → activer le joint GAUCHE uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '190510') {
+                console.log('🧪 JOINT-DEBUG (half-block override): 190510 → GAUCHE (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
+                try { this.activateJointControlInterface('left'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B19: 191102 → activer le joint GAUCHE uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '191102') {
+                console.log('🧪 JOINT-DEBUG (half-block override): 191102 → GAUCHE (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
+                try { this.activateJointControlInterface('left'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B19: 850110 → activer le joint GAUCHE uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '850110') {
+                console.log('🧪 JOINT-DEBUG (half-block override): 850110 → GAUCHE (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
+                try { this.activateJointControlInterface('left'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B29: 290110/292110/297110/750110/752102 → activer le joint GAUCHE uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '290110' || suggestionLetter === '292110' || suggestionLetter === '297110' || suggestionLetter === '750110' || suggestionLetter === '752102') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → GAUCHE (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
+                try { this.activateJointControlInterface('left'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE 1/4 → ENTIER (perpendiculaire 910103): activer le joint DROIT sur le bloc ENTIER posé
+        try {
+            if (suggestionLetter === '910103' && placedElement && !this.isCutBlock(placedElement) && this.isCutBlock(referenceElement)) {
+                console.log('🧪 JOINT-DEBUG (half→full override): 910103 → DROIT (bloc entier posé)');
+                window.ConstructionTools.createSpecificVerticalJoint(placedElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
         console.log('🔧 Activation joint vertical pour éléments adjacents:', {
             placedElementId: placedElement.id,
             placedElementType: placedElement.blockType || placedElement.type,
@@ -5666,12 +6512,16 @@ class SceneManager {
         
         // Positions qui créent des joints à gauche
         const leftPositions = [
-            'A', 'EEA', 'TEA', 'C', 'D', 'M', 'H', 'J', 'T', 'V', 'O', 'P'
+            'A', 'EEA', 'TEA', 'C', 'D', 'M', 'H', 'J', 'T', 'V', 'O', 'P',
+            // Précisions explicites pour éviter les heuristiques
+            'EEC', 'TEH', 'TEJ', 'EEH', 'EEJ', 'EET', 'EEV'
         ];
         
         // Positions qui créent des joints à droite
         const rightPositions = [
-            'B', 'EEB', 'TEB', 'E', 'F', 'N', 'G', 'I', 'S', 'U', 'Q', 'R'
+            'B', 'EEB', 'TEB', 'E', 'F', 'N', 'G', 'I', 'S', 'U', 'Q', 'R', 'HEH',
+            // Précisions explicites pour éviter les heuristiques
+            'EEF'
         ];
         
         // Si la position est explicitement dans une liste, utiliser cette logique

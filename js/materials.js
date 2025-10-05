@@ -640,7 +640,7 @@ class MaterialLibrary {
 
             // ========== ANCIENS MATÉRIAUX (pour compatibilité) ==========
             'brick-red': {
-                name: 'Brique Rouge (ancien)',
+                name: 'Brique Rouge',
                 color: 0xB85C57,
                 roughness: 0.8,
                 metalness: 0.0,
@@ -650,7 +650,7 @@ class MaterialLibrary {
                 section: 'compatibilite'
             },
             'brick-yellow': {
-                name: 'Brique Jaune (ancien)',
+                name: 'Brique Jaune',
                 color: 0xD4A574,
                 roughness: 0.8,
                 metalness: 0.0,
@@ -670,7 +670,7 @@ class MaterialLibrary {
                 section: 'compatibilite'
             },
             'wood': {
-                name: 'Bois (ancien)',
+                name: 'Bois',
                 color: 0x8B4513,
                 roughness: 0.9,
                 metalness: 0.0,
@@ -680,7 +680,7 @@ class MaterialLibrary {
                 section: 'compatibilite'
             },
             'insulation': {
-                name: 'Isolant PUR (ancien)',
+                name: 'Isolant PUR',
                 color: 0xf0ebe2,  // Beige très clair
                 roughness: 0.95,
                 metalness: 0.0,
@@ -702,7 +702,7 @@ class MaterialLibrary {
                 rgb: '(205, 92, 92)'
             },
             'cellular-concrete': {
-                name: 'Béton Cellulaire (ancien)',
+                name: 'Béton Cellulaire',
                 color: 0xFFFFFF,
                 roughness: 0.3,
                 metalness: 0.0,
@@ -713,7 +713,7 @@ class MaterialLibrary {
                 section: 'compatibilite'
             },
             'rock-wool': {
-                name: 'Laine de Roche (ancien)',
+                name: 'Laine de Roche',
                 color: 0xf0ebe2,  // Beige très clair
                 roughness: 0.95,
                 metalness: 0.0,
@@ -804,7 +804,7 @@ class MaterialLibrary {
                 fireResistant: true
             },
             'joint-beige': {
-                name: 'Joint Beige Clair (ancien)',
+                name: 'Joint Beige Clair',
                 color: 0xF5F5DC,
                 roughness: 0.9,
                 metalness: 0.0,
@@ -948,7 +948,7 @@ class MaterialLibrary {
             'briques-tuiles': { name: 'BRIQUES ET TUILES', materials: [] },
             'isolants': { name: 'ISOLANTS', materials: [] },
             'modernes-composites': { name: 'MATÉRIAUX MODERNES ET COMPOSITES', materials: [] },
-            'compatibilite': { name: 'Anciens (Compatibilité)', materials: [] }
+            'compatibilite': { name: 'Compatibilité', materials: [] }
         };
 
         Object.keys(this.materials).forEach(key => {

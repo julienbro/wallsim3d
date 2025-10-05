@@ -339,7 +339,8 @@ class ConstructionTools {
         this.snapGridSpacing = 19; // Espacement de la grille snap (19cm par défaut)
         this.cursorSnapPoint = null; // Point snap qui suit le curseur
     // Seuil d'accroche pour les linteaux (distance 2D XZ en cm)
-    this.lintelSnapThresholdCm = 10;
+    // Rayon d'accroche pour linteaux (en cm). Légèrement augmenté pour faciliter l'accrochage aux points d'extrémité supérieurs.
+    this.lintelSnapThresholdCm = 14;
         
     // Points d'accroche d'extrémités (coins) pour certains modes (ex: linteau)
     this.edgeSnapPoints = [];          // [{x,y,z, sourceId}]
@@ -348,6 +349,9 @@ class ConstructionTools {
     this.showEdgeSnap = true;          // Afficher les marqueurs d'extrémités
     this.edgeSnapThreshold = 10;       // Rayon d'accroche (cm)
     this.edgeSnapEnabledForModes = new Set(['linteau']);
+
+    // Profondeur de retrait des joints (cm). 0 = sans retrait.
+    this.jointRecessDepthCm = 0;
         
         // Protection contre les boucles infinies
         this._updateQueue = new Set(); // Queue des mises à jour en attente
@@ -411,6 +415,81 @@ class ConstructionTools {
         this.setupMenuHoverListener();
         
         // Ne pas créer l'élément fantôme immédiatement
+    }
+
+    // Définir la profondeur de retrait (en cm) et l'appliquer aux joints existants
+    setJointRecessDepthCm(depthCm) {
+        const d = Math.max(0, Number(depthCm) || 0);
+        this.jointRecessDepthCm = d;
+        this.applyRecessDepthToAllJoints();
+    }
+
+    getJointRecessDepthCm() {
+        return this.jointRecessDepthCm || 0;
+    }
+
+    // Appliquer le retrait aux joints existants dans la scène
+    applyRecessDepthToAllJoints() {
+        if (!window.SceneManager || !window.SceneManager.scene) return;
+        const depth = this.getJointRecessDepthCm();
+        window.SceneManager.scene.traverse((child) => {
+            if (!child?.userData?.isJoint) return;
+            this.applyRecessToJointMesh(child, depth);
+        });
+    }
+
+    // Applique le retrait à un mesh de joint (vertical ou horizontal)
+    applyRecessToJointMesh(mesh, depth) {
+        try {
+            if (!mesh || !mesh.userData || !mesh.geometry) return;
+            const isVertical = !!mesh.userData.isVerticalJoint && !mesh.userData.isHorizontalJoint;
+            const isHorizontal = !!mesh.userData.isHorizontalJoint && !mesh.userData.isVerticalJoint;
+
+            // Mémoriser une base par axe (dimension réelle initiale) pour rendre l'opération idempotente
+            const params = mesh.geometry.parameters || {};
+            if (!mesh.userData.__recessBase) mesh.userData.__recessBase = {};
+            const base = mesh.userData.__recessBase;
+
+            // Dimensions réelles actuelles
+            const realX = (typeof params.width === 'number' ? params.width : 1) * mesh.scale.x;
+            const realY = (typeof params.height === 'number' ? params.height : 1) * mesh.scale.y;
+            const realZ = (typeof params.depth === 'number' ? params.depth : 1) * mesh.scale.z;
+
+            // Établir les bases si absentes
+            if (base.baseX0 == null) base.baseX0 = realX; // largeur (X local)
+            if (base.baseY0 == null) base.baseY0 = realY; // hauteur (Y)
+            if (base.baseZ0 == null) base.baseZ0 = realZ; // profondeur (Z)
+
+            // Si la géométrie a été modifiée ailleurs (ex: changement d'épaisseur), mettre à jour la base
+            if (realX > base.baseX0 + 0.001) base.baseX0 = realX;
+            if (realY > base.baseY0 + 0.001) base.baseY0 = realY;
+            if (realZ > base.baseZ0 + 0.001) base.baseZ0 = realZ;
+            const safeDepth = Math.max(0, Number(depth) || 0);
+
+            if (isHorizontal) {
+                // Réduire la profondeur du joint horizontal (axe Z local) sans déplacer le centre
+                // Interprétation: la "profondeur" est la dimension entre la face apparente avant du bloc et la face arrière
+                const D0 = base.baseZ0;
+                const srcDepth = (typeof params.depth === 'number' ? params.depth : 1);
+                const newD = Math.max(D0 - safeDepth, 0.1);
+                mesh.scale.z = newD / srcDepth;
+                // Ne pas toucher à la position pour laisser d'autres systèmes gérer l'ancrage
+                return;
+            }
+
+            if (isVertical) {
+                // Réduire la largeur visible du joint vertical (axe X local) sans déplacer le centre
+                // Exemple: bloc de 14 → largeur apparente passe de 14 à (14 - depth)
+                const W0 = base.baseX0; // largeur initiale réelle le long de X local
+                const srcWidth = (typeof params.width === 'number' ? params.width : 1);
+                const newW = Math.max(W0 - safeDepth, 0.1);
+                mesh.scale.x = newW / srcWidth;
+                // Ne pas toucher à la position
+                return;
+            }
+        } catch (e) {
+            console.warn('⚠️ Échec application retrait joint:', e);
+        }
     }
 
     // === EDGE SNAP (coins des éléments) ===
@@ -502,14 +581,44 @@ class ConstructionTools {
     _findNearestEdgeSnapPoint(x, z) {
         if (!this.edgeSnapPoints || !this.edgeSnapPoints.length) return null;
         let best = null;
+
+        // Si disponible, utiliser la distance perpendiculaire au rayon (3D) pour un snap plus naturel en hauteur
+        const ray = (window.SceneManager && window.SceneManager.raycaster && window.SceneManager.raycaster.ray)
+            ? window.SceneManager.raycaster.ray
+            : null;
+        const useRayDistance = !!ray; // actif si le rayon est disponible
+
+        // Préférence plus forte pour les points supérieurs en mode linteau
+        const preferTop = (this.currentMode === 'linteau');
+
         for (const p of this.edgeSnapPoints) {
             const dx = p.x - x;
             const dz = p.z - z;
-            const d = Math.sqrt(dx*dx + dz*dz);
-            // Légère préférence pour les coins supérieurs (poids 0.9)
-            const weight = p.isTop ? 0.9 : 1.0;
-            const score = d * weight;
-            if (!best || score < best.score) best = { point: p, dist: d, score };
+            const dXZ = Math.sqrt(dx*dx + dz*dz);
+
+            let dRay = dXZ;
+            if (useRayDistance && typeof THREE !== 'undefined') {
+                // Distance perpendiculaire du point p au rayon
+                const P = new THREE.Vector3(p.x, p.y, p.z);
+                const O = ray.origin; // origine du rayon
+                const D = ray.direction; // direction normalisée
+                const OP = new THREE.Vector3().subVectors(P, O);
+                const t = OP.dot(D); // projection scalaire
+                const closest = new THREE.Vector3().copy(D).multiplyScalar(t).add(O);
+                dRay = P.distanceTo(closest);
+            }
+
+            // Poids: favoriser les points supérieurs
+            let weight = 1.0;
+            if (p.isTop) {
+                weight = preferTop ? 0.7 : 0.9; // un peu plus fort en mode linteau
+            }
+
+            const baseDist = useRayDistance ? dRay : dXZ;
+            const score = baseDist * weight;
+            if (!best || score < best.score) {
+                best = { point: p, dist: baseDist, score };
+            }
         }
         return best;
     }
@@ -1580,7 +1689,8 @@ class ConstructionTools {
 
     updateGhostPosition(x, z) {
         // Ne pas mettre à jour le fantôme si on est en mode sélection
-        if (this.activeBrickForSuggestions) {
+        // EXCEPTION: en mode linteau, on laisse la mise à jour pour permettre l'accrochage aux extrémités
+        if (this.activeBrickForSuggestions && this.currentMode !== 'linteau') {
             return;
         }
         
@@ -1619,16 +1729,19 @@ class ConstructionTools {
             }
             
             // Pour les éléments classiques, appliquer le seuil de tolérance
-            if (this._lastGhostPosition && 
-                Math.abs(this._lastGhostPosition.x - x) < 0.5 && 
-                Math.abs(this._lastGhostPosition.z - z) < 0.5) {
+            // MAIS ne pas bloquer les mises à jour en mode accroche d'extrémités (ex: linteau)
+            const isEdgeSnapMode = !!(this.edgeSnapEnabledForModes && this.edgeSnapEnabledForModes.has && this.edgeSnapEnabledForModes.has(this.currentMode));
+            const isSmallMove = this._lastGhostPosition &&
+                Math.abs(this._lastGhostPosition.x - x) < 0.5 &&
+                Math.abs(this._lastGhostPosition.z - z) < 0.5;
+            if (isSmallMove && !isEdgeSnapMode) {
                 return;
             }
             
             // Mise à jour immédiate de la position X,Z pour une réactivité parfaite (éléments classiques)
             let targetX = x, targetZ = z;
             let snapY = null;
-            if (this.edgeSnapEnabledForModes && this.edgeSnapEnabledForModes.has && this.edgeSnapEnabledForModes.has(this.currentMode) && this.edgeSnapPoints && this.edgeSnapPoints.length) {
+            if (isEdgeSnapMode && this.edgeSnapPoints && this.edgeSnapPoints.length) {
                 const nearest = this._findNearestEdgeSnapPoint ? this._findNearestEdgeSnapPoint(x, z) : null;
                 const threshold = (typeof this.lintelSnapThresholdCm === 'number' ? this.lintelSnapThresholdCm : 10);
                 if (nearest && nearest.dist <= threshold) {
@@ -2221,6 +2334,23 @@ class ConstructionTools {
             setTimeout(() => {
                 if (this.createEdgeSnapPoints) this.createEdgeSnapPoints();
                 // Mettre à jour le point en surbrillance selon la dernière position du curseur
+                if (this._lastCursorXZ && this._findNearestEdgeSnapPoint) {
+                    const nearest = this._findNearestEdgeSnapPoint(this._lastCursorXZ.x, this._lastCursorXZ.z);
+                    const threshold = (typeof this.lintelSnapThresholdCm === 'number' ? this.lintelSnapThresholdCm : 10);
+                    if (nearest && nearest.dist <= threshold) {
+                        if (this._updateEdgeCursorSnapVisual) this._updateEdgeCursorSnapVisual(nearest.point);
+                    } else if (this.edgeCursorSnapPoint) {
+                        this.edgeCursorSnapPoint.visible = false;
+                    }
+                }
+            }, 50);
+        });
+
+        // 🆕 Quand la hauteur d'un élément change, reconstruire les points d'accroche pour conserver des coins exacts
+        document.addEventListener('elementHeightChanged', () => {
+            if (!(this.edgeSnapEnabledForModes && this.edgeSnapEnabledForModes.has && this.edgeSnapEnabledForModes.has('linteau'))) return;
+            setTimeout(() => {
+                if (this.createEdgeSnapPoints) this.createEdgeSnapPoints();
                 if (this._lastCursorXZ && this._findNearestEdgeSnapPoint) {
                     const nearest = this._findNearestEdgeSnapPoint(this._lastCursorXZ.x, this._lastCursorXZ.z);
                     const threshold = (typeof this.lintelSnapThresholdCm === 'number' ? this.lintelSnapThresholdCm : 10);
@@ -3534,6 +3664,10 @@ class ConstructionTools {
             // Pas de log verbeux pour ne pas polluer la console
             return;
         }
+        // Blocage en mode linteau: ne pas créer de suggestions adjacentes pour éviter d'interférer avec la pose
+        if (this.currentMode === 'linteau') {
+            return;
+        }
         // 🔒 BLOCAGE PRIORITAIRE: Vérifier si la toolbar est active
         if (window.isToolbarBlocking && window.isToolbarBlocking()) {
             console.log('🔒 BLOCAGE TOOLBAR: Suggestions désactivées car toolbar active');
@@ -3594,16 +3728,33 @@ class ConstructionTools {
         const basePos = hoveredElement.position;
         const dims = hoveredElement.dimensions;
         
-        // Système effectiveWidth : Force B14 à utiliser l'espacement B9 pour tous les calculs de position
+        // Système effectiveWidth/effectiveLength
+        // Par défaut: reprendre les dimensions de l'élément survolé
         let effectiveWidth = dims.width; // Largeur effective pour les calculs de position
         let effectiveLength = dims.length; // Longueur effective pour les calculs de position
-        const activeBlockType = window.BlockSelector && window.BlockSelector.getCurrentBlock ? window.BlockSelector.getCurrentBlock() : null;
-        if (activeBlockType) {
-            if (activeBlockType.includes('B14')) {
-                effectiveWidth = 9; // Utiliser la largeur B9 (9cm au lieu de 14cm)
-                effectiveLength = 39; // Utiliser la longueur B9 (39cm, identique à B9)
+
+        // 1) Cas ISOLANT: les positions de continuité doivent respecter la longueur du panneau sélectionné (ex: 120cm PUR, 125cm XPS)
+        if (this.currentMode === 'insulation' && window.InsulationSelector) {
+            try {
+                const currentInsulation = (typeof window.InsulationSelector.getCurrentInsulationWithCutObject === 'function'
+                    ? window.InsulationSelector.getCurrentInsulationWithCutObject()
+                    : window.InsulationSelector.getCurrentInsulationData());
+                if (currentInsulation && typeof currentInsulation.length === 'number') {
+                    effectiveLength = currentInsulation.length;
+                }
+            } catch (e) {
+                // noop: fallback sur dims.length
             }
-            // B9 et autres blocs gardent leurs dimensions originales
+        } else {
+            // 2) Cas BLOCS: appliquer l'override B14 → utiliser l'espacement B9 uniquement en mode bloc
+            const activeBlockType = window.BlockSelector && window.BlockSelector.getCurrentBlock ? window.BlockSelector.getCurrentBlock() : null;
+            if (this.currentMode === 'block' && activeBlockType) {
+                if (activeBlockType.includes('B14')) {
+                    effectiveWidth = 9; // Utiliser la largeur B9 (9cm au lieu de 14cm)
+                    effectiveLength = 39; // Utiliser la longueur B9 (39cm)
+                }
+                // B9 et autres blocs gardent leurs dimensions originales
+            }
         }
         
         // 🔧 DEBUG: Log des dimensions et calculs (optionnel)
@@ -3622,7 +3773,12 @@ class ConstructionTools {
         const rotation = hoveredElement.rotation;
         
         // Paramètres de joints spécifiques au matériau de l'élément survolé
-        const jointVertical = this.getJointVerticalThickness(hoveredElement); // Épaisseur selon le type d'élément
+        // Épaisseur de joint vertical pour l'espacement des suggestions
+        // Spécifique: en mode isolant, ne pas ajouter d'épaisseur de joint (les isolants n'ont pas de joints)
+        let jointVertical = this.getJointVerticalThickness(hoveredElement); // Épaisseur selon le type d'élément
+        if (this.currentMode === 'insulation') {
+            jointVertical = 0;
+        }
         const jointHorizontal = 1.2; // 1.2cm par défaut
         
         // Calculer les positions de suggestion selon l'orientation de la brique survolée
@@ -4111,6 +4267,36 @@ class ConstructionTools {
                         }
                     }
                 }
+                if (!placementBlockSubType && this.ghostElement) {
+                    const ghostRawType = this.ghostElement.blockType || this.ghostElement.blockSubType || this.ghostElement?.mesh?.userData?.blockType;
+                    if (ghostRawType && typeof ghostRawType === 'string') {
+                        const ghostMatch = ghostRawType.match(/^(B\d+(?:_BOUTISSE|_PANNERESSE)?)(_HALF|_3Q|_1Q|_34CM|_4CM)?/);
+                        if (ghostMatch) {
+                            const baseType = ghostMatch[1];
+                            const cutSuffix = ghostMatch[2];
+                            placementBlockSubType = cutSuffix ? baseType + cutSuffix : baseType;
+                            console.log(`🔧 [NUMÉROTATION COMBINÉE] Fallback fantôme utilisé: ${ghostRawType} → ${placementBlockSubType}`);
+                        } else {
+                            console.warn(`⚠️ [NUMÉROTATION COMBINÉE] Fallback fantôme non reconnu: ${ghostRawType}`);
+                        }
+                    }
+                }
+                if (!placementBlockSubType) {
+                    try {
+                        const inferredType = this.getElementTypeForMode ? this.getElementTypeForMode('block') : null;
+                        if (inferredType && typeof inferredType === 'string') {
+                            const inferredMatch = inferredType.match(/^(B\d+(?:_BOUTISSE|_PANNERESSE)?)(_HALF|_3Q|_1Q|_34CM|_4CM)?/);
+                            if (inferredMatch) {
+                                const baseType = inferredMatch[1];
+                                const cutSuffix = inferredMatch[2];
+                                placementBlockSubType = cutSuffix ? baseType + cutSuffix : baseType;
+                                console.log(`🔧 [NUMÉROTATION COMBINÉE] Fallback getElementTypeForMode utilisé: ${inferredType} → ${placementBlockSubType}`);
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ [NUMÉROTATION COMBINÉE] getElementTypeForMode fallback impossible:', error);
+                    }
+                }
                 
                 console.log(`🔧 [NUMÉROTATION COMBINÉE] Source: ${blockSubType}, À placer: ${placementBlockSubType}`);
                 console.log(`🔧 [DEBUG] hoveredElement.blockType: ${hoveredElement?.blockType}`);
@@ -4160,6 +4346,7 @@ class ConstructionTools {
                     'B14_3Q_B14_HALF': '4302', // B14 3/4 → B14 demi
                     'B14_3Q_B14_3Q': '4303',   // B14 3/4 → B14 3/4
                     'B14_3Q_B14_1Q': '4304',   // B14 3/4 → B14 1/4
+                    'B14_3Q_B14_4CM': '4340',  // B14 3/4 → B14 4cm (série dédiée 4340XX)
                     
                     // === BLOCS B14 34CM → différents types ===
                     'B14_34CM_B14': '3401',     // B14 34cm → B14 entier
@@ -4225,10 +4412,10 @@ class ConstructionTools {
                     'B29_PANNERESSE_B29_PANNERESSE_1Q': '2904',    // B29 Panneresse → B29 Panneresse 1/4
                     
                     // === BLOCS B29 PANNERESSE 3/4 → différents types ===
-                    'B29_PANNERESSE_3Q_B29_PANNERESSE': '7301',     // B29 Panneresse 3/4 → B29 Panneresse entier
-                    'B29_PANNERESSE_3Q_B29_PANNERESSE_HALF': '7302', // B29 Panneresse 3/4 → B29 Panneresse demi
-                    'B29_PANNERESSE_3Q_B29_PANNERESSE_3Q': '7303',   // B29 Panneresse 3/4 → B29 Panneresse 3/4
-                    'B29_PANNERESSE_3Q_B29_PANNERESSE_1Q': '7304',   // B29 Panneresse 3/4 → B29 Panneresse 1/4
+                    'B29_PANNERESSE_3Q_B29_PANNERESSE': '2971',     // B29 Panneresse 3/4 → B29 Panneresse entier (gamme dédiée 2971xx)
+                    'B29_PANNERESSE_3Q_B29_PANNERESSE_HALF': '2972', // B29 Panneresse 3/4 → B29 Panneresse demi (gamme dédiée 2972xx)
+                    'B29_PANNERESSE_3Q_B29_PANNERESSE_3Q': '2973',   // B29 Panneresse 3/4 → B29 Panneresse 3/4 (gamme dédiée 2973xx)
+                    'B29_PANNERESSE_3Q_B29_PANNERESSE_1Q': '2974',   // B29 Panneresse 3/4 → B29 Panneresse 1/4 (gamme dédiée 2974xx)
                     
                     // === BLOCS B29 PANNERESSE DEMI → différents types ===
                     'B29_PANNERESSE_HALF_B29_PANNERESSE': '7501',       // B29 Panneresse demi → B29 Panneresse entier
@@ -4302,6 +4489,20 @@ class ConstructionTools {
                 } else {
                     // console.log(`🏗️ BLOC GÉNÉRIQUE: Position ${basePosition} (${getPropositionType(basePosition)}) → Identifiant: ${finalLetter}`);
                 }
+
+                // Filtre spécifique demandé: ne pas afficher 4303..4310 pour "bloc 1/4 sur bloc 3/4"
+                // Interprétation: source (référence) = B14_3Q, placement = B14_1Q → masquer perpendiculaires et angles (03–10)
+                if (blockSubType === 'B14_3Q' && placementBlockSubType === 'B14_1Q' && finalLetter) {
+                    const lastTwo = finalLetter.slice(-2);
+                    if ([
+                        '03','04','05','06', // perpendiculaires
+                        '07','08','09','10'  // angles panneresse
+                    ].includes(lastTwo)) {
+                        // Debug léger pour traçabilité (peut être désactivé si trop verbeux)
+                        console.log(`🚫 Filtre B14 1/4 sur 3/4: suppression de la suggestion ${finalLetter} (position ${basePosition})`);
+                        return null;
+                    }
+                }
             }
             
             // EXCLUSION SPÉCIFIQUE: Ne pas afficher les angles panneresse pour certains types de blocs
@@ -4324,7 +4525,7 @@ class ConstructionTools {
             }
             
             // EXCLUSIONS SPÉCIFIQUES B29 - codes à cacher directement
-            const b29ExcludedCodes = ['290103', '290104', '290105', '290307', '290308', '290309', '290310', '290407', '290408', '290409', '290410', '290503', '290504', '290505', '290506', '290507', '290508', '290509', '290510', '290603', '290604', '290605', '290606', '290607', '290608', '290609', '290610', '290703', '290704', '290705', '290706', '290707', '290708', '290709', '290710', '292103', '292104', '292105', '292106', '292203', '292204', '292205', '292206', '292207', '292208', '292209', '292210', '292303', '292304', '292305', '292306', '292307', '292308', '292309', '292310', '292403', '292404', '292405', '292406', '292407', '292408', '292409', '292410', '292503', '292504', '292505', '292506', '292507', '292508', '292509', '292510', '292603', '292604', '292605', '292606', '292607', '292608', '292609', '292610', '292703', '292704', '292705', '292706', '292707', '292708', '292709', '292710', '292803', '292804', '292805', '292806', '292807', '292808', '292809', '292810', '732103', '732104', '732105', '732106', '732107', '732108', '732109', '732110', '732203', '732204', '732205', '732206', '732207', '732208', '732209', '732210', '732303', '732304', '732305', '732306', '732307', '732308', '732309', '732310', '732403', '732404', '732405', '732406', '732407', '732408', '732409', '732410', '750103', '750104', '750105', '750106', '750203', '750204', '750205', '750206', '750207', '750208', '750209', '750210', '750230', '750240', '750303', '750304', '750305', '750306', '750307', '750308', '750309', '750310', '750403', '750404', '750405', '750406', '750407', '750408', '750409', '750410', '752103', '752104', '752105', '752106', '752107', '752108', '752109', '752110', '752203', '752204', '752205', '752206', '752207', '752208', '752209', '752210', '752303', '752304', '752305', '752306', '752307', '752308', '752309', '752310', '752403', '752404', '752405', '752406', '752407', '752408', '752409', '752410', '772210', '8101', '8102', '8103', '8104', '8105', '8106', '8107', '8108', '8109', '8110'];
+            const b29ExcludedCodes = ['290103', '290104', '290105', '290307', '290308', '290309', '290310', '290407', '290408', '290409', '290410', '290503', '290504', '290505', '290506', '290507', '290508', '290509', '290510', '290603', '290604', '290605', '290606', '290607', '290608', '290609', '290610', '290703', '290704', '290705', '290706', '290707', '290708', '290709', '290710', '292103', '292104', '292105', '292106', '292203', '292204', '292205', '292206', '292207', '292208', '292209', '292210', '292303', '292304', '292305', '292306', '292307', '292308', '292309', '292310', '292403', '292404', '292405', '292406', '292407', '292408', '292409', '292410', '292503', '292504', '292505', '292506', '292507', '292508', '292509', '292510', '292603', '292604', '292605', '292606', '292607', '292608', '292609', '292610', '292703', '292704', '292705', '292706', '292707', '292708', '292709', '292710', '292803', '292804', '292805', '292806', '292807', '292808', '292809', '292810', '297103', '297105', '732103', '732104', '732105', '732106', '732107', '732108', '732109', '732110', '732203', '732204', '732205', '732206', '732207', '732208', '732209', '732210', '732303', '732304', '732305', '732306', '732307', '732308', '732309', '732310', '732403', '732404', '732405', '732406', '732407', '732408', '732409', '732410', '750103', '750104', '750105', '750106', '750203', '750204', '750205', '750206', '750207', '750208', '750209', '750210', '750230', '750240', '750303', '750304', '750305', '750306', '750307', '750308', '750309', '750310', '750403', '750404', '750405', '750406', '750407', '750408', '750409', '750410', '752103', '752104', '752105', '752106', '752107', '752108', '752109', '752110', '752203', '752204', '752205', '752206', '752207', '752208', '752209', '752210', '752303', '752304', '752305', '752306', '752307', '752308', '752309', '752310', '752403', '752404', '752405', '752406', '752407', '752408', '752409', '752410', '772210', '8101', '8102', '8103', '8104', '8105', '8106', '8107', '8108', '8109', '8110'];
             if (b29ExcludedCodes.includes(finalLetter)) {
                 return null; // Code B29 spécifiquement exclu
             }
@@ -4343,12 +4544,20 @@ class ConstructionTools {
             }
             
             // EXCLUSION DIRECTE: Angles panneresse B9_1Q, B14_HALF, B14_1Q, B19_HALF, B19_1Q Angles panneresse + Propositions 3/4, 1/2, 1/4, 34cm sur blocs 4cm + Propositions 3/4, 34cm sur blocs 34cm + Propositions 1/4 sur blocs 1/4 + Propositions 4cm sur blocs 1/4 ne doivent pas être affichés - AFFICHER 043403/043404/043405/043406 (perpendiculaires B14_4CM→B14_34CM) et 344003/344004/344005/344006 (perpendiculaires B14_34CM→B14_4CM) - MASQUER 043407/043408/043409/043410 (angles B14_4CM→B14_34CM) et 344007/344008/344009/344010 (angles B14_34CM→B14_4CM) et 044001-044010 (série complète) et 191107/191108/191109/191110 (angles B19→B19_DEMI) et 191007/191008/191009/191010 (angles B19→B19_1Q) et 830207/830208/830209/830210 (angles B19_3Q→B19_HALF) et 830407/830408/830409/830410 (angles B19_3Q→B19_1Q) et 830403/830404/830405/830406 (perpendiculaires B19_3Q→B19_1Q) et 850103/850106 (perpendiculaires B19_HALF→B19) et 850304/850306/850307/850308/850309/850310 (perpendiculaires et angles B19_HALF→B19_3Q) et 850203/850205/850207/850208/850209/850210 (perpendiculaires et angles B19_HALF→B19_1Q) et 850403/850405/850407/850408/850409/850410 (perpendiculaires et angles B19_HALF→B19_HALF) et 190803/190804/190805/190806/190807/190808/190809/190810 (perpendiculaires et angles B19_1Q→B19_1Q) et 190603/190604/190605/190606 (perpendiculaires B19_1Q→B19_DEMI) et 190607/190608/190609/190610 (angles B19_1Q→B19_DEMI) et 190703/190704/190705/190706 (perpendiculaires B19_1Q→B19_3Q) et 190503/190504/190505/190506 (perpendiculaires B19_1Q→B19)
-            if (['9107', '9108', '9109', '9110', '4507', '4508', '4509', '4510', '4107', '4108', '4109', '4110', '8507', '8508', '8509', '8510', '8107', '8108', '8109', '8110', '4627', '4628', '4629', '4630', '4637', '4638', '4639', '4640', '910104', '910106', '090407', '090408', '090409', '090410', '950407', '950408', '950409', '950410', '930303', '930304', '930305', '930306', '930307', '930308', '930309', '930310', '930407', '930408', '930409', '930410', '950207', '950208', '950209', '950210', '950203', '950204', '950205', '950206', '910401', '910402', '910403', '910404', '910405', '910406', '910407', '910408', '910409', '910410', '910201', '910202', '910203', '910204', '910205', '910206', '910207', '910208', '910209', '910210', '910301', '910302', '910303', '910304', '910305', '910306', '910307', '910308', '910309', '910310', '140407', '140408', '140409', '140410', '430303', '430304', '430305', '430306', '430307', '430308', '430309', '430310', '430407', '430408', '430409', '430410', '040103', '040104', '040105', '040106', '340201', '340202', '340203', '340204', '340205', '340206', '340207', '340208', '340209', '340210', '340401', '340402', '340403', '340404', '340405', '340406', '340407', '340408', '340409', '340410', '344001', '344002', '344007', '344008', '344009', '344010', '343401', '343402', '343403', '343404', '343405', '343406', '343407', '343408', '343409', '343410', '144007', '144008', '144009', '144010', '040201', '040202', '040203', '040204', '040205', '040206', '040207', '040208', '040209', '040210', '040301', '040302', '040303', '040304', '040305', '040306', '040307', '040308', '040309', '040310', '040401', '040402', '040403', '040404', '040405', '040406', '040407', '040408', '040409', '040410', '043401', '043402', '043407', '043408', '043409', '043410', '044001', '044002', '044003', '044004', '044005', '044006', '044007', '044008', '044009', '044010', '191007', '191008', '191009', '191010', '191107', '191108', '191109', '191110', '340301', '340302', '340303', '340304', '340305', '340306', '340307', '340308', '340309', '340310', '140503', '140504', '140505', '140506', '140801', '140802', '140803', '140804', '140805', '140806', '140807', '140808', '140809', '140810', '140603', '140604', '140605', '140606', '140607', '140608', '140609', '140610', '140703', '140704', '140705', '140706', '140707', '140708', '140709', '140710', '144101', '144102', '144103', '144104', '144105', '144106', '144107', '144108', '144109', '144110', '143503', '143504', '143505', '143506', '143507', '143508', '143509', '143510', '830207', '830208', '830209', '830210', '830407', '830408', '830409', '830410', '830403', '830404', '830405', '830406', '850103', '850106', '850304', '850306', '850307', '850308', '850309', '850310', '850203', '850205', '850207', '850208', '850209', '850210', '850403', '850405', '850407', '850408', '850409', '850410', '190803', '190804', '190805', '190806', '190807', '190808', '190809', '190810', '190603', '190604', '190605', '190606', '190607', '190608', '190609', '190610', '190703', '190704', '190705', '190706', '190503', '190504', '190505', '190506'].includes(letter)) {
+            if (['9107', '9108', '9109', '9110', '4507', '4508', '4509', '4510', '4107', '4108', '4109', '4110', '8507', '8508', '8509', '8510', '8107', '8108', '8109', '8110', '4627', '4628', '4629', '4630', '4637', '4638', '4639', '4640', '910104', '910106', '090407', '090408', '090409', '090410', '950407', '950408', '950409', '950410', '930303', '930304', '930305', '930306', '930307', '930308', '930309', '930310', '930407', '930408', '930409', '930410', '950207', '950208', '950209', '950210', '950203', '950204', '950205', '950206', '910401', '910402', '910403', '910404', '910405', '910406', '910407', '910408', '910409', '910410', '910201', '910202', '910203', '910204', '910205', '910206', '910207', '910208', '910209', '910210', '910301', '910302', '910303', '910304', '910305', '910306', '910307', '910308', '910309', '910310', '140407', '140408', '140409', '140410', '430303', '430304', '430305', '430306', '430307', '430308', '430309', '430310', '430407', '430408', '430409', '430410', '434003', '434004', '434005', '434006', '434007', '434008', '434009', '434010', '040103', '040104', '040105', '040106', '340201', '340202', '340203', '340204', '340205', '340206', '340207', '340208', '340209', '340210', '340401', '340402', '340403', '340404', '340405', '340406', '340407', '340408', '340409', '340410', '344001', '344002', '344007', '344008', '344009', '344010', '343401', '343402', '343403', '343404', '343405', '343406', '343407', '343408', '343409', '343410', '144007', '144008', '144009', '144010', '040201', '040202', '040203', '040204', '040205', '040206', '040207', '040208', '040209', '040210', '040301', '040302', '040303', '040304', '040305', '040306', '040307', '040308', '040309', '040310', '040401', '040402', '040403', '040404', '040405', '040406', '040407', '040408', '040409', '040410', '043401', '043402', '043407', '043408', '043409', '043410', '044001', '044002', '044003', '044004', '044005', '044006', '044007', '044008', '044009', '044010', '191007', '191008', '191009', '191010', '191107', '191108', '191109', '191110', '340301', '340302', '340303', '340304', '340305', '340306', '340307', '340308', '340309', '340310', '140503', '140504', '140505', '140506', '140801', '140802', '140803', '140804', '140805', '140806', '140807', '140808', '140809', '140810', '140603', '140604', '140605', '140606', '140607', '140608', '140609', '140610', '140703', '140704', '140705', '140706', '140707', '140708', '140709', '140710', '144101', '144102', '144103', '144104', '144105', '144106', '144107', '144108', '144109', '144110', '143503', '143504', '143505', '143506', '143507', '143508', '143509', '143510', '830207', '830208', '830209', '830210', '830407', '830408', '830409', '830410', '830403', '830404', '830405', '830406', '850103', '850106', '850304', '850306', '850307', '850308', '850309', '850310', '850203', '850205', '850207', '850208', '850209', '850210', '850403', '850405', '850407', '850408', '850409', '850410', '190803', '190804', '190805', '190806', '190807', '190808', '190809', '190810', '190603', '190604', '190605', '190606', '190607', '190608', '190609', '190610', '190703', '190704', '190705', '190706', '190503', '190504', '190505', '190506'].includes(letter)) {
                 return null; // Forcer l'exclusion de ces identifiants
             }
             
             // Ajustements spécifiques par lettre - système à 3 caractères complètement indépendant
             const adjustments = {
+                // Ajustement spécifique B29
+                '297102': { x: -10, z: 0 },
+                '297104': { x: 0, z: -8 },
+                '297107': { x: -5, z: -14 },
+                '297108': { x: -5, z: -14 },
+                '297109': { x: -5, z: -6 },
+                '297110': { x: -5, z: -6 },
+
                 // === SYSTÈME ENTIÈRE SUR ENTIÈRE (EEX) ===
                 'EEA': { x: 0, z: 0 }, 'EEB': { x: 0, z: 0 }, 'EEC': { x: 0, z: 0 }, 'EED': { x: 0, z: 0 },
                 'EEE': { x: 0, z: 0 }, 'EEF': { x: 0, z: 0 }, 'EEG': { x: 0, z: 0 }, 'EEH': { x: 0, z: 0 },
@@ -4357,8 +4566,8 @@ class ConstructionTools {
                 
                 // === SYSTÈME ENTIÈRE SUR 3/4 (ETX) ===
                 'ETA': { x: 0, z: 0 }, 'ETB': { x: -5, z: 0 }, 'ETC': { x: -2.5, z: 2.5 }, 'ETD': { x: -5, z: 2.5 },
-                'ETE': { x: -2.5, z: -2.5 }, 'ETF': { x: -5, z: -2.5 }, 'ETG': { x: -2.5, z: 2.5 }, 'ETH': { x: -2.5, z: 2.5 },
-                'ETI': { x: -2.5, z: -2.5 }, 'ETJ': { x: 7.5, z: -12.5 }, 'ETS': { x: -2.5, z: -5 }, 'ETT': { x: -2.5, z: -5 },
+                'ETE': { x: -2.5, z: -6.5 }, 'ETF': { x: -5, z: -6.5 }, 'ETG': { x: -2.5, z: 2.5 }, 'ETH': { x: -2.5, z: 2.5 },
+                'ETI': { x: -2.5, z: -5.5 }, 'ETJ': { x: -2.5, z: -5.5 }, 'ETS': { x: -2.5, z: -5 }, 'ETT': { x: -2.5, z: -5 },
                 'ETU': { x: -2.5, z: -2.5 }, 'ETV': { x: -2.5, z: -2.5 },
                 
                 // === SYSTÈME ENTIÈRE SUR 1/2 (EHX) ===
@@ -4370,7 +4579,7 @@ class ConstructionTools {
                 // === SYSTÈME ENTIÈRE SUR 1/4 (EQX) ===
                 'EQA': { x: 0, z: 0 }, 'EQB': { x: -15, z: 0 }, 'EQC': { x: 0, z: 0 }, 'EQD': { x: 0, z: 0 },
                 'EQE': { x: 0, z: 0 }, 'EQF': { x: 0, z: 0 }, 'EQG': { x: -7.5, z: -2.5 }, 'EQH': { x: -7.5, z: -2.5 },
-                'EQI': { x: -7.5, z: 2.5 }, 'EQJ': { x: -7.5, z: 2.5 }, 'EQS': { x: -7.5, z: -15 }, 'EQT': { x: -7.5, z: -15 },
+                'EQI': { x: -7.5, z: -12.5 }, 'EQJ': { x: -7.5, z: -12.5 }, 'EQS': { x: -7.5, z: -15 }, 'EQT': { x: -7.5, z: -15 },
                 'EQU': { x: -7.5, z: -7.5 }, 'EQV': { x: -7.5, z: -7.5 },
                 
                 // === SYSTÈME 3/4 SUR ENTIÈRE (TEX) ===
@@ -4387,7 +4596,7 @@ class ConstructionTools {
                 
                 // === SYSTÈME 3/4 SUR 1/2 (THX) ===
                 'THA': { x: 0, z: 0 }, 'THB': { x: -5, z: 0 }, 'THC': { x: -4.75, z: 5 }, 'THD': { x: 0, z: 0 },
-                'THE': { x: -4.75, z: -4 }, 'THF': { x: 0, z: 0 }, 'THG': { x: -4, z: 1 }, 'THH': { x: -5, z: 0 },
+                'THE': { x: -4.75, z: -10 }, 'THF': { x: 0, z: 0 }, 'THG': { x: -5, z: 0 }, 'THH': { x: -5, z: 0 },
                 'THI': { x: -5, z: 2 }, 'THJ': { x: -5, z: 2 }, 'THS': { x: -5, z: -5 }, 'THT': { x: -5, z: -5 },
                 'THU': { x: -5, z: -5 }, 'THV': { x: -5, z: -5 },
                 
@@ -4406,7 +4615,7 @@ class ConstructionTools {
                 // === SYSTÈME 1/2 SUR 3/4 (HTX) ===
                 'HTA': { x: 0, z: 0 }, 'HTB': { x: 5, z: 0 }, 'HTC': { x: -2.5, z: 2.5 }, 'HTD': { x: -5, z: 2.5 },
                 'HTE': { x: -2.5, z: -2.5 }, 'HTF': { x: -5, z: -2.5 }, 'HTG': { x: -12.5, z: -7.5 }, 'HTH': { x: 7.5, z: -7.5 },
-                'HTI': { x: -12.5, z: 9.5 }, 'HTJ': { x: 7.5, z: 9.5 }, 'HTS': { x: 0, z: 0 }, 'HTT': { x: 0, z: 0 },
+                'HTI': { x: -12.5, z: 14.5 }, 'HTJ': { x: 7.5, z: 14.5 }, 'HTS': { x: 0, z: 0 }, 'HTT': { x: 0, z: 0 },
                 'HTU': { x: 0, z: 0 }, 'HTV': { x: 0, z: 0 },
                 
                 // === SYSTÈME 1/2 SUR 1/2 (HHX) ===
@@ -4429,13 +4638,18 @@ class ConstructionTools {
                 
                 // === SYSTÈME 1/4 SUR 3/4 (QTX) ===
                 'QTA': { x: 0, z: 0 }, 'QTB': { x: 10, z: 0 }, 'QTC': { x: -2.5, z: 2.5 }, 'QTD': { x: -5, z: 2.5 },
-                'QTE': { x: -2.5, z: -5.5 }, 'QTF': { x: -5, z: -5.5 }, 'QTG': { x: -2.5, z: 2.5 }, 'QTH': { x: -2.5, z: 2.5 },
-                'QTI': { x: -2.5, z: -2.5 }, 'QTJ': { x: -2.5, z: -2.5 }, 'QTS': { x: 0, z: 0 }, 'QTT': { x: 0, z: 0 },
+                // QTE/QTF doivent avancer de 14cm en Z par rapport à leur position actuelle (-5.5 -> +8.5)
+                'QTE': { x: -2.5, z: 8.5 }, 'QTF': { x: -5, z: 8.5 },
+                // QTG/QTH/QTI/QTJ doivent avancer de 5cm en Z par rapport à leur position actuelle
+                // QTG: 2.5 -> 7.5, QTH: 2.5 -> 7.5, QTI: -2.5 -> 2.5, QTJ: -2.5 -> 2.5
+                'QTG': { x: -2.5, z: 7.5 }, 'QTH': { x: -2.5, z: 7.5 },
+                // QTI/QTJ doivent avancer encore de 2cm en Z (2.5 -> 4.5)
+                'QTI': { x: -2.5, z: 4.5 }, 'QTJ': { x: -2.5, z: 4.5 }, 'QTS': { x: 0, z: 0 }, 'QTT': { x: 0, z: 0 },
                 'QTU': { x: 0, z: 2.5 }, 'QTV': { x: 0, z: 0 },
                 
                 // === SYSTÈME 1/4 SUR 1/2 (QHX) ===
                 'QHA': { x: 0, z: 0 }, 'QHB': { x: 5, z: 0 }, 'QHC': { x: -4.75, z: 5 }, 'QHD': { x: 0, z: 0 },
-                'QHE': { x: -4.75, z: -8 }, 'QHF': { x: 0, z: 0 }, 'QHG': { x: -5, z: 5 }, 'QHH': { x: -5, z: 5 },
+                'QHE': { x: -4.75, z: 0 }, 'QHF': { x: 0, z: 0 }, 'QHG': { x: -5, z: 5 }, 'QHH': { x: -5, z: 5 },
                 'QHI': { x: -5, z: -5 }, 'QHJ': { x: -5, z: -5 }, 'QHS': { x: 0, z: 0 }, 'QHT': { x: 0, z: 0 },
                 'QHU': { x: 0, z: 0 }, 'QHV': { x: 0, z: 0 },
                 
@@ -4607,6 +4821,13 @@ class ConstructionTools {
                 '4301': { x: 0, z: 0 }, '4302': { x: 0, z: 0 }, // B14_3Q Continuité
                 '4303': { x: -5, z: 2 }, '4304': { x: 0, z: 2 }, '4305': { x: -5, z: 5 }, '4306': { x: 0, z: 5 }, // B14_3Q Perpendiculaires
                 '4307': { x: 20, z: 12 }, '4308': { x: 20, z: 12 }, '4309': { x: 20, z: -10 }, '4310': { x: 20, z: -10 }, // B14_3Q Angles panneresse
+
+                // B14_3Q → B14_4CM (4340XX) - Série dédiée pour affichage spécifique 1/4 sur 3/4
+                '434001': { x: -10, z: 0 }, '434002': { x: 35, z: 0 }, // Continuité (434001 recule de 10cm en X, 434002 avance de 35cm en X)
+                '434003': { x: -5, z: 2 }, '434004': { x: 0, z: 2 }, // Perpendiculaires frontales
+                '434005': { x: -5, z: 5 }, '434006': { x: 0, z: 5 }, // Perpendiculaires dorsales
+                '434007': { x: 20, z: 12 }, '434008': { x: 20, z: 12 }, // Angles panneresse frontaux
+                '434009': { x: 20, z: -10 }, '434010': { x: 20, z: -10 }, // Angles panneresse dorsaux
                 
                 '8301': { x: 0, z: 0 }, '8302': { x: 10, z: 0 }, // B19_3Q Continuité
                 '8303': { x: -10, z: 0 }, '8304': { x: 0, z: 0 }, '8305': { x: -10, z: -35 }, '8306': { x: 0, z: -35 }, // B19_3Q Perpendiculaires (8305/8306 correspondent à 830105/830106 - reculés 46cm en Z total)
@@ -4688,6 +4909,9 @@ class ConstructionTools {
                 '040108': { x: 5, z: -18 }, // B14 4cm → Position H (avance de 5cm en X, reculé de 35cm en Z)
                 '040109': { x: -25, z: -20 }, // B14 4cm → Position I (reculé de 35cm en X, reculé de 35cm en Z)
                 '040110': { x: 5, z: -20 }, // B14 4cm → Position J (avance de 5cm en X, reculé de 35cm en Z)
+
+                // === SYSTÈME BLOCS B14 4CM → B14 1/4 (0404XX) ===
+                '040401': { x: -10, z: 0 }, // Continuité droite: reculer de 10cm en X par rapport à la position actuelle
                 
                 // === SYSTÈME BLOCS B14 4CM → B14 34CM (0434XX) ===
                 '043401': { x: 0, z: 0 }, '043402': { x: 30, z: 0 }, // B14_4CM→B14_34CM Continuité longitudinale
@@ -4847,7 +5071,7 @@ class ConstructionTools {
                 '190701': { x: 0, z: 0 }, // B19_1Q→B19_3Q Continuité gauche (aucun décalage en X)
                 '190707': { x: -10, z: -4 }, '190708': { x: -10, z: -4 }, '190709': { x: -10, z: -36 }, '190710': { x: -10, z: -36 }, // B19_1Q→B19_3Q Angles panneresse (reculés 10cm en X, 190707/190708 reculés 4cm en Z, 190709/190710 reculés 36cm en Z)
                 '190501': { x: 0, z: 0 }, '190502': { x: -30, z: 0 }, // B19_1Q→B19 Continuité (190501 aucun décalage en X, 190502 reculé 30cm en X)
-                '190507': { x: -10, z: -4 }, '190508': { x: -10, z: -4 }, '190509': { x: -10, z: -46 }, '190510': { x: -10, z: -45 }, // B19_1Q→B19 Angles panneresse (tous reculés 10cm en X, 190507/190508 reculés 4cm en Z, 190509 reculé 46cm en Z, 190510 reculé 45cm en Z)
+                '190507': { x: -10, z: -4 }, '190508': { x: -10, z: -4 }, '190509': { x: -10, z: -46 }, '190510': { x: -10, z: -46 }, // B19_1Q→B19 Angles panneresse (tous reculés 10cm en X, 190507/190508 reculés 4cm en Z, 190509/190510 reculés 46cm en Z)
                 
                 // === SYSTÈME BLOCS B29 PANNERESSE (2901XX) ===
                 // B29 Panneresse → B29 Panneresse (290101-290110) - Perpendiculaires partiellement désactivés
@@ -4940,6 +5164,7 @@ class ConstructionTools {
                 
                 // === SYSTÈME CODES TRANSITION 750X ===
                 // Codes de transition B29 avec ajustements spécifiques
+                '750102': { x: -20, z: 0 }, // Transition B29 - recule de 20cm en x
                 '750107': { x: -10, z: -29 }, // Transition B29 - reculé de 10cm en x, reculé de 29cm en z
                 '750108': { x: -10, z: -29 }, // Transition B29 - reculé de 10cm en x, reculé de 29cm en z
                 '750109': { x: -10, z: -11 }, // Transition B29 - reculé de 10cm en x, reculé de 11cm en z
@@ -4959,6 +5184,7 @@ class ConstructionTools {
                 
                 // === SYSTÈME CODES TRANSITION 752X ===
                 // Code B29 avec ajustement spécifique
+                '752102': { x: -15, z: 0 }, // B29 - recule de 15cm en x
                 '752202': { x: -15, z: 0 }, // B29 - recule de 15cm en x
                 '752402': { x: 12, z: 0 }, // B29 - avance de 12cm en x
                 
@@ -5732,8 +5958,8 @@ class ConstructionTools {
                 if (ghost.mesh.material) ghost.mesh.material.opacity = 0.5;
             } catch {}
         } else {
-            const stagger = (typeof window !== 'undefined' && typeof window.suggestionStaggerMs === 'number') ? window.suggestionStaggerMs : 20;
-            const maxStagger = (typeof window !== 'undefined' && typeof window.suggestionMaxStaggerMs === 'number') ? window.suggestionMaxStaggerMs : 80;
+            const stagger = (typeof window !== 'undefined' && typeof window.suggestionStaggerMs === 'number') ? window.suggestionStaggerMs : 10;
+            const maxStagger = (typeof window !== 'undefined' && typeof window.suggestionMaxStaggerMs === 'number') ? window.suggestionMaxStaggerMs : 40;
             const delay = Math.min(index * stagger, maxStagger);
             setTimeout(() => {
                 this.animateGhostAppearance(ghost.mesh);
@@ -5751,7 +5977,7 @@ class ConstructionTools {
         const startTime = Date.now();
         const duration = (typeof window !== 'undefined' && typeof window.suggestionAnimationDurationMs === 'number')
             ? window.suggestionAnimationDurationMs
-            : 150; // 150ms par défaut (plus rapide)
+            : 90; // 90ms par défaut (animation plus rapide)
         const targetOpacity = 0.5;
         const targetScale = 1.0;
         
@@ -7180,19 +7406,29 @@ class ConstructionTools {
                 
                 console.log(`🔧 Joint horizontal assise ${elementInfo?.assiseIndex || 0}: planZero=${planZeroAssise}, faceInf=${faceInferieureBrique}, hauteur=${hauteurJoint}, Y=${worldY}`);
             } else {
-                // CORRECTION: Les joints verticaux doivent démarrer au plan zéro de l'assise COURANTE
-                // (hauteur de démarrage de l'assise, incluant le joint horizontal de base), pas à Y=0
+                // CORRECTION: Les joints verticaux doivent démarrer au plan 0 (bas) de l'assise courante
+                // et traverser le joint horizontal de base.
 
-                let planZeroReel = 0;
+                let assiseTop = 0; // sommet du joint horizontal de l'assise
+                let planBaseAssise = 0; // plan 0 (bas) de l'assise
                 if (window.AssiseManager && elementInfo && elementInfo.assiseIndex >= 0) {
-                    // Pour l'assise N, on ancre au plan zéro de l'assise N
-                    planZeroReel = window.AssiseManager.calculateAssiseHeightForType(elementInfo.type, elementInfo.assiseIndex);
-                    if (window.enableJointDebug) console.log(`🧭[JOINT-V] planZero assise ${elementInfo.assiseIndex} (${elementInfo.type}) = ${planZeroReel}cm`);
+                    assiseTop = window.AssiseManager.calculateAssiseHeightForType(elementInfo.type, elementInfo.assiseIndex);
+                    // Hauteur du joint horizontal de cette assise (0 => mortier base, >0 => colle/joint fin)
+                    let jointH = 0;
+                    if (typeof window.AssiseManager.getJointHeightForAssise === 'function') {
+                        jointH = window.AssiseManager.getJointHeightForAssise(elementInfo.type, elementInfo.assiseIndex);
+                    } else if (typeof window.AssiseManager.getJointHeightForType === 'function') {
+                        jointH = window.AssiseManager.getJointHeightForType(elementInfo.type);
+                    } else {
+                        jointH = window.AssiseManager.jointHeight || 0;
+                    }
+                    planBaseAssise = assiseTop - jointH;
+                    if (window.enableJointDebug) console.log(`🧭[JOINT-V] base assise ${elementInfo.assiseIndex} (${elementInfo.type}) = ${planBaseAssise}cm (top=${assiseTop}, joint=${jointH})`);
                 }
 
-                // Le joint va du plan zéro de l'assise jusqu'au sommet du bloc
+                // Le joint va du PLAN BAS de l'assise jusqu'au sommet du bloc
                 const sommeBlocY = element.position.y + element.dimensions.height / 2;
-                let hauteurJointComplete = sommeBlocY - planZeroReel;
+                let hauteurJointComplete = sommeBlocY - planBaseAssise;
                 
                 // CORRECTION SPÉCIALE: Pour les briques M50_CHANT, limiter la hauteur du joint à la hauteur de la brique
                 if (element.blockType === 'M50_CHANT') {
@@ -7210,18 +7446,18 @@ class ConstructionTools {
                     // Recalculer worldY avec la hauteur limitée
                     worldY = baseBriqueY + hauteurJointComplete / 2;
                 } else {
-                    worldY = planZeroReel + hauteurJointComplete / 2;
+                    worldY = planBaseAssise + hauteurJointComplete / 2;
                 }
                 
                 // // console.log(`🔧 Joint vertical jusqu'au plan zéro de l'assise:`);
-                console.log(`   - Plan zéro assise: ${planZeroReel} cm`);
+                console.log(`   - Plan bas assise: ${planBaseAssise} cm`);
                 console.log(`   - Sommet bloc: ${sommeBlocY} cm`);
                 console.log(`   - Hauteur joint complète: ${hauteurJointComplete} cm`);
                 console.log(`   - Centre Y calculé: ${worldY} cm`);
                 if (element.blockType === 'M50_CHANT') {
                     console.log(`   - Joint M50_CHANT limité à la hauteur de la brique`);
                 } else {
-                    console.log(`   - Joint s'étend de ${planZeroReel} à ${sommeBlocY} cm`);
+                    console.log(`   - Joint s'étend de ${planBaseAssise} à ${sommeBlocY} cm`);
                 }
                 
                 // Mettre à jour la hauteur du joint pour qu'il corresponde à la hauteur complète
@@ -7335,13 +7571,49 @@ class ConstructionTools {
         if (suggestionGhost.mesh.userData.isVerticalJoint) {
             // Pour les joints verticaux, la base doit être le plan zéro de l'assise COURANTE (top du joint horizontal)
             let planZeroReel = 0;
-            if (window.AssiseManager) {
-                planZeroReel = window.AssiseManager.calculateAssiseHeightForType(this.referenceAssiseType, this.referenceAssiseIndex || 0);
-                if (window.enableJointDebug) console.log(`🧭[JOINT-V] planZero assise ${this.referenceAssiseIndex} (${this.referenceAssiseType}) = ${planZeroReel}cm`);
+
+            // Déterminer l'élément de référence et son assise si non définie
+            const refElement = this.referenceElement || this.activeBrickForSuggestions;
+            let resolvedAssiseType = this.referenceAssiseType;
+            let resolvedAssiseIndex = this.referenceAssiseIndex;
+
+            if ((!resolvedAssiseType || resolvedAssiseIndex === undefined) && window.AssiseManager && refElement) {
+                // Tenter de récupérer directement l'assise de l'élément cliqué
+                try {
+                    const info = window.AssiseManager.getElementAssiseAndType(refElement.id);
+                    if (info && info.type && info.assiseIndex !== undefined) {
+                        resolvedAssiseType = info.type;
+                        resolvedAssiseIndex = info.assiseIndex;
+                    } else {
+                        // Fallback: utiliser l'assise courante du type courant
+                        resolvedAssiseType = window.AssiseManager.currentType;
+                        resolvedAssiseIndex = window.AssiseManager.currentAssise;
+                    }
+                } catch (e) {
+                    // Dernier recours: type/assise courants
+                    resolvedAssiseType = window.AssiseManager.currentType;
+                    resolvedAssiseIndex = window.AssiseManager.currentAssise;
+                }
+                // Mémoriser pour l'ajout dans la bonne assise plus bas
+                this.referenceAssiseType = resolvedAssiseType;
+                this.referenceAssiseIndex = resolvedAssiseIndex;
+            }
+
+            if (window.AssiseManager && resolvedAssiseType !== undefined && resolvedAssiseIndex !== undefined) {
+                const assiseTop = window.AssiseManager.calculateAssiseHeightForType(resolvedAssiseType, resolvedAssiseIndex || 0);
+                let jointH = 0;
+                if (typeof window.AssiseManager.getJointHeightForAssise === 'function') {
+                    jointH = window.AssiseManager.getJointHeightForAssise(resolvedAssiseType, resolvedAssiseIndex || 0);
+                } else if (typeof window.AssiseManager.getJointHeightForType === 'function') {
+                    jointH = window.AssiseManager.getJointHeightForType(resolvedAssiseType);
+                } else {
+                    jointH = window.AssiseManager.jointHeight || 0;
+                }
+                planZeroReel = assiseTop - jointH; // plan bas de l'assise
+                if (window.enableJointDebug) console.log(`🧭[JOINT-V] base assise ${resolvedAssiseIndex} (${resolvedAssiseType}) = ${planZeroReel}cm (top=${assiseTop}, joint=${jointH})`);
             }
             
-            // Hauteur totale du joint (du plan zéro réel au sommet du bloc)
-            const refElement = this.referenceElement || this.activeBrickForSuggestions;
+            // Hauteur totale du joint (du plan bas de l'assise au sommet du bloc)
             if (!refElement) {
                 console.error('❌ Aucun élément de référence disponible pour calculer la position Y du joint');
                 return;
@@ -7399,6 +7671,14 @@ class ConstructionTools {
         
         // CORRECTION FORCÉE: Forcer directement la position du mesh Three.js à la position du fantôme
         joint.mesh.position.set(finalX, finalY, finalZ);
+
+        // Appliquer le retrait si configuré
+        try {
+            const depth = this.getJointRecessDepthCm?.() || 0;
+            if (depth > 0) {
+                this.applyRecessToJointMesh(joint.mesh, depth);
+            }
+        } catch (e) { /* noop */ }
         
         // Mettre à jour aussi la position interne de l'objet WallElement
         joint.position.x = finalX;
@@ -10167,7 +10447,7 @@ class ConstructionTools {
         let finalHeight = jointData.dimensions.height;
         
         if (jointData.isVerticalJoint) {
-            // Pour les joints verticaux, ancrer au plan zéro de l'assise courante (pas Y=0)
+            // Pour les joints verticaux, ancrer au plan BAS (plan 0) de l'assise courante
             let planZeroReel = 0;
 
             // Déterminer l'assise de référence
@@ -10188,8 +10468,17 @@ class ConstructionTools {
             }
 
             if (window.AssiseManager) {
-                planZeroReel = window.AssiseManager.calculateAssiseHeightForType(referenceAssiseType, referenceAssiseIndex || 0);
-                if (window.enableJointDebug) console.log(`🧭[JOINT-V] AUTO planZero assise ${referenceAssiseIndex} (${referenceAssiseType}) = ${planZeroReel}cm`);
+                const assiseTop = window.AssiseManager.calculateAssiseHeightForType(referenceAssiseType, referenceAssiseIndex || 0);
+                let jointH = 0;
+                if (typeof window.AssiseManager.getJointHeightForAssise === 'function') {
+                    jointH = window.AssiseManager.getJointHeightForAssise(referenceAssiseType, referenceAssiseIndex || 0);
+                } else if (typeof window.AssiseManager.getJointHeightForType === 'function') {
+                    jointH = window.AssiseManager.getJointHeightForType(referenceAssiseType);
+                } else {
+                    jointH = window.AssiseManager.jointHeight || 0;
+                }
+                planZeroReel = assiseTop - jointH;
+                if (window.enableJointDebug) console.log(`🧭[JOINT-V] AUTO base assise ${referenceAssiseIndex} (${referenceAssiseType}) = ${planZeroReel}cm (top=${assiseTop}, joint=${jointH})`);
             }
 
             // Hauteur totale du joint (du plan zéro de l'assise au sommet du bloc)
@@ -10211,7 +10500,7 @@ class ConstructionTools {
                 console.log(`   - Hauteur brique: ${hauteurBrique} cm`);
                 console.log(`   - Hauteur joint limitée: ${hauteurJointComplete} cm`);
             } else {
-                // Centre du joint = plan zéro + hauteur/2
+                // Centre du joint = plan bas + hauteur/2
                 finalY = planZeroReel + hauteurJointComplete / 2;
             }
             
@@ -10287,6 +10576,13 @@ class ConstructionTools {
             // Appliquer la couleur appropriée selon le type de parent
             this.applyJointColorToElement(joint, joint.mesh.userData.parentElementType, referenceElement);
             
+            // Appliquer le retrait si configuré
+            try {
+                const depth = this.getJointRecessDepthCm?.() || 0;
+                if (depth > 0) {
+                    this.applyRecessToJointMesh(joint.mesh, depth);
+                }
+            } catch (e) { /* noop */ }
             // console.log(`🔗 Joint ${joint.userData.parentElementType === 'brick' ? 'brique' : 'bloc'} associé à l'élément parent:`, parentId);
             
             // Stocker le type d'assise de référence dans le joint
@@ -10654,7 +10950,7 @@ class ConstructionTools {
             justify-content: center !important;
             cursor: pointer !important;
             box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5) !important;
-            transition: all 0.3s ease !important;
+            transition: all 0.18s ease !important;
         `;
         
         // console.log('🗑️ Icône créée avec position forcée visible');
@@ -10677,11 +10973,16 @@ class ConstructionTools {
         
         // console.log('🗑️ Icône ajoutée au DOM, maintenant visible');
         
+        // Positionner immédiatement sur le prochain frame pour éviter l'attente
+        requestAnimationFrame(() => {
+            this.updateDeleteIconPosition(element);
+        });
+
         // Calculer la vraie position après un court délai et animer vers elle
         setTimeout(() => {
             this.animateIconToCorrectPosition(element);
             this.setupCameraTracking(element);
-        }, 500);
+        }, 150);
         
         // console.log('🗑️ Icône de suppression affichée pour:', element.id);
     }
@@ -11204,15 +11505,32 @@ ConstructionTools.prototype.createSpecificVerticalJoint = function(element, side
 
     if (window.AssiseManager) {
         const assiseInfo = window.AssiseManager.getElementAssiseAndType(element.id);
-        let planZeroAssise = 0;
+        let planBaseAssise = 0; // bas de l'assise (plan 0)
 
         if (assiseInfo && assiseInfo.assiseIndex !== undefined) {
-            planZeroAssise = window.AssiseManager.getAssiseHeight(assiseInfo.type, assiseInfo.assiseIndex);
+            // Obtenir le sommet (haut du joint horizontal) puis retrancher l'épaisseur du joint horizontal pour le plan bas
+            let assiseTop = 0;
+            if (typeof window.AssiseManager.calculateAssiseHeightForType === 'function') {
+                assiseTop = window.AssiseManager.calculateAssiseHeightForType(assiseInfo.type, assiseInfo.assiseIndex);
+            } else if (typeof window.AssiseManager.getAssiseHeightForType === 'function') {
+                assiseTop = window.AssiseManager.getAssiseHeightForType(assiseInfo.type, assiseInfo.assiseIndex);
+            } else {
+                assiseTop = window.AssiseManager.getAssiseHeight(assiseInfo.assiseIndex);
+            }
+            let jointH = 0;
+            if (typeof window.AssiseManager.getJointHeightForAssise === 'function') {
+                jointH = window.AssiseManager.getJointHeightForAssise(assiseInfo.type, assiseInfo.assiseIndex);
+            } else if (typeof window.AssiseManager.getJointHeightForType === 'function') {
+                jointH = window.AssiseManager.getJointHeightForType(assiseInfo.type);
+            } else {
+                jointH = window.AssiseManager.jointHeight || 0;
+            }
+            planBaseAssise = assiseTop - jointH;
         }
 
         const sommeBlocY = element.position.y + element.dimensions.height / 2;
-        jointHeight = sommeBlocY - planZeroAssise;
-        worldY = planZeroAssise + jointHeight / 2;
+        jointHeight = sommeBlocY - planBaseAssise;
+        worldY = planBaseAssise + jointHeight / 2;
     } else {
         jointHeight = element.dimensions.height;
         worldY = basePos.y;

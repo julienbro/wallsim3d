@@ -116,6 +116,12 @@ class KeyboardManager {
         if (isInputField) {
             return;
         }
+
+        // Si le D-pad est visible, laisser les flèches au contrôleur du D-pad (déplacement X/Z)
+        if (window.GLBDpadController && window.GLBDpadController.isVisible &&
+            ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown'].includes(event.code)) {
+            return; // le GLBDpadController gère ces touches et appelle preventDefault
+        }
         
         // Vérification secondaire avec isEnabled
         if (!this.isEnabled) {

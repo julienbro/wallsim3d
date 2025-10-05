@@ -494,6 +494,11 @@ class AssiseManager {
         // CORRECTION: Repositionner automatiquement tous les éléments existants de cette assise
         this.repositionElementsInAssise(type, assiseIndex);
         
+        // Mettre à jour les joints verticaux impactés par le changement de hauteur de joint horizontal
+        if (typeof this.updateVerticalJointsForType === 'function') {
+            this.updateVerticalJointsForType(type);
+        }
+        
         // // console.log(`🔧 Hauteur de joint de l'assise ${assiseIndex} (${type}) définie à ${h} cm`);
         this.updateUI();
         
@@ -530,6 +535,11 @@ class AssiseManager {
         for (const elementId of assise.elements) {
             const element = window.SceneManager?.elements?.get(elementId);
             if (element && !element.isVerticalJoint && !element.isHorizontalJoint) {
+                // Ne pas repositionner les linteaux ou les éléments marqués pour préserver Y
+                const hasPreserveFlag = !!(element.preserveCustomY || (element.mesh && element.mesh.userData && element.mesh.userData.preserveCustomY));
+                if (element.type === 'linteau' || hasPreserveFlag) {
+                    continue;
+                }
                 const targetCenterY = newAssiseHeight + element.dimensions.height / 2;
                 const oldY = element.position.y;
                 
@@ -584,11 +594,21 @@ class AssiseManager {
                     if (elementData.isVerticalJoint || elementData.isHorizontalJoint || elementData.type === 'joint') {
                         continue;
                     }
+                    // Ne pas repositionner les linteaux ni les éléments avec drapeau de préservation Y
+                    const hasPreserveFlag = !!(elementData.preserveCustomY || (elementData.mesh && elementData.mesh.userData && elementData.mesh.userData.preserveCustomY));
+                    if (elementData.type === 'linteau' || hasPreserveFlag) {
+                        continue;
+                    }
                     this.updateElementPositionInAssise(elementData, type, index);
                 } else {
                     // Fallback sur le mesh si l'objet de données n'est pas disponible
                     const mesh = this.findElementById(elementId);
                     if (mesh) {
+                        // Vérifier le drapeau sur le mesh également
+                        const hasPreserveFlag = !!(mesh.userData && mesh.userData.preserveCustomY);
+                        if (mesh.userData && (mesh.userData.type === 'linteau' || hasPreserveFlag)) {
+                            continue;
+                        }
                         this.updateElementPositionInAssise(mesh, type, index);
                     }
                 }
@@ -600,6 +620,11 @@ class AssiseManager {
             const currentAssiseIndex = this.currentAssiseByType.get(type) || 0;
             const currentHeight = this.getAssiseHeight(currentAssiseIndex);
             window.SceneManager.updateCollisionPlane(currentHeight);
+        }
+
+        // Après recalcul des assises, s'assurer que les joints verticaux sont recalés
+        if (typeof this.updateVerticalJointsForType === 'function') {
+            this.updateVerticalJointsForType(type);
         }
     }
 
@@ -2687,6 +2712,15 @@ class AssiseManager {
             // Ne pas repositionner les poutres automatiquement pour préserver leur altitude libre
             if (isBeam) {
                 // Mise à jour ciblée : éviter reposition mais rafraîchir liste globale
+                this.updateGlobalAssiseList();
+                return true;
+            }
+
+            // NOUVEAU: Ne pas repositionner les linteaux ou les éléments marqués pour préserver Y
+            const hasPreserveFlag = !!(element.preserveCustomY || (element.mesh && element.mesh.userData && element.mesh.userData.preserveCustomY));
+            if (element.type === 'linteau' || hasPreserveFlag) {
+                // Ne pas forcer la position Y; l'élément a été placé avec une hauteur spécifique (snap)
+                // Laisser néanmoins l'inscription dans l'assise pour le suivi
                 this.updateGlobalAssiseList();
                 return true;
             }
@@ -5562,11 +5596,10 @@ class AssiseManager {
         for (const [elementId, element] of window.SceneManager.elements.entries()) {
             // Traiter les joints debout (largeur = 1cm et marquage isVerticalJoint)
             if (element.isVerticalJoint && element.dimensions.width === 1) {
-                // CORRECTION CRITIQUE: Trouver le TYPE d'assise du joint (M50, M65, M90, etc.)
+                // Déterminer le type d'assise et l'index du joint
                 let jointAssiseType = null;
                 let elementAssiseIndex = null;
-                
-                // Rechercher dans tous les types d'assises pour trouver oà est ce joint
+
                 for (const [type, assises] of this.assisesByType.entries()) {
                     for (const [index, assise] of assises.entries()) {
                         if (assise && assise.elements.has(elementId)) {
@@ -5577,90 +5610,55 @@ class AssiseManager {
                     }
                     if (jointAssiseType) break;
                 }
-                
-                // Si le joint n'est associà à aucune assise spécifique, ne pas le modifier
-                if (!jointAssiseType) {
-                    // Log supprimé: joint sans assise associée
-                    continue;
-                }
-                
-                // Utiliser la hauteur de joint spécifique à ce type d'assise
-                const typeJointHeight = this.getJointHeightForType(jointAssiseType);
-                
-                // CORRECTION CRITIQUE: Utiliser la hauteur de brique stockée DANS le joint
-                // Si pas de hauteur stockée, dàduire de la hauteur actuelle du joint
-                let originalBrickHeight = element.originalBrickHeight;
-                
-                if (!originalBrickHeight) {
-                    // Dàduire la hauteur de brique d'origine depuis la hauteur actuelle du joint
-                    // Hauteur joint = hauteur brique + hauteur joint horizontal
-                    originalBrickHeight = element.dimensions.height - typeJointHeight;
-                    
-                    // Valider et corriger si nàcessaire (plage àtendue pour blocs)
-                    if (originalBrickHeight < 4 || originalBrickHeight > 30) {
-                        // Hauteur aberrante, utiliser les valeurs connues selon le type
-                        if (jointAssiseType === 'M90') {
-                            originalBrickHeight = 9;
-                        } else if (jointAssiseType === 'M65') {
-                            originalBrickHeight = 6.5;
-                        } else if (jointAssiseType === 'M60') {
-                            originalBrickHeight = 6;
-                        } else if (jointAssiseType === 'M57') {
-                            originalBrickHeight = 5.7;
-                        } else if (jointAssiseType === 'M50') {
-                            originalBrickHeight = 5;
-                        } else if (jointAssiseType === 'HOLLOW') {
-                            originalBrickHeight = 19;
-                        } else if (jointAssiseType === 'CELLULAR') {
-                            originalBrickHeight = 25;
-                        } else if (jointAssiseType === 'ARGEX') {
-                            originalBrickHeight = 19;
-                        } else if (jointAssiseType === 'TERRACOTTA') {
-                            originalBrickHeight = 25;
-                        } else {
-                            originalBrickHeight = 6.5; // Dàfaut
+
+                if (!jointAssiseType) continue; // Pas d'assise connue → ignorer
+
+                // Calculer le plan zéro de l'assise
+                const assiseTop = this.calculateAssiseHeightForType(jointAssiseType, elementAssiseIndex);
+                const jointH = this.getJointHeightForAssise(jointAssiseType, elementAssiseIndex);
+                const assiseBase = assiseTop - (isFinite(jointH) ? jointH : 0);
+
+                // Trouver le bloc de référence (le plus proche en X/Z) pour déterminer le sommet
+                const elementsInAssise = this.elementsByType.get(jointAssiseType)?.get(elementAssiseIndex);
+                // Le sommet de la brique la plus proche est calculé par rapport au sommet d'assise (assiseTop)
+                // car les briques reposent sur assiseTop (centre = assiseTop + h/2)
+                let blockTopY = assiseTop; // fallback minimal
+                if (elementsInAssise) {
+                    const jointX = element.position.x;
+                    const jointZ = element.position.z;
+                    let closestBlock = null;
+                    let minDistance = Infinity;
+                    for (const elemId of elementsInAssise) {
+                        const elem = window.SceneManager.elements.get(elemId);
+                        if (elem && (elem.type === 'block' || elem.type === 'brick') && !elem.isVerticalJoint && !elem.isHorizontalJoint) {
+                            const distance = Math.hypot(elem.position.x - jointX, elem.position.z - jointZ);
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                closestBlock = elem;
+                            }
                         }
                     }
-                    
-                    // Stocker pour les prochaines fois
-                    element.originalBrickHeight = originalBrickHeight;
-                    // Log supprimé: hauteur brique déduite
+                    if (closestBlock && minDistance < 50) {
+                        blockTopY = assiseTop + closestBlock.dimensions.height;
+                    } else if (element.originalBrickHeight) {
+                        blockTopY = assiseTop + element.originalBrickHeight;
+                    } else {
+                        // Dernier recours: conserver le sommet actuel
+                        blockTopY = element.position.y + element.dimensions.height / 2;
+                    }
                 } else {
-                    // Log supprimé: hauteur brique stockée
+                    blockTopY = element.position.y + element.dimensions.height / 2;
                 }
-                
-                // Calculer la nouvelle hauteur du joint basàe sur la brique D'ORIGINE et le joint spécifique au type
-                const newJointHeight = originalBrickHeight + typeJointHeight;
-                
-                // Mettre à jour les dimensions
-                element.updateDimensions(
-                    element.dimensions.length,  // Garder longueur (9cm)
-                    element.dimensions.width,   // Garder largeur (1cm) 
-                    newJointHeight              // Nouvelle hauteur
-                );
-                
-                // Recalculer la position Y en respectant l'assise d'origine
-                // CORRECTION: La face supàrieure du joint doit àtre alignàe avec la face supàrieure de la brique
-                let newPositionY;
-                if (elementAssiseIndex !== null && elementAssiseIndex >= 0) {
-                    // Calculer la hauteur de la face supàrieure de la brique dans cette assise et ce type
-                    const assiseHeight = this.calculateAssiseHeightForType(jointAssiseType, elementAssiseIndex);
-                    const brickTopY = assiseHeight + originalBrickHeight;
-                    // Positionner le joint pour que sa face supàrieure soit au màme niveau
-                    newPositionY = brickTopY - newJointHeight / 2;
-                } else {
-                    // Fallback : rester au sol si assise non trouvée
-                    newPositionY = newJointHeight / 2;
-                }
-                
-                element.updatePosition(
-                    element.position.x,
-                    newPositionY,
-                    element.position.z
-                );
-                
+
+                // Hauteur correcte: du plan zéro jusqu'au sommet du bloc
+                const newJointHeight = Math.max(0.1, blockTopY - assiseBase);
+                const newPositionY = assiseBase + newJointHeight / 2;
+
+                // Appliquer
+                element.updateDimensions(element.dimensions.length, element.dimensions.width, newJointHeight);
+                element.updatePosition(element.position.x, newPositionY, element.position.z);
+
                 updatedCount++;
-                // Log supprimé: joint debout mis à jour
             }
             // Traiter les joints horizontaux (marquage isHorizontalJoint)
             else if (element.isHorizontalJoint) {
@@ -5752,115 +5750,68 @@ class AssiseManager {
                     continue;
                 }
                 
-                // Utiliser la hauteur de joint spécifique à ce type d'assise
+                // Trouver le TYPE d'assise et calculer le plan zéro de cette assise
                 const typeJointHeight = this.getJointHeightForType(jointAssiseType);
+                const elementsInAssiseMap = this.elementsByType.get(jointAssiseType);
                 
-                // Utiliser la hauteur de brique stockée DANS le joint
-                let originalBrickHeight = element.originalBrickHeight;
-                
-                if (!originalBrickHeight) {
-                    // Dàduire la hauteur de brique d'origine
-                    originalBrickHeight = element.dimensions.height - typeJointHeight;
-                    
-                    // Valider et corriger si nàcessaire (plage àtendue pour blocs)
-                    if (originalBrickHeight < 4 || originalBrickHeight > 30) {
-                        // Hauteur aberrante, utiliser les valeurs connues selon le type
-                        if (jointAssiseType === 'M90') {
-                            originalBrickHeight = 9;
-                        } else if (jointAssiseType === 'M65') {
-                            originalBrickHeight = 6.5;
-                        } else if (jointAssiseType === 'M60') {
-                            originalBrickHeight = 6;
-                        } else if (jointAssiseType === 'M57') {
-                            originalBrickHeight = 5.7;
-                        } else if (jointAssiseType === 'M50') {
-                            originalBrickHeight = 5;
-                        } else if (jointAssiseType === 'HOLLOW') {
-                            originalBrickHeight = 19;
-                        } else if (jointAssiseType === 'CELLULAR') {
-                            originalBrickHeight = 25;
-                        } else if (jointAssiseType === 'ARGEX') {
-                            originalBrickHeight = 19;
-                        } else if (jointAssiseType === 'TERRACOTTA') {
-                            originalBrickHeight = 25;
-                        } else {
-                            originalBrickHeight = 6.5; // Dàfaut
-                        }
-                    }
-                    
-                    // Stocker pour les prochaines fois
-                    element.originalBrickHeight = originalBrickHeight;
-                }
-                
-                // Calculer la nouvelle hauteur du joint
-                const newJointHeight = originalBrickHeight + typeJointHeight;
-                
-                // Mettre à jour les dimensions
-                element.updateDimensions(
-                    element.dimensions.length,
-                    element.dimensions.width,
-                    newJointHeight
-                );
-                
-                // Recalculer la position Y - CORRECTIF: Ancrer le joint au sommet du bloc
                 let newPositionY;
+                let newJointHeight;
                 if (elementAssiseIndex !== null && elementAssiseIndex >= 0) {
-                    // Trouver le bloc de référence pour ce joint vertical
-                    const assiseHeight = this.calculateAssiseHeightForType(jointAssiseType, elementAssiseIndex);
-                    
-                    // CORRECTION: Pour les joints verticaux, utiliser la hauteur ràelle du bloc de référence
-                    // Au lieu de utiliser originalBrickHeight (qui est la hauteur stockée lors de la cràation),
-                    // utiliser la hauteur ràelle du bloc dans cette assise
-                    const elementsInAssise = this.elementsByType.get(jointAssiseType)?.get(elementAssiseIndex);
-                    let blockTopY = assiseHeight + originalBrickHeight; // Fallback
-                    
+                    const assiseTop = this.calculateAssiseHeightForType(jointAssiseType, elementAssiseIndex); // sommet de l'assise (haut du joint horizontal)
+                    const jointH = this.getJointHeightForAssise(jointAssiseType, elementAssiseIndex);
+                    const assiseHeight = assiseTop - (isFinite(jointH) ? jointH : 0); // plan bas (plan 0) de l'assise
+
+                    // Déterminer le sommet du bloc le plus proche pour ce joint
+                    let blockTopY = assiseHeight; // fallback minimal = plan zéro
+                    const elementsInAssise = elementsInAssiseMap?.get(elementAssiseIndex);
+
                     if (elementsInAssise) {
-                        // Chercher un bloc de référence à proximità du joint
                         const jointX = element.position.x;
                         const jointZ = element.position.z;
                         let closestBlock = null;
                         let minDistance = Infinity;
-                        
+
                         for (const elemId of elementsInAssise) {
                             const elem = window.SceneManager.elements.get(elemId);
                             if (elem && (elem.type === 'block' || elem.type === 'brick') && !elem.isVerticalJoint && !elem.isHorizontalJoint) {
-                                const distance = Math.sqrt(
-                                    Math.pow(elem.position.x - jointX, 2) + 
-                                    Math.pow(elem.position.z - jointZ, 2)
-                                );
+                                const distance = Math.hypot(elem.position.x - jointX, elem.position.z - jointZ);
                                 if (distance < minDistance) {
                                     minDistance = distance;
                                     closestBlock = elem;
                                 }
                             }
                         }
-                        
-                        if (closestBlock && minDistance < 50) { // 50cm de tolàrance
-                            // CORRECTION IMPORTANTE: Utiliser la position ORIGINALE du bloc
-                            // Le bloc lui-màme peut avoir àtà repositionné par les changements de joint horizontal
-                            // Donc on utilise la position de base de l'assise + hauteur originale du bloc
-                            const originalBlockTop = assiseHeight + closestBlock.dimensions.height;
-                            blockTopY = originalBlockTop;
-                            // console.log(`🔧 Joint ancrà au bloc ${closestBlock.id} (sommet ORIGINAL: ${blockTopY} cm)`);
+
+                        if (closestBlock && minDistance < 50) {
+                            blockTopY = assiseTop + closestBlock.dimensions.height;
+                        } else if (element.originalBrickHeight) {
+                            blockTopY = assiseTop + element.originalBrickHeight;
+                        } else {
+                            // Dernier recours: utiliser la hauteur actuelle du joint pour approximer
+                            blockTopY = element.position.y + element.dimensions.height / 2;
                         }
+                    } else {
+                        // Pas de map, fallback sur position actuelle
+                        blockTopY = element.position.y + element.dimensions.height / 2;
                     }
-                    
-                    // Centre du joint = sommet du bloc - hauteur_joint/2 pour ancrer par le haut
-                    // CORRECTION: Pour garder le sommet du joint fixe au sommet du bloc
-                    // Le sommet du joint doit rester à blockTopY
-                    // Donc le centre = sommet - hauteur/2
-                    newPositionY = blockTopY - newJointHeight / 2;
-                    // console.log(`🔧 Joint repositionné: sommet bloc ${blockTopY} cm, hauteur joint ${newJointHeight} cm, nouveau centre Y: ${newPositionY} cm`);
-                    // console.log(`🔧 Vàrification: sommet joint = ${newPositionY + newJointHeight/2} cm (doit = ${blockTopY} cm)`);
+
+                    // Hauteur correcte: du plan zéro de l'assise jusqu'au sommet du bloc
+                    newJointHeight = Math.max(0.1, blockTopY - assiseHeight);
+                    // Centre au milieu du segment [planZéro, sommet]
+                    newPositionY = assiseHeight + newJointHeight / 2;
                 } else {
-                    newPositionY = newJointHeight / 2;
+                    // Fallback si on ne connaît pas l'assise: conserver la hauteur, centrer par sécurité
+                    newJointHeight = element.dimensions.height;
+                    newPositionY = element.position.y;
                 }
-                
-                element.updatePosition(
-                    element.position.x,
-                    newPositionY,
-                    element.position.z
+
+                // Mettre à jour les dimensions (longueur/largeur inchangées) et la position
+                element.updateDimensions(
+                    element.dimensions.length,
+                    element.dimensions.width,
+                    newJointHeight
                 );
+                element.updatePosition(element.position.x, newPositionY, element.position.z);
                 
                 updatedCount++;
                 // console.log(`🔧 Joint debout ${elementId} (${targetType}) mis à jour: ${element.dimensions.length}×${element.dimensions.width}×${newJointHeight} cm`);

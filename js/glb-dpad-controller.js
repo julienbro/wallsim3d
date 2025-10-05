@@ -457,12 +457,19 @@ class GLBDpadController {
             
             console.log('✅ Sélection élément avec curseurs Y:', element.type || element.userData?.glbInfo?.type);
         } else {
-            // Si ce n'est pas un GLB ou hourdis, cacher le D-pad ou afficher sans curseurs Y
+            // Si ce n'est pas un GLB ou hourdis, afficher pour les éléments basiques déplaçables (brique, bloc, linteau)
             if (this.isGLBElement(element)) {
                 this.activeGLBElement = element;
                 this.show();
                 this.setYControlsVisibility(false);
                 this.updatePositionDisplay();
+            } else if (this.isMovableBasicElement(element)) {
+                // ✅ Support D-pad pour les éléments basiques (sans Y): brique, bloc, linteau
+                this.activeGLBElement = element;
+                this.show();
+                this.setYControlsVisibility(false);
+                this.updatePositionDisplay();
+                console.log('✅ D-pad actif pour élément basique:', element.type);
             } else {
                 this.hide();
             }
@@ -506,6 +513,10 @@ class GLBDpadController {
         setTimeout(() => {
             this.activeGLBElement = element;
             this.showForObjectType(needsY);
+            // 🔒 Forcer le masquage des boutons Y pour les éléments basiques (ex: linteau)
+            if (this.isMovableBasicElement(element) && !this.needsYControls(element)) {
+                this.setYControlsVisibility(false);
+            }
             this.updatePositionDisplay();
             
             // 🎯 Positionner le D-pad au bord de l'élément placé
@@ -544,6 +555,19 @@ class GLBDpadController {
         );
         
         return isGLB;
+    }
+
+    /**
+     * Vérifier si un élément basique (non-GLB) est déplaçable via D-pad
+     * Autorisé: briques, blocs et linteaux (X/Z uniquement, pas Y)
+     */
+    isMovableBasicElement(element) {
+        if (!element) return false;
+        const t = element.type;
+        // Certaines implémentations stockent le type aussi dans userData
+        const ut = element.userData?.type || element.userData?.elementType;
+        const type = (t || ut || '').toString().toLowerCase();
+        return type === 'brick' || type === 'block' || type === 'linteau' || type === 'lintel';
     }
 
     /**
@@ -795,7 +819,12 @@ class GLBDpadController {
         if (!element) return false;
         
     // GLB et poutres (beam) nécessitent les contrôles Y
-    if (this.isGLBElement(element) || element.type === 'beam') {
+        // 🔄 Inclure aussi les linteaux pour permettre l'ajustement manuel de la hauteur
+        if (this.isGLBElement(element) || element.type === 'beam' ||
+            (element.type && (String(element.type).toLowerCase() === 'linteau' || String(element.type).toLowerCase() === 'lintel')) ||
+            (element.userData && (String(element.userData.type || element.userData.elementType || '').toLowerCase() === 'linteau' ||
+                                  String(element.userData.type || element.userData.elementType || '').toLowerCase() === 'lintel'))
+        ) {
             return true;
         }
         
@@ -879,8 +908,11 @@ class GLBDpadController {
         
         const newPosition = { x: currentPos.x, y: currentPos.y, z: currentPos.z };
         
-    const isGLB = this.isGLBElement(this.activeGLBElement);
-    const isBeam = this.activeGLBElement.type === 'beam';
+        const isGLB = this.isGLBElement(this.activeGLBElement);
+        const isBeam = this.activeGLBElement.type === 'beam';
+        const isLintel = (this.activeGLBElement.type && (String(this.activeGLBElement.type).toLowerCase() === 'linteau' || String(this.activeGLBElement.type).toLowerCase() === 'lintel')) ||
+                         (this.activeGLBElement.userData && (String(this.activeGLBElement.userData.type || this.activeGLBElement.userData.elementType || '').toLowerCase() === 'linteau' ||
+                                                             String(this.activeGLBElement.userData.type || this.activeGLBElement.userData.elementType || '').toLowerCase() === 'lintel'));
 
         // Appliquer le mouvement selon la direction
         switch (direction) {
@@ -888,8 +920,8 @@ class GLBDpadController {
                 newPosition.x += movement;
                 break;
             case 'y':
-                // Autoriser le mouvement vertical pour GLB ET poutres
-                if (isGLB || isBeam) {
+                // Autoriser le mouvement vertical pour GLB, poutres et linteaux
+                if (isGLB || isBeam || isLintel) {
                     newPosition.y += movement;
                 } else {
                     return; // autres formes: ignorer
@@ -901,7 +933,7 @@ class GLBDpadController {
         }
 
         // Mettre à jour la position selon le type d'élément
-    if (isGLB || isBeam) {
+        if (isGLB || isBeam) {
             // Pour les objets GLB et poutres: mise à jour du mesh 3D
             if (this.activeGLBElement.mesh && this.activeGLBElement.mesh.position) {
                 this.activeGLBElement.mesh.position.set(newPosition.x, newPosition.y, newPosition.z);
@@ -915,22 +947,29 @@ class GLBDpadController {
         } else {
             // Pour les éléments basiques (briques/blocs): 
             // 1. Mettre à jour l'objet WallElement
-            if (this.activeGLBElement.position) {
-                this.activeGLBElement.position.x = newPosition.x;
-                this.activeGLBElement.position.z = newPosition.z;
-                // Ne pas toucher Y pour les formes basiques (système d'assises)
-            }
-            
-            // 2. Mettre à jour le mesh 3D en appliquant le mouvement relatif
-            if (this.activeGLBElement.mesh && this.activeGLBElement.mesh.position) {
-                // Appliquer le mouvement relatif au mesh, pas une position absolue
-                switch (direction) {
-                    case 'x':
-                        this.activeGLBElement.mesh.position.x += movement;
-                        break;
-                    case 'z':
-                        this.activeGLBElement.mesh.position.z += movement;
-                        break;
+            if (isLintel && typeof this.activeGLBElement.updatePosition === 'function') {
+                // ✅ Lintel: mettre à jour X/Y/Z via l'API pour garder la cohérence
+                this.activeGLBElement.updatePosition(newPosition.x, newPosition.y, newPosition.z);
+                // Marquer l'intention de préserver Y si utilisé ailleurs
+                this.activeGLBElement.preserveCustomY = true;
+            } else {
+                if (this.activeGLBElement.position) {
+                    this.activeGLBElement.position.x = newPosition.x;
+                    this.activeGLBElement.position.z = newPosition.z;
+                    // Ne pas toucher Y pour les formes basiques (système d'assises)
+                }
+                
+                // 2. Mettre à jour le mesh 3D en appliquant le mouvement relatif
+                if (this.activeGLBElement.mesh && this.activeGLBElement.mesh.position) {
+                    // Appliquer le mouvement relatif au mesh, pas une position absolue
+                    switch (direction) {
+                        case 'x':
+                            this.activeGLBElement.mesh.position.x += movement;
+                            break;
+                        case 'z':
+                            this.activeGLBElement.mesh.position.z += movement;
+                            break;
+                    }
                 }
             }
         }
@@ -1030,46 +1069,97 @@ class GLBDpadController {
      * Déplacer les joints associés à un élément de construction
      */
     moveAssociatedJoints(element, direction, movement) {
-        if (!window.SceneManager || !window.SceneManager.elements) {
+        if (!window.SceneManager || !window.SceneManager.elements || !element) {
             return;
         }
 
-        // Trouver les joints horizontaux associés (même position X/Z et dimensions similaires)
-        const associatedJoints = Array.from(window.SceneManager.elements.values()).filter(joint => {
-            if (!joint.isHorizontalJoint) return false;
-            
-            // Vérifier la proximité de position (avant le déplacement de l'élément principal)
-            const positionMatch = Math.abs(joint.position.x - (element.position.x - movement * (direction === 'x' ? 1 : 0))) < 1 && 
-                                Math.abs(joint.position.z - (element.position.z - movement * (direction === 'z' ? 1 : 0))) < 1;
-            
-            // Vérifier la similarité des dimensions
-            const dimensionMatch = Math.abs(element.dimensions.length - joint.dimensions.length) < 1 &&
-                                 Math.abs(element.dimensions.width - joint.dimensions.width) < 1;
-            
-            return positionMatch && dimensionMatch;
-        });
+        const allElements = Array.from(window.SceneManager.elements.values());
+        const parentId = element.id || element?.userData?.elementId || element?.mesh?.userData?.elementId;
+        const originalX = element.position ? element.position.x - (direction === 'x' ? movement : 0) : undefined;
+        const originalZ = element.position ? element.position.z - (direction === 'z' ? movement : 0) : undefined;
 
-        // Déplacer chaque joint associé
+        const isJointElement = (joint) => {
+            if (!joint) return false;
+            return Boolean(
+                joint.isHorizontalJoint ||
+                joint.isVerticalJoint ||
+                joint.userData?.isHorizontalJoint ||
+                joint.userData?.isVerticalJoint ||
+                joint.mesh?.userData?.isHorizontalJoint ||
+                joint.mesh?.userData?.isVerticalJoint
+            );
+        };
+
+        const getJointParentId = (joint) => {
+            if (!joint) return undefined;
+            return joint.parentElementId ||
+                   joint.userData?.parentElementId ||
+                   joint.mesh?.userData?.parentElementId ||
+                   joint.userData?.element?.parentElementId;
+        };
+
+        const jointCandidates = allElements.filter(isJointElement);
+        const uniqueJoints = new Set();
+        const associatedJoints = [];
+
+        if (parentId) {
+            jointCandidates.forEach(joint => {
+                const jointParentId = getJointParentId(joint);
+                if (jointParentId && jointParentId === parentId && !uniqueJoints.has(joint)) {
+                    // Normaliser la propriété parentElementId pour usage futur
+                    if (!joint.parentElementId) {
+                        joint.parentElementId = jointParentId;
+                    }
+                    uniqueJoints.add(joint);
+                    associatedJoints.push(joint);
+                }
+            });
+        }
+
+        if (!associatedJoints.length) {
+            jointCandidates.forEach(joint => {
+                if (uniqueJoints.has(joint)) return;
+                const jointPos = joint.position || joint.mesh?.position;
+                if (!jointPos || originalX === undefined || originalZ === undefined) return;
+
+                const positionMatch = Math.abs(jointPos.x - originalX) < 1.5 &&
+                                      Math.abs(jointPos.z - originalZ) < 1.5;
+
+                let dimensionMatch = true;
+                if (element.dimensions && joint.dimensions) {
+                    const elemLen = element.dimensions.length || 0;
+                    const elemWidth = element.dimensions.width || 0;
+                    const jointLen = joint.dimensions.length || 0;
+                    const jointWidth = joint.dimensions.width || 0;
+
+                    const lengthClose = Math.abs(elemLen - jointLen) < 1.5 || Math.abs(elemWidth - jointLen) < 1.5;
+                    const widthClose = Math.abs(elemWidth - jointWidth) < 1.5 || Math.abs(elemLen - jointWidth) < 1.5;
+                    dimensionMatch = lengthClose || widthClose;
+                }
+
+                if (positionMatch && dimensionMatch) {
+                    uniqueJoints.add(joint);
+                    associatedJoints.push(joint);
+                }
+            });
+        }
+
+        if (!associatedJoints.length || movement === 0) {
+            return;
+        }
+
         associatedJoints.forEach(joint => {
-            // 1. Mettre à jour l'objet WallElement du joint
-            switch (direction) {
-                case 'x':
-                    joint.position.x += movement;
-                    break;
-                case 'z':
-                    joint.position.z += movement;
-                    break;
-            }
-            
-            // 2. Mettre à jour le mesh 3D du joint
-            if (joint.mesh && joint.mesh.position) {
-                switch (direction) {
-                    case 'x':
-                        joint.mesh.position.x += movement;
-                        break;
-                    case 'z':
-                        joint.mesh.position.z += movement;
-                        break;
+            if (!joint.position) return;
+
+            if (direction === 'x') {
+                joint.position.x += movement;
+                if (joint.mesh?.position) {
+                    joint.mesh.position.x += movement;
+                }
+            } else if (direction === 'z') {
+                joint.position.z += movement;
+                if (joint.mesh?.position) {
+                    joint.mesh.position.z += movement;
                 }
             }
         });

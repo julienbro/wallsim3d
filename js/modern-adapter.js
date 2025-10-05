@@ -46,6 +46,13 @@ class ModernInterfaceAdapter {
             }
             originalSetView(view);
             this.updateCurrentView(view);
+            // Diffuser un événement de changement de vue si le SceneManager n'a pas pu le faire
+            try {
+                const scope = (this.sceneManager && this.sceneManager.getCanonicalViewScope) ? this.sceneManager.getCanonicalViewScope(view) : '3d';
+                document.dispatchEvent(new CustomEvent('cameraViewChanged', { detail: { viewName: view, scope } }));
+            } catch (e) {
+                // no-op
+            }
         };
 
         const originalZoomIn = modernInterface.zoomIn.bind(modernInterface);

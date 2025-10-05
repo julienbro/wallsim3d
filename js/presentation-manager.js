@@ -13,7 +13,8 @@ class PresentationManager {
             title: 'Nom du projet à définir',
             designer: 'Nom du dessinateur',
             date: new Date(),
-            version: '1.0'
+            // Valeur par défaut mise à jour; sera surchargée dynamiquement depuis version.txt
+            version: '1.0.6'
         };
         
         this.init();
@@ -28,6 +29,78 @@ class PresentationManager {
         this.selectedPagesForExport = new Set(); // Set des pages sélectionnées pour export
         this.draggedPageItem = null; // Page actuellement en cours de drag
 
+    }
+
+    // Détermine la portée canonique de vue à partir d'un type de vue présentation
+    getScopeForViewType(viewType) {
+        const v = String(viewType || '').toLowerCase();
+        if (v === 'left') return 'left';
+        if (v === 'right' || v === 'side') return 'right';
+        if (v === 'front' || v === 'face') return 'front';
+        if (v === 'back') return 'back';
+        if (v === 'top' || v === 'topview') return 'top';
+        // 3D group
+        if (['iso', 'isometric', 'perspective', 'frontleft', 'frontright', 'backleft', 'backright'].includes(v)) {
+            return '3d';
+        }
+        return '3d';
+    }
+
+    // Applique un scope de vue (filtre annotations/mesures) pendant une opération, puis restaure
+    async runWithViewScope(scope, asyncOperation) {
+        const manager = window.MeasurementAnnotationManager;
+        if (!manager || typeof manager.applyViewFilter !== 'function') {
+            return await asyncOperation();
+        }
+        const prevScope = manager.activeViewScope || (window.SceneManager && window.SceneManager.currentViewScope) || '3d';
+        try {
+            manager.applyViewFilter(scope || '3d');
+            if (window.SceneManager) {
+                window.SceneManager.currentViewScope = scope || '3d';
+            }
+            return await asyncOperation();
+        } finally {
+            manager.applyViewFilter(prevScope);
+            if (window.SceneManager) {
+                window.SceneManager.currentViewScope = prevScope;
+            }
+        }
+    }
+
+    // Force l'affichage de certains calques pendant une opération; retourne une fonction de restauration
+    forceLayersVisible(layerIds = ['cotations', 'annotations', 'textes']) {
+        const LM = window.LayerManager;
+        if (!LM || !LM.layers) return () => {};
+
+        const previous = {};
+        try {
+            layerIds.forEach(id => {
+                if (LM.layers[id]) {
+                    previous[id] = LM.layers[id].visible;
+                    LM.layers[id].visible = true;
+                    if (typeof LM.applyLayerVisibility === 'function') {
+                        LM.applyLayerVisibility(id);
+                    }
+                }
+            });
+        } catch (e) {
+            // ignore
+        }
+
+        return () => {
+            try {
+                Object.keys(previous).forEach(id => {
+                    if (LM.layers[id] !== undefined) {
+                        LM.layers[id].visible = previous[id];
+                        if (typeof LM.applyLayerVisibility === 'function') {
+                            LM.applyLayerVisibility(id);
+                        }
+                    }
+                });
+            } catch (e) {
+                // ignore restore errors
+            }
+        };
     }
 
     /**
@@ -105,11 +178,15 @@ class PresentationManager {
             document.addEventListener('DOMContentLoaded', () => {
                 this.setupEventListeners();
                 this.forceDefaultScale();
+                // Charger la version de l'application depuis version.txt (asynchrone, sans bloquer)
+                this.loadAppVersion();
                 this.initialized = true;
             });
         } else {
             this.setupEventListeners();
             this.forceDefaultScale();
+            // Charger la version de l'application depuis version.txt (asynchrone, sans bloquer)
+            this.loadAppVersion();
             this.initialized = true;
         }
     }
@@ -200,6 +277,22 @@ class PresentationManager {
 
         // Note: Les champs projectTitle et designerName ont été supprimés de l'interface
         // Les valeurs par défaut sont utilisées directement dans getExportSettings()
+    }
+
+    // Charge la version de l'application à partir du fichier version.txt et met à jour currentProject.version
+    async loadAppVersion() {
+        try {
+            const resp = await fetch('version.txt', { cache: 'no-cache' });
+            if (!resp.ok) return;
+            const text = await resp.text();
+            // Cherche une ligne du type: "Version: X.Y.Z"
+            const match = text.match(/^\s*Version:\s*([0-9]+\.[0-9]+\.[0-9]+)\s*$/mi);
+            if (match && match[1]) {
+                this.currentProject.version = match[1];
+            }
+        } catch (e) {
+            // Silencieux: conserve la valeur par défaut
+        }
     }
 
     /**
@@ -1278,6 +1371,25 @@ class PresentationManager {
             this.restoreInitialSceneState(initialSceneState);
             this.restoreVisualAidsAfterExport(initialSceneState);
 
+            // Réappliquer le filtre d'affichage par vue et forcer un rendu pour éviter
+            // la disparition temporaire des mesures/annotations après l'export
+            try {
+                const MAM = window.MeasurementAnnotationManager;
+                const SM = window.SceneManager;
+                const scope = (MAM && MAM.activeViewScope) || (SM && SM.currentViewScope) || '3d';
+                if (MAM && typeof MAM.applyViewFilter === 'function') {
+                    MAM.applyViewFilter(scope);
+                }
+                if (SM) {
+                    SM.currentViewScope = scope;
+                }
+                if (SM && SM.renderer && SM.scene && SM.camera) {
+                    SM.renderer.render(SM.scene, SM.camera);
+                }
+            } catch (e) {
+                // silencieux
+            }
+
             // Fermer la modale après un délai
             setTimeout(() => {
                 this.closeModal();
@@ -1292,6 +1404,24 @@ class PresentationManager {
             // NOUVEAU: Restaurer l'état initial même en cas d'erreur
             this.restoreInitialSceneState(initialSceneState);
             this.restoreVisualAidsAfterExport(initialSceneState);
+
+            // Même correction: réappliquer le filtre par vue et forcer un rendu
+            try {
+                const MAM = window.MeasurementAnnotationManager;
+                const SM = window.SceneManager;
+                const scope = (MAM && MAM.activeViewScope) || (SM && SM.currentViewScope) || '3d';
+                if (MAM && typeof MAM.applyViewFilter === 'function') {
+                    MAM.applyViewFilter(scope);
+                }
+                if (SM) {
+                    SM.currentViewScope = scope;
+                }
+                if (SM && SM.renderer && SM.scene && SM.camera) {
+                    SM.renderer.render(SM.scene, SM.camera);
+                }
+            } catch (e) {
+                // silencieux
+            }
 
         } finally {
             this.isExporting = false;
@@ -1348,6 +1478,7 @@ class PresentationManager {
         // Récupérer les informations du projet depuis l'onglet "Projet" de la barre latérale
         const projectNameElement = document.getElementById('projectName');
         const projectDesignerElement = document.getElementById('projectDesigner');
+        const projectClassElement = document.getElementById('projectClass');
     // Sélecteur d'échelle orthogonale (vue du dessus + élévations)
     const orthoScaleSelect = document.getElementById('orthogonalScaleSelect');
     const orthoScale = orthoScaleSelect ? orthoScaleSelect.value : '1:20';
@@ -1355,6 +1486,7 @@ class PresentationManager {
         return {
             projectTitle: projectNameElement ? (projectNameElement.value || 'Nom du projet à définir') : 'Nom du projet à définir',
             designerName: projectDesignerElement ? (projectDesignerElement.value || 'Nom du dessinateur') : 'Nom du dessinateur',
+            className: projectClassElement ? (projectClassElement.value || '').trim() : '',
             pages: {
                 perspective: this.selectedPagesForExport.has('page1'),
                 top: this.selectedPagesForExport.has('page2'),
@@ -1401,8 +1533,8 @@ class PresentationManager {
         pdf.setFillColor(255, 255, 255);
         pdf.rect(0, 0, pageWidth, pageHeight, 'F');
 
-        // En-tête avec informations du projet
-        this.addHeader(pdf, pageWidth, settings, 'Vue Perspective');
+    // En-tête avec informations du projet
+    this.addHeader(pdf, pageWidth, settings, 'Perspective 3d');
 
         // --- CONSERVATION DE LA VUE ACTUELLE DE L'UTILISATEUR ---
         // Pour l'export PDF, on conserve le point de vue actuel de l'utilisateur
@@ -1420,8 +1552,11 @@ class PresentationManager {
             }
         }
 
-        // Capturer la vue 3D actuelle
-        const canvas = await this.captureCurrentView('perspective');
+        // Capturer la vue 3D actuelle (filtrage des annotations/mesures par vue)
+        let restoreLayers = this.forceLayersVisible(['cotations', 'annotations', 'textes']);
+        const canvas = await this.runWithViewScope(this.getScopeForViewType('perspective'), async () => {
+            return await this.captureCurrentView('perspective');
+        });
         if (canvas && canvas.width > 0 && canvas.height > 0) {
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
             
@@ -1453,15 +1588,18 @@ class PresentationManager {
             // Ajouter un message d'erreur si pas d'image
             pdf.setFontSize(12);
             pdf.setTextColor(255, 0, 0);
-            pdf.text('❌ Erreur de capture de la vue perspective', pageWidth/2, pageHeight/2, { align: 'center' });
+            pdf.text('❌ Erreur de capture de la perspective 3d', pageWidth/2, pageHeight/2, { align: 'center' });
 
         }
 
-        // Nom de la vue (centré sous l'image)
-        this.addViewName(pdf, pageWidth, pageHeight, 'Vue Perspective', null);
+    // Nom de la vue (centré sous l'image)
+        this.addViewName(pdf, pageWidth, pageHeight, 'Perspective 3d', null);
 
-        // Pied de page
+    // Pied de page
         await this.addFooter(pdf, pageWidth, pageHeight, pageNum, totalPages);
+
+    // Restaurer les calques forcés
+    if (restoreLayers) restoreLayers();
     }
 
     async addOrthogonalPage(pdf, viewType, viewName, pageWidth, pageHeight, pageNum, totalPages, settings) {
@@ -1475,43 +1613,17 @@ class PresentationManager {
         // En-tête avec informations du projet
         this.addHeader(pdf, pageWidth, settings, viewName);
 
-        // Désactiver temporairement les calques cotations et textes pour les vues d'élévation
-        let originalCotationsVisible = null;
-        let originalTextesVisible = null;
-        const isElevationView = ['front', 'left', 'right', 'back'].includes(viewType);
-        
-        if (isElevationView && window.LayerManager) {
-            
-            // Sauvegarder l'état actuel des calques
-            originalCotationsVisible = window.LayerManager.layers.cotations ? window.LayerManager.layers.cotations.visible : null;
-            originalTextesVisible = window.LayerManager.layers.textes ? window.LayerManager.layers.textes.visible : null;
-
-            // Désactiver les calques pour une vue d'élévation plus propre
-            if (window.LayerManager.layers.cotations && window.LayerManager.layers.cotations.visible) {
-
-                window.LayerManager.toggleLayerVisibility('cotations');
-            }
-            if (window.LayerManager.layers.textes && window.LayerManager.layers.textes.visible) {
-
-                window.LayerManager.toggleLayerVisibility('textes');
-            }
-        } else {
-            
-        }
-
         // Générer une vraie élévation technique 2D au lieu d'une capture 3D
-
-        // Test simple des calques pour debugging
-        if (isElevationView && window.LayerManager) {
-
-        }
         
-        const exportScale = viewType === 'top' ? settings.scales.top : settings.scales.elevation;
+    const exportScale = viewType === 'top' ? settings.scales.top : settings.scales.elevation;
         
         // DEBUG: Afficher l'échelle utilisée
         window.forceLog(`🔍 [${viewType}] Échelle utilisée: ${exportScale} (settings.scales.top: ${settings.scales.top}, settings.scales.elevation: ${settings.scales.elevation})`);
 
-        const canvas = await this.generateTechnicalElevation(viewType, exportScale);
+        let restoreLayers = this.forceLayersVisible(['cotations', 'annotations', 'textes']);
+        const canvas = await this.runWithViewScope(this.getScopeForViewType(viewType), async () => {
+            return await this.generateTechnicalElevation(viewType, exportScale);
+        });
         
         if (canvas && canvas.width > 0 && canvas.height > 0) {
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
@@ -1544,7 +1656,9 @@ class PresentationManager {
         } else {
             // Fallback: Capturer la vue orthogonale classique si l'élévation technique échoue
 
-            const fallbackCanvas = await this.captureCurrentView(viewType);
+            const fallbackCanvas = await this.runWithViewScope(this.getScopeForViewType(viewType), async () => {
+                return await this.captureCurrentView(viewType);
+            });
             
             if (fallbackCanvas && fallbackCanvas.width > 0 && fallbackCanvas.height > 0) {
                 const imgData = fallbackCanvas.toDataURL('image/jpeg', 0.95);
@@ -1587,17 +1701,8 @@ class PresentationManager {
         // Pied de page
         await this.addFooter(pdf, pageWidth, pageHeight, pageNum, totalPages);
         
-        // Restaurer l'état original des calques si ils avaient été modifiés
-        if (isElevationView && window.LayerManager) {
-            if (window.LayerManager.layers.cotations && originalCotationsVisible !== null && originalCotationsVisible !== window.LayerManager.layers.cotations.visible) {
-
-                window.LayerManager.toggleLayerVisibility('cotations');
-            }
-            if (window.LayerManager.layers.textes && originalTextesVisible !== null && originalTextesVisible !== window.LayerManager.layers.textes.visible) {
-
-                window.LayerManager.toggleLayerVisibility('textes');
-            }
-        }
+    // Restaurer les calques forcés
+    if (restoreLayers) restoreLayers();
     }
 
     /**
@@ -1828,38 +1933,7 @@ class PresentationManager {
 
         }
 
-        // CORRECTION SIMPLE: Rotation 180° directe de la vue du dessus
-        // Approche simplifiée pour corriger l'orientation de la coupe
-        if (window.SceneManager && window.SceneManager.camera) {
-            const camera = window.SceneManager.camera;
-            const controls = window.SceneManager.controls;
-            
-            // Sauvegarder la position actuelle
-            const currentPos = camera.position.clone();
-            let currentTarget = new THREE.Vector3(0, 0, 0);
-            
-            if (controls && controls.target) {
-                currentTarget.copy(controls.target);
-            }
-            
-            // Rotation simple de 180° autour du centre
-            const centerX = currentTarget.x;
-            const centerZ = currentTarget.z;
-            
-            // Inverser X et Z par rapport au centre (rotation 180°)
-            const newX = centerX + (centerX - currentPos.x);
-            const newZ = centerZ + (centerZ - currentPos.z);
-            
-            // Appliquer la nouvelle position
-            camera.position.set(newX, currentPos.y, newZ);
-            camera.lookAt(currentTarget.x, currentTarget.y, currentTarget.z);
-            
-            // Mettre à jour les contrôles
-            if (controls && controls.update) {
-                controls.update();
-            }
-
-        }
+        // Ne pas appliquer de rotation 180° de la vue du dessus pour l'export coupe
 
         // Définir la position Y de coupe au milieu des briques de l'assise
         const cutY = assise.height; // Hauteur de l'assise
@@ -2193,16 +2267,7 @@ class PresentationManager {
 
         }
         
-        // Masquer les outils de mesure si présents
-        if (window.MeasurementTool) {
-            if (window.MeasurementTool.measurements) {
-                window.MeasurementTool.measurements.forEach(measurement => {
-                    if (measurement.line) measurement.line.visible = false;
-                    if (measurement.label) measurement.label.visible = false;
-                });
-
-            }
-        }
+        // Ne pas masquer les outils de mesure: ils sont gérés par le filtrage par vue et par calques
     }
 
     /**
@@ -2915,6 +2980,15 @@ class PresentationManager {
         pdf.setFontSize(10);
         pdf.setFont('helvetica', 'normal');
         pdf.text(settings.designerName, margin, headerY);
+
+        // Classe (sous le nom du dessinateur) si disponible
+        if (settings.className && settings.className.length > 0) {
+            pdf.setFontSize(9);
+            pdf.setFont('helvetica', 'italic');
+            pdf.text(`Classe: ${settings.className}`, margin, headerY + 6);
+            // Revenir à la police par défaut pour la suite
+            pdf.setFont('helvetica', 'normal');
+        }
 
         // Date et heure (à droite)
         const dateStr = this.currentProject.date.toLocaleDateString('fr-FR');
@@ -4782,6 +4856,10 @@ class PresentationManager {
             const groundLevelLine = this.addGroundLevelLine3D(sceneManager, viewType);
             
             // Rendu optimisé
+            // Assurer que les labels de cotation sont boostés pour la vue orthographique
+            if (window.MeasurementTool && typeof window.MeasurementTool.refreshLabelScalesForCamera === 'function') {
+                window.MeasurementTool.refreshLabelScalesForCamera(orthographicCamera);
+            }
             sceneManager.renderer.render(sceneManager.scene, orthographicCamera);
             await new Promise(resolve => setTimeout(resolve, 150));
             
@@ -4891,6 +4969,14 @@ class PresentationManager {
         
         const sceneManager = window.SceneManager;
         const originalCamera = sceneManager.camera;
+        // Positionner la caméra sur la vue demandée pour cohérence avec le filtrage par vue
+        try {
+            if (sceneManager && typeof sceneManager.setCameraView === 'function') {
+                sceneManager.setCameraView(viewType);
+            }
+        } catch (e) {
+            // ignorer si non applicable
+        }
         
         // ====== MASQUAGE FORCE BRUTE POUR GENERATETECHNICALELEVATION ======
         // Masquer IMMÉDIATEMENT tous les éléments fantômes AVANT le rendu
@@ -4940,7 +5026,7 @@ class PresentationManager {
             }
         }
         
-        // 3. Scène - Masquage des objets suspects
+        // 3. Scène - Masquage des objets suspects (en préservant les calques d'overlay)
         if (sceneManager.scene) {
             let bruteForceMasked = 0;
             try {
@@ -4948,6 +5034,31 @@ class PresentationManager {
                     if (object.visible) { // Élargir à tous les objets visibles, pas seulement Mesh
                         let shouldHide = false;
                         let reason = '';
+                        
+                        // ✅ PRÉSERVER LES OVERLAYS: cotations / annotations / textes
+                        // a) Si l'objet appartient à un calque logique d'overlay
+                        const layerId = object.userData && object.userData.layerId;
+                        if (layerId && (layerId === 'cotations' || layerId === 'annotations' || layerId === 'textes')) {
+                            return; // ne pas masquer
+                        }
+                        // b) Si l'objet est dans un des groupes outils connus (vérification par ancêtres)
+                        const isInOverlayToolGroup = (obj) => {
+                            let p = obj;
+                            while (p) {
+                                if (
+                                    (window.MeasurementTool && window.MeasurementTool.measurementGroup && p === window.MeasurementTool.measurementGroup) ||
+                                    (window.AnnotationTool && window.AnnotationTool.annotationGroup && p === window.AnnotationTool.annotationGroup) ||
+                                    (window.TextLeaderTool && window.TextLeaderTool.textLeaderGroup && p === window.TextLeaderTool.textLeaderGroup)
+                                ) {
+                                    return true;
+                                }
+                                p = p.parent;
+                            }
+                            return false;
+                        };
+                        if (isInOverlayToolGroup(object)) {
+                            return; // ne pas masquer
+                        }
                         
                         // 🎯 EXCEPTION CRITIQUE - NE JAMAIS MASQUER LA LIGNE DE SOL
                         if (object.name === 'WallSim3D_GroundLevelLine' || 
@@ -5129,11 +5240,10 @@ class PresentationManager {
                     orthographicCamera.lookAt(center.x, center.y, center.z);
                     orthographicCamera.up.set(0, 1, 0);
                 } else if (viewType === 'top') {
-                    // Vue du dessus : caméra au-dessus du centre exact du bâtiment
+                    // Vue du dessus : caméra au-dessus du centre exact du bâtiment (sans rotation 180°)
                     orthographicCamera.position.set(center.x, center.y + distance, center.z);
                     orthographicCamera.lookAt(center.x, center.y, center.z);
-                    // 🎯 ROTATION 180° - Inverser le vecteur up pour tourner la vue
-                    orthographicCamera.up.set(0, 0, -1); // -1 au lieu de 1 pour rotation 180°
+                    // Ne pas inverser le vecteur up pour éviter la rotation de 180°
                 }
                 
                 // AMÉLIORATION: Ajustement automatique du frustum pour optimiser le cadrage
@@ -5194,8 +5304,7 @@ class PresentationManager {
                     } else if (viewType === 'top') {
                         orthographicCamera.position.set(center.x, center.y + distance, center.z);
                         orthographicCamera.lookAt(center.x, center.y, center.z);
-                        // 🎯 ROTATION 180° - Inverser le vecteur up pour tourner la vue
-                        orthographicCamera.up.set(0, 0, -1); // -1 au lieu de 1 pour rotation 180°
+                        // Ne pas inverser le vecteur up pour éviter la rotation de 180°
                     }
                 }
                 
@@ -5290,10 +5399,33 @@ class PresentationManager {
 
             // NOUVEAU SYSTÈME DE MASQUAGE FANTÔMES AVANCÉ POUR ÉLÉVATIONS TECHNIQUES - ULTRA COMPLET
 
+            // Détection centralisée des overlays pour éviter de les masquer par erreur
+            const isOverlayObject_AdvancedMask = (obj) => {
+                if (!obj) return false;
+                // Par calque logique
+                const layerId = obj.userData && obj.userData.layerId;
+                if (layerId && (layerId === 'cotations' || layerId === 'annotations' || layerId === 'textes')) return true;
+                // Par appartenance à un groupe d'outil
+                let p = obj;
+                while (p) {
+                    if (
+                        (window.MeasurementTool && window.MeasurementTool.measurementGroup && p === window.MeasurementTool.measurementGroup) ||
+                        (window.AnnotationTool && window.AnnotationTool.annotationGroup && p === window.AnnotationTool.annotationGroup) ||
+                        (window.TextLeaderTool && window.TextLeaderTool.textLeaderGroup && p === window.TextLeaderTool.textLeaderGroup)
+                    ) {
+                        return true;
+                    }
+                    p = p.parent;
+                }
+                return false;
+            };
+
             let phantomCount = 0;
             let ghostObjectsState = []; // Sauvegarde de l'état des éléments fantômes
             
             sceneManager.scene.traverse((object) => {
+                // Ne jamais masquer les overlays (cotations/annotations/textes)
+                if (isOverlayObject_AdvancedMask(object)) return;
                 if (object.isMesh && object.visible) {
                     let shouldHide = false;
                     let reason = '';
@@ -5576,7 +5708,28 @@ class PresentationManager {
             }
             
             // 2. BALAYAGE ULTRA-AGRESSIF DE LA SCÈNE JUSTE AVANT LE RENDU
+            // Détection centralisée des overlays pour ce second passage également
+            const isOverlayObject_FinalMask = (obj) => {
+                if (!obj) return false;
+                const layerId = obj.userData && obj.userData.layerId;
+                if (layerId && (layerId === 'cotations' || layerId === 'annotations' || layerId === 'textes')) return true;
+                let p = obj;
+                while (p) {
+                    if (
+                        (window.MeasurementTool && window.MeasurementTool.measurementGroup && p === window.MeasurementTool.measurementGroup) ||
+                        (window.AnnotationTool && window.AnnotationTool.annotationGroup && p === window.AnnotationTool.annotationGroup) ||
+                        (window.TextLeaderTool && window.TextLeaderTool.textLeaderGroup && p === window.TextLeaderTool.textLeaderGroup)
+                    ) {
+                        return true;
+                    }
+                    p = p.parent;
+                }
+                return false;
+            };
+
             sceneManager.scene.traverse((object) => {
+                // Ne jamais masquer les overlays dans ce passage final non plus
+                if (isOverlayObject_FinalMask(object)) return;
                 if (object.isMesh && object.visible) {
                     let shouldForceHide = false;
                     let reason = '';
@@ -5651,8 +5804,91 @@ class PresentationManager {
             
             // 3. FORCER LA MISE À JOUR DE LA SCÈNE
             sceneManager.scene.updateMatrixWorld(true);
+
+            // ✨ SURCOUCHE OVERLAYS (cotations/annotations/textes) POUR TOUJOURS PASSER DEVANT
+            // Désactiver le depthTest et pousser le renderOrder pour les overlays, puis restaurer en finally
+            const overlayMaterialTweaks = [];
+            // NOUVEAU: mise à l'échelle conditionnelle des overlays pour l'export à l'échelle 1/50
+            // On agrandit les sprites (textes) et les meshes (flèches, marqueurs) par 2x uniquement pendant le rendu export
+            const isScaleOneToFifty = (() => {
+                try { return this.parseScale(scaleString) === 50; } catch (e) { return false; }
+            })();
+            const overlayScaleFactor = isScaleOneToFifty ? 2.0 : 1.0;
+            const overlayScaleTweaks = [];
+            try {
+                const isOverlayObject = (obj) => {
+                    if (!obj) return false;
+                    // Par calque logique
+                    const layerId = obj.userData && obj.userData.layerId;
+                    if (layerId && (layerId === 'cotations' || layerId === 'annotations' || layerId === 'textes')) return true;
+                    // Par appartenance à un groupe d'outil
+                    let p = obj;
+                    while (p) {
+                        if (
+                            (window.MeasurementTool && window.MeasurementTool.measurementGroup && p === window.MeasurementTool.measurementGroup) ||
+                            (window.AnnotationTool && window.AnnotationTool.annotationGroup && p === window.AnnotationTool.annotationGroup) ||
+                            (window.TextLeaderTool && window.TextLeaderTool.textLeaderGroup && p === window.TextLeaderTool.textLeaderGroup)
+                        ) {
+                            return true;
+                        }
+                        p = p.parent;
+                    }
+                    return false;
+                };
+
+                // Appliquer l'échelle 2x aux overlays si nécessaire (uniquement pour 1:50)
+                if (overlayScaleFactor !== 1.0) {
+                    try {
+                        sceneManager.scene.traverse((obj) => {
+                            if (!obj || !obj.visible) return;
+                            if (!isOverlayObject(obj)) return;
+                            // Sprites (textes)
+                            if (obj.isSprite) {
+                                overlayScaleTweaks.push({ object: obj, sx: obj.scale.x, sy: obj.scale.y, sz: obj.scale.z });
+                                obj.scale.set(obj.scale.x * overlayScaleFactor, obj.scale.y * overlayScaleFactor, obj.scale.z);
+                            }
+                            // Meshes (par ex. cônes de flèches, marqueurs)
+                            else if (obj.isMesh) {
+                                overlayScaleTweaks.push({ object: obj, sx: obj.scale.x, sy: obj.scale.y, sz: obj.scale.z });
+                                obj.scale.set(obj.scale.x * overlayScaleFactor, obj.scale.y * overlayScaleFactor, obj.scale.z * overlayScaleFactor);
+                            }
+                            // Lignes: on laisse tel quel (épaisseur de ligne WebGL non portable)
+                        });
+                    } catch (e) {
+                        console.warn('Erreur application échelle 1/50 sur overlays:', e);
+                    }
+                }
+
+                sceneManager.scene.traverse((obj) => {
+                    if (!obj || !obj.visible) return;
+                    if (!isOverlayObject(obj)) return;
+                    // Sauvegarder l'état courant
+                    const state = {
+                        object: obj,
+                        renderOrder: obj.renderOrder,
+                        material: obj.material || null,
+                        depthTest: (obj.material && obj.material.depthTest !== undefined) ? obj.material.depthTest : undefined,
+                        depthWrite: (obj.material && obj.material.depthWrite !== undefined) ? obj.material.depthWrite : undefined
+                    };
+                    overlayMaterialTweaks.push(state);
+
+                    // Forcer l'affichage au-dessus de tout
+                    obj.renderOrder = 99999;
+                    if (obj.material) {
+                        try { obj.material.depthTest = false; } catch (e) {}
+                        try { obj.material.depthWrite = false; } catch (e) {}
+                        // Laisser transparent tel quel; la plupart des sprites sont déjà transparents
+                    }
+                });
+            } catch (e) {
+                console.warn('Erreur configuration overlays (renderOrder/depthTest):', e);
+            }
             
             // Rendu avec la caméra orthographique
+            // Assurer que les labels de cotation sont boostés pour la vue orthographique
+            if (window.MeasurementTool && typeof window.MeasurementTool.refreshLabelScalesForCamera === 'function') {
+                window.MeasurementTool.refreshLabelScalesForCamera(orthographicCamera);
+            }
             sceneManager.renderer.render(sceneManager.scene, orthographicCamera);
             
             // Attendre que le rendu soit terminé
@@ -5700,6 +5936,31 @@ class PresentationManager {
 
             return null;
         } finally {
+            // Restaurer les tweaks overlays si définis
+            try {
+                if (typeof overlayMaterialTweaks !== 'undefined' && Array.isArray(overlayMaterialTweaks)) {
+                    overlayMaterialTweaks.forEach(state => {
+                        if (!state || !state.object) return;
+                        try { state.object.renderOrder = state.renderOrder; } catch (e) {}
+                        if (state.material && state.object.material === state.material) {
+                            if (state.depthTest !== undefined) {
+                                try { state.object.material.depthTest = state.depthTest; } catch (e) {}
+                            }
+                            if (state.depthWrite !== undefined) {
+                                try { state.object.material.depthWrite = state.depthWrite; } catch (e) {}
+                            }
+                        }
+                    });
+                }
+                // Restaurer l'échelle des overlays après capture
+                if (typeof overlayScaleTweaks !== 'undefined' && Array.isArray(overlayScaleTweaks) && overlayScaleTweaks.length > 0) {
+                    overlayScaleTweaks.forEach(s => {
+                        try { s.object.scale.set(s.sx, s.sy, s.sz); } catch (e) {}
+                    });
+                }
+            } catch (e) {
+                console.warn('Erreur restauration overlays (renderOrder/depthTest):', e);
+            }
             // Restaurer l'état original seulement si les variables ont été initialisées
             if (originalCamera && sceneManager) {
                 sceneManager.camera = originalCamera;
@@ -6191,8 +6452,10 @@ class PresentationManager {
                 const topDistance = Math.max(distance, 500); // Minimum 5m au-dessus
                 camera.position.set(buildingCenter.x, buildingCenter.y + topDistance, buildingCenter.z);
                 camera.lookAt(buildingCenter.x, buildingCenter.y, buildingCenter.z);
-                // CORRECTION: Orientation standard pour vue orthographique du dessus
-                camera.up.set(0, 0, 1); // Z vers le haut - orientation standard
+                // CORRECTION ORIENTATION: Vue du dessus comme si on regardait de face et qu'on soulevait vers le haut
+                // On veut que la FACE (Z+) soit en bas de la feuille. Donc l'axe Z+ doit pointer vers le BAS à l'écran.
+                // Pour cela, on définit l'up vector caméra à Z-, ce qui retourne l'image verticalement (avant = bas, arrière = haut).
+                camera.up.set(0, 0, -1);
 
                 break;
                 
@@ -6774,13 +7037,26 @@ class PresentationManager {
                 const isGridOrAxes = objectName.includes('grid') || objectName.includes('axes') || 
                                objectName.includes('helper') || objectName.includes('wireframe');
                 
-                // Inclure à la fois les briques ET les joints
+                // Détection des isolants (mêmes vérifications strictes)
+                const isInsulationByUserData = userData && (
+                    userData.type === 'insulation' || userData.elementType === 'insulation' || userData.category === 'insulation'
+                ) && (
+                    !userData.isTemporary && !userData.isGhost && !userData.phantom && !userData.preview && !userData.suggestion &&
+                    object.visible && object.scale.x > 0 && object.scale.y > 0 && object.scale.z > 0
+                );
+                const isInsulationByName = objectName.includes('insulation') || objectName.includes('isolant');
+                const isInsulationByMaterial = object.material.name && (
+                    object.material.name.includes('insulation') || object.material.name.includes('isolant')
+                );
+
+                // Inclure briques, blocs, joints ET isolants
                 const shouldTransform = (isBrickByUserData || isBrickByName || isBrickByMaterial ||
-                                       isJointByUserData || isJointByName || isJointByMaterial) && 
+                                       isJointByUserData || isJointByName || isJointByMaterial ||
+                                       isInsulationByUserData || isInsulationByName || isInsulationByMaterial) && 
                                        !isGridOrAxes;
                 
                 if (shouldTransform) {
-                    const elementType = (isJointByUserData || isJointByName || isJointByMaterial) ? 'Joint' : 'Brique';
+                    const elementType = (isJointByUserData || isJointByName || isJointByMaterial) ? 'Joint' : (isInsulationByUserData || isInsulationByName || isInsulationByMaterial) ? 'Isolant' : 'Brique';
 
                     // Sauvegarder le matériau original
                     originalMaterialsArray.push({
@@ -6794,6 +7070,18 @@ class PresentationManager {
                     object.material = whiteMaterial.clone();
                     object.castShadow = false;
                     object.receiveShadow = false;
+
+                    // Masquer les edges existants (gris) pendant l'export pour éviter les contours gris
+                    if (object.children && object.children.length) {
+                        object.children.forEach(child => {
+                            if ((child.isLineSegments || child.type === 'LineSegments') && child.visible !== false) {
+                                child.userData = child.userData || {};
+                                child.userData.hiddenForPDF = true;
+                                child.userData.wasVisibleBeforePDF = true;
+                                child.visible = false;
+                            }
+                        });
+                    }
                     
                     // Ajouter un wireframe noir pour les contours
                     if (!object.wireframe && object.geometry) {
@@ -6881,6 +7169,14 @@ class PresentationManager {
             sceneManager.scene.traverse((object) => {
                 if (object.userData && object.userData.isTechnicalWireframe) {
                     wireframesToRemove.push(object);
+                }
+                // Restaurer la visibilité des contours existants cachés pour PDF
+                if (object.userData && object.userData.hiddenForPDF) {
+                    if (object.userData.wasVisibleBeforePDF) {
+                        object.visible = true;
+                    }
+                    object.userData.hiddenForPDF = false;
+                    object.userData.wasVisibleBeforePDF = undefined;
                 }
             });
             

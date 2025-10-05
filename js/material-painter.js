@@ -326,9 +326,28 @@ class MaterialPainter {
         try {
             // Sauvegarder l'ancien matériau pour l'historique
             const oldMaterial = element.material;
+            const newMaterialId = this.selectedMaterial;
             
             // Appliquer le nouveau matériau
-            element.setMaterial(this.selectedMaterial);
+            element.setMaterial(newMaterialId);
+
+            // Marquer l'élément comme "peint" pour le métré
+            try {
+                element.userData = element.userData || {};
+                if (oldMaterial && oldMaterial !== newMaterialId && !element.userData.originalMaterialId) {
+                    element.userData.originalMaterialId = oldMaterial;
+                }
+                element.userData.isCustomMaterial = true;
+                element.userData.customMaterialId = newMaterialId;
+                if (window.MaterialLibrary && window.MaterialLibrary.getMaterial) {
+                    const matData = window.MaterialLibrary.getMaterial(newMaterialId) || {};
+                    element.userData.customMaterialName = matData.name || newMaterialId;
+                } else {
+                    element.userData.customMaterialName = newMaterialId;
+                }
+            } catch (e) {
+                console.warn('⚠️ Annotation "peint" échouée:', e);
+            }
             
             // Mettre à jour l'affichage si l'élément est sélectionné
             if (window.SceneManager.selectedElement === element) {
@@ -342,7 +361,7 @@ class MaterialPainter {
             this.animatePaintSuccess(element);
             
             // Notification de succès
-            const materialName = window.MaterialLibrary.getMaterial(this.selectedMaterial).name;
+            const materialName = window.MaterialLibrary.getMaterial(newMaterialId).name;
             this.showNotification(`✅ Élément peint avec: ${materialName}`, 'success');
             
             // Son de confirmation
@@ -354,7 +373,8 @@ class MaterialPainter {
                     elementId,
                     element,
                     oldMaterial,
-                    newMaterial: this.selectedMaterial
+                    newMaterial: newMaterialId,
+                    isCustomMaterial: true
                 }
             }));
 

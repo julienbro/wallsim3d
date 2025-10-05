@@ -23,6 +23,9 @@ class MeasurementTool {
         this.units = 'cm'; // ou 'mm', 'm'
         this.precision = 1; // nombre de décimales
         
+        // Échelle de cotation (1:20 ou 1:50)
+        this.currentScale = null; // null = pas encore choisi, 20 ou 50
+        
         // Système de snap (accrochage)
         this.snapEnabled = true;
         this.snapDistance = 15; // Distance de snap augmentée pour faciliter l'accrochage aux points supérieurs
@@ -30,11 +33,24 @@ class MeasurementTool {
         this.currentSnapPoint = null;
         this.snapIndicator = null;
         
-        // Propriétés configurables pour l'apparence des cotations
-        this.textScale = 30; // Taille du texte (largeur) - doublée pour s'adapter au canvas plus grand
-        this.textHeight = 8; // Hauteur du texte - doublée pour s'adapter au canvas plus grand
-        this.arrowSize = 2.5; // Taille des flèches - réduite pour un meilleur aspect visuel
-        this.lineWidth = 4; // Épaisseur des lignes (doublée de 2 à 4)
+    // Propriétés configurables pour l'apparence des cotations
+    // Valeurs de base optimisées pour vues orthogonales et PDF (peuvent être reboostées en ortho)
+    this.baseTextScale = 20;
+    this.baseTextHeight = 20;
+        this.baseDimensionLabelOffset = 2.0;
+        this.baseMeasureLabelOffset = 1.5;
+        this.baseArrowSize = 2.5;
+        this.baseLineWidth = 4;
+    // Facteur de boost pour les vues orthographiques (texte plus grand à l'export)
+    this.orthoLabelBoost = 15; // 15x (anciennement 5x) pour être ~3x plus grand qu'avant
+        
+        // Valeurs actuelles (seront définies lors du choix de l'échelle)
+        this.textScale = this.baseTextScale;
+        this.textHeight = this.baseTextHeight;
+        this.dimensionLabelOffset = this.baseDimensionLabelOffset;
+        this.measureLabelOffset = this.baseMeasureLabelOffset;
+        this.arrowSize = this.baseArrowSize;
+        this.lineWidth = this.baseLineWidth;
         
         this.init();
     }
@@ -70,6 +86,92 @@ class MeasurementTool {
 
     activate() {
         // console.log('📏 Activation de l\'outil de mesure');
+        
+        // Toujours afficher la modale de sélection d'échelle à chaque activation
+        this.showScaleSelectionModal();
+    }
+    
+    showScaleSelectionModal() {
+        const modal = document.getElementById('measurementScaleModal');
+        if (!modal) {
+            console.error('❌ Modale de sélection d\'échelle non trouvée');
+            return;
+        }
+        
+        modal.style.display = 'flex';
+        
+        // Gérer les clics sur les boutons d'échelle
+        const scaleButtons = modal.querySelectorAll('.scale-choice-btn');
+        scaleButtons.forEach(btn => {
+            btn.onclick = () => {
+                const scale = parseInt(btn.dataset.scale);
+                this.setScale(scale);
+                modal.style.display = 'none';
+                this.activateAfterScaleSelection();
+            };
+        });
+        
+        // Gérer la fermeture de la modale (clic sur le fond ou bouton fermer)
+        const closeModal = () => {
+            modal.style.display = 'none';
+            // Désactiver le bouton de l'outil car l'utilisateur a annulé
+            this.updateButtonState(false);
+            this.isActive = false;
+        };
+        
+        // Fermer avec le bouton X
+        const closeBtn = modal.querySelector('.modal-close');
+        if (closeBtn) {
+            closeBtn.onclick = closeModal;
+        }
+        
+        // Fermer en cliquant sur le fond de la modale
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        };
+        
+        // Fermer avec Escape
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    }
+    
+    setScale(scale) {
+        this.currentScale = scale;
+        
+        // Adapter les tailles selon l'échelle
+        if (scale === 20) {
+            // Échelle 1/20 : éléments 2x plus grands (×2)
+            this.textScale = this.baseTextScale * 2.0;
+            this.textHeight = this.baseTextHeight * 2.0;
+            this.dimensionLabelOffset = this.baseDimensionLabelOffset * 2.0;
+            this.measureLabelOffset = this.baseMeasureLabelOffset * 2.0;
+            this.arrowSize = this.baseArrowSize * 2.0;
+            this.lineWidth = this.baseLineWidth * 2.0;
+        } else if (scale === 50) {
+            // Échelle 1/50 : augmenter de x2 par rapport à la taille actuelle (donc ×4 par rapport à la base)
+            this.textScale = this.baseTextScale * 4.0;
+            this.textHeight = this.baseTextHeight * 4.0;
+            this.dimensionLabelOffset = this.baseDimensionLabelOffset * 4.0;
+            this.measureLabelOffset = this.baseMeasureLabelOffset * 4.0;
+            this.arrowSize = this.baseArrowSize * 4.0;
+            this.lineWidth = this.baseLineWidth * 4.0;
+        }
+        
+        console.log(`📏 Échelle de cotation définie : 1/${scale}`, {
+            textScale: this.textScale,
+            textHeight: this.textHeight,
+            arrowSize: this.arrowSize
+        });
+    }
+    
+    activateAfterScaleSelection() {
         this.isActive = true;
         this.showMeasurements();
         
@@ -190,8 +292,13 @@ class MeasurementTool {
 
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (event) => {
+            // Ne pas activer de raccourcis si l'utilisateur est en train de saisir du texte
+            const target = event.target || document.activeElement;
+            const tag = (target && target.tagName) ? target.tagName.toLowerCase() : '';
+            const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || (target && target.isContentEditable);
+
             // Raccourci pour activer/désactiver l'outil (M)
-            if (event.key === 'm' || event.key === 'M') {
+            if ((event.key === 'm' || event.key === 'M') && !isTyping) {
                 if (!event.ctrlKey && !event.altKey && !event.shiftKey) {
                     event.preventDefault();
                     this.toggle();
@@ -199,14 +306,14 @@ class MeasurementTool {
             }
             
             // Supprimer la dernière mesure (Delete/Suppr)
-            if ((event.key === 'Delete' || event.key === 'Backspace') && this.isActive) {
+            if ((event.key === 'Delete' || event.key === 'Backspace') && this.isActive && !isTyping) {
                 if (this.measurements.length > 0) {
                     this.removeLastMeasurement();
                 }
             }
             
             // Changer l'unité (U)
-            if (event.key === 'u' || event.key === 'U') {
+            if ((event.key === 'u' || event.key === 'U') && !isTyping) {
                 if (this.isActive) {
                     event.preventDefault();
                     this.cycleUnits();
@@ -214,7 +321,7 @@ class MeasurementTool {
             }
             
             // Activer/désactiver le snap (S)
-            if (event.key === 's' || event.key === 'S') {
+            if ((event.key === 's' || event.key === 'S') && !isTyping) {
                 if (this.isActive && !event.ctrlKey && !event.altKey && !event.shiftKey) {
                     event.preventDefault();
                     this.toggleSnap();
@@ -483,8 +590,8 @@ class MeasurementTool {
             }
         }
 
-        // Fallback: intersection avec le plan du sol (y = 0)
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    // Plan de contrainte selon la vue actuelle
+    const plane = this.getConstraintPlane();
         const intersection = new THREE.Vector3();
         
         if (raycaster.ray.intersectPlane(plane, intersection)) {
@@ -519,8 +626,8 @@ class MeasurementTool {
             }
         }
 
-        // Fallback: intersection avec le plan du sol (y = 0)
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    // Plan de contrainte selon la vue actuelle
+    const plane = this.getConstraintPlane();
         const intersection = new THREE.Vector3();
         
         if (raycaster.ray.intersectPlane(plane, intersection)) {
@@ -528,6 +635,26 @@ class MeasurementTool {
         }
 
         return null;
+    }
+
+    // Détermine le plan (XZ pour top, XY pour front/back, ZY pour left/right) pour projeter les clics/souris
+    getConstraintPlane() {
+        const scope = (window.SceneManager && window.SceneManager.currentViewScope) ? window.SceneManager.currentViewScope : '3d';
+        const target = (window.SceneManager && window.SceneManager.controls && window.SceneManager.controls.target) ? window.SceneManager.controls.target : { x: 0, y: 0, z: 0 };
+        if (scope === 'top') {
+            // XZ (horizontal) → normal Y+, y=0
+            return new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        }
+        if (scope === 'front' || scope === 'back') {
+            // XY (vertical) → Z constant
+            return new THREE.Plane(new THREE.Vector3(0, 0, 1), -target.z);
+        }
+        if (scope === 'left' || scope === 'right') {
+            // ZY (vertical, vue de côté) → X constant
+            return new THREE.Plane(new THREE.Vector3(1, 0, 0), -target.x);
+        }
+        // Par défaut (3D/isométrique) garder le plan sol
+        return new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     }
 
     startMeasurement(point) {
@@ -1082,8 +1209,8 @@ class MeasurementTool {
         // Créer la ligne de cotation temporaire avec flèches
         this.createTemporaryDimensionLineWithArrows(dimStart, dimEnd);
         
-        // Créer les lignes d'attache étendues (dépassent de la ligne de cotation)
-        const extensionLength = 2;
+    // Créer les lignes d'attache étendues (dépassent de la ligne de cotation)
+    const extensionLength = 3; // 2 → 3 (×1,5)
         const extendedDimStart = dimStart.clone().add(perpendicular.clone().multiplyScalar(extensionLength));
         const extendedDimEnd = dimEnd.clone().add(perpendicular.clone().multiplyScalar(extensionLength));
         
@@ -1110,6 +1237,8 @@ class MeasurementTool {
         
         this.temporaryDimensionLine = new THREE.Line(geometry, material);
         this.measurementGroup.add(this.temporaryDimensionLine);
+        // Assurer un rendu au-dessus de la géométrie
+        this.ensureOverlayOnTop(this.temporaryDimensionLine);
         
         // Flèches temporaires
         const direction = endPoint.clone().sub(startPoint).normalize();
@@ -1126,6 +1255,9 @@ class MeasurementTool {
         this.temporaryArrows.push(arrow1, arrow2);
         this.measurementGroup.add(arrow1);
         this.measurementGroup.add(arrow2);
+        // Assurer un rendu au-dessus de la géométrie
+        this.ensureOverlayOnTop(arrow1);
+        this.ensureOverlayOnTop(arrow2);
     }
 
     createTemporaryArrow(position, direction, size) {
@@ -1164,6 +1296,8 @@ class MeasurementTool {
         });
         const barb2Line = new THREE.Line(barb2Geometry, barb2Material);
         arrowGroup.add(barb2Line);
+        // Assurer un rendu au-dessus de la géométrie
+        this.ensureOverlayOnTop(arrowGroup);
         
         return arrowGroup;
     }
@@ -1257,8 +1391,8 @@ class MeasurementTool {
         // Ligne de cotation principale avec flèches
         this.createDimensionLineWithArrows(measurementGroup, dimStart, dimEnd);
         
-        // Lignes d'attache étendues (dépassent de la ligne de cotation)
-        const extensionLength = 2; // Distance de dépassement
+    // Lignes d'attache étendues (dépassent de la ligne de cotation)
+    const extensionLength = 3; // 2 → 3 (×1,5)
         const extendedDimStart = dimStart.clone().add(perpendicular.clone().multiplyScalar(extensionLength));
         const extendedDimEnd = dimEnd.clone().add(perpendicular.clone().multiplyScalar(extensionLength));
         
@@ -1280,13 +1414,16 @@ class MeasurementTool {
         measurementGroup.add(startMarker);
         measurementGroup.add(endMarker);
         
-        // Étiquette de distance
-        const labelPosition = dimStart.clone().add(dimEnd).multiplyScalar(0.5);
-        labelPosition.y += 1;
-        const label = this.createTextLabel(this.formatDistance(distance), labelPosition);
+    // Étiquette de distance avec décalage perpendiculaire pour mieux séparer du trait de cote
+    const labelPosition = dimStart.clone().add(dimEnd).multiplyScalar(0.5);
+    labelPosition.add(perpendicular.clone().multiplyScalar(this.dimensionLabelOffset));
+    labelPosition.y += 1;
+    const label = this.createTextLabel(this.formatDistance(distance), labelPosition);
         measurementGroup.add(label);
         
         this.measurementGroup.add(measurementGroup);
+        // Assurer un rendu au-dessus de la géométrie pour tout le groupe
+        this.ensureOverlayOnTop(measurementGroup);
         
         // Assigner au calque cotations si le LayerManager est disponible
         if (window.LayerManager) {
@@ -1301,7 +1438,9 @@ class MeasurementTool {
             endPoint: endPoint.clone(),
             dimensionPoint: dimensionPoint.clone(),
             distance: distance,
-            group: measurementGroup
+            group: measurementGroup,
+            // Associer à la vue courante (portée canonique)
+            view: (window.SceneManager && window.SceneManager.currentViewScope) ? window.SceneManager.currentViewScope : '3d'
         });
         
         return measurementId;
@@ -1398,7 +1537,7 @@ class MeasurementTool {
 
     createMeasurement(startPoint, endPoint, distance) {
         const measurementId = this.measurementId++;
-        const midPoint = startPoint.clone().add(endPoint).multiplyScalar(0.5);
+    const midPoint = startPoint.clone().add(endPoint).multiplyScalar(0.5);
         
         // Créer la ligne de mesure
         const lineGeometry = new THREE.BufferGeometry();
@@ -1412,15 +1551,18 @@ class MeasurementTool {
         const line = new THREE.Line(lineGeometry, lineMaterial);
         line.name = `measurement-line-${measurementId}`;
         
-        // Créer les flèches aux extrémités qui pointent vers l'intérieur
-        const direction = endPoint.clone().sub(startPoint).normalize();
+    // Créer les flèches aux extrémités qui pointent vers l'intérieur
+    const direction = endPoint.clone().sub(startPoint).normalize();
+    const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x);
         console.log('📏 Mesure simple - Direction:', direction);
         const startArrow = this.createArrow(startPoint, direction, this.arrowSize);
         const endArrow = this.createArrow(endPoint, direction.clone().negate(), this.arrowSize);
         
         // Créer l'étiquette avec la distance
         const text = this.formatDistance(distance);
-        const label = this.createTextLabel(text, midPoint, 0xff6600);
+    // Décaler l'étiquette perpendiculairement pour un meilleur espacement visuel
+    const labelPos = midPoint.clone().add(perpendicular.multiplyScalar(this.measureLabelOffset));
+    const label = this.createTextLabel(text, labelPos, 0xff6600);
         
         // Créer un groupe pour cette mesure
         const measurementGroup = new THREE.Group();
@@ -1431,6 +1573,8 @@ class MeasurementTool {
         measurementGroup.name = `measurement-${measurementId}`;
         
         this.measurementGroup.add(measurementGroup);
+    // Assurer un rendu au-dessus de la géométrie pour tout le groupe
+    this.ensureOverlayOnTop(measurementGroup);
         
         // Stocker la mesure
         const measurement = {
@@ -1443,6 +1587,8 @@ class MeasurementTool {
             group: measurementGroup,
             startArrow: startArrow,
             endArrow: endArrow,
+            // Associer à la vue courante (portée canonique)
+            view: (window.SceneManager && window.SceneManager.currentViewScope) ? window.SceneManager.currentViewScope : '3d',
             created: new Date()
         };
         
@@ -1462,42 +1608,78 @@ class MeasurementTool {
     }
 
     createTextLabel(text, position, color = 0xff6600, isTemporary = false) {
-        // Créer un canvas pour le texte
+        // Créer un canvas TRÈS haute résolution pour éviter la pixelisation en PDF
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        canvas.width = 2048; // Doublé pour plus d'espace et meilleure résolution
-        canvas.height = 2048; // Beaucoup plus grand pour accueillir le texte volumineux
         
-        // Améliorer la qualité du rendu
+        // Résolution ultra-haute pour export PDF de qualité (8x plus grand)
+        canvas.width = 4096;
+        canvas.height = 4096;
+        
+        // Optimisation de la qualité du rendu
         context.imageSmoothingEnabled = true;
         context.imageSmoothingQuality = 'high';
-        context.textRenderingOptimization = 'optimizeQuality';
         
-        // Style du texte
-        context.fillStyle = isTemporary ? '#00ff00' : '#000000';
-        context.font = 'bold 320px Arial'; // Quadruplé de la taille originale (80px → 320px)
+        // Police ultra-grande proportionnelle à la résolution du canvas
+        const fontSize = 640; // Doublé pour la nouvelle résolution
+        context.font = `bold ${fontSize}px Arial, sans-serif`;
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         
-        // Texte sans fond
+        // Couleur du texte
         context.fillStyle = isTemporary ? '#00ff00' : '#000000';
+        
+        // Ajouter un contour blanc pour améliorer la lisibilité
+        if (!isTemporary) {
+            context.strokeStyle = '#ffffff';
+            context.lineWidth = 12;
+            context.strokeText(text, canvas.width / 2, canvas.height / 2);
+        }
+        
+        // Dessiner le texte
         context.fillText(text, canvas.width / 2, canvas.height / 2);
         
-        // Créer la texture
+        // Créer la texture avec paramètres optimisés
         const texture = new THREE.CanvasTexture(canvas);
-        texture.generateMipmaps = false; // Éviter le flou sur les textures grandes
-        texture.minFilter = THREE.LinearFilter;
+        texture.generateMipmaps = true; // Activer pour meilleure qualité à différentes distances
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
         texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = 16; // Améliore la netteté sous différents angles
         texture.format = THREE.RGBAFormat;
-        const material = new THREE.SpriteMaterial({ map: texture });
+        texture.needsUpdate = true;
+        
+        const material = new THREE.SpriteMaterial({ 
+            map: texture,
+            sizeAttenuation: true, // Taille influencée par la projection (orthographique/perspective)
+            transparent: true,
+            depthTest: false, // Toujours visible au premier plan
+            depthWrite: false
+        });
         const sprite = new THREE.Sprite(material);
         
         sprite.position.copy(position);
         sprite.position.y += 3; // Élever plus haut au-dessus du sol
-        // Utiliser les propriétés configurables pour la taille
-        sprite.scale.set(this.textScale, this.textHeight, 1);
+        // Utiliser les propriétés configurables pour la taille avec boost ortho
+        const boost = this.getCameraScaleBoost();
+        sprite.scale.set(this.textScale * boost, this.textHeight * boost, 1);
+        // Assurer un rendu au-dessus de la géométrie pour l'étiquette
+        sprite.renderOrder = 999; // Forcer le rendu en dernier (au-dessus de tout)
+        this.ensureOverlayOnTop(sprite);
         
         return sprite;
+    }
+
+    // Détermine un boost de taille selon le type de caméra active
+    getCameraScaleBoost(camera = null) {
+        try {
+            const cam = camera || (window.SceneManager && window.SceneManager.camera);
+            if (cam && cam.isOrthographicCamera) {
+                // Boost de base pour ortho; la variation 1/50 est déjà gérée dans setScale()
+                let boost = this.orthoLabelBoost || 5;
+                return boost;
+            }
+        } catch (_) {}
+        return 1;
     }
 
     formatDistance(distance) {
@@ -1605,6 +1787,11 @@ class MeasurementTool {
             this.activate();
         }
     }
+    
+    changeScale() {
+        // Permet de changer l'échelle même quand l'outil est actif
+        this.showScaleSelectionModal();
+    }
 
     cycleUnits() {
         const units = ['cm', 'mm', 'm'];
@@ -1633,6 +1820,24 @@ class MeasurementTool {
                 console.warn('📏 Mesure invalide trouvée lors de la mise à jour des étiquettes:', measurement);
             }
         });
+    }
+
+    // Ajuste dynamiquement l'échelle des labels pour une caméra donnée (utile pour export ortho)
+    refreshLabelScalesForCamera(camera) {
+        const boost = this.getCameraScaleBoost(camera);
+        try {
+            this.measurements.forEach(m => {
+                if (m && m.label && m.label.scale) {
+                    m.label.scale.set(this.textScale * boost, this.textHeight * boost, 1);
+                }
+            });
+            // Gérer aussi une éventuelle étiquette temporaire
+            if (this.temporaryLabel && this.temporaryLabel.scale) {
+                this.temporaryLabel.scale.set(this.textScale * boost, this.textHeight * boost, 1);
+            }
+        } catch (e) {
+            // ignore
+        }
     }
     
     // Méthode pour mettre à jour les propriétés d'apparence et redessiner
@@ -1680,8 +1885,39 @@ class MeasurementTool {
                 this.createMeasurement(data.startPoint, data.endPoint, data.distance);
             }
         });
+        // Rehausser les nouvelles cotations après redessin
+        if (this.measurementGroup) this.ensureOverlayOnTop(this.measurementGroup);
         
         console.log('📏 Redessin terminé:', this.measurements.length, 'cotations recréées');
+    }
+
+    // Assure que les overlays (mesures) rendent toujours au-dessus de la géométrie 3D
+    ensureOverlayOnTop(object3D) {
+        if (!object3D) return;
+        const applyProps = (obj) => {
+            try {
+                obj.renderOrder = 10000;
+                // Tag logique pour d'autres systèmes
+                obj.userData = obj.userData || {};
+                if (!obj.userData.layerId) obj.userData.layerId = 'cotations';
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) {
+                        obj.material.forEach(mat => {
+                            if (!mat) return;
+                            if (mat.depthTest !== undefined) mat.depthTest = false;
+                            if (mat.depthWrite !== undefined) mat.depthWrite = false;
+                        });
+                    } else {
+                        if (obj.material.depthTest !== undefined) obj.material.depthTest = false;
+                        if (obj.material.depthWrite !== undefined) obj.material.depthWrite = false;
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        };
+        applyProps(object3D);
+        if (typeof object3D.traverse === 'function') {
+            object3D.traverse(child => applyProps(child));
+        }
     }
 
     showInstructions() {
@@ -1843,8 +2079,10 @@ class MeasurementTool {
     }
 
     exportMeasurements() {
+        // Exporter toutes les mesures, incluant le type et le point de décalage pour les cotations "dimension"
         return this.measurements.map(measurement => ({
             id: measurement.id,
+            type: measurement.type || 'simple',
             startPoint: {
                 x: measurement.startPoint.x,
                 y: measurement.startPoint.y,
@@ -1855,8 +2093,15 @@ class MeasurementTool {
                 y: measurement.endPoint.y,
                 z: measurement.endPoint.z
             },
+            // Pour les cotations de type "dimension", conserver le point de cote (décalage)
+            dimensionPoint: measurement.dimensionPoint ? {
+                x: measurement.dimensionPoint.x,
+                y: measurement.dimensionPoint.y,
+                z: measurement.dimensionPoint.z
+            } : null,
             distance: measurement.distance,
             formattedDistance: this.formatDistance(measurement.distance),
+            view: measurement.view || '3d',
             created: measurement.created,
             units: this.units
         }));
@@ -1866,11 +2111,25 @@ class MeasurementTool {
         this.clearAllMeasurements();
         
         measurementsData.forEach(data => {
+            if (!data || !data.startPoint || !data.endPoint) return;
             const startPoint = new THREE.Vector3(data.startPoint.x, data.startPoint.y, data.startPoint.z);
             const endPoint = new THREE.Vector3(data.endPoint.x, data.endPoint.y, data.endPoint.z);
-            const distance = data.distance;
+            const type = data.type || 'simple';
+            let created;
             
-            this.createMeasurement(startPoint, endPoint, distance);
+            if (type === 'dimension' && data.dimensionPoint) {
+                // Restaurer une cotation de type "dimension" avec son point de cote
+                const dimPoint = new THREE.Vector3(data.dimensionPoint.x, data.dimensionPoint.y, data.dimensionPoint.z);
+                created = this.createDimensionMeasurement(startPoint, endPoint, dimPoint);
+            } else {
+                // Mesure simple (ligne entre deux points)
+                const distance = data.distance ?? startPoint.distanceTo(endPoint);
+                created = this.createMeasurement(startPoint, endPoint, distance);
+            }
+            
+            if (created && data.view) {
+                created.view = data.view;
+            }
         });
         
         console.log(`📏 ${measurementsData.length} mesures importées`);

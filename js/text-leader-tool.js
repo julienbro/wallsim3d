@@ -18,6 +18,10 @@ class TextLeaderTool {
         this.currentEditingAnnotation = null;
         this.editDialog = null;
         
+    // Gestion d'échelle (1/20 ou 1/50), comme l'outil de mesure
+    this.currentScale = null; // 20 ou 50 après sélection
+    this.scaleMultiplier = 1.0; // facteur appliqué aux tailles
+        
         // Système de snap (accrochage)
         this.snapEnabled = true;
         this.snapTolerance = 2; // Distance en pixels
@@ -32,22 +36,150 @@ class TextLeaderTool {
         this.init();
     }
 
+    // Initialisation alignée sur AnnotationTool
     init() {
-        // console.log('📝 Initialisation de l\'outil texte avec ligne de rappel...');
         this.waitForSceneManager();
     }
 
     waitForSceneManager() {
         if (window.SceneManager && window.SceneManager.scene) {
+            // Créer les objets et brancher les événements une fois la scène prête
             this.createTextLeaderGroup();
             this.createEditDialog();
             this.setupEventListeners();
             this.setupKeyboardShortcuts();
+            // Points de snap initiaux
             this.collectSnapPoints();
-            // console.log('✅ TextLeaderTool initialisé avec SceneManager');
         } else {
             setTimeout(() => this.waitForSceneManager(), 100);
         }
+    }
+
+    activate() {
+        // Proposer l'échelle à l'activation
+        this.showScaleSelectionModal();
+    }
+
+    activateAfterScaleSelection() {
+        this.isActive = true;
+        // Afficher le groupe d'annotations texte
+        if (typeof this.showTextLeader === 'function') {
+            this.showTextLeader();
+        } else {
+            this.showTextAnnotations();
+        }
+        if (window.SceneManager && window.SceneManager.renderer && window.SceneManager.renderer.domElement) {
+            window.SceneManager.renderer.domElement.style.cursor = 'crosshair';
+        }
+        // Désactiver la brique fantôme pendant l'utilisation de l'outil
+        if (typeof this.disableGhostBricks === 'function') {
+            this.disableGhostBricks();
+        }
+        // Recharger les points de snap et rebrancher les events pour une nouvelle session
+        this.collectSnapPoints();
+        this.setupEventListeners();
+        this.hideSnapIndicator();
+        this.showInstructions();
+        this.deactivateOtherTools();
+    }
+
+    showScaleSelectionModal() {
+        const modal = document.getElementById('measurementScaleModal');
+        if (!modal) {
+            console.error('❌ Modale de sélection d\'échelle non trouvée');
+            this.setScale(50);
+            this.activateAfterScaleSelection();
+            return;
+        }
+        modal.style.display = 'flex';
+        const scaleButtons = modal.querySelectorAll('.scale-choice-btn');
+        scaleButtons.forEach(btn => {
+            btn.onclick = () => {
+                const scale = parseInt(btn.dataset.scale);
+                this.setScale(scale);
+                modal.style.display = 'none';
+                this.activateAfterScaleSelection();
+            };
+        });
+        const closeModal = () => { modal.style.display = 'none'; this.isActive = false; };
+        const closeBtn = modal.querySelector('.modal-close');
+        if (closeBtn) closeBtn.onclick = closeModal;
+        modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+        const escHandler = (e) => { if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', escHandler); } };
+        document.addEventListener('keydown', escHandler);
+    }
+
+    setScale(scale) {
+        this.currentScale = scale;
+        // Aligner avec l'outil de mesure: 1/50 plus grand que 1/20
+        if (scale === 20) {
+            this.scaleMultiplier = 2.0; // base ×2
+        } else if (scale === 50) {
+            this.scaleMultiplier = 4.0; // base ×4
+        } else {
+            this.scaleMultiplier = 1.0;
+        }
+        // Ne pas re-scaler les annotations déjà posées
+        this.refreshPreviewScales();
+    }
+
+    // Alias pour compatibilité avec d'anciens appels
+    showTextLeader() {
+        this.showTextAnnotations();
+    }
+
+    hideTextLeader() {
+        this.hideTextAnnotations();
+    }
+
+    refreshTextLeaderScales() {
+        try {
+            this.textAnnotations.forEach(a => {
+                if (a && a.textSprite && a.textSprite.scale && a.canvas) {
+                    const localMul = (a.textScaleMultiplier !== undefined ? a.textScaleMultiplier : 1.0);
+                    const scale = (a.config && a.config.fontSize ? a.config.fontSize / 50 : 1) * localMul;
+                    a.textSprite.scale.set(a.canvas.width / 100 * scale, a.canvas.height / 100 * scale, 1);
+                }
+                // Mettre à jour la taille de la flèche de rappel si présente
+                if (a && a.leaderLine) {
+                    const arrowMul = (a.arrowScaleMultiplier !== undefined ? a.arrowScaleMultiplier : 1.0);
+                    // Chercher la flèche par nom
+                    const arrow = a.leaderLine.children && a.leaderLine.children.find(ch => ch.name === 'leaderArrow');
+                    if (arrow && arrow.scale) {
+                        arrow.scale.set(arrowMul, arrowMul, arrowMul);
+                    }
+                }
+            });
+        } catch (_) {}
+    }
+
+    // Échelle des flèches pour l'aperçu courant (ne modifie pas les annotations existantes)
+    getCurrentArrowScale() {
+        if (this.currentScale === 50) return 2.0;
+        if (this.currentScale === 20) return 1.0;
+        return 1.0;
+    }
+
+    // Met à l'échelle uniquement les éléments d'aperçu (temporaire)
+    refreshPreviewScales() {
+        if (this.temporaryLine) {
+            const arrow = this.temporaryLine.children && this.temporaryLine.children.find(ch => ch.name === 'tempLeaderArrow');
+            if (arrow && arrow.scale) {
+                const mul = this.getCurrentArrowScale();
+                arrow.scale.set(mul, mul, mul);
+            }
+        }
+        if (this.temporaryTargetMarker && this.temporaryTargetMarker.scale) {
+            const mul = this.getCurrentArrowScale();
+            this.temporaryTargetMarker.scale.set(mul, mul, mul);
+        }
+    }
+
+    // Échelle des flèches: 1/20 -> 1, 1/50 -> 2 (basé sur scaleMultiplier 2/4)
+    getArrowScale() {
+        if (this.currentScale === 50) return 2.0;
+        if (this.currentScale === 20) return 1.0;
+        return 1.0;
     }
 
     createTextLeaderGroup() {
@@ -618,7 +750,9 @@ class TextLeaderTool {
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(mouse, window.SceneManager.camera);
 
-        // Vérifier le snap seulement pour le premier point (drawingStep === 0)
+        const scope = (window.SceneManager && window.SceneManager.currentViewScope) ? window.SceneManager.currentViewScope : '3d';
+
+        // Snap only for the first point
         if (this.snapEnabled && this.drawingStep === 0 && this.snapPoints.length > 0) {
             const nearestSnapPoint = this.findNearestSnapPointFromRay(raycaster);
             if (nearestSnapPoint) {
@@ -626,57 +760,72 @@ class TextLeaderTool {
             }
         }
 
-        // Essayer d'abord d'intersector avec les objets de construction
-        const constructionObjects = [];
-        if (window.SceneManager.scene) {
-            window.SceneManager.scene.traverse((object) => {
-                if (object.isMesh && object.visible && 
-                    object.userData && 
-                    (object.userData.type === 'brick' || object.userData.elementType === 'brick')) {
-                    constructionObjects.push(object);
-                }
-            });
+        // For orthographic views (top/elevations), always project onto the view plane.
+        // For 3D, keep previous behavior for the first point (mesh hit), but constrain the second point to the first point's plane.
+        const isOrthoView = (scope === 'top' || scope === 'front' || scope === 'back' || scope === 'left' || scope === 'right');
+
+        if (isOrthoView) {
+            // Use a plane based on view; for second point, lock to the first point's plane
+            const anchor = (this.drawingStep === 1 && this.targetPoint) ? this.targetPoint : null;
+            const plane = this.getConstraintPlane(anchor);
+            const intersection = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(plane, intersection)) {
+                return intersection;
+            }
+            return null;
         }
 
-        const intersects = raycaster.intersectObjects(constructionObjects);
-        if (intersects.length > 0) {
-            return intersects[0].point.clone();
+        // 3D view fallback
+        if (this.drawingStep === 0) {
+            // Try hitting construction meshes first for an anchored target point
+            const constructionObjects = [];
+            if (window.SceneManager.scene) {
+                window.SceneManager.scene.traverse((object) => {
+                    if (object.isMesh && object.visible && object.userData && (object.userData.type === 'brick' || object.userData.elementType === 'brick')) {
+                        constructionObjects.push(object);
+                    }
+                });
+            }
+            const intersects = raycaster.intersectObjects(constructionObjects);
+            if (intersects.length > 0) {
+                return intersects[0].point.clone();
+            }
         }
 
-        // Sinon, intersector avec un plan vertical
-        let verticalPlane;
-        
-        if (this.drawingStep === 1 && this.targetPoint) {
-            // Pour le deuxième point, utiliser un plan vertical qui passe par le premier point
-            // Calculer la direction de la caméra pour créer un plan vertical perpendiculaire
-            const cameraDirection = new THREE.Vector3();
-            window.SceneManager.camera.getWorldDirection(cameraDirection);
-            
-            // Créer un plan vertical en utilisant la direction horizontale de la caméra
-            // On garde seulement les composantes X et Z (on annule Y pour rester vertical)
-            cameraDirection.y = 0;
-            cameraDirection.normalize();
-            
-            // Calculer la distance du plan pour qu'il passe par le point cible
-            const distanceToPlane = -cameraDirection.dot(this.targetPoint);
-            verticalPlane = new THREE.Plane(cameraDirection, distanceToPlane);
-        } else {
-            // Pour le premier point, utiliser un plan vertical face à la caméra à z=0
-            const cameraDirection = new THREE.Vector3();
-            window.SceneManager.camera.getWorldDirection(cameraDirection);
-            
-            cameraDirection.y = 0;
-            cameraDirection.normalize();
-            
-            verticalPlane = new THREE.Plane(cameraDirection, 0);
-        }
-        
+        // For second point (or if no mesh hit in 3D), constrain to a plane passing through the first point according to view convention
+        const anchor = (this.drawingStep === 1 && this.targetPoint) ? this.targetPoint : null;
+        const plane = this.getConstraintPlane(anchor);
         const planeIntersect = new THREE.Vector3();
-        if (raycaster.ray.intersectPlane(verticalPlane, planeIntersect)) {
+        if (raycaster.ray.intersectPlane(plane, planeIntersect)) {
             return planeIntersect;
         }
 
         return null;
+    }
+
+    // Détermine le plan de projection selon la vue; si anchorPoint est fourni, le plan passe par ce point
+    getConstraintPlane(anchorPoint = null) {
+        const scope = (window.SceneManager && window.SceneManager.currentViewScope) ? window.SceneManager.currentViewScope : '3d';
+        const target = (window.SceneManager && window.SceneManager.controls && window.SceneManager.controls.target) ? window.SceneManager.controls.target : { x: 0, y: 0, z: 0 };
+
+        if (scope === 'top') {
+            // Plan XZ avec Y constant
+            const y = anchorPoint ? anchorPoint.y : 0;
+            return new THREE.Plane(new THREE.Vector3(0, 1, 0), -y);
+        }
+        if (scope === 'front' || scope === 'back') {
+            // Plan XY avec Z constant
+            const z = anchorPoint ? anchorPoint.z : target.z;
+            return new THREE.Plane(new THREE.Vector3(0, 0, 1), -z);
+        }
+        if (scope === 'left' || scope === 'right') {
+            // Plan ZY avec X constant (vue de côté)
+            const x = anchorPoint ? anchorPoint.x : target.x;
+            return new THREE.Plane(new THREE.Vector3(1, 0, 0), -x);
+        }
+        // Vue 3D: utiliser XZ avec Y constant (0 ou anchor)
+        const y = anchorPoint ? anchorPoint.y : 0;
+        return new THREE.Plane(new THREE.Vector3(0, 1, 0), -y);
     }
 
     showSnapIndicator(position) {
@@ -801,9 +950,13 @@ class TextLeaderTool {
             opacity: 0.8
         });
         const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+        arrow.name = 'tempLeaderArrow';
         arrow.position.copy(this.targetPoint);
         arrow.lookAt(textPoint);
         arrow.rotateX(-Math.PI / 2); // Corriger l'orientation pour pointer vers le point
+        // Échelle selon l'échelle choisie
+        const tempArrowMul = this.getArrowScale();
+        arrow.scale.set(tempArrowMul, tempArrowMul, tempArrowMul);
         lineGroup.add(arrow);
 
         this.temporaryLine = lineGroup;
@@ -904,12 +1057,15 @@ class TextLeaderTool {
                 lineStyleSelect.value
             );
             
-            // Désactiver l'outil et revenir en mode construction après création
-            console.log('📝 Texte créé - retour en mode construction');
+            // UX demandé: à la fin de la pose, sortir de l'outil et revenir en mode pose de brique
             this.closeEditDialog();
             this.deactivate();
-            // Forcer la réactivation du mode construction
-            this.activateConstructionMode();
+            if (window.toolbarManager && typeof window.toolbarManager.setInteractionMode === 'function') {
+                window.toolbarManager.setInteractionMode('placement');
+            } else {
+                // Fallback: tenter d'activer explicitement le mode construction
+                this.activateConstructionMode();
+            }
             return;
         }
         
@@ -937,8 +1093,13 @@ class TextLeaderTool {
             size: size,
             color: color,
             lineStyle: lineStyle,
+            // Associer à la vue courante (portée canonique)
+            view: (window.SceneManager && window.SceneManager.currentViewScope) ? window.SceneManager.currentViewScope : '3d',
             created: new Date(),
-            modified: new Date()
+            modified: new Date(),
+            // Capturer l'échelle au moment de la création pour éviter qu'elle change après
+            textScaleMultiplier: this.scaleMultiplier,
+            arrowScaleMultiplier: this.getCurrentArrowScale()
         };
 
         // Créer les objets 3D
@@ -1026,7 +1187,10 @@ class TextLeaderTool {
         arrow.lookAt(annotation.textPoint);
         arrow.rotateX(-Math.PI / 2); // Ajuster l'orientation pour pointer vers le point
         
-        group.add(arrow);
+    // Appliquer l'échelle propre à l'annotation
+    const arrowMul = (annotation.arrowScaleMultiplier !== undefined ? annotation.arrowScaleMultiplier : 1.0);
+    arrow.scale.set(arrowMul, arrowMul, arrowMul);
+    group.add(arrow);
         
         return group;
     }
@@ -1105,9 +1269,14 @@ class TextLeaderTool {
         sprite.position.copy(annotation.textPoint);
         sprite.position.y += 2; // Élever légèrement au-dessus du point
         
-        // Échelle proportionnelle à la taille du canvas
-        const scale = config.fontSize / 50; // Facteur d'échelle basé sur la taille de police
+    // Échelle proportionnelle à la taille du canvas avec multiplicateur propre à l'annotation
+    const localMul = (annotation.textScaleMultiplier !== undefined ? annotation.textScaleMultiplier : this.scaleMultiplier);
+    const scale = (config.fontSize / 50) * localMul; 
         sprite.scale.set(canvas.width / 100 * scale, canvas.height / 100 * scale, 1);
+
+        // Conserver la config pour des recalculs ultérieurs
+        annotation.canvas = canvas;
+        annotation.config = config;
 
         return sprite;
     }
@@ -1168,6 +1337,9 @@ class TextLeaderTool {
         
         group.position.copy(position);
         group.position.y += 0.8; // Élever la flèche au-dessus du point
+        // Échelle selon l'échelle choisie
+        const markerMul = this.getArrowScale();
+        group.scale.set(markerMul, markerMul, markerMul);
         return group;
     }
 
@@ -1283,16 +1455,8 @@ class TextLeaderTool {
 
     // Méthodes publiques pour l'activation/désactivation
     activate() {
-        this.isActive = true;
-        this.collectSnapPoints(); // Régénérer les points de snap
-        this.showInstructions();
-        this.deactivateOtherTools();
-        this.disableGhostBricks();
-        
-        // Reconfigurer les event listeners à chaque activation
-        this.setupEventListeners();
-        
-        // console.log('📝 Outil texte avec ligne de rappel activé');
+        // Toujours proposer l'échelle à l'activation
+        this.showScaleSelectionModal();
     }
 
     deactivate() {
@@ -1508,6 +1672,7 @@ class TextLeaderTool {
             size: annotation.size,
             color: annotation.color,
             lineStyle: annotation.lineStyle,
+            view: annotation.view || '3d',
             created: annotation.created,
             modified: annotation.modified
         }));
@@ -1518,7 +1683,7 @@ class TextLeaderTool {
         annotationsData.forEach(data => {
             const targetPoint = new THREE.Vector3(data.targetPoint.x, data.targetPoint.y, data.targetPoint.z);
             const textPoint = new THREE.Vector3(data.textPoint.x, data.textPoint.y, data.textPoint.z);
-            this.createTextAnnotation(
+            const a = this.createTextAnnotation(
                 targetPoint,
                 textPoint,
                 data.text,
@@ -1527,6 +1692,9 @@ class TextLeaderTool {
                 data.color,
                 data.lineStyle
             );
+            if (a && data.view) {
+                a.view = data.view;
+            }
         });
         console.log(`📝 ${annotationsData.length} annotations texte importées`);
     }

@@ -13,6 +13,8 @@ class MeasurementAnnotationManager {
         this.groupsReady = false;
         
         this.init();
+        // Vue active courante (portée canonique)
+        this.activeViewScope = (window.SceneManager && window.SceneManager.currentViewScope) ? window.SceneManager.currentViewScope : '3d';
     }
 
     init() {
@@ -44,6 +46,7 @@ class MeasurementAnnotationManager {
                 this.setupUI();
                 this.setupEventListeners();
                 this.setupToolbarIntegration();
+                this.setupViewFiltering();
                 this.isInitialized = true;
             }
             this.groupsReady = true;
@@ -59,6 +62,7 @@ class MeasurementAnnotationManager {
             this.setupUI();
             this.setupEventListeners();
             this.setupToolbarIntegration();
+            this.setupViewFiltering();
             this.isInitialized = true;
             this.groupsReady = false; // On attend encore les groupes
         }
@@ -242,6 +246,8 @@ class MeasurementAnnotationManager {
             const result = originalCreateMeasurement(...args);
             this.updateMeasurementCounter();
             this.updateMeasurementList();
+            // Appliquer le filtre de vue sur la nouvelle mesure
+            this.applyViewFilter(this.activeViewScope);
             return result;
         };
 
@@ -258,6 +264,8 @@ class MeasurementAnnotationManager {
             const result = originalCreateAnnotation(...args);
             this.updateAnnotationCounter();
             this.updateAnnotationList();
+            // Appliquer le filtre de vue sur la nouvelle annotation
+            this.applyViewFilter(this.activeViewScope);
             return result;
         };
 
@@ -272,6 +280,8 @@ class MeasurementAnnotationManager {
         const originalCreateTextAnnotation = this.textLeaderTool.createTextAnnotation.bind(this.textLeaderTool);
         this.textLeaderTool.createTextAnnotation = (...args) => {
             const result = originalCreateTextAnnotation(...args);
+            // Appliquer le filtre de vue sur la nouvelle annotation texte
+            this.applyViewFilter(this.activeViewScope);
             return result;
         };
 
@@ -279,6 +289,69 @@ class MeasurementAnnotationManager {
         this.textLeaderTool.removeTextAnnotation = (...args) => {
             originalRemoveTextAnnotation(...args);
         };
+    }
+
+    setupViewFiltering() {
+        // Écouter les changements de vue caméra
+        document.addEventListener('cameraViewChanged', (e) => {
+            const scope = e?.detail?.scope || '3d';
+            const viewName = e?.detail?.viewName || 'iso';
+            this.activeViewScope = scope;
+            // Synchroniser l'instance globale si présente
+            if (window.SceneManager) {
+                window.SceneManager.currentViewScope = scope;
+                window.SceneManager.currentViewName = viewName;
+            }
+            this.applyViewFilter(scope);
+        });
+        // Appliquer un filtre initial
+        this.applyViewFilter(this.activeViewScope);
+    }
+
+    // Applique la visibilité selon la portée de vue: 'left' | 'right' | 'front' | 'back' | 'top' | '3d'
+    applyViewFilter(scope) {
+        const s = scope || '3d';
+        // Mesures
+        if (this.measurementTool && this.measurementTool.measurements) {
+            this.measurementTool.measurements.forEach(m => {
+                const v = m.view || '3d';
+                const visible = (v === s);
+                if (m.group) {
+                    m.group.visible = visible;
+                    // Forcer visibilité de tous les enfants pour neutraliser d'éventuels masquages précédents
+                    try { m.group.traverse(obj => { obj.visible = visible; }); } catch (e) {}
+                }
+            });
+        }
+        // Annotations
+        if (this.annotationTool && this.annotationTool.annotations) {
+            this.annotationTool.annotations.forEach(a => {
+                const v = a.view || '3d';
+                const visible = (v === s);
+                if (a.sprite) a.sprite.visible = visible;
+            });
+        }
+        // TextLeader
+        if (this.textLeaderTool && this.textLeaderTool.textAnnotations) {
+            this.textLeaderTool.textAnnotations.forEach(a => {
+                const v = a.view || '3d';
+                const visible = (v === s);
+                if (a.group) {
+                    a.group.visible = visible;
+                    try { a.group.traverse(obj => { obj.visible = visible; }); } catch (e) {}
+                }
+            });
+        }
+        // Optionnel: mettre à jour les groupes parents visibles s'ils doivent tout masquer
+        if (this.measurementTool && this.measurementTool.measurementGroup) {
+            this.measurementTool.measurementGroup.visible = true; // garder le groupe visible, on gère enfant par enfant
+        }
+        if (this.annotationTool && this.annotationTool.annotationGroup) {
+            this.annotationTool.annotationGroup.visible = true;
+        }
+        if (this.textLeaderTool && this.textLeaderTool.textLeaderGroup) {
+            this.textLeaderTool.textLeaderGroup.visible = true;
+        }
     }
 
     integrateWithToolbarManager() {
@@ -660,12 +733,14 @@ class MeasurementAnnotationManager {
         this.measurementTool.importMeasurements(data);
         this.updateMeasurementCounter();
         this.updateMeasurementList();
+        this.applyViewFilter(this.activeViewScope);
     }
 
     loadAnnotationData(data) {
         this.annotationTool.importAnnotations(data);
         this.updateAnnotationCounter();
         this.updateAnnotationList();
+        this.applyViewFilter(this.activeViewScope);
     }
 
     // Méthodes publiques pour l'intégration externe
@@ -676,6 +751,7 @@ class MeasurementAnnotationManager {
     loadTextLeaderData(data) {
         if (data && Array.isArray(data)) {
             this.textLeaderTool.importTextAnnotations(data);
+            this.applyViewFilter(this.activeViewScope);
         }
     }
 

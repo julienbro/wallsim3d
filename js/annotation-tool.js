@@ -11,6 +11,10 @@ class AnnotationTool {
         this.currentEditingAnnotation = null;
         this.editDialog = null;
         
+        // Gestion d'échelle (1/20 ou 1/50), comme l'outil de mesure
+        this.currentScale = null; // 20 ou 50 après sélection
+        this.scaleMultiplier = 1.0; // facteur appliqué aux tailles
+        
         this.init();
     }
 
@@ -122,23 +126,79 @@ class AnnotationTool {
     }
 
     activate() {
-        // console.log('📝 Activation de l\'outil d\'annotation');
+        // Toujours proposer l'échelle à l'activation
+        this.showScaleSelectionModal();
+    }
+
+    activateAfterScaleSelection() {
+        // console.log('📝 Activation de l\'outil d\'annotation (après choix échelle)');
         this.isActive = true;
         this.showAnnotations();
         
-        // Changer le curseur
         if (window.SceneManager && window.SceneManager.renderer && window.SceneManager.renderer.domElement) {
             window.SceneManager.renderer.domElement.style.cursor = 'text';
         }
-        
-        // Désactiver la brique fantôme et les suggestions de placement
         this.disableGhostElement();
-        
-        // Afficher le message d'instruction
         this.showInstructions();
-        
-        // Désactiver les autres outils
         this.deactivateOtherTools();
+    }
+
+    showScaleSelectionModal() {
+        const modal = document.getElementById('measurementScaleModal');
+        if (!modal) {
+            console.error('❌ Modale de sélection d\'échelle non trouvée');
+            // Si la modale n'existe pas, utiliser par défaut 1/50
+            this.setScale(50);
+            this.activateAfterScaleSelection();
+            return;
+        }
+        modal.style.display = 'flex';
+        const scaleButtons = modal.querySelectorAll('.scale-choice-btn');
+        scaleButtons.forEach(btn => {
+            btn.onclick = () => {
+                const scale = parseInt(btn.dataset.scale);
+                this.setScale(scale);
+                modal.style.display = 'none';
+                this.activateAfterScaleSelection();
+            };
+        });
+        const closeModal = () => {
+            modal.style.display = 'none';
+            this.isActive = false;
+        };
+        const closeBtn = modal.querySelector('.modal-close');
+        if (closeBtn) closeBtn.onclick = closeModal;
+        modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+        const escHandler = (e) => { if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', escHandler); } };
+        document.addEventListener('keydown', escHandler);
+    }
+
+    setScale(scale) {
+        this.currentScale = scale;
+        // Aligner avec l'outil de mesure: 1/50 plus grand que 1/20
+        if (scale === 20) {
+            this.scaleMultiplier = 2.0; // base ×2
+        } else if (scale === 50) {
+            this.scaleMultiplier = 4.0; // base ×4 (plus grand que 1/20)
+        } else {
+            this.scaleMultiplier = 1.0;
+        }
+        // Mettre à jour les annotations existantes
+        this.refreshAnnotationsScale();
+    }
+
+    refreshAnnotationsScale() {
+        try {
+            this.annotations.forEach(a => {
+                if (a && a.sprite && a.canvas && a.sprite.scale) {
+                    // Recalcule l'échelle selon le ratio du canvas déjà appliqué
+                    const aspect = a.canvas.width / a.canvas.height;
+                    const style = this.getAnnotationStyle(a.type, a.size);
+                    const baseScale = style.scale * this.scaleMultiplier;
+                    a.sprite.scale.set(baseScale * aspect, baseScale, 1);
+                }
+            });
+        } catch (_) {}
     }
 
     deactivate() {
@@ -228,8 +288,8 @@ class AnnotationTool {
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(mouse, window.SceneManager.camera);
 
-        // Intersection avec le plan du sol (y = 0)
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    // Intersection avec un plan contraint selon la vue
+    const plane = this.getConstraintPlane();
         const intersection = new THREE.Vector3();
         
         if (raycaster.ray.intersectPlane(plane, intersection)) {
@@ -237,6 +297,22 @@ class AnnotationTool {
         }
 
         return null;
+    }
+
+    // Détermine le plan de projection selon la vue (XZ pour top, XY pour élévations)
+    getConstraintPlane() {
+        const scope = (window.SceneManager && window.SceneManager.currentViewScope) ? window.SceneManager.currentViewScope : '3d';
+        const target = (window.SceneManager && window.SceneManager.controls && window.SceneManager.controls.target) ? window.SceneManager.controls.target : { x: 0, y: 0, z: 0 };
+        if (scope === 'top') {
+            return new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // y=0 (plan XZ)
+        }
+        if (scope === 'front' || scope === 'back') {
+            return new THREE.Plane(new THREE.Vector3(0, 0, 1), -target.z); // z fixe (plan XY)
+        }
+        if (scope === 'left' || scope === 'right') {
+            return new THREE.Plane(new THREE.Vector3(1, 0, 0), -target.x); // x fixe (plan ZY)
+        }
+        return new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     }
 
     getAnnotationAtPoint(event) {
@@ -282,8 +358,12 @@ class AnnotationTool {
             text: text || 'Nouvelle annotation',
             type: type,
             size: size,
+            // Associer à la vue courante (portée canonique)
+            view: (window.SceneManager && window.SceneManager.currentViewScope) ? window.SceneManager.currentViewScope : '3d',
             created: new Date(),
-            modified: new Date()
+            modified: new Date(),
+            // Flag runtime pour savoir si c'est une nouvelle annotation (créée via UI)
+            _isNew: !text
         };
         
         // Créer l'objet 3D
@@ -382,9 +462,9 @@ class AnnotationTool {
         sprite.position.y += style.height; // Élever au-dessus du sol
         
         // Ajuster l'échelle du sprite selon les dimensions réelles du canvas
-        const aspectRatio = canvas.width / canvas.height;
-        const baseScale = style.scale;
-        sprite.scale.set(baseScale * aspectRatio, baseScale, 1);
+    const aspectRatio = canvas.width / canvas.height;
+    const baseScale = style.scale * this.scaleMultiplier;
+    sprite.scale.set(baseScale * aspectRatio, baseScale, 1);
         
         // Ajouter les métadonnées pour la sélection
         sprite.userData.annotationId = annotation.id;
@@ -570,14 +650,15 @@ class AnnotationTool {
             return;
         }
         
-        // Vérifier si c'est une nouvelle annotation (created === modified)
-        const isNewAnnotation = this.currentEditingAnnotation.created.getTime() === this.currentEditingAnnotation.modified.getTime();
+    // Vérifier si c'est une nouvelle annotation via un flag explicite (plus fiable)
+    const isNewAnnotation = this.currentEditingAnnotation._isNew === true;
         
         // Mettre à jour l'annotation
         this.currentEditingAnnotation.text = newText;
         this.currentEditingAnnotation.type = typeSelect.value;
         this.currentEditingAnnotation.size = sizeSelect.value;
-        this.currentEditingAnnotation.modified = new Date();
+    this.currentEditingAnnotation.modified = new Date();
+    this.currentEditingAnnotation._isNew = false;
         
         // Recréer l'objet 3D
         this.annotationGroup.remove(this.currentEditingAnnotation.sprite);
@@ -594,7 +675,7 @@ class AnnotationTool {
         // Désactiver l'outil uniquement pour les nouvelles annotations
         if (isNewAnnotation) {
             this.deactivate();
-            // Forcer la réactivation du mode construction
+            // Forcer la réactivation du mode construction (UI + interactions)
             this.activateConstructionMode();
         }
     }
@@ -765,6 +846,7 @@ class AnnotationTool {
             text: annotation.text,
             type: annotation.type,
             size: annotation.size,
+            view: annotation.view || '3d',
             created: annotation.created,
             modified: annotation.modified
         }));
@@ -775,7 +857,10 @@ class AnnotationTool {
         
         annotationsData.forEach(data => {
             const position = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
-            this.createAnnotation(position, data.text, data.type, data.size);
+            const a = this.createAnnotation(position, data.text, data.type, data.size);
+            if (a && data.view) {
+                a.view = data.view;
+            }
         });
         
         console.log(`📝 ${annotationsData.length} annotations importées`);
@@ -796,33 +881,38 @@ class AnnotationTool {
 
     // Méthode pour forcer l'activation du mode construction
     activateConstructionMode() {
-        // console.log('🔧 Activation forcée du mode construction');
-        
+        // Réinitialiser la barre d'outils au mode sélection par défaut (même logique que MeasurementTool)
+        if (window.ToolbarManager) {
+            if (window.ToolbarManager.toolButtons) {
+                window.ToolbarManager.toolButtons.forEach(btn => btn.classList.remove('active'));
+            }
+            const selectButton = document.getElementById('selectTool');
+            if (selectButton) {
+                selectButton.classList.add('active');
+            }
+            window.ToolbarManager.currentTool = 'select';
+            window.ToolbarManager.isToolActive = false;
+            window.ToolbarManager.interactionMode = 'construction';
+            if (typeof window.ToolbarManager.hideInstruction === 'function') {
+                window.ToolbarManager.hideInstruction();
+            }
+        }
+
         if (window.ConstructionTools) {
-            // S'assurer que le mode de placement est actif
+            // S'assurer que le mode de placement est actif et visible
             window.ConstructionTools.isPlacementMode = true;
             window.ConstructionTools.showGhost = true;
-            
-            // Réactiver l'élément fantôme seulement s'il n'y a pas de suggestions actives
             if (window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.mesh) {
                 if (!window.ConstructionTools.activeBrickForSuggestions) {
                     window.ConstructionTools.ghostElement.mesh.visible = true;
                 }
             }
-            
-            // Réactiver les suggestions
             if (window.ConstructionTools.activateSuggestions) {
                 window.ConstructionTools.activateSuggestions();
             }
-            
-            // Réactiver les interactions avec les briques
             if (window.ConstructionTools.enableBrickInteractions) {
                 window.ConstructionTools.enableBrickInteractions();
             }
-            
-            // console.log('✅ Mode construction activé');
-        } else {
-            console.warn('⚠️ ConstructionTools non disponible');
         }
     }
     
