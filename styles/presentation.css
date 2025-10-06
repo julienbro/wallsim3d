@@ -38,6 +38,41 @@
     align-items: center;
 }
 
+/* Bouton Export Image (JPG) */
+.export-image-button {
+    display: flex;
+    align-items: center;
+}
+
+.export-image-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #007bff, #0d6efd);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.3);
+    position: relative;
+    white-space: nowrap;
+}
+
+.export-image-btn:hover {
+    background: linear-gradient(135deg, #0b5ed7, #0a58ca);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.4);
+    transform: translateY(-1px);
+}
+
+.export-image-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.3);
+}
+
 .present-btn {
     display: flex;
     align-items: center;
