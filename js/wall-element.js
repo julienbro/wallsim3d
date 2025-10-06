@@ -11,6 +11,8 @@ class WallElement {
         this.id = this.generateId();
         this.type = options.type || 'brick'; // brick, block, insulation
         this.material = options.material || this.getDefaultMaterial(options);
+        
+        console.log('🔧 WallElement constructor - Material final:', this.material, '(passé:', options.material, ')');
         this.position = {
             x: options.x || 0,
             y: options.y || 0,
@@ -358,6 +360,49 @@ class WallElement {
             }
         }
 
+        // Profil aluminium (PROFIL_*): créer un tube carré creux 6.5×6.5
+        if (!geometry && this.blockType && typeof this.blockType === 'string' && this.blockType.toUpperCase().startsWith('PROFIL')) {
+            try {
+                const side = Math.min(this.dimensions.length, this.dimensions.width);
+                const height = this.dimensions.height;
+                const t = Math.max(0.4, Math.min(1.0, side * 0.12)); // épaisseur des parois ~12% (bornes 0.4–1.0cm)
+
+                const half = side / 2;
+                const innerHalf = Math.max(0, half - t);
+
+                const shape = new THREE.Shape();
+                // carré extérieur (CCW)
+                shape.moveTo(-half,  half);
+                shape.lineTo( half,  half);
+                shape.lineTo( half, -half);
+                shape.lineTo(-half, -half);
+                shape.lineTo(-half,  half);
+
+                // trou intérieur (CW)
+                const hole = new THREE.Path();
+                hole.moveTo(-innerHalf,  innerHalf);
+                hole.lineTo( innerHalf,  innerHalf);
+                hole.lineTo( innerHalf, -innerHalf);
+                hole.lineTo(-innerHalf, -innerHalf);
+                hole.lineTo(-innerHalf,  innerHalf);
+                shape.holes = shape.holes || [];
+                shape.holes.push(hole);
+
+                const extrude = new THREE.ExtrudeGeometry(shape, {
+                    steps: 1,
+                    depth: Math.max(1, height),
+                    bevelEnabled: false
+                });
+                // Centrer sur l'axe d'extrusion (Z) puis faire tourner pour aligner la profondeur avec Y
+                extrude.translate(0, 0, -height / 2);
+                extrude.rotateX(-Math.PI / 2);
+
+                geometry = extrude;
+            } catch (e) {
+                console.warn('⚠️ Création géométrie PROFIL échouée, fallback BoxGeometry. Raison:', e);
+            }
+        }
+
         // Fallback box si pas une poutre ou si profil indisponible
         if (!geometry) {
             geometry = new THREE.BoxGeometry(
@@ -378,6 +423,11 @@ class WallElement {
         let material = null;
         if (window.MaterialLibrary) {
             material = window.MaterialLibrary.getThreeJSMaterial(this.material);
+            console.log('🔧 WallElement.createMesh() - Matériau demandé:', this.material, '→ trouvé:', !!material);
+            console.log('🔧 Type élément:', this.type, '- blockType:', this.blockType);
+            if (material && material.map) {
+                console.log('🔧 Texture du matériau:', material.map.image?.src || 'pas encore chargée');
+            }
             // console.log('🔧 MaterialLibrary.getThreeJSMaterial:', this.material, '→', material ? 'trouvé' : 'NON TROUVÉ');
             if (material) {
                 // FORCER le matériau à être SOLIDE (pas wireframe)
@@ -576,6 +626,51 @@ class WallElement {
                     this.mesh.rotation.y = Math.PI / 2;
                     // Edges seront recréés par createEdges()
                 } else {
+                    this.mesh.geometry = new THREE.BoxGeometry(
+                        this.dimensions.length,
+                        this.dimensions.height,
+                        this.dimensions.width
+                    );
+                }
+            } else if (this.blockType && typeof this.blockType === 'string' && this.blockType.toUpperCase().startsWith('PROFIL')) {
+                // Conserver la géométrie de tube carré creux pour les PROFIL_*
+                try {
+                    const side = Math.min(this.dimensions.length, this.dimensions.width);
+                    const h = this.dimensions.height;
+                    const t = Math.max(0.4, Math.min(1.0, side * 0.12));
+
+                    const half = side / 2;
+                    const innerHalf = Math.max(0, half - t);
+
+                    const shape = new THREE.Shape();
+                    // carré extérieur (CCW)
+                    shape.moveTo(-half,  half);
+                    shape.lineTo( half,  half);
+                    shape.lineTo( half, -half);
+                    shape.lineTo(-half, -half);
+                    shape.lineTo(-half,  half);
+
+                    // trou intérieur (CW)
+                    const hole = new THREE.Path();
+                    hole.moveTo(-innerHalf,  innerHalf);
+                    hole.lineTo( innerHalf,  innerHalf);
+                    hole.lineTo( innerHalf, -innerHalf);
+                    hole.lineTo(-innerHalf, -innerHalf);
+                    hole.lineTo(-innerHalf,  innerHalf);
+                    shape.holes = shape.holes || [];
+                    shape.holes.push(hole);
+
+                    const extrude = new THREE.ExtrudeGeometry(shape, {
+                        steps: 1,
+                        depth: Math.max(1, h),
+                        bevelEnabled: false
+                    });
+                    // Centrer et orienter comme dans createMesh()
+                    extrude.translate(0, 0, -h / 2);
+                    extrude.rotateX(-Math.PI / 2);
+                    this.mesh.geometry = extrude;
+                } catch (e) {
+                    console.warn('⚠️ updateDimensions PROFIL: échec création géométrie, fallback BoxGeometry. Raison:', e);
                     this.mesh.geometry = new THREE.BoxGeometry(
                         this.dimensions.length,
                         this.dimensions.height,

@@ -283,10 +283,25 @@ class MaterialLibrary {
                 price: 1.10,
                 section: 'metaux',
                 description: 'Acier structurel gris moyen (profilés standards).',
-                rgb: '(126, 132, 135)'
+                rgb: '(126, 132, 135)',
+                mapUrl: 'assets/textures/acier.png'
+            },
+            // Alias pour acier
+            'acier': {
+                name: 'Acier',
+                color: 0x7E8487,
+                roughness: 0.45,
+                metalness: 0.85,
+                density: 7850,
+                thermalConductivity: 50,
+                price: 1.10,
+                section: 'metaux',
+                description: 'Acier structurel gris moyen (profilés standards).',
+                rgb: '(126, 132, 135)',
+                mapUrl: 'assets/textures/acier.png'
             },
             'aluminium': {
-                name: 'Aluminium Anodisé',
+                name: 'Aluminium',
                 color: 0xA4A8AB,
                 roughness: 0.3,
                 metalness: 0.8,
@@ -295,7 +310,25 @@ class MaterialLibrary {
                 price: 1.80,
                 section: 'metaux',
                 description: 'Le gris neutre et mat des châssis et menuiseries modernes.',
-                rgb: '(164, 168, 171)'
+                rgb: '(164, 168, 171)',
+                mapUrl: 'assets/textures/aluminium.jpg',
+                // Texture actuelle jugée trop "serrée" → réduire la répétition pour un motif plus large
+                // Ajustable si nécessaire (ex: 0.25 pour encore plus large ou 0.5 pour plus fin)
+                repeat: { x: 0.33, y: 0.33 }
+            },
+            // Variante sans texture: aluminium uni gris clair
+            'aluminium-plain': {
+                name: 'Aluminium (uni gris clair)',
+                color: 0xD0D3D6, // gris clair
+                roughness: 0.55,
+                metalness: 0.15,
+                density: 2700,
+                thermalConductivity: 237,
+                price: 1.80,
+                section: 'metaux',
+                description: 'Version sans texture (uni) pour un rendu gris clair propre.',
+                rgb: '(208, 211, 214)'
+                // Pas de mapUrl → matériau couleur unie
             },
             'zinc-naturel': {
                 name: 'Zinc Naturel (neuf)',
@@ -405,7 +438,9 @@ class MaterialLibrary {
                 price: 0.35,
                 section: 'briques-tuiles',
                 description: 'Le rouge profond et chaleureux de la brique de construction traditionnelle.',
-                rgb: '(160, 61, 50)'
+                rgb: '(160, 61, 50)',
+                mapUrl: 'assets/textures/brique_rouge_1.png',
+                repeat: { x: 1, y: 1 }
             },
             'brique-flandre': {
                 name: 'Brique de Flandre (Sablée)',
@@ -417,7 +452,9 @@ class MaterialLibrary {
                 price: 0.42,
                 section: 'briques-tuiles',
                 description: 'Une brique de teinte jaune-beige, couleur sable.',
-                rgb: '(224, 199, 166)'
+                rgb: '(224, 199, 166)',
+                mapUrl: 'assets/textures/brique_claire_1.png',
+                repeat: { x: 1, y: 1 }
             },
             'brique-recuperation': {
                 name: 'Brique de Récupération',
@@ -441,7 +478,9 @@ class MaterialLibrary {
                 price: 0.45,
                 section: 'briques-tuiles',
                 description: 'Une brique moderne, de couleur chocolat ou café.',
-                rgb: '(109, 76, 65)'
+                rgb: '(109, 76, 65)',
+                mapUrl: 'assets/textures/brique_brune_1.png',
+                repeat: { x: 1, y: 1 }
             },
             'brique-grise': {
                 name: 'Brique Grise Claire',
@@ -453,7 +492,9 @@ class MaterialLibrary {
                 price: 0.38,
                 section: 'briques-tuiles',
                 description: 'Une brique de ciment ou d\'argile de couleur gris clair.',
-                rgb: '(189, 189, 189)'
+                rgb: '(189, 189, 189)',
+                mapUrl: 'assets/textures/brique_grise_1.png',
+                repeat: { x: 1, y: 1 }
             },
             'brique-anthracite': {
                 name: 'Brique Anthracite',

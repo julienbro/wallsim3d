@@ -995,6 +995,24 @@ class SceneManager {
                                                     try { this.activateJointControlInterface('left'); } catch(_) {}
                                                 }
                                             } catch(_) {}
+                                        } else if (position === '950101') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 950101 → DROIT (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                    try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '090201') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 090201 → DROIT (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                    try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
                                         } else if (position === '090401') {
                                             const targetElement = capturedReferenceElement;
                                             console.log('🧪 JOINT-DEBUG (anim-continuation): 090401 → DROIT (référence)', { targetId: targetElement?.id });
@@ -1007,6 +1025,24 @@ class SceneManager {
                                         } else if (position === '430401') {
                                             const targetElement = capturedReferenceElement;
                                             console.log('🧪 JOINT-DEBUG (anim-continuation): 430401 → DROIT (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                    try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '464101') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 464101 → DROIT (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                    try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '461101') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 461101 → DROIT (référence)', { targetId: targetElement?.id });
                                             try {
                                                 if (window.ConstructionTools && targetElement) {
                                                     window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
@@ -1122,16 +1158,25 @@ class SceneManager {
                                                 }
                                             } catch(_) {}
                                         } else {
-                                            const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
-                                            const targetElement = placedElement || this.getLastPlacedElement();
-                                            console.log('🧪 JOINT-DEBUG (anim-continuation):', { letter: position, isLeftSide, targetId: targetElement?.id });
-                                            try {
-                                                if (window.ConstructionTools && targetElement) {
-                                                    const side = isLeftSide ? 'left' : 'right';
-                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, side);
-                                                    try { this.activateJointControlInterface(side); } catch(_) {}
-                                                }
-                                            } catch(_) {}
+                                            // ✅ CORRECTION: Pour les continuités longitudinales simples (XX01/XX02), 
+                                            // ne PAS créer de joint automatique
+                                            const posStr = String(position);
+                                            const isContinuityAB = posStr.endsWith('01') || posStr.endsWith('02');
+                                            
+                                            if (isContinuityAB) {
+                                                console.log(`🔧 JOINT-DEBUG: ${position} est une continuité simple (${posStr.endsWith('01') ? 'A' : 'B'}) → PAS de joint automatique`);
+                                            } else {
+                                                const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
+                                                const targetElement = placedElement || this.getLastPlacedElement();
+                                                console.log('🧪 JOINT-DEBUG (anim-continuation):', { letter: position, isLeftSide, targetId: targetElement?.id });
+                                                try {
+                                                    if (window.ConstructionTools && targetElement) {
+                                                        const side = isLeftSide ? 'left' : 'right';
+                                                        window.ConstructionTools.createSpecificVerticalJoint(targetElement, side);
+                                                        try { this.activateJointControlInterface(side); } catch(_) {}
+                                                    }
+                                                } catch(_) {}
+                                            }
                                         }
                                     }
                                     
@@ -1486,6 +1531,24 @@ class SceneManager {
                                                 try { this.activateJointControlInterface('left'); } catch(_) {}
                                             }
                                         } catch(_) {}
+                                    } else if (position === '950101') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 950101 → DROIT (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '090201') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 090201 → DROIT (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
                                     } else if (position === '090401') {
                                         const targetElement = capturedReferenceElement;
                                         console.log('🧪 JOINT-DEBUG (fallback-continuation): 090401 → DROIT (référence)', { targetId: targetElement?.id });
@@ -1498,6 +1561,24 @@ class SceneManager {
                                     } else if (position === '430401') {
                                         const targetElement = capturedReferenceElement;
                                         console.log('🧪 JOINT-DEBUG (fallback-continuation): 430401 → DROIT (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '464101') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 464101 → DROIT (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '461101') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 461101 → DROIT (référence)', { targetId: targetElement?.id });
                                         try {
                                             if (window.ConstructionTools && targetElement) {
                                                 window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
@@ -1613,16 +1694,25 @@ class SceneManager {
                                             }
                                         } catch(_) {}
                                     } else {
-                                        const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
-                                        const targetElement = placedElement || this.getLastPlacedElement();
-                                        console.log('🧪 JOINT-DEBUG (fallback-continuation):', { letter: position, isLeftSide, targetId: targetElement?.id });
-                                        try {
-                                            if (window.ConstructionTools && targetElement) {
-                                                const side = isLeftSide ? 'left' : 'right';
-                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, side);
-                                                try { this.activateJointControlInterface(side); } catch(_) {}
-                                            }
-                                        } catch(_) {}
+                                        // ✅ CORRECTION: Pour les continuités longitudinales simples (XX01/XX02), 
+                                        // ne PAS créer de joint automatique
+                                        const posStr = String(position);
+                                        const isContinuityAB = posStr.endsWith('01') || posStr.endsWith('02');
+                                        
+                                        if (isContinuityAB) {
+                                            console.log(`🔧 JOINT-DEBUG (fallback): ${position} est une continuité simple (${posStr.endsWith('01') ? 'A' : 'B'}) → PAS de joint automatique`);
+                                        } else {
+                                            const isLeftSide = this.shouldCreateLeftJoint(position, suggestionType);
+                                            const targetElement = placedElement || this.getLastPlacedElement();
+                                            console.log('🧪 JOINT-DEBUG (fallback-continuation):', { letter: position, isLeftSide, targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    const side = isLeftSide ? 'left' : 'right';
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, side);
+                                                    try { this.activateJointControlInterface(side); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        }
                                     }
                                 }
 
@@ -2883,9 +2973,19 @@ class SceneManager {
     }
         
         // Pour les blocs, récupérer le type original avec l'info de coupe depuis BlockSelector
-        if (type === 'block' && window.BlockSelector && window.BlockSelector.currentBlock) {
-            originalBlockType = window.BlockSelector.currentBlock;
-            console.log('🔧 DEBUG placeElementAt: originalBlockType depuis BlockSelector =', originalBlockType);
+        if (type === 'block') {
+            if (window.BlockSelector && window.BlockSelector.currentBlock) {
+                originalBlockType = window.BlockSelector.currentBlock;
+                console.log('🔧 DEBUG placeElementAt: originalBlockType depuis BlockSelector =', originalBlockType);
+            }
+            // ✅ Cas spécial PROFIL: si BrickSelector pointe sur PROFIL_*, prioriser ce type
+            try {
+                const curType = window.BrickSelector?.getCurrentType?.();
+                if (typeof curType === 'string' && curType.toUpperCase().startsWith('PROFIL')) {
+                    originalBlockType = curType;
+                    console.log('🔧 DEBUG placeElementAt: originalBlockType surchargé par PROFIL =', originalBlockType);
+                }
+            } catch (_) {}
         }
         
         // Pour les briques, récupérer le type original avec l'info de coupe
@@ -2908,9 +3008,38 @@ class SceneManager {
         // // console.log(`🔧 DEBUG placeElementAt: type=${type}, material=${material}`);
         // // console.log(`🔧 DEBUG placeElementAt: blockType=${blockType}`);
         
+        // PROFIL: considérer PROFIL seulement si la sélection de la bibliothèque est un PROFIL
+        let isProfil = false;
+        try {
+            const sel = window.TabManager?.selectedLibraryItem;
+            if (typeof sel === 'string' && sel.toUpperCase().startsWith('PROFIL')) {
+                isProfil = true;
+            }
+            // Ou si le fantôme courant est marqué profil
+            if (!isProfil && window.ConstructionTools?.ghostElement?.userData?.isProfil) {
+                isProfil = true;
+            }
+        } catch(_) {}
+
     // CORRECTION: Utiliser les dimensions selon le type d'élément
         let length, width, height;
-        if (type === 'slab' && window.ConstructionTools && window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.dimensions) {
+        if (isProfil) {
+            // PROFIL: priorité aux dimensions du fantôme, sinon BrickSelector, sinon défaut
+            if (window.ConstructionTools?.ghostElement?.dimensions) {
+                const d = window.ConstructionTools.ghostElement.dimensions;
+                length = d.length; width = d.width; height = d.height;
+            } else if (window.BrickSelector && typeof window.BrickSelector.getCurrentBrick === 'function') {
+                const b = window.BrickSelector.getCurrentBrick();
+                if (b && typeof b.type === 'string' && b.type.toUpperCase().startsWith('PROFIL')) {
+                    length = 6.5; width = 6.5; height = b.height || 100;
+                }
+            }
+            // Sécurité défaut si valeurs manquantes
+            if (!length || !width || !height) {
+                length = 6.5; width = 6.5; height = 100;
+            }
+        }
+        else if (type === 'slab' && window.ConstructionTools && window.ConstructionTools.ghostElement && window.ConstructionTools.ghostElement.dimensions) {
             // Dalle personnalisée: reprendre exactement les dimensions du fantôme (utilisateur)
             const d = window.ConstructionTools.ghostElement.dimensions;
             length = d.length; width = d.width; height = d.height;
@@ -3032,6 +3161,19 @@ class SceneManager {
         if (customY !== null) {
             y = customY;
             console.log(`🎯 Utilisation de la hauteur personnalisée: Y = ${y} cm`);
+        } else if (isProfil) {
+            // PROFIL: ignorer les assises. Utiliser empilage si support détecté, sinon poser au sol (centre à H/2)
+            if (!supportElement) {
+                const stackingResult = this.findAutoStackingHeight(snapX, snapZ);
+                if (stackingResult && stackingResult.supportElement) {
+                    y = stackingResult.height; // déjà en centre
+                    supportElement = stackingResult.supportElement;
+                } else {
+                    y = (height || 0) / 2;
+                }
+            } else {
+                y = supportElement.position.y + supportElement.dimensions.height;
+            }
         } else if (type === 'slab') {
             // Dalle: base au sol (Y=0) → centre à H/2, ignorer empilage et assises
             y = (height || 0) / 2;
@@ -3105,9 +3247,10 @@ class SceneManager {
                 // Ne pas générer de nom d'assise pour les poutres
                 if (type === 'beam' || type === 'slab') return null;
                 if (window.AssiseManager) {
-                    const currentType = window.AssiseManager.currentType;
-                    const idx = window.AssiseManager.currentAssiseByType.get(currentType) || 0;
-                    return `${currentType}-A${idx}`;
+                    // PROFIL: forcer l'assiseName à utiliser le type 'PROFIL'
+                    const nameType = (typeof isProfil !== 'undefined' && isProfil) ? 'PROFIL' : window.AssiseManager.currentType;
+                    const idx = window.AssiseManager.currentAssiseByType.get(nameType) ?? 0;
+                    return `${nameType}-A${idx}`;
                 }
                 return null;
             })()
@@ -3133,8 +3276,19 @@ class SceneManager {
                 insulationType = 'PUR'; // fallback raisonnable
             }
             elementOptions.insulationType = insulationType;
+        } else if (window.formeAcierConfig && window.formeAcierConfig.type && window.formeAcierConfig.type.startsWith('forme_acier')) {
+            // Profil retiré: ignorer configuration forme_acier
+            console.log('ℹ️ Profil (forme_acier) retiré — configuration ignorée');
+            elementOptions.blockType = originalBlockType;
         } else {
-            elementOptions.blockType = originalBlockType; // conserver l'info de coupe pour briques/blocs/linteaux/dalles
+            // PROFIL: propager le type PROFIL_* si sélectionné via BrickSelector
+            if (isProfil) {
+                // Utiliser le type depuis la sélection de la bibliothèque si possible
+                let profilType = window.TabManager?.selectedLibraryItem || originalBlockType;
+                elementOptions.blockType = profilType;
+            } else {
+                elementOptions.blockType = originalBlockType; // conserver l'info de coupe pour briques/blocs/linteaux/dalles
+            }
         }
 
         // Ajouter les informations GLB si applicable
@@ -3213,6 +3367,21 @@ class SceneManager {
                 detail: { element }
             }));
             
+            // 🧹 PROFIL: si on vient de placer un profil sélectionné depuis la bibliothèque,
+            // nettoyer la sélection pour permettre de cliquer un bloc/brique ensuite
+            try {
+                const sel = window.TabManager?.selectedLibraryItem;
+                if (typeof sel === 'string' && sel.toUpperCase().startsWith('PROFIL')) {
+                    if (typeof window.TabManager?.clearLibrarySelection === 'function') {
+                        window.TabManager.clearLibrarySelection();
+                    } else {
+                        // Fallback: retirer les classes sélectionnées
+                        document.querySelectorAll('.library-item.selected, .library-item.active').forEach(it => it.classList.remove('selected','active'));
+                        if (window.TabManager) window.TabManager.selectedLibraryItem = null;
+                    }
+                }
+            } catch(_) {}
+            
             // CORRECTION: Retourner l'élément créé pour les fonctions qui en ont besoin
             return element;
         } else {
@@ -3285,7 +3454,11 @@ class SceneManager {
         }
         
         // Ajouter automatiquement l'élément à l'assise active (inclut maintenant les poutres)
-        if (window.AssiseManager && element.type !== 'slab') {
+        // EXCEPTION: Ne pas ajouter les outils GLB (blochet, etc.) ni les formes acier génériques
+        const isToolGLB = element.type === 'glb' && element.userData && element.userData.isTool;
+        const isFormeAcier = element.blockType && element.blockType.startsWith('forme_acier');
+        
+        if (window.AssiseManager && element.type !== 'slab' && !isToolGLB && !isFormeAcier) {
             const beforeY = element.position.y;
             window.AssiseManager.addElementToAssise(element.id);
             if (element.type === 'beam') {
@@ -3299,10 +3472,16 @@ class SceneManager {
                     element.updatePosition(element.position.x, 0, element.position.z);
                 }
             }
+        } else if (isToolGLB) {
+            console.log('🔧 Outil GLB détecté (blochet, etc.) - Non ajouté aux assises');
+        } else if (isFormeAcier) {
+            console.log('🔧 Forme acier générique détectée - Non ajoutée aux assises');
         }
         
         // NOUVELLE FONCTIONNALITÉ : Joint horizontal automatique pour chaque élément de construction posé
-    if (!element.isVerticalJoint && !element.isHorizontalJoint && (element.type === 'brick' || element.type === 'block') && element.type !== 'insulation') {
+        // EXCEPTION: Ne pas créer de joints pour les formes acier ni pour les PROFIL_*
+        const isProfilType = element.blockType && typeof element.blockType === 'string' && element.blockType.toUpperCase().startsWith('PROFIL');
+        if (!element.isVerticalJoint && !element.isHorizontalJoint && !isFormeAcier && !isProfilType && (element.type === 'brick' || element.type === 'block') && element.type !== 'insulation') {
             // console.log('🔧 Activation automatique du joint horizontal pour:', element.type, element.id);
             this.createAutomaticHorizontalJoint(element);
         }
@@ -3493,6 +3672,33 @@ class SceneManager {
     removeElement(elementId) {
         const element = this.elements.get(elementId);
         if (element) {
+            // NOUVEAU: Supprimer tous les joints associés à cet élément
+            const jointsToRemove = [];
+            this.elements.forEach((el, id) => {
+                // Vérifier si c'est un joint associé à l'élément qu'on supprime
+                if (el.userData?.parentElementId === elementId || 
+                    el.mesh?.userData?.parentElementId === elementId) {
+                    jointsToRemove.push(id);
+                }
+            });
+            
+            // Supprimer les joints associés
+            if (jointsToRemove.length > 0) {
+                console.log(`🗑️ Suppression de ${jointsToRemove.length} joint(s) associé(s) à l'élément ${elementId}`);
+                jointsToRemove.forEach(jointId => {
+                    const joint = this.elements.get(jointId);
+                    if (joint) {
+                        // Retirer le joint de son assise
+                        if (window.AssiseManager) {
+                            window.AssiseManager.removeElementFromAssise(jointId);
+                        }
+                        this.scene.remove(joint.mesh);
+                        joint.dispose();
+                        this.elements.delete(jointId);
+                    }
+                });
+            }
+            
             // Intégration avec le système de calques
             if (window.LayerManager) {
                 window.LayerManager.onElementRemoved(element.mesh);
@@ -6077,6 +6283,34 @@ class SceneManager {
                 console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → GAUCHE (référence)`);
                 window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
                 try { this.activateJointControlInterface('left'); } catch(_) {}
+                return; // Ne pas créer d'autres joints pour éviter les doublons
+            }
+            // 950101 → activer le joint DROIT uniquement sur le bloc de référence
+            if (suggestionLetter === '950101') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): 950101 → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return; // Ne pas créer d'autres joints pour éviter les doublons
+            }
+            // 090201 → activer le joint DROIT uniquement sur le bloc de référence
+            if (suggestionLetter === '090201') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): 090201 → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return; // Ne pas créer d'autres joints pour éviter les doublons
+            }
+            // 464101 → activer le joint DROIT uniquement sur le bloc de référence
+            if (suggestionLetter === '464101') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): 464101 → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return; // Ne pas créer d'autres joints pour éviter les doublons
+            }
+            // 461101 → activer le joint DROIT uniquement sur le bloc de référence
+            if (suggestionLetter === '461101') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): 461101 → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
                 return; // Ne pas créer d'autres joints pour éviter les doublons
             }
         } catch(_) {}

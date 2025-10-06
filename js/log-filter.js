@@ -42,7 +42,10 @@
   'TabManager contient un type non-brique IGNORÉ','Sélection TabManager non-brique ignorée',
   'Création d\'un fantôme GLB','DEBUG PLACEMENT','PLACEMENT DEBUG',
   // Debug joints & isolation UI
-  '[JOINT-DBG]','Isolant défini','Déjà en mode insulation','🔄'
+  '[JOINT-DBG]','Isolant défini','Déjà en mode insulation','🔄',
+  // Debug détection blocs (BC5, BC-CORRECTION, etc.)
+  '[BC5-DEBUG]','[BC-CORRECTION]','[DIRECT]','[ARGEX-DEBUG]',
+  'DÉBUT DÉTECTION detectBlockSubType','Element passé:','détecté via blockType'
   ];
   const customMutedPrefixes = new Set();
   function isDebugMessage(args){
@@ -56,7 +59,8 @@
     return debugMarkers.some(mark => first.includes(mark));
   }
   // Liste de marqueurs à supprimer complètement (aucune sortie, quel que soit le niveau)
-  const alwaysMute = ['🔧','🔗','🎨','🔍','✅','🏥','📊', 'Live reload enabled'];
+  const alwaysMute = ['🔧','🔗','🎨','🔍','✅','🏥','📊', 'Live reload enabled',
+    'Bouton pinceau non trouvé', 'PATCH: Élément', 'non trouvé'];
   function allow(kind, args){
     if(kind === 'error' || kind === 'warn') return level >= 1; // always show warns/errors if level>=1
     if(kind === 'info') return level >= 2;

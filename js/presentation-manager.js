@@ -220,6 +220,45 @@ class PresentationManager {
             presentBtn._presentationEventAdded = true;
         }
 
+        // Bouton Export JPG (capture de la vue 3D)
+        const exportJpgBtn = document.getElementById('exportJpgBtn');
+        if (exportJpgBtn && !exportJpgBtn._exportEventAdded) {
+            exportJpgBtn.addEventListener('click', async () => {
+                try {
+                    // Préférence: utiliser la capture avec masquage des fantômes
+                    let dataUrl = null;
+                    if (typeof this.captureCurrentView === 'function') {
+                        const canvas = await this.captureCurrentView('perspective');
+                        if (canvas) {
+                            dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+                        }
+                    }
+
+                    // Fallback: capture directe si indisponible
+                    if (!dataUrl && window.SceneManager && typeof window.SceneManager.captureImage === 'function') {
+                        dataUrl = window.SceneManager.captureImage('jpg');
+                    }
+
+                    if (!dataUrl) {
+                        console.error('❌ Impossible de capturer l\'image');
+                        return;
+                    }
+
+                    // Déclencher le téléchargement
+                    const link = document.createElement('a');
+                    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+                    link.download = `walsim3d-view-${ts}.jpg`;
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    requestAnimationFrame(() => link.remove());
+                } catch (e) {
+                    console.error('❌ Erreur export JPG:', e);
+                }
+            });
+            exportJpgBtn._exportEventAdded = true;
+        }
+
         // Bouton Impression 3D
         const print3dBtn = document.getElementById('print3dBtn');
         if (print3dBtn) {

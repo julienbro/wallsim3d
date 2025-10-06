@@ -500,6 +500,7 @@ class ConstructionTools {
             // Nettoyer existants
             this.clearEdgeSnapPoints();
             this.edgeSnapPoints = [];
+            this.edgeSnapSegments = [];
             // Récupérer tous les éléments de la scène
             const elements = window.SceneManager.elements ? Array.from(window.SceneManager.elements.values()) : [];
             const box = new THREE.Box3();
@@ -517,6 +518,14 @@ class ConstructionTools {
                     new THREE.Vector3(max.x, max.y, max.z)
                 ];
             };
+            const pushEdge = (A, B, sourceId, isTopEdge) => {
+                this.edgeSnapSegments.push({
+                    ax: A.x, ay: A.y, az: A.z,
+                    bx: B.x, by: B.y, bz: B.z,
+                    sourceId,
+                    isTopEdge: !!isTopEdge
+                });
+            };
             // Créer un groupe pour les marqueurs
             const group = new THREE.Group();
             group.name = 'edgeSnapGroup';
@@ -526,10 +535,28 @@ class ConstructionTools {
                 if (!el || !el.mesh) continue;
                 // Ignorer joints / annotations / mesures
                 const t = el.type || el.mesh.userData?.type;
-                if (t === 'joint' || t === 'measurement' || t === 'annotation' || t === 'textleader') continue;
+                // Ignorer joints / annotations / mesures / cordeau
+                if (t === 'joint' || t === 'measurement' || t === 'annotation' || t === 'textleader' || t === 'cordeau') continue;
                 // Boîte englobante monde
                 const bbox = box.setFromObject(el.mesh).clone();
                 const corners = cornersFromBox(bbox);
+                // Edges de la boîte (12 segments)
+                const c = corners; // shorthand
+                // Bas (y = min): 0-1, 1-3, 3-2, 2-0
+                pushEdge(c[0], c[1], el.id, false);
+                pushEdge(c[1], c[3], el.id, false);
+                pushEdge(c[3], c[2], el.id, false);
+                pushEdge(c[2], c[0], el.id, false);
+                // Haut (y = max): 4-5, 5-7, 7-6, 6-4
+                pushEdge(c[4], c[5], el.id, true);
+                pushEdge(c[5], c[7], el.id, true);
+                pushEdge(c[7], c[6], el.id, true);
+                pushEdge(c[6], c[4], el.id, true);
+                // Verticaux: 0-4, 1-5, 2-6, 3-7
+                pushEdge(c[0], c[4], el.id, false);
+                pushEdge(c[1], c[5], el.id, false);
+                pushEdge(c[2], c[6], el.id, false);
+                pushEdge(c[3], c[7], el.id, false);
                 for (const c of corners) {
                     const key = `${c.x.toFixed(2)}|${c.y.toFixed(2)}|${c.z.toFixed(2)}`;
                     if (dedup.has(key)) continue;
@@ -575,6 +602,7 @@ class ConstructionTools {
         } catch(_) {}
         this.edgeSnapGroup = null;
         this.edgeSnapPoints = [];
+        this.edgeSnapSegments = [];
         if (this.edgeCursorSnapPoint) this.edgeCursorSnapPoint.visible = false;
     }
 
@@ -627,6 +655,81 @@ class ConstructionTools {
         if (!this.edgeCursorSnapPoint) return;
         this.edgeCursorSnapPoint.position.set(p.x, p.y, p.z);
         this.edgeCursorSnapPoint.visible = true;
+    }
+
+    // ===== NEAREST SUR ARÊTES (type AutoCAD NEAREST) =====
+    // Rayon d'accroche (unités scène) pour la distance perpendiculaire rayon↔arête
+    get edgeRaySnapThreshold() {
+        if (typeof this._edgeRaySnapThreshold === 'number') return this._edgeRaySnapThreshold;
+        // Un seuil un peu plus large facilite l'accrochage aux arêtes dans des vues 3D
+        this._edgeRaySnapThreshold = 22; // défaut 22 cm
+        return this._edgeRaySnapThreshold;
+    }
+
+    set edgeRaySnapThreshold(v) { this._edgeRaySnapThreshold = v; }
+
+    // Public: trouve le point le plus proche sur les arêtes pour le rayon caméra courant
+    findNearestEdgePointOnRay(raycaster) {
+        try {
+            if (!raycaster || !this.edgeSnapSegments || this.edgeSnapSegments.length === 0 || !window.THREE) return null;
+            const THREE = window.THREE;
+            const O = raycaster.ray.origin.clone();
+            const D = raycaster.ray.direction.clone().normalize();
+
+            let best = null;
+            let bestScore = Infinity;
+            for (const seg of this.edgeSnapSegments) {
+                const A = new THREE.Vector3(seg.ax, seg.ay, seg.az);
+                const B = new THREE.Vector3(seg.bx, seg.by, seg.bz);
+                const E = new THREE.Vector3().subVectors(B, A);
+                const len2 = E.lengthSq();
+                if (len2 < 1e-6) continue;
+
+                // Calcul point le plus proche entre la droite O+tD et le segment A+sE (s∈[0,1])
+                const AO = new THREE.Vector3().subVectors(A, O); // A - O
+                const a = D.dot(D); // = 1 normalement
+                const c = E.dot(E);
+                const b = D.dot(E);
+                const d = D.dot(O.clone().sub(A)); // D.(O-A) = -D.(A-O) = -AO·D
+                const e = E.dot(O.clone().sub(A)); // E.(O-A) = -AO·E
+
+                const denom = (a * c - b * b);
+                let t, s;
+                if (Math.abs(denom) > 1e-6) {
+                    // Solutions pour lignes infinies
+                    // t = (b*e - c*d) / (a*c - b^2)
+                    // s = (a*e - b*d) / (a*c - b^2)
+                    t = (b * e - c * d) / denom;
+                    s = (a * e - b * d) / denom;
+                } else {
+                    // Droites quasi parallèles: approx par projections simples
+                    t = -AO.dot(D); // projeter A sur la droite O+tD
+                    s = AO.dot(E) / c; // projeter O sur (A+sE) puis ajuster
+                }
+                // Clamp s dans [0,1] car SEGMENT, et t >= 0 car RAYON caméra
+                s = Math.max(0, Math.min(1, s));
+                if (t < 0) t = 0;
+                const closestOnSeg = new THREE.Vector3().copy(A).add(E.multiplyScalar(s));
+                const closestOnRay = new THREE.Vector3().copy(D).multiplyScalar(t).add(O);
+                const perpDist = closestOnSeg.distanceTo(closestOnRay);
+
+                // Légère préférence pour les arêtes supérieures
+                const weight = seg.isTopEdge ? 0.9 : 1.0;
+                const score = perpDist * weight;
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = { x: closestOnSeg.x, y: closestOnSeg.y, z: closestOnSeg.z, sourceId: seg.sourceId };
+                }
+            }
+
+            if (best && bestScore <= (this.edgeRaySnapThreshold || 10)) {
+                return best;
+            }
+            return null;
+        } catch (e) {
+            // Silencieux pour robustesse
+            return null;
+        }
     }
     // Méthode utilitaire pour mettre à jour les éléments DOM en toute sécurité
     safeUpdateElement(elementId, value) {
@@ -796,6 +899,20 @@ class ConstructionTools {
             height = parseInt(document.getElementById('elementHeight').value);
         }
 
+        // 🔩 PROFIL (outil): n'appliquer le forçage 6.5×H×6.5 que si l'item sélectionné dans la bibliothèque est un PROFIL
+        try {
+            const selectedLib = window.TabManager?.selectedLibraryItem;
+            const ghostIsProfil = !!(this.ghostElement?.userData?.isProfil);
+            const shouldApplyProfil = (typeof selectedLib === 'string' && selectedLib.startsWith('PROFIL')) || ghostIsProfil;
+            if (shouldApplyProfil) {
+                const bd = window.BrickSelector?.getCurrentBrick ? window.BrickSelector.getCurrentBrick() : null;
+                const h = bd && bd.height ? bd.height : 100;
+                length = 6.5;
+                width = 6.5;
+                height = h;
+            }
+        } catch(_) {}
+
         // console.log('Création élément fantôme:', {
         //     type: this.currentMode,
         //     material: this.getAutoMaterial(),
@@ -847,7 +964,17 @@ class ConstructionTools {
             }
         } else if (this.currentMode === 'block') {
             wallElementOptions.type = 'block';
-            wallElementOptions.blockType = elementTypeForMode;
+            // PROFIL: prioriser le type PROFIL_* uniquement si l'élément de bibliothèque actif est un PROFIL
+            try {
+                const sel = window.TabManager?.selectedLibraryItem;
+                if (typeof sel === 'string' && sel.startsWith('PROFIL')) {
+                    wallElementOptions.blockType = sel;
+                } else {
+                    wallElementOptions.blockType = elementTypeForMode;
+                }
+            } catch(_) {
+                wallElementOptions.blockType = elementTypeForMode;
+            }
             if (window.DEBUG_CONSTRUCTION) {
                 console.log('🧊 Fantôme: Options pour bloc:', wallElementOptions);
             }
@@ -954,6 +1081,12 @@ class ConstructionTools {
         this.ghostElement.mesh.material.opacity = 0.3;
         this.ghostElement.mesh.material.wireframe = false;
         
+        // ✅ IMPORTANT: Supprimer la texture pour les fantômes (utiliser uniquement couleur unie)
+        if (this.ghostElement.mesh.material.map) {
+            this.ghostElement.mesh.material.map = null;
+            this.ghostElement.mesh.material.needsUpdate = true;
+        }
+        
         // Ajouter un effet de brillance
         this.ghostElement.mesh.material.emissive.setHex(0x222222);
 
@@ -964,6 +1097,11 @@ class ConstructionTools {
                     child.material = child.material.clone();
                     child.material.transparent = true;
                     child.material.opacity = 0.3;
+                    // Supprimer la texture aussi pour les sous-maillages
+                    if (child.material.map) {
+                        child.material.map = null;
+                        child.material.needsUpdate = true;
+                    }
                     if (child.material.emissive) child.material.emissive.setHex(0x222222);
                 }
             });
@@ -982,6 +1120,9 @@ class ConstructionTools {
             return false;
         }
         
+        // Déterminer le type d'élément courant
+        const elementType = this.getElementTypeForMode(this.currentMode);
+        
         // 🆕 PROTECTION: Vérifier que AssiseManager est complètement initialisé
         if (!window.AssiseManager.currentAssiseByType || !window.AssiseManager.assisesByType) {
             console.warn('⚠️ AssiseManager non complètement initialisé, repositionnement fantôme ignoré');
@@ -991,7 +1132,6 @@ class ConstructionTools {
         // 🆕 CORRECTION CRITIQUE: Vider le cache pour forcer une réévaluation du type
         this.clearElementTypeCache();
         
-        const elementType = this.getElementTypeForMode(this.currentMode);
         let assiseType = elementType;
         
         // 🆕 CORRECTION B29: Pour les blocs B29, utiliser directement AssiseManager.currentType
@@ -1346,6 +1486,11 @@ class ConstructionTools {
                                     clonedMat.transparent = true;
                                     clonedMat.opacity = 0.3;
                                     clonedMat.emissive.setHex(0x222222);
+                                    // ✅ Supprimer la texture pour les fantômes GLB
+                                    if (clonedMat.map) {
+                                        clonedMat.map = null;
+                                        clonedMat.needsUpdate = true;
+                                    }
                                     return clonedMat;
                                 });
                             } else {
@@ -1353,6 +1498,11 @@ class ConstructionTools {
                                 child.material.transparent = true;
                                 child.material.opacity = 0.3;
                                 child.material.emissive.setHex(0x222222);
+                                // ✅ Supprimer la texture pour les fantômes GLB
+                                if (child.material.map) {
+                                    child.material.map = null;
+                                    child.material.needsUpdate = true;
+                                }
                             }
                             
                             // Ajouter edges pour voir les arêtes principales (plus propre que wireframe)
@@ -1549,6 +1699,28 @@ class ConstructionTools {
                     }
                 }
             }
+
+            // 🔩 PROFIL (outil): si BrickSelector pointe sur un type PROFIL, forcer 6.5×H×6.5
+            try {
+                if (window.BrickSelector && typeof window.BrickSelector.getCurrentType === 'function') {
+                    const currentType = window.BrickSelector.getCurrentType();
+                    if (typeof currentType === 'string' && currentType.toUpperCase().startsWith('PROFIL')) {
+                        const bd = window.BrickSelector.getCurrentBrick ? window.BrickSelector.getCurrentBrick() : null;
+                        const h = bd && bd.height ? bd.height : 100;
+                        length = 6.5;
+                        width = 6.5;
+                        height = h;
+                        // marquer le fantôme comme profil pour cohérence aval
+                        if (this.ghostElement) {
+                            this.ghostElement.userData = this.ghostElement.userData || {};
+                            this.ghostElement.userData.isProfil = true;
+                            if (!this.ghostElement.blockType || !this.ghostElement.blockType.toUpperCase().startsWith('PROFIL')) {
+                                this.ghostElement.blockType = currentType;
+                            }
+                        }
+                    }
+                }
+            } catch(_) {}
             
             // Mettre à jour les dimensions
             // console.log(`🔧 AVANT updateDimensions: ghostElement.dimensions = ${this.ghostElement.dimensions.length}x${this.ghostElement.dimensions.width}x${this.ghostElement.dimensions.height}`);
@@ -1580,6 +1752,12 @@ class ConstructionTools {
             this.ghostElement.mesh.material.transparent = true;
             this.ghostElement.mesh.material.opacity = 0.3;
             this.ghostElement.mesh.material.emissive.setHex(0x222222);
+            
+            // ✅ IMPORTANT: Supprimer la texture après mise à jour du matériau
+            if (this.ghostElement.mesh.material.map) {
+                this.ghostElement.mesh.material.map = null;
+                this.ghostElement.mesh.material.needsUpdate = true;
+            }
 
             // DALLE: après changement de dimensions, re-anchorer la base au sol (centre = H/2)
             if (this.currentMode === 'slab') {
@@ -2420,6 +2598,17 @@ class ConstructionTools {
         // Réinitialiser la rotation manuelle lors du changement de mode
         this.resetManualRotation();
 
+        // 🧹 Si on quitte un contexte PROFIL, nettoyer le marquage du fantôme pour éviter les effets collatéraux
+        try {
+            if (this.ghostElement && this.ghostElement.userData && this.ghostElement.userData.isProfil) {
+                const sel = window.TabManager?.selectedLibraryItem;
+                const stillProfilSelected = (typeof sel === 'string' && sel.startsWith('PROFIL'));
+                if (!stillProfilSelected) {
+                    delete this.ghostElement.userData.isProfil;
+                }
+            }
+        } catch (_) {}
+
         // EDGE SNAP: activer ou nettoyer selon le mode
         if (this.edgeSnapEnabledForModes && this.edgeSnapEnabledForModes.has && this.edgeSnapEnabledForModes.has(this.currentMode)) {
             this.createEdgeSnapPoints && this.createEdgeSnapPoints();
@@ -2841,6 +3030,10 @@ class ConstructionTools {
     placeElementAtCursor(x = null, z = null) {
         console.warn('========== DÉBUT PLACEMENT ELEMENT ==========');
         console.log('[PLACEMENT-DEBUG] placeElementAtCursor appelé - Mode:', this.currentMode, 'X:', x, 'Z:', z);
+        console.log('[PLACEMENT-DEBUG] tempGLBInfo existe:', !!window.tempGLBInfo);
+        if (window.tempGLBInfo) {
+            console.log('[PLACEMENT-DEBUG] tempGLBInfo:', window.tempGLBInfo);
+        }
         console.log('[PLACEMENT-DEBUG] DEBUG PLACEMENT: placeElementAtCursor appelé, mode:', this.currentMode);
         
         console.log('[PLACEMENT-DEBUG] placeElementAtCursor appelé avec paramètres:', {x, z});
@@ -2850,6 +3043,7 @@ class ConstructionTools {
         
         // Vérifier en priorité si on doit placer un élément GLB
         if (window.tempGLBInfo) {
+            console.log('🎯 PLACEMENT GLB DÉTECTÉ - Appel de placeGLBElementAtCursor()');
             this.placeGLBElementAtCursor();
             return;
         }
@@ -2964,8 +3158,10 @@ class ConstructionTools {
         });
         
         // Construire correctement les options selon le mode pour éviter les confusions de type
+    const autoMaterial = this.getAutoMaterial();
+    console.log('🔧 Material auto-détecté:', autoMaterial);
         const commonOpts = {
-            material: this.getAutoMaterial(),
+            material: autoMaterial,
             x: finalX,
             y: finalY,
             z: finalZ,
@@ -3072,10 +3268,25 @@ class ConstructionTools {
         // 🔧 CORRECTION: Faire une copie IMMÉDIATEMENT pour éviter la perte des données
         const glbInfoCopy = JSON.parse(JSON.stringify(window.tempGLBInfo));
         
-        // Récupérer la position du fantôme
+        // Récupérer la position et rotation du fantôme
         const x = this.ghostElement.mesh.position.x;
         let y = this.ghostElement.mesh.position.y;
         let z = this.ghostElement.mesh.position.z;
+        
+        // Pour les GLB, la rotation est dans mesh.rotation.y, pas dans ghostElement.rotation
+        const isGLBElement = (this.ghostElement.userData && (this.ghostElement.userData.isGLB || this.ghostElement.userData.isGLBGhost)) || 
+                             (this.ghostElement.mesh && this.ghostElement.mesh.userData && this.ghostElement.mesh.userData.isGLBGhost);
+        
+        let rotation = 0;
+        if (isGLBElement && this.ghostElement.mesh) {
+            rotation = this.ghostElement.mesh.rotation.y;
+        } else {
+            rotation = this.ghostElement.rotation || 0;
+        }
+        
+        console.log('🔄 placeGLBElementAtCursor - Rotation du fantôme:', rotation);
+        console.log('🔄 placeGLBElementAtCursor - isGLBElement:', isGLBElement);
+        console.log('🔄 placeGLBElementAtCursor - ghostElement.mesh.rotation.y:', this.ghostElement.mesh?.rotation?.y);
         
         // CORRECTION PLANCHERS: Forcer le placement au niveau du sol ABSOLU (Y=0) pour hourdis, poutrains et claveaux
         const isHourdis = glbInfo && (glbInfo.type.includes('hourdis') || glbInfo.name.includes('Hourdis'));
@@ -3110,8 +3321,11 @@ class ConstructionTools {
                     const blob = new Blob([xhr.response]);
                     const file = new File([blob], fileName, { type: 'model/gltf-binary' });
                     
-                    // Traiter le fichier GLB avec position personnalisée
+                    // Traiter le fichier GLB avec position et rotation personnalisées
                     window.tempGLBPosition = { x, y, z };
+                    window.tempGLBRotation = rotation; // Passer la rotation du fantôme
+                    
+                    console.log('🔄 Définition de window.tempGLBRotation:', rotation);
                     
                     // 🔧 GLB: Transférer les informations d'échelle pour le placement réel
                     if (glbInfo.scale) {
@@ -7090,6 +7304,21 @@ class ConstructionTools {
 
     // Méthode pour déterminer automatiquement le matériau selon le mode et le type
     getAutoMaterial() {
+        // Cas spécial PROFIL: utiliser l'aluminium uni (sans texture)
+        try {
+            // Si un fantôme est actif et marqué comme PROFIL
+            if (this.ghostElement && (this.ghostElement.userData?.isProfil || (typeof this.ghostElement.blockType === 'string' && this.ghostElement.blockType.startsWith('PROFIL')))) {
+                return 'aluminium-plain';
+            }
+            // Si BrickSelector pointe sur un type PROFIL
+            if (window.BrickSelector && typeof window.BrickSelector.getCurrentType === 'function') {
+                const t = window.BrickSelector.getCurrentType();
+                if (typeof t === 'string' && t.toUpperCase().startsWith('PROFIL')) {
+                    return 'aluminium-plain';
+                }
+            }
+        } catch (_) {}
+        
         if (this.currentMode === 'brick') {
             // Pour les briques, exclure les matériaux spécifiques aux blocs
             const blockMaterials = ['cellular-concrete', 'concrete', 'brick-red'];
@@ -7317,8 +7546,16 @@ class ConstructionTools {
         if (!element || !this.isInitialized) return;
         
         // Créer des joints pour les briques ET les blocs (mais pas les autres types)
+        // EXCEPTION: Ne pas créer de joints pour les profils acier
+        const isFormeAcier = element.blockType && element.blockType.startsWith('forme_acier');
+        
         if (element.type !== 'brick' && element.type !== 'block') {
             console.log('🔧 Aucun joint créé - Élément de type:', element.type);
+            return;
+        }
+        
+        if (isFormeAcier) {
+            console.log('🔧 Aucun joint créé - Profil acier détecté');
             return;
         }
         

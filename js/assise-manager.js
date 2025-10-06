@@ -8,7 +8,7 @@ class AssiseManager {
         this.attachmentMarkersByType = new Map(); // Map<type, Map<assiseIndex, markers>>
         
         // Types d'éléments supportés - incluant les sous-types de briques et blocs
-    this.supportedTypes = ['brick', 'block', 'insulation', 'custom', 'joint', 'linteau', 'beam', 'diba']; // ajout beam + diba (membrane, pas de joints)
+    this.supportedTypes = ['brick', 'block', 'insulation', 'custom', 'joint', 'linteau', 'beam', 'diba', 'PROFIL']; // ajout beam + diba (membrane, pas de joints) + PROFIL (assise dédiée)
 
     // Familles d'isolants pour assises séparées (nouveau)
     this.insulationFamilies = ['PUR', 'LAINEROCHE', 'XPS', 'PSE', 'FB', 'LV'];
@@ -56,8 +56,8 @@ class AssiseManager {
     this.baseHeightByType = new Map();
         
         for (const type of this.allSupportedTypes) {
-            // CORRECTION: Les isolants, hourdis, poutres et diba n'ont pas de joints horizontaux
-            const defaultJointHeight = (this.isInsulationType(type) || type.includes('hourdis') || type === 'beam' || type === 'diba') ? 0 : 1.2; // beam & diba sans joint horizontal
+            // CORRECTION: Les isolants, hourdis, poutres, diba et PROFIL n'ont pas de joints horizontaux
+            const defaultJointHeight = (this.isInsulationType(type) || type.includes('hourdis') || type === 'beam' || type === 'diba' || type === 'PROFIL') ? 0 : 1.2;
             this.jointHeightByType.set(type, defaultJointHeight);
             this.jointHeightByAssise.set(type, new Map());
 
@@ -170,6 +170,16 @@ class AssiseManager {
             return true;
         }
         
+        // Forme acier (outils)
+        if (type && type.startsWith('forme_acier')) {
+            return true;
+        }
+        
+        // Types GLB spécifiques
+        if (type && (type.includes('hourdis') || type.includes('poutrain') || type.includes('claveau'))) {
+            return true;
+        }
+        
         // Types personnalisés avec pattern _CUSTOM_
         if (type.includes('_CUSTOM_')) {
             const baseType = type.split('_CUSTOM_')[0];
@@ -206,6 +216,11 @@ class AssiseManager {
         
         // Types GLB spécifiques (tous les types de planchers)
         if (type && (type.includes('hourdis') || type.includes('poutrain') || type.includes('claveau'))) {
+            return true;
+        }
+        
+        // Forme acier (outils)
+        if (type && type.startsWith('forme_acier')) {
             return true;
         }
         
@@ -660,7 +675,7 @@ class AssiseManager {
 
     // Changer le type d'assise actif
     setActiveType(type) {
-        if (!this.allSupportedTypes.includes(type)) {
+        if (!this.isTypeSupported(type)) {
             console.warn(`Type d'assise non supporté: ${type}`);
             return false;
         }
@@ -714,6 +729,12 @@ class AssiseManager {
 
     // Màthode pour changer le type d'assise actuel
     setCurrentType(type, skipToolChange = false) {
+        // PROTECTION: Ignorer les profils aluminium (outils)
+        if (type && type.startsWith('forme_acier')) {
+            console.log(`🔧 AssiseManager: Type forme_acier ignoré (outil profil aluminium)`);
+            return true; // Simuler le succès pour éviter les erreurs
+        }
+        
         // NOUVEAU: Si l'onglet Outils est en cours de mise à jour, ne pas interfàrer
         if (window.toolsTabUpdating) {
             // // console.log(`🔧 AssiseManager: Onglet Outils en cours de mise à jour, pas d'interférence avec ${type}`);
@@ -1280,7 +1301,7 @@ class AssiseManager {
 
     // Définir l'assise active pour un type spécifique
     setActiveAssiseForType(type, index) {
-        if (!this.allSupportedTypes.includes(type)) {
+        if (!this.isTypeSupported(type)) {
             console.warn(`Type non supporté: ${type}`);
             return false;
         }
@@ -1392,7 +1413,7 @@ class AssiseManager {
 
     // Supprimer une assise d'un type spécifique
     removeAssiseForType(type, index) {
-        if (!this.allSupportedTypes.includes(type)) {
+        if (!this.isTypeSupported(type)) {
             console.warn(`Type non supporté: ${type}`);
             return false;
         }
@@ -1659,6 +1680,7 @@ class AssiseManager {
             'insulation': 20,  // Hauteur isolant standard
             'custom': 10,      // Hauteur par défaut pour éléments custom
             'linteau': 19,     // Hauteur linteau standard
+            'PROFIL': 0,       // PROFIL: pas de hauteur par défaut, prendre la hauteur réelle des éléments
             
             // Sous-types de blocs avec leurs hauteurs spécifiques
             'CREUX': 19,      // Blocs creux génériques - hauteur 19 cm
@@ -2482,6 +2504,16 @@ class AssiseManager {
                     this._lastDetectedBlock = element.id;
                 }
 
+                // PROFIL: assigner à l'assise PROFIL dédiée et ne pas traiter comme B9
+                if (element.blockType && typeof element.blockType === 'string' && element.blockType.toUpperCase().startsWith('PROFIL')) {
+                    elementType = 'PROFIL';
+                    if (this.currentType !== 'PROFIL') {
+                        this.setCurrentType('PROFIL', true);
+                    }
+                    this.addElementToAssiseForType(elementType, elementId, assiseIndex);
+                    return;
+                }
+
                 // CORRECTION IMPORTANTE : Toujours détecter le type réel du bloc placé
                 const currentSpecificTypes = ['B9', 'B14', 'B19', 'B29_PANNERESSE', 'B29_BOUTISSE'];
                 let blockSubType = null;
@@ -2655,7 +2687,8 @@ class AssiseManager {
 
     // Ajouter un élément à une assise d'un type spécifique
     addElementToAssiseForType(type, elementId, assiseIndex = null) {
-        if (!this.allSupportedTypes.includes(type)) {
+        // Utiliser isTypeSupported au lieu de allSupportedTypes pour supporter les types personnalisés
+        if (!this.isTypeSupported(type)) {
             console.warn(`Type non supporté: ${type}`);
             return false;
         }
@@ -3606,7 +3639,7 @@ class AssiseManager {
     copyAssiseTo(type, sourceIndex, targetIndex, options = {}) {
         const includeJoints = options.includeJoints === true; // par défaut on copie aussi les joints horizontaux/verticaux
 
-        if (!this.allSupportedTypes.includes(type)) {
+        if (!this.isTypeSupported(type)) {
             console.warn(`Type non supporté pour copie: ${type}`);
             return null;
         }

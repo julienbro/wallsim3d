@@ -215,7 +215,10 @@ class LibraryPreview3D {
             // Dalle personnalisée (aperçu bibliothèque) — 100x15x100 cm
             // Utilise une teinte béton légèrement plus claire
             'dalle': { size: [10.0, 1.5, 10.0], color: 0x888888 },
-            'slab': { size: [10.0, 1.5, 10.0], color: 0x888888 }
+            'slab': { size: [10.0, 1.5, 10.0], color: 0x888888 },
+            
+            // PROFIL Aluminium (aperçu) — base 6.5x6.5, hauteur 1m
+            'PROFIL': { size: [0.065, 1.0, 0.065], color: 0xA4A8AB }
         };
 
         const config = brickConfigs[type] || brickConfigs['M50'];
@@ -413,6 +416,8 @@ class LibraryPreview3D {
             'L120', 'L140', 'L160', 'L180',
             // Dalle personnalisée (procédurale)
             'dalle',
+            // PROFIL
+            'PROFIL',
             // Poutres acier (procédural)
             ...(window.BeamProfiles ? window.BeamProfiles.listAllTypes() : [])
         ];

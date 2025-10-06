@@ -518,7 +518,7 @@
                     // Planchers
                     'hourdis_13_60', 'hourdis_16_60', 'poutrain_beton_12', 'claveau_beton_12_53',
                     // Outils
-                    'betonniere', 'brouette'
+                    'betonniere'
                 ];
                 if (glbTypes.includes(element.userData.type) || glbTypes.includes(element.type)) {
                     console.log(`🔍 [isConstructionElement] Élément GLB spécifique détecté: ${element.userData.type || element.type}`);
@@ -876,20 +876,95 @@
                 // Forcer un rendu
                 this.renderer.render(this.scene, this.camera);
                 
-                // Capturer l'image
-                const canvas = this.renderer.domElement;
-                const mimeType = format === 'jpg' || format === 'jpeg' ? 'image/jpeg' : 'image/png';
-                const quality = format === 'jpg' || format === 'jpeg' ? 0.9 : undefined;
-                
-                const dataUrl = canvas.toDataURL(mimeType, quality);
-                
-                if (callback) {
-                    callback(dataUrl);
+                // Canvas WebGL source
+                const glCanvas = this.renderer.domElement;
+                const w = glCanvas.width;
+                const h = glCanvas.height;
+                const isJPEG = (format === 'jpg' || format === 'jpeg');
+
+                // Par défaut, on renvoie le contenu du canvas WebGL
+                let outputDataUrl;
+
+                if (isJPEG) {
+                    // Pour le JPEG, on dessine sur un canvas 2D et on ajoute un overlay pour la ficelle (cordeau)
+                    const out = document.createElement('canvas');
+                    out.width = w;
+                    out.height = h;
+                    const ctx = out.getContext('2d');
+                    
+                    // Dessiner l'image WebGL
+                    ctx.drawImage(glCanvas, 0, 0);
+
+                    // Dessiner l'overlay cordeau en 2D pour garantir la visibilité après compression JPEG
+                    try {
+                        const toScreen = (worldVec) => {
+                            const v = worldVec.clone().project(this.camera);
+                            return {
+                                x: (v.x + 1) * 0.5 * w,
+                                y: (1 - (v.y + 1) * 0.5) * h,
+                                z: v.z
+                            };
+                        };
+
+                        // Taille de trait: au moins 2 px, évolutive avec la taille
+                        const lineWidth = Math.max(2, Math.round(Math.min(w, h) * 0.002));
+                        ctx.lineWidth = lineWidth;
+                        ctx.strokeStyle = '#FFD11A';
+                        ctx.lineCap = 'round';
+
+                        // Parcourir les mesh "cordeau"
+                        this.scene.traverse((obj) => {
+                            if (!obj || !obj.isMesh) return;
+                            const t = obj.userData && obj.userData.type;
+                            if (t !== 'cordeau') return;
+                            const geo = obj.geometry;
+                            if (!geo) return;
+
+                            // Estimer les extrémités locales du cylindre le long de l'axe Y local
+                            let halfH = null;
+                            if (geo.parameters && typeof geo.parameters.height === 'number') {
+                                halfH = geo.parameters.height / 2;
+                            } else {
+                                // Fallback: utiliser la boundingBox de la géométrie
+                                if (!geo.boundingBox) geo.computeBoundingBox();
+                                if (geo.boundingBox) {
+                                    halfH = (geo.boundingBox.max.y - geo.boundingBox.min.y) / 2;
+                                }
+                            }
+                            if (!halfH || !isFinite(halfH)) return;
+
+                            const localA = new THREE.Vector3(0, +halfH, 0);
+                            const localB = new THREE.Vector3(0, -halfH, 0);
+                            const worldA = obj.localToWorld(localA.clone());
+                            const worldB = obj.localToWorld(localB.clone());
+
+                            const sA = toScreen(worldA);
+                            const sB = toScreen(worldB);
+
+                            // Ne tracer que si au moins partiellement visible (approximation simple sur z et écran)
+                            const onScreen = (s) => s.x >= -10 && s.x <= w + 10 && s.y >= -10 && s.y <= h + 10 && s.z >= -1 && s.z <= 1;
+                            if (onScreen(sA) || onScreen(sB)) {
+                                ctx.beginPath();
+                                ctx.moveTo(sA.x, sA.y);
+                                ctx.lineTo(sB.x, sB.y);
+                                ctx.stroke();
+                            }
+                        });
+                    } catch (overlayErr) {
+                        console.warn('⚠️ Overlay cordeau (JPEG) non appliqué:', overlayErr);
+                    }
+
+                    outputDataUrl = out.toDataURL('image/jpeg', 0.9);
+                } else {
+                    // PNG (ou autre): on renvoie directement le contenu du canvas WebGL
+                    const mimeType = 'image/png';
+                    outputDataUrl = glCanvas.toDataURL(mimeType);
                 }
-                
+
+                if (callback) callback(outputDataUrl);
                 console.log(`✅ Capture ${format.toUpperCase()} terminée`);
-                return dataUrl;
-                
+                return outputDataUrl;
+
             } catch (error) {
                 console.error('❌ Erreur lors de la capture:', error);
                 if (callback) callback(null);

@@ -955,9 +955,21 @@ class TabManager {
         this.setupLibraryItems();
     }
 
+    // DÉSELECTIONNER l'élément de bibliothèque courant (retire les classes et remet l'état)
+    clearLibrarySelection() {
+        try {
+            document.querySelectorAll('.library-item.selected, .library-item.active').forEach(item => {
+                item.classList.remove('selected', 'active');
+            });
+        } catch (_) {}
+        this.selectedLibraryItem = null;
+    }
+
     selectLibraryItem(itemType, itemElement) {
-        // Éviter les re-sélections inutiles du même élément
-        if (this.selectedLibraryItem === itemType && itemElement && itemElement.classList.contains('selected')) {
+        // Éviter les re-sélections inutiles du même élément, SAUF pour les outils interactifs comme le cordeau
+        const lowerType = String(itemType || '').toLowerCase();
+        const isInteractiveTool = (lowerType === 'cordeau');
+        if (!isInteractiveTool && this.selectedLibraryItem === itemType && itemElement && itemElement.classList.contains('selected')) {
             if (window.DEBUG_TAB_MANAGER) {
                 console.log('🔄 TabManager: Même élément déjà sélectionné, pas de re-traitement');
             }
@@ -1102,6 +1114,8 @@ class TabManager {
                         },
                         lengthValue: glbData.length.toString()
                     };
+                    
+                    console.log('🎯 TabManager: tempGLBInfo créé pour', itemType, window.tempGLBInfo);
                     
                     // Activer le mode construction avec fantôme GLB
                     if (window.ConstructionTools) {
@@ -1305,6 +1319,60 @@ class TabManager {
         
         // Récupérer l'item parent pour l'utiliser plus tard
         const parentItem = buttonElement.closest('.library-item');
+
+        // 🎯 Gestion spéciale PROFIL (outil aluminium 6.5×H×6.5)
+        if (baseType === 'PROFIL') {
+            // Activer visuellement le bouton et désactiver les autres dans l'item
+            if (parentItem) {
+                parentItem.querySelectorAll('.cut-btn-mini').forEach(btn => btn.classList.remove('active'));
+            }
+            buttonElement.classList.add('active');
+
+            // Déduire la hauteur depuis cutType (100/150/200/250/300)
+            const hVal = parseInt(cutType, 10);
+            const profilType = isNaN(hVal) ? 'PROFIL_100' : `PROFIL_${hVal}`;
+            const dims = { length: 6.5, width: 6.5, height: isNaN(hVal) ? 100 : hVal };
+
+            // Synchroniser la sélection centrale via BrickSelector
+            if (window.BrickSelector && typeof window.BrickSelector.setBrick === 'function') {
+                window.BrickSelector.setBrick(profilType);
+            }
+
+            // Forcer mode et fantôme
+            if (window.ConstructionTools) {
+                window.ConstructionTools.setMode?.('block');
+                window.ConstructionTools.createGhostElement?.();
+                const ghost = window.ConstructionTools.ghostElement;
+                if (ghost) {
+                    ghost.dimensions = { ...dims };
+                    ghost.material = 'aluminium';
+                    ghost.blockType = profilType;
+                    ghost.userData = ghost.userData || {};
+                    ghost.userData.isProfil = true;
+                    if (ghost.mesh) {
+                        try { ghost.mesh.geometry?.dispose?.(); } catch(_) {}
+                        ghost.mesh.geometry = new THREE.BoxGeometry(dims.length, dims.height, dims.width);
+                        const mat = window.MaterialLibrary?.getThreeJSMaterial?.('aluminium');
+                        if (mat) {
+                            ghost.mesh.material = mat.clone();
+                            ghost.mesh.material.transparent = true;
+                            ghost.mesh.material.opacity = 0.3;
+                        }
+                    }
+                }
+            }
+
+            // Mettre à jour les inputs dimensions pour éviter tout fallback à 100
+            const hEl = document.getElementById('elementHeight');
+            const lEl = document.getElementById('elementLength');
+            const wEl = document.getElementById('elementWidth');
+            if (hEl) hEl.value = String(dims.height);
+            if (lEl) lEl.value = String(dims.length);
+            if (wEl) wEl.value = String(dims.width);
+
+            // Désactiver le flux standard (qui ne connaît pas PROFIL)
+            return;
+        }
         
         // Gestion prioritaire pour les poutres (BeamProfiles): boutons 100/200/300/400/P
         if (window.BeamProfiles && window.BeamProfiles.isBeamType && window.BeamProfiles.isBeamType(baseType)) {
@@ -2062,6 +2130,10 @@ class TabManager {
         switch (elementCategory) {
             case 'briques':
                 if (window.BrickSelector) {
+                    // Désactiver le cordeau si on sélectionne autre chose
+                    if (window.CordeauTool && window.CordeauTool.isActive) {
+                        window.CordeauTool.deactivate();
+                    }
                     // NOUVEAU: Ne pas synchroniser si l'onglet Outils est en cours de mise à jour
                     if (window.toolsTabUpdating) {
                         // console.log(`🔧 TabManager: Onglet Outils en cours de mise à jour, pas de synchronisation pour ${itemType}`);
@@ -2113,6 +2185,10 @@ class TabManager {
 
             case 'blocs':
                 if (window.BlockSelector) {
+                    // Désactiver le cordeau si on sélectionne autre chose
+                    if (window.CordeauTool && window.CordeauTool.isActive) {
+                        window.CordeauTool.deactivate();
+                    }
                     // console.log(`🔄 TabManager: Synchronisation bloc ${itemType} avec BlockSelector`);
                     window.BlockSelector.setBlock(itemType);
                     // DÉSACTIVÉ: Ne plus basculer automatiquement vers l'onglet Assise
@@ -2135,6 +2211,10 @@ class TabManager {
 
             case 'isolants':
                 if (window.InsulationSelector) {
+                    // Désactiver le cordeau si on sélectionne autre chose
+                    if (window.CordeauTool && window.CordeauTool.isActive) {
+                        window.CordeauTool.deactivate();
+                    }
                     // console.log(`🔄 TabManager: Synchronisation isolant ${itemType} avec InsulationSelector`);
                     window.InsulationSelector.setInsulation(itemType);
                     // DÉSACTIVÉ: Ne plus basculer automatiquement vers l'onglet Assise
@@ -2157,6 +2237,10 @@ class TabManager {
 
             case 'linteaux':
                 if (window.LinteauSelector) {
+                    // Désactiver le cordeau si on sélectionne autre chose
+                    if (window.CordeauTool && window.CordeauTool.isActive) {
+                        window.CordeauTool.deactivate();
+                    }
                     const linteauData = window.LinteauSelector.getLinteauData();
                     if (linteauData[itemType] || itemType.includes('_')) {
                         // console.log(`🔄 TabManager: Synchronisation linteau ${itemType} avec LinteauSelector`);
@@ -2189,6 +2273,10 @@ class TabManager {
 
             case 'planchers':
                 {
+                    // Désactiver le cordeau si on sélectionne autre chose
+                    if (window.CordeauTool && window.CordeauTool.isActive) {
+                        window.CordeauTool.deactivate();
+                    }
                     const lower = String(itemType || '').toLowerCase();
                     // ✅ Cas spécial: dalle personnalisée (procédural, pas GLB)
                     if (lower === 'dalle' || lower === 'slab' || lower.includes('dalle')) {
@@ -2243,12 +2331,42 @@ class TabManager {
                     break;
                 }
             case 'outils':
-                // Gestion des éléments GLB - pas de synchronisation avec des sélecteurs spécifiques
-                if (window.DEBUG_TAB_MANAGER) {
-                    console.log(`📦 TabManager: Élément GLB ${itemType} de catégorie ${elementCategory} - aucune synchronisation nécessaire`);
+                {
+                    const lower = String(itemType || '').toLowerCase();
+                    // Cas spécial: cordeau (outil interactif)
+                    if (lower === 'cordeau') {
+                        if (window.CordeauTool) {
+                            // Active le cordeau et reste dans la bibliothèque
+                            // Réinitialiser proprement si déjà actif pour éviter un état bloqué
+                            if (window.CordeauTool.isActive && typeof window.CordeauTool.deactivate === 'function') {
+                                window.CordeauTool.deactivate();
+                            }
+                            window.CordeauTool.activate();
+                            // Met à jour l'UI sélectionnée
+                            if (itemElement) {
+                                // Retirer active des autres items de la grille
+                                const grid = itemElement.parentElement;
+                                if (grid) {
+                                    grid.querySelectorAll('.library-item').forEach(el => el.classList.remove('active'));
+                                }
+                                itemElement.classList.add('active');
+                            }
+                            // Ne pas créer de fantôme; le Cordeau gère ses propres interactions
+                        }
+                        // Rester dans la bibliothèque
+                        break;
+                    }
+
+                    // Par défaut pour les autres outils (GLB etc.)
+                    if (window.DEBUG_TAB_MANAGER) {
+                        console.log(`📦 TabManager: Élément outil ${itemType} (catégorie ${elementCategory})`);
+                    }
+                    // Désactiver le cordeau si un autre outil est choisi
+                    if (window.CordeauTool && window.CordeauTool.isActive) {
+                        window.CordeauTool.deactivate();
+                    }
+                    break;
                 }
-                // Ne pas basculer d'onglet automatiquement pour les GLB, rester dans la bibliothèque
-                break;
 
             case 'poutres':
                 // Poutres procédurales (BeamProfiles) → activer le mode 'beam' et créer un fantôme
@@ -2294,6 +2412,17 @@ class TabManager {
     // Nouvelle méthode pour détecter automatiquement la catégorie d'un élément
     detectElementCategory(itemType, itemElement = null) {
         // console.log(`🔍 TabManager: Détection de catégorie pour ${itemType}`);
+        
+        // PROFIL (outil)
+        if (itemType && itemType.startsWith('PROFIL')) {
+            return 'outils';
+        }
+
+        // Cordeau (outil interactif)
+        if (itemType && String(itemType).toLowerCase() === 'cordeau') {
+            return 'outils';
+        }
+        
         // Gestion explicite Diba (membrane étanchéité)
         if (itemType && itemType.toLowerCase() === 'diba') {
             return 'etancheite';

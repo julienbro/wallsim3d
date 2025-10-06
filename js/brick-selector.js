@@ -45,7 +45,16 @@ class BrickSelector {
             
             // Éléments GLB (outils)
             'betonniere': { length: 100, width: 80, height: 120, name: 'Bétonnière', category: 'glb', customCut: false, glbPath: 'assets/models/outils/betonniere.glb' },
-            'brouette': { length: 150, width: 60, height: 80, name: 'Brouette', category: 'glb', customCut: false, glbPath: 'assets/models/outils/brouette.glb' }
+            'blochet_droit': { length: 50, width: 30, height: 40, name: 'Blochet Droit', category: 'glb', customCut: false, glbPath: 'assets/models/outils/blochet_droit.glb' },
+            'blochet_gauche': { length: 50, width: 30, height: 40, name: 'Blochet Gauche', category: 'glb', customCut: false, glbPath: 'assets/models/outils/blochet_gauche.glb' },
+            
+            // PROFIL Aluminium (outil) — base 6.5x6.5, hauteurs variables
+            'PROFIL': { length: 6.5, width: 6.5, height: 100, name: 'Profil H:1m', category: 'tool', customCut: false, material: 'aluminium-plain' },
+            'PROFIL_100': { length: 6.5, width: 6.5, height: 100, name: 'Profil H:1m', category: 'tool', customCut: false, material: 'aluminium-plain' },
+            'PROFIL_150': { length: 6.5, width: 6.5, height: 150, name: 'Profil H:1.5m', category: 'tool', customCut: false, material: 'aluminium-plain' },
+            'PROFIL_200': { length: 6.5, width: 6.5, height: 200, name: 'Profil H:2m', category: 'tool', customCut: false, material: 'aluminium-plain' },
+            'PROFIL_250': { length: 6.5, width: 6.5, height: 250, name: 'Profil H:2.5m', category: 'tool', customCut: false, material: 'aluminium-plain' },
+            'PROFIL_300': { length: 6.5, width: 6.5, height: 300, name: 'Profil H:3m', category: 'tool', customCut: false, material: 'aluminium-plain' }
         };
         
         this.modal = null;
@@ -500,7 +509,8 @@ class BrickSelector {
             height: brick.height,
             type: type,
             name: brick.name,
-            material: 'terracotta' // Toutes les briques en terre cuite rouge
+            // Utiliser le matériau spécifique du type si défini (ex: aluminium pour PROFIL)
+            material: brick.material || 'terracotta'
         };
         
         // Forcer la mise à jour de l'élément fantôme si ConstructionTools est disponible

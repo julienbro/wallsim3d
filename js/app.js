@@ -393,6 +393,11 @@ class WallSimApp {
                 window.TextLeaderTool = new TextLeaderTool();
                 // console.log('✅ TextLeaderTool initialisé');
             }
+            // Outil Cordeau (ficelle)
+            if (typeof CordeauTool !== 'undefined' && !window.CordeauTool) {
+                window.CordeauTool = new CordeauTool();
+                // console.log('✅ CordeauTool initialisé');
+            }
             
             // Créer le gestionnaire d'intégration des outils
             if (typeof MeasurementAnnotationManager !== 'undefined' && !window.MeasurementAnnotationManager) {

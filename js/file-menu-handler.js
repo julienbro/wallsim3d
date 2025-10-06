@@ -2367,6 +2367,14 @@ class FileMenuHandler {
             delete window.tempGLBPosition;
         }
 
+        // 🔧 GLB: Appliquer la rotation personnalisée si définie (pour les rotations du fantôme)
+        if (window.tempGLBRotation !== undefined && window.tempGLBRotation !== null) {
+            gltfScene.rotation.y = window.tempGLBRotation;
+            console.log('🔄 Rotation GLB appliquée:', window.tempGLBRotation);
+            // Nettoyer après utilisation
+            delete window.tempGLBRotation;
+        }
+
         // 🔧 GLB: Appliquer l'échelle personnalisée si définie (pour les longueurs spécifiques)
         if (window.tempGLBScale) {
             gltfScene.scale.set(
@@ -2469,6 +2477,8 @@ class FileMenuHandler {
             // Créer un objet WallElement compatible pour le GLB
             const fileNameToUse = fileName || gltfScene.name || 'Model';
             const isHourdis = fileNameToUse.toLowerCase().includes('hourdis');
+            const isBlockhet = fileNameToUse.toLowerCase().includes('blochet');
+            const isTool = isBlockhet || (window.tempGLBInfo && window.tempGLBInfo.path && window.tempGLBInfo.path.includes('/outils/'));
             
             // S'assurer que le nom du GLB est visible pour le métré
             if (!gltfScene.name) {
@@ -2480,7 +2490,7 @@ class FileMenuHandler {
                 type: 'glb',
                 name: gltfScene.name,
                 glbFileName: fileNameToUse, // Pour le métré
-                glbType: isHourdis ? specificGLBType : (window.tempGLBScale?.info?.type || 'unknown'),
+                glbType: isHourdis ? specificGLBType : (isTool ? (window.tempGLBInfo?.type || 'tool') : (window.tempGLBScale?.info?.type || 'unknown')),
                 mesh: gltfScene,
                 position: gltfScene.position,
                 dimensions: {
@@ -2490,11 +2500,13 @@ class FileMenuHandler {
                 },
                 userData: {
                     isGLB: true,
-                    glbType: isHourdis ? specificGLBType : (window.tempGLBScale?.info?.type || 'unknown'),
+                    isTool: isTool, // Marquer comme outil
+                    glbType: isHourdis ? specificGLBType : (isTool ? (window.tempGLBInfo?.type || 'tool') : (window.tempGLBScale?.info?.type || 'unknown')),
                     glbInfo: {
-                        type: isHourdis ? specificGLBType : (window.tempGLBScale?.info?.type || 'unknown'),
+                        type: isHourdis ? specificGLBType : (isTool ? (window.tempGLBInfo?.type || 'tool') : (window.tempGLBScale?.info?.type || 'unknown')),
                         fileName: fileNameToUse,
-                        isHourdis: isHourdis
+                        isHourdis: isHourdis,
+                        isTool: isTool
                     },
                     positionedByConstructionTools: wasPlacedViaConstructionTools, // Flag pour éviter le repositionnement
                     ...gltfScene.userData

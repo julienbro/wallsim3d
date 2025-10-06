@@ -30,92 +30,8 @@ class ToolsTabManager {
         this.brickGroup = null;
         this.toolsAnimationId = null;
         
-        // Surveillance continue pour l'affichage 3D
-        this.canvas3DMonitor = null;
-        this.canvas3DRetryCount = 0;
-        this.maxRetries = 10;
-        
-        this.init();
-    }
-
-    init() {
-                
-        // Vérifier que l'élément DOM existe
-        const tabElement = document.getElementById('tab-content-outils');
-        if (!tabElement) {
-            // console.warn('⚠️ ToolsTabManager: Onglet Outils non disponible (supprimé)');
-            // Désactiver ce gestionnaire puisque l'onglet n'existe plus
-            this.isDisabled = true;
-            return;
-        }
-        
-        this.setupEventListeners();
-        this.updateDisplay();
-        
-        // Mise à jour initiale de l'aperçu d'élément - différée pour éviter les violations
-        // Éviter le rendu initial coûteux, le faire seulement quand l'utilisateur active l'onglet
-        this.initialPreviewPending = true;
-        
-        // Observer les changements d'onglet pour faire le rendu seulement quand nécessaire
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    const toolsTab = document.querySelector('[data-tab="outils"]');
-                    if (toolsTab && toolsTab.classList.contains('active') && this.initialPreviewPending) {
-                        this.initialPreviewPending = false;
-                        // Délai minimal pour éviter les violations
-                        setTimeout(() => {
-                            this.updateActiveElementPreview(null, true); // Force le rendu
-                        }, 10);
-                    }
-                }
-            });
-        });
-        
-        // Observer les changements sur les onglets
-        const tabsContainer = document.querySelector('.main-tabs');
-        if (tabsContainer) {
-            observer.observe(tabsContainer, { attributes: true, subtree: true });
-        }
-        
-        // Vérifier si l'onglet outils est déjà actif au chargement
-        const toolsTab = document.querySelector('[data-tab="outils"]');
-        if (toolsTab && toolsTab.classList.contains('active')) {
-            this.initialPreviewPending = false;
-            // Initialiser l'aperçu immédiatement si l'onglet est déjà actif
-            setTimeout(() => {
-                this.updateActiveElementPreview(null, true); // Force le rendu
-            }, 100);
-        }
-        
-        // Initialiser une brique par défaut si aucune n'est sélectionnée
-        setTimeout(() => {
-            this.ensureDefaultElementSelection();
-        }, 1000);
-        
-        // Attacher l'événement au canvas Three.js pour la sélection d'assise
-        this.setupSceneClickHandler();
-        
-        // Écouter les changements d'assise du gestionnaire principal
-        document.addEventListener('assiseChanged', (e) => {
-            this.updateDisplay();
-        });
-        
-        document.addEventListener('assiseTypeChanged', (e) => {
-            this.updateDisplay();
-        });
-        
-        // Écouter les changements d'éléments dans les assises
-        document.addEventListener('assiseElementsChanged', (e) => {
-            this.updateDisplay();
-        });
-        
-        // Écouter les changements de sélection de brique/bloc/isolant/linteau
+        // Écouter les changements de sélection de brique
         document.addEventListener('brickSelectionChanged', (e) => {
-            // Logs retirés (brickSelectionChanged)
-            const currentMainTab = window.tabManager ? window.tabManager.currentMainTab : null;
-            
-            // Toujours mettre à jour l'élément actif avec la brique sélectionnée si les données sont disponibles
             if (e.detail?.brickData) {
                 const brickElement = {
                     type: e.detail.brickType,
@@ -127,13 +43,11 @@ class ToolsTabManager {
                     },
                     category: e.detail.brickData.category || 'brick'
                 };
-                // Log retiré: mise à jour élément actif brique
-                
                 // Mémoriser la brique sélectionnée pour l'afficher dans l'onglet Outils
                 this.selectedBrickElement = brickElement;
                 
                 // Si nous sommes dans l'onglet Outils, afficher immédiatement
-                if (currentMainTab === 'outils') {
+                if (typeof currentMainTab !== 'undefined' && currentMainTab === 'outils') {
                     this.renderElementPreview(brickElement);
                 }
             } else {
@@ -301,6 +215,20 @@ class ToolsTabManager {
                 }
             });
         }
+
+        // Ajout: gestion dédiée des boutons PROFIL où qu'ils se trouvent dans la bibliothèque
+        // Cela évite de dépendre d'un conteneur spécifique (#toolsCutButtons) qui peut ne pas exister.
+        document.addEventListener('click', (e) => {
+            const btn = e.target && e.target.closest && e.target.closest('.cut-btn-mini[data-base-type="PROFIL"]');
+            if (!btn) return;
+
+            // Empêcher le gestionnaire générique de TabManager d'interférer
+            e.preventDefault();
+            e.stopPropagation();
+
+            const cutType = btn.getAttribute('data-cut');
+            this.selectCutInTools(cutType, 'PROFIL', btn);
+        }, true);
     }
 
     updateDisplay() {
@@ -2145,6 +2073,69 @@ class ToolsTabManager {
 
     selectCutInTools(cutInfo, baseType, clickedElement) {
         // console.log('🔧 Sélection de coupe dans l\'onglet Outils:', cutInfo, 'pour élément', baseType);
+        
+        // Gestion spéciale pour PROFIL
+        if (baseType === 'PROFIL') {
+            const height = parseFloat(clickedElement.getAttribute('data-height'));
+            const profilType = `PROFIL_${height}`;
+            const dims = { length: 6.5, width: 6.5, height };
+            console.log(`🔩 Sélection PROFIL H=${height}cm`);
+
+            // Synchroniser avec BrickSelector (chemin officiel)
+            if (window.BrickSelector && typeof window.BrickSelector.setBrick === 'function') {
+                window.BrickSelector.setBrick(profilType);
+            } else if (window.BrickSelector) {
+                // Fallback minimal si setBrick indisponible
+                window.BrickSelector.currentBrick = profilType;
+                window.BrickSelector.selectedType = profilType;
+                window.BrickSelector.updateBrickDimensions?.(profilType);
+                window.BrickSelector.updateCurrentBrickDisplay?.();
+            }
+
+            // Créer/mettre à jour le fantôme
+            if (window.ConstructionTools) {
+                window.ConstructionTools.setMode('block');
+                window.ConstructionTools.createGhostElement();
+                if (window.ConstructionTools.ghostElement) {
+                    const ghost = window.ConstructionTools.ghostElement;
+                    ghost.dimensions = dims;
+                    ghost.material = 'aluminium';
+                    ghost.blockType = profilType;
+                    ghost.userData.isProfil = true;
+
+                    if (ghost.mesh) {
+                        ghost.mesh.geometry.dispose();
+                        ghost.mesh.geometry = new THREE.BoxGeometry(dims.length, dims.height, dims.width);
+                        const aluminiumMat = window.MaterialLibrary?.getThreeJSMaterial('aluminium');
+                        if (aluminiumMat) {
+                            // Cloner pour ne pas partager l'instance globale
+                            ghost.mesh.material = aluminiumMat.clone();
+                            ghost.mesh.material.transparent = true;
+                            ghost.mesh.material.opacity = 0.3;
+                            // Mémoriser l'id matériau
+                            ghost.material = 'aluminium';
+                            if (!ghost.userData) ghost.userData = {};
+                            ghost.userData.isProfil = true;
+                        }
+                    }
+                    // Mettre à jour les champs de dimension UI afin que ConstructionTools lise la bonne hauteur si nécessaire
+                    const hEl = document.getElementById('elementHeight');
+                    const lEl = document.getElementById('elementLength');
+                    const wEl = document.getElementById('elementWidth');
+                    if (hEl) hEl.value = String(dims.height);
+                    if (lEl) lEl.value = String(dims.length);
+                    if (wEl) wEl.value = String(dims.width);
+                }
+            }
+
+            // Mettre à jour l'état visuel des boutons
+            const allButtons = document.querySelectorAll('.cut-btn-mini[data-base-type="PROFIL"]');
+            allButtons.forEach(btn => btn.classList.remove('active'));
+            if (clickedElement) clickedElement.classList.add('active');
+
+            setTimeout(() => this.updateActiveElementPreview(), 50);
+            return;
+        }
         
         // Construire le type final selon le type de coupe
         let finalType = baseType; // Par défaut, élément entier
