@@ -342,6 +342,15 @@
             cursor: not-allowed;
         }
         
+        /* Séparateur dans la toolbar */
+        .toolbar-separator {
+            width: 50px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            margin: 5px 0;
+            border-radius: 1px;
+        }
+        
         /* Message d'instruction */
         .instruction-message {
             position: fixed;
@@ -641,30 +650,27 @@
         <div class="tool-button" id="duplicateTool" title="Dupliquer">
             <i class="fas fa-copy"></i>
         </div>
-        <!-- Séparateur -->
-        <div style="height: 2px; background: rgba(255,255,255,0.3); margin: 5px 0; border-radius: 1px;"></div>
-        <!-- Outils de cotation et d'annotation -->
+        
+        <!-- Séparateur visuel -->
+        <div class="toolbar-separator"></div>
+        
+        <!-- Outils d'annotation et mesure -->
         <div class="tool-button" id="measureTool" title="Outil de mesure (M)">
             <i class="fas fa-ruler"></i>
-            <span class="tool-counter" id="measureCounter" style="display: none;">0</span>
         </div>
         <div class="tool-button" id="annotationTool" title="Outil d'annotation (A)">
-            <i class="fas fa-font"></i>
-            <span class="tool-counter" id="annotationCounter" style="display: none;">0</span>
-        </div>
-        <div class="tool-button" id="textLeaderTool" title="Outil texte avec ligne de rappel (T)">
             <i class="fas fa-comment-dots"></i>
-            <span class="tool-counter" id="textLeaderCounter" style="display: none;">0</span>
         </div>
-        <div class="tool-button paint-mode-btn" id="materialPaintMode" title="Mode pinceau - Cliquez sur un matériau puis sur un élément pour le peindre">
+        <div class="tool-button" id="textLeaderTool" title="Texte avec ligne de rappel (T)">
+            <i class="fas fa-comment-medical"></i>
+        </div>
+        <div class="tool-button" id="materialPaintMode" title="Mode pinceau">
             <i class="fas fa-paint-brush"></i>
         </div>
-        
-        <!-- Bouton d'aide générale supprimé - chaque outil a maintenant sa propre aide -->
     </div>
     
-    <!-- Labels permanents pour la toolbar -->
-    <div class="toolbar-labels" id="toolbarLabels">
+    <!-- Labels des outils (tooltips au survol de la toolbar) -->
+    <div class="toolbar-labels">
         <div class="toolbar-label">Sélectionner</div>
         <div class="toolbar-label">Déplacer</div>
         <div class="toolbar-label">Supprimer</div>
@@ -825,6 +831,13 @@
                 </div>
                 
                 <div class="header-right">
+                    <!-- Bouton Export JPG -->
+                    <div class="export-image-button">
+                        <button class="export-image-btn" id="exportJpgBtn" data-tooltip="Exporter la vue 3D en JPG">
+                            <span class="btn-icon"><i class="fas fa-image"></i></span>
+                            Export JPG
+                        </button>
+                    </div>
                     <!-- Bouton Présenter -->
                     <div class="presentation-button">
                         <button class="present-btn" id="presentBtn" data-tooltip="Exporter en présentation PDF">
@@ -2151,30 +2164,71 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Brouette -->
-                                        <div class="library-item" data-type="brouette" data-glb-path="assets/models/outils/brouette.glb">
+                                        <!-- Blochet Droit -->
+                                        <div class="library-item" data-type="blochet_droit" data-glb-path="assets/models/outils/blochet_droit.glb">
                                             <div class="preview-container">
-                                                <canvas class="preview-3d" width="360" height="280" data-glb-path="assets/models/outils/brouette.glb" data-glb-name="Brouette"></canvas>
+                                                <canvas class="preview-3d" width="360" height="280" data-glb-path="assets/models/outils/blochet_droit.glb" data-glb-name="Blochet Droit"></canvas>
                                                 <div class="loading-indicator">
                                                     <div class="spinner"></div>
                                                     <span>Chargement...</span>
                                                 </div>
                                             </div>
                                             <div class="item-info">
-                                                <div class="item-name">Brouette</div>
-                                                <div class="item-specs">
-                                                    <span class="spec-item">
-                                                        <i class="fas fa-ruler-horizontal"></i> 150 cm
-                                                    </span>
-                                                    <span class="spec-item">
-                                                        <i class="fas fa-ruler-vertical"></i> 60 cm
-                                                    </span>
-                                                    <span class="spec-item">
-                                                        <i class="fas fa-arrows-alt-v"></i> 80 cm
-                                                    </span>
+                                                <div class="item-name">Blochet Droit</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Blochet Gauche -->
+                                        <div class="library-item" data-type="blochet_gauche" data-glb-path="assets/models/outils/blochet_gauche.glb">
+                                            <div class="preview-container">
+                                                <canvas class="preview-3d" width="360" height="280" data-glb-path="assets/models/outils/blochet_gauche.glb" data-glb-name="Blochet Gauche"></canvas>
+                                                <div class="loading-indicator">
+                                                    <div class="spinner"></div>
+                                                    <span>Chargement...</span>
+                                                </div>
+                                            </div>
+                                            <div class="item-info">
+                                                <div class="item-name">Blochet Gauche</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Cordeau (ficelle) → outil interactif -->
+                                        <div class="library-item" data-type="cordeau">
+                                            <div class="preview-container" style="display:flex;align-items:center;justify-content:center;height:120px;background:linear-gradient(180deg, rgba(255,209,26,0.15), rgba(255,209,26,0.05));border:1px dashed rgba(255,209,26,0.5);border-radius:6px;">
+                                                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;color:#b58900;">
+                                                    <i class="fas fa-grip-lines" style="font-size:22px;color:#e0b200;"></i>
+                                                    <span style="font-size:12px;color:#8a6d00;">Tracer une ficelle entre 2 points</span>
+                                                </div>
+                                            </div>
+                                            <div class="item-info">
+                                                <div class="item-name">Cordeau (ficelle)</div>
+                                                <div class="item-specs" style="font-size:12px;opacity:0.9;">
+                                                    <span class="spec-item"><i class="fas fa-mouse-pointer"></i> 2 clics pour poser</span>
+                                                    <span class="spec-item"><i class="fas fa-times"></i> Échap pour annuler</span>
+                                                    <span class="spec-item"><i class="fas fa-keyboard"></i> C pour activer</span>
                                                 </div>
                                             </div>
                                         </div>
+                                        
+                                            <!-- PROFIL Aluminium (parallélépipède 6.5x6.5, hauteurs multiples) -->
+                                            <div class="library-item" data-type="PROFIL" data-material="aluminium">
+                                                <div class="preview-container">
+                                                    <canvas class="preview-3d" width="360" height="280" data-type="PROFIL" data-material="aluminium"></canvas>
+                                                </div>
+                                                <div class="item-info">
+                                                    <div class="item-name">Profil</div>
+                                                    <div class="item-dimensions">6.5×6.5 cm</div>
+                                                </div>
+                                                <div class="cut-buttons">
+                                                    <button class="cut-btn-mini" data-cut="100" data-base-type="PROFIL" data-height="100">H: 1m</button>
+                                                    <button class="cut-btn-mini" data-cut="150" data-base-type="PROFIL" data-height="150">H: 1.5m</button>
+                                                    <button class="cut-btn-mini" data-cut="200" data-base-type="PROFIL" data-height="200">H: 2m</button>
+                                                    <button class="cut-btn-mini" data-cut="250" data-base-type="PROFIL" data-height="250">H: 2.5m</button>
+                                                    <button class="cut-btn-mini" data-cut="300" data-base-type="PROFIL" data-height="300">H: 3m</button>
+                                                </div>
+                                            </div>
+                                        
+                                        
                                     </div>
                                 </div>
                             </div>
@@ -3996,6 +4050,7 @@
     <!-- Inline fallback for textures manifest (used by TexturesManager if fetch fails) -->
     <script id="textures-manifest" type="application/json">[
       { "id": "acier", "name": "Acier", "file": "acier.png" },
+      { "id": "aluminium", "name": "Aluminium", "file": "aluminium.jpg" },
       { "id": "beton_1", "name": "Béton 1", "file": "beton_1.png" },
       { "id": "blocbeton", "name": "Bloc Béton", "file": "blocbeton.jpg" },
       { "id": "bois_pin_1", "name": "Bois Pin 1", "file": "bois_pin_1.png" },
@@ -4965,6 +5020,7 @@
     <script src="js/measurement-tool.js"></script>
     <script src="js/annotation-tool.js"></script>
     <script src="js/text-leader-tool.js"></script>
+    <script src="js/cordeau-tool.js"></script>
     <script src="js/measurement-annotation-manager.js"></script>
     <script src="js/metre-tab-manager.js"></script>
     <script src="js/glb-dpad-controller.js"></script>
