@@ -1704,14 +1704,55 @@ class FileMenuHandler {
         const saveWithFSAccess = async () => {
             try {
                 if (window.showSaveFilePicker) {
+                    // Déterminer dynamiquement le type de fichier pour le sélecteur
+                    const getFileTypesForPicker = () => {
+                        const extMatch = /\.([a-z0-9]+)$/i.exec(fileName);
+                        const ext = extMatch ? extMatch[1].toLowerCase() : null;
+                        switch (mimeType) {
+                            case 'application/sla': // STL
+                            case 'model/stl':
+                                return [{
+                                    description: 'Fichier STL',
+                                    accept: {
+                                        'application/sla': ['.stl'],
+                                        'model/stl': ['.stl']
+                                    }
+                                }];
+                            case 'application/obj': // OBJ
+                                return [{
+                                    description: 'Fichier OBJ',
+                                    accept: { 'application/obj': ['.obj'], 'text/plain': ['.obj'] }
+                                }];
+                            case 'image/jpeg': // JPG
+                                return [{
+                                    description: 'Image JPEG',
+                                    accept: { 'image/jpeg': ['.jpg', '.jpeg'] }
+                                }];
+                            case 'application/pdf': // PDF
+                                return [{
+                                    description: 'Document PDF',
+                                    accept: { 'application/pdf': ['.pdf'] }
+                                }];
+                            case 'application/json': // Projet / JSON
+                                // Autoriser .wsm et .json
+                                return [{
+                                    description: 'Projet WallSim3D / JSON',
+                                    accept: { 'application/json': ['.wsm', '.json'] }
+                                }];
+                            default:
+                                // Fallback générique basé sur l'extension demandée
+                                const fallbackExt = ext ? `.${ext}` : '';
+                                const description = ext ? `${ext.toUpperCase()} file` : 'Fichier';
+                                return [{
+                                    description,
+                                    accept: { [mimeType || 'application/octet-stream']: [fallbackExt || '.*'] }
+                                }];
+                        }
+                    };
+
                     const handle = await window.showSaveFilePicker({
                         suggestedName: fileName,
-                        types: [
-                            {
-                                description: 'Projet WallSim3D',
-                                accept: { 'application/json': ['.wsm'] }
-                            }
-                        ]
+                        types: getFileTypesForPicker()
                     });
                     const writable = await handle.createWritable();
                     await writable.write(blob);

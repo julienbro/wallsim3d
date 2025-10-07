@@ -3392,6 +3392,20 @@ class SceneManager {
     }
 
     addElement(element) {
+        // Si le mesh n'est pas encore prêt (cas GLB asynchrone), différer l'ajout
+        if (!element.mesh) {
+            const onReady = (e) => {
+                if (e.detail?.element?.id === element.id) {
+                    document.removeEventListener('glbMeshReady', onReady);
+                    this.addElement(element);
+                }
+            };
+            document.addEventListener('glbMeshReady', onReady);
+            // Conserver l'élément pour le suivi
+            this.elements.set(element.id, element);
+            return;
+        }
+
         this.elements.set(element.id, element);
         element.mesh.castShadow = true;
         element.mesh.receiveShadow = true;
@@ -3441,7 +3455,7 @@ class SceneManager {
         }
         
         // Intégration avec le système de calques
-        if (window.LayerManager) {
+        if (window.LayerManager && element.mesh) {
             const elementType = element.type || element.mesh.userData?.type || 'unknown';
             // console.log('🎨 SceneManager: Assignation au calque:', {
             //     elementId: element.id,
@@ -4305,13 +4319,7 @@ class SceneManager {
 
     exportScene() {
         return {
-            elements: Array.from(this.elements.values()).filter(el => {
-                // Exclure les éléments GLB qui ne supportent pas toJSON
-                if (el.type === 'glb' || (el.userData && el.userData.isGLB)) {
-                    return false;
-                }
-                return true;
-            }).map(el => el.toJSON()),
+            elements: Array.from(this.elements.values()).map(el => el.toJSON()),
             gridSpacing: this.gridSpacing,
             showGrid: this.showGrid
         };

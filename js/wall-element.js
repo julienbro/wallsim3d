@@ -62,9 +62,11 @@ class WallElement {
             this.blockType = null;
         }
         
-        // Nouveau: Détecter si c'est un élément GLB
-        this.isGLBElement = this.checkIfGLBElement(options);
-        this.glbPath = options.glbPath || null;
+    // Nouveau: Détecter si c'est un élément GLB
+    this.isGLBElement = this.checkIfGLBElement(options);
+    this.glbPath = options.glbPath || null;
+    // Échelle cible persistée (utile pour recharger après import, appliquée après chargement GLB)
+    this._targetScale = options.meshScale || null;
         
         if (window.DEBUG_WALL_ELEMENT) {
             console.log('🏗️ WallElement: Types stockés - blockType:', this.blockType, 'brickType:', this.brickType);
@@ -209,11 +211,28 @@ class WallElement {
                         isGLB: true,
                         glbPath: this.glbPath
                     };
+
+                    // Appliquer une échelle persistée si définie
+                    if (this._targetScale) {
+                        try {
+                            this.mesh.scale.set(
+                                this._targetScale.x ?? 1,
+                                this._targetScale.y ?? 1,
+                                this._targetScale.z ?? 1
+                            );
+                        } catch (e) { /* no-op */ }
+                    }
                     
                     // Positionner le mesh
                     this.updateMeshPosition();
                     
                     console.log('🎯 GLB mesh créé et positionné pour:', this.type);
+
+                    // Prévenir le système que le mesh GLB est prêt (utile pour l'import différé)
+                    try {
+                        const evt = new CustomEvent('glbMeshReady', { detail: { element: this } });
+                        document.dispatchEvent(evt);
+                    } catch (_) { /* no-op */ }
                 },
                 (progress) => {
                     // console.log(`📊 Chargement GLB: ${(progress.loaded / progress.total * 100)}%`);
@@ -1113,7 +1132,7 @@ class WallElement {
 
     // Sérialisation pour sauvegarde
     toJSON() {
-        return {
+        const data = {
             id: this.id,
             type: this.type,
             material: this.material,
@@ -1129,6 +1148,22 @@ class WallElement {
             isVerticalJoint: this.isVerticalJoint,
             isHorizontalJoint: this.isHorizontalJoint
         };
+
+        // Inclure les métadonnées GLB si applicable
+        if (this.isGLBElement || this.glbPath) {
+            data.isGLBElement = true;
+            data.glbPath = this.glbPath || undefined;
+            // Sauvegarder l'échelle si le mesh existe
+            if (this.mesh && this.mesh.scale) {
+                data.meshScale = {
+                    x: this.mesh.scale.x,
+                    y: this.mesh.scale.y,
+                    z: this.mesh.scale.z
+                };
+            }
+        }
+
+        return data;
     }
 
     // Désérialisation
@@ -1147,8 +1182,11 @@ class WallElement {
             brickType: data.brickType,
             insulationType: data.insulationType,
             beamType: data.beamType,
-            beamLengthCm: data.beamLengthCm
-            ,assiseName: data.assiseName
+            beamLengthCm: data.beamLengthCm,
+            assiseName: data.assiseName,
+            // GLB
+            glbPath: data.glbPath,
+            meshScale: data.meshScale
         });
         
         // Restaurer les propriétés de joint
