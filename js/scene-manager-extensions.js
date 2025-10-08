@@ -873,6 +873,24 @@
             }
 
             try {
+                // 1) Masquer temporairement les aides visuelles/markeurs pour une capture propre
+                let initialState = null;
+                let localMaskContext = null;
+                try {
+                    if (window.presentationManager &&
+                        typeof window.presentationManager.saveInitialSceneState === 'function' &&
+                        typeof window.presentationManager.disableVisualAidsForExport === 'function') {
+                        // Utiliser l'infrastructure existante d'export PDF (plus exhaustive)
+                        initialState = window.presentationManager.saveInitialSceneState();
+                        window.presentationManager.disableVisualAidsForExport();
+                    } else {
+                        // Fallback local si PresentationManager indisponible
+                        localMaskContext = this.temporarilyHideVisualAidsForImageCapture();
+                    }
+                } catch (maskErr) {
+                    console.warn('⚠️ Impossible de masquer toutes les aides visuelles avant capture:', maskErr);
+                }
+
                 // Forcer un rendu
                 this.renderer.render(this.scene, this.camera);
                 
@@ -961,6 +979,20 @@
                     outputDataUrl = glCanvas.toDataURL(mimeType);
                 }
 
+                // 2) Restaurer l'état initial (aides visuelles, visibilité, etc.)
+                try {
+                    if (initialState && window.presentationManager &&
+                        typeof window.presentationManager.restoreInitialSceneState === 'function' &&
+                        typeof window.presentationManager.restoreVisualAidsAfterExport === 'function') {
+                        window.presentationManager.restoreInitialSceneState(initialState);
+                        window.presentationManager.restoreVisualAidsAfterExport(initialState);
+                    } else if (localMaskContext) {
+                        this.restoreTemporaryHiddenVisualAids(localMaskContext);
+                    }
+                } catch (restoreErr) {
+                    console.warn('⚠️ Problème lors de la restauration après capture:', restoreErr);
+                }
+
                 if (callback) callback(outputDataUrl);
                 console.log(`✅ Capture ${format.toUpperCase()} terminée`);
                 return outputDataUrl;
@@ -969,6 +1001,127 @@
                 console.error('❌ Erreur lors de la capture:', error);
                 if (callback) callback(null);
                 return null;
+            }
+        };
+
+        // Masquage léger des aides visuelles pour la capture d'image (fallback local)
+        // Retourne un contexte permettant de restaurer l'état précédent
+        window.SceneManager.temporarilyHideVisualAidsForImageCapture = function() {
+            const masked = [];
+            const markHidden = (obj) => {
+                if (!obj) return;
+                if (obj.visible !== false) {
+                    masked.push({ obj, wasVisible: true });
+                    obj.visible = false;
+                }
+            };
+
+            try {
+                // 1) Masquer quelques helpers connus du SceneManager
+                if (this.axesHelper) markHidden(this.axesHelper);
+                if (this.grid) markHidden(this.grid);
+                if (this.northArrowGroup) markHidden(this.northArrowGroup);
+
+                // 2) Masquer éléments de ConstructionTools (fantômes, edge snap, suggestions)
+                if (window.ConstructionTools) {
+                    const CT = window.ConstructionTools;
+                    if (CT.edgeSnapGroup) markHidden(CT.edgeSnapGroup);
+                    if (CT.ghostElement && CT.ghostElement.mesh) markHidden(CT.ghostElement.mesh);
+                    if (Array.isArray(CT.suggestionGhosts)) {
+                        CT.suggestionGhosts.forEach(g => {
+                            if (!g) return;
+                            if (g.mesh) markHidden(g.mesh);
+                            else markHidden(g);
+                        });
+                    }
+                    if (CT.currentGhost) {
+                        if (CT.currentGhost.mesh) markHidden(CT.currentGhost.mesh);
+                        else markHidden(CT.currentGhost);
+                    }
+                    if (CT.ghostBrick) markHidden(CT.ghostBrick);
+                }
+
+                // 3) Masquer aides AssiseManager (grilles, marqueurs, snap point)
+                if (window.AssiseManager) {
+                    const AM = window.AssiseManager;
+                    // Grilles
+                    if (AM.gridHelpersByType && AM.gridHelpersByType.forEach) {
+                        AM.gridHelpersByType.forEach((gridsByAssise) => {
+                            if (!gridsByAssise || !gridsByAssise.forEach) return;
+                            gridsByAssise.forEach((grids) => {
+                                if (!grids) return;
+                                if (grids.main) markHidden(grids.main);
+                                if (grids.sub) markHidden(grids.sub);
+                            });
+                        });
+                    }
+                    // Marqueurs d'attache
+                    if (AM.attachmentMarkersByType && AM.attachmentMarkersByType.forEach) {
+                        AM.attachmentMarkersByType.forEach((markersByAssise) => {
+                            if (!markersByAssise || !markersByAssise.forEach) return;
+                            markersByAssise.forEach((markers) => {
+                                if (Array.isArray(markers)) markers.forEach(m => markHidden(m));
+                            });
+                        });
+                    }
+                    // Snap point
+                    if (AM.snapPoint) markHidden(AM.snapPoint);
+                }
+
+                // 4) Masquer dans la scène les objets qui ressemblent à des marqueurs/aides
+                const suspiciousName = (name) => {
+                    if (!name) return false;
+                    const s = name.toLowerCase();
+                    return (
+                        s.includes('ghost') || s.includes('fantome') ||
+                        s.includes('preview') || s.includes('cursor') ||
+                        s.includes('temp') || s.includes('suggestion') ||
+                        s.includes('hover') || s.includes('highlight') ||
+                        s.includes('floating') || s.includes('outline') ||
+                        s.includes('grid') || s.includes('helper') ||
+                        s.includes('marker')
+                    );
+                };
+
+                if (this.scene) {
+                    this.scene.traverse((obj) => {
+                        if (!obj || !obj.isObject3D || obj === this.scene) return;
+                        // Ne pas masquer la cordeau ici (on la redessine en 2D, mais on la laisse visible au cas PNG)
+                        if (obj.userData && obj.userData.type === 'cordeau') return;
+
+                        // Critères userData
+                        const ud = obj.userData || {};
+                        const looksLikeAid = (
+                            ud.isEdgeSnapMarker || ud.ghost || ud.preview || ud.isGhost ||
+                            ud.suggestion || ud.isSuggestion || ud.isTemp ||
+                            ud.isAssiseProjectionMarker || ud.helper || ud.marker
+                        );
+
+                        if (looksLikeAid || suspiciousName(obj.name)) {
+                            markHidden(obj);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn('⚠️ Erreur pendant le masquage local des aides visuelles:', e);
+            }
+
+            return { masked };
+        };
+
+        // Restauration du masquage local
+        window.SceneManager.restoreTemporaryHiddenVisualAids = function(ctx) {
+            if (!ctx || !Array.isArray(ctx.masked)) return;
+            try {
+                ctx.masked.forEach(({ obj, wasVisible }) => {
+                    if (obj && obj.visible !== undefined && wasVisible) obj.visible = true;
+                });
+                // Re-rendu rapide pour refléter l'état restauré
+                if (this.renderer && this.scene && this.camera) {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            } catch (e) {
+                console.warn('⚠️ Erreur pendant la restauration locale des aides visuelles:', e);
             }
         };
 

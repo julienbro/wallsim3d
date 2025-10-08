@@ -12,11 +12,30 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.addEventListener('startup-open-project', function(event) {
-        console.log('📂 Ouverture du fichier:', event.detail.file.name);
-        // Ne pas fermer la popup automatiquement pour "Ouvrir"
-        // L'utilisateur pourra la fermer manuellement ou après chargement du fichier
-        // Ici vous pouvez ajouter la logique pour ouvrir un projet
-        initializeApplication();
+        const file = event.detail && event.detail.file;
+        console.log('📂 Ouverture du fichier:', file?.name);
+        // Initialiser l'application si nécessaire, puis charger le fichier via FileMenuHandler
+        const proceed = () => {
+            try {
+                if (window.FileMenuHandler && typeof window.FileMenuHandler.loadProjectFile === 'function' && file) {
+                    window.FileMenuHandler.loadProjectFile(file);
+                    // Optionnel: fermer la popup une fois le chargement lancé
+                    if (window.StartupManager) {
+                        StartupManager.closeStartupPopup();
+                    }
+                }
+            } catch (e) {
+                console.error('❌ Échec du chargement du projet depuis la popup d\'accueil:', e);
+            }
+        };
+        if (typeof THREE !== 'undefined') {
+            initializeApplicationCore();
+            // Attendre un tick pour garantir l'init
+            setTimeout(proceed, 50);
+        } else {
+            initializeApplication();
+            setTimeout(proceed, 300);
+        }
     });
 
     // Attendre que Three.js ES6 soit chargé

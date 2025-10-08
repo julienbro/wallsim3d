@@ -2,6 +2,17 @@
 class MaterialLibrary {
     constructor() {
         this.materials = {
+            // ========== TEXTURE BLOC BÉTON (toujours disponible) ==========
+            // Ajoutée statiquement pour éviter les retours par défaut vers une texture de brique
+            'tex-blocbeton': {
+                name: 'Bloc Béton (Texture)',
+                color: 0xFFFFFF,
+                mapUrl: 'assets/textures/blocbeton.jpg',
+                section: 'modernes-composites',
+                description: 'Texture standard des blocs béton pleins/creux (B9/B14/B19/B29).',
+                isTexture: true,
+                repeat: { x: 1, y: 1 }
+            },
             // ========== ETANCHEITE ==========
             'diba-noir': {
                 name: 'Membrane Diba Noire',

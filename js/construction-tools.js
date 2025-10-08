@@ -3446,6 +3446,14 @@ class ConstructionTools {
     }
 
     onElementSelected(element) {
+        try {
+            console.log('[LOG][ConstructionTools.onElementSelected] elementSelected:', {
+                type: element?.type,
+                toolType: element?.toolType,
+                isSelectionMode: window.toolbarManager?.interactionMode,
+                currentTool: window.toolbarManager?.currentTool
+            });
+        } catch (_) {}
         // Si on est en mode sélection, basculer automatiquement en mode placement
         // MAIS seulement pour les éléments de construction, pas pour les annotations/mesures/textes
         if (window.toolbarManager && window.toolbarManager.interactionMode === 'selection') {
@@ -3453,11 +3461,19 @@ class ConstructionTools {
             const isConstructionElement = element.type && 
                 !['annotation', 'measurement', 'textleader'].includes(element.type) &&
                 !['annotation', 'measurement', 'textleader'].includes(element.toolType);
+            // Exception: conserver le mode sélection pour les dalles afin d'afficher/éditer leurs propriétés
+            const isSlab = element.type === 'slab' || element.toolType === 'slab';
                 
-            if (isConstructionElement) {
+            if (isConstructionElement && !isSlab) {
+                console.log('[LOG][ConstructionTools.onElementSelected] switching to placement (non-slab construction element)');
                 // console.log('🔄 Élément sélectionné dans la bibliothèque - Bascule du mode sélection vers le mode placement');
                 window.toolbarManager.setInteractionMode('placement');
             } else {
+                if (isSlab) {
+                    console.log('[LOG][ConstructionTools.onElementSelected] stay in selection mode (slab)');
+                } else {
+                    console.log('[LOG][ConstructionTools.onElementSelected] stay in selection mode (annotation/measurement/textleader or non-construction)');
+                }
                 // console.log('📝 Élément d\'annotation/mesure/texte sélectionné - Maintien du mode sélection');
                 // Rester en mode sélection pour les annotations/mesures/textes
                 return;

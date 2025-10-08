@@ -1031,6 +1031,34 @@ class SceneManager {
                                                     try { this.activateJointControlInterface('right'); } catch(_) {}
                                                 }
                                             } catch(_) {}
+                                        } else if (position === '430201') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 430201 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '463101' || position === '433101') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log(`🧪 JOINT-DEBUG (anim-continuation): ${position} → DROIT (référence)`, { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                    try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '140301' || position === '140302') {
+                                            // B14 ENTIER→3/4 (ou 3/4→3/4) → Joint DROIT sur le bloc de référence
+                                            const targetElement = capturedReferenceElement;
+                                            console.log(`🧪 JOINT-DEBUG (anim-continuation): ${position} → DROIT (référence)`, { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                    try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
                                         } else if (position === '464101') {
                                             const targetElement = capturedReferenceElement;
                                             console.log('🧪 JOINT-DEBUG (anim-continuation): 464101 → DROIT (référence)', { targetId: targetElement?.id });
@@ -1038,6 +1066,15 @@ class SceneManager {
                                                 if (window.ConstructionTools && targetElement) {
                                                     window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
                                                     try { this.activateJointControlInterface('right'); } catch(_) {}
+                                                }
+                                            } catch(_) {}
+                                        } else if (position === '464102') {
+                                            const targetElement = capturedReferenceElement;
+                                            console.log('🧪 JOINT-DEBUG (anim-continuation): 464102 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                            try {
+                                                if (window.ConstructionTools && targetElement) {
+                                                    window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                    try { this.activateJointControlInterface('left'); } catch(_) {}
                                                 }
                                             } catch(_) {}
                                         } else if (position === '461101') {
@@ -1567,6 +1604,34 @@ class SceneManager {
                                                 try { this.activateJointControlInterface('right'); } catch(_) {}
                                             }
                                         } catch(_) {}
+                                    } else if (position === '430201') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 430201 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '463101' || position === '433101') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log(`🧪 JOINT-DEBUG (fallback-continuation): ${position} → DROIT (référence)`, { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '140301' || position === '140302') {
+                                        // B14 ENTIER→3/4 (ou 3/4→3/4) → Joint DROIT sur le bloc de référence
+                                        const targetElement = capturedReferenceElement;
+                                        console.log(`🧪 JOINT-DEBUG (fallback-continuation): ${position} → DROIT (référence)`, { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
+                                                try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
                                     } else if (position === '464101') {
                                         const targetElement = capturedReferenceElement;
                                         console.log('🧪 JOINT-DEBUG (fallback-continuation): 464101 → DROIT (référence)', { targetId: targetElement?.id });
@@ -1574,6 +1639,15 @@ class SceneManager {
                                             if (window.ConstructionTools && targetElement) {
                                                 window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'right');
                                                 try { this.activateJointControlInterface('right'); } catch(_) {}
+                                            }
+                                        } catch(_) {}
+                                    } else if (position === '464102') {
+                                        const targetElement = capturedReferenceElement;
+                                        console.log('🧪 JOINT-DEBUG (fallback-continuation): 464102 → GAUCHE (référence)', { targetId: targetElement?.id });
+                                        try {
+                                            if (window.ConstructionTools && targetElement) {
+                                                window.ConstructionTools.createSpecificVerticalJoint(targetElement, 'left');
+                                                try { this.activateJointControlInterface('left'); } catch(_) {}
                                             }
                                         } catch(_) {}
                                     } else if (position === '461101') {
@@ -2007,6 +2081,7 @@ class SceneManager {
                         mesh.userData.element.type === 'insulation' ||
                         mesh.userData.element.type === 'linteau' || // 🆕 autoriser la sélection des linteaux
                         mesh.userData.element.type === 'beam' || // 🆕 autoriser la sélection des poutres
+                        mesh.userData.element.type === 'slab' || // 🆕 inclure les dalles dans les cibles de raycast
                         mesh.userData.element.type === 'glb' ||
                         mesh.userData.element.isGLBModel
                        );
@@ -2156,21 +2231,22 @@ class SceneManager {
             
             // Séparer les éléments de construction et les objets d'annotation
             const constructionIntersects = intersects.filter(intersect => {
-                return intersect.object && 
-                       intersect.object.userData && 
-                       intersect.object.userData.element && 
-                       intersect.object.userData.element.id &&
-                       !intersect.object.userData.element.isVerticalJoint &&
-                       !intersect.object.userData.element.isHorizontalJoint &&
-                       (
-                        intersect.object.userData.element.type === 'brick' || 
-                        intersect.object.userData.element.type === 'block' || 
-                        intersect.object.userData.element.type === 'insulation' ||
-                        intersect.object.userData.element.type === 'linteau' || // 🆕 inclure les linteaux dans la sélection
-                        intersect.object.userData.element.type === 'beam' || // 🆕 poutres sélectionnables
-                        intersect.object.userData.element.type === 'glb' ||
-                        intersect.object.userData.element.isGLBModel
-                       );
+                if (!intersect.object) return false;
+                const obj = intersect.object;
+                const udElem = (obj.userData && obj.userData.element) || (obj.parent && obj.parent.userData && obj.parent.userData.element);
+                if (!udElem || !udElem.id) return false;
+                if (udElem.isVerticalJoint || udElem.isHorizontalJoint) return false;
+                const t = udElem.type;
+                return (
+                    t === 'brick' ||
+                    t === 'block' ||
+                    t === 'insulation' ||
+                    t === 'linteau' || // 🆕 inclure les linteaux dans la sélection
+                    t === 'beam' ||     // 🆕 poutres sélectionnables
+                    t === 'slab' ||     // 🆕 inclure les dalles dans la sélection
+                    t === 'glb' ||
+                    udElem.isGLBModel
+                );
             });
 
             // ✅ MODE LINTEAU: placement direct au clic lorsque le fantôme est actif
@@ -2236,9 +2312,13 @@ class SceneManager {
                 // D'abord chercher les éléments de construction
                 for (let i = 0; i < constructionIntersects.length; i++) {
                     const intersect = constructionIntersects[i];
-                    if (intersect.object && intersect.object.userData && intersect.object.userData.element) {
-                        element = intersect.object.userData.element;
-                        intersectObject = intersect.object;
+                    if (!intersect.object) continue;
+                    const obj = intersect.object;
+                    const elem = (obj.userData && obj.userData.element) || (obj.parent && obj.parent.userData && obj.parent.userData.element);
+                    if (elem) {
+                        element = elem;
+                        intersectObject = obj;
+                        try { console.log('[LOG][SceneManager] hit element via raycast:', { type: elem.type, id: elem.id }); } catch(_){}
                         break;
                     }
                 }
@@ -2371,6 +2451,7 @@ class SceneManager {
                         
                         // Activer l'onglet propriétés si disponible
                         if (window.TabManager) {
+                            console.log('[LOG][SceneManager] switching tab to proprietes for element:', element.type);
                             window.TabManager.switchMainTab('proprietes');
                         }
                         
@@ -2388,6 +2469,7 @@ class SceneManager {
                         
                         // Activer l'onglet propriétés si disponible
                         if (window.TabManager) {
+                            console.log('[LOG][SceneManager] switching tab to proprietes for special element:', element.type);
                             window.TabManager.switchMainTab('proprietes');
                         }
                     } else if (window.ConstructionTools) {
@@ -2639,23 +2721,31 @@ class SceneManager {
                             // 🆕 NOUVEAU: Si on est en mode sélection et qu'on clique à côté d'une brique, 
                             // revenir automatiquement au mode pose de brique
                             if (isSelectionMode) {
-                                console.log('🎯 Mode sélection - Clic à côté d\'une brique, retour au mode pose');
+                                // Ne pas quitter le mode sélection si la dalle est/était sélectionnée
+                                const lastWasSlab = this.selectedElement && this.selectedElement.type === 'slab';
+                                console.log('[LOG][SceneManager] empty click in selection mode. lastWasSlab=', lastWasSlab);
                                 
-                                // Désélectionner tous les éléments
-                                this.deselectElement();
+                                // En présence d'une dalle sélectionnée, ne pas forcer la déselection ni le retour au mode pose
+                                if (!lastWasSlab) {
+                                    console.log('[LOG][SceneManager] deselecting due to empty click (non-slab)');
+                                    // Désélectionner tous les éléments
+                                    this.deselectElement();
+                                }
                                 
                                 // Effacer les suggestions si elles existent
                                 if (window.ConstructionTools && window.ConstructionTools.clearSuggestions) {
                                     window.ConstructionTools.clearSuggestions();
                                 }
                                 
-                                // Revenir au mode pose de brique
-                                if (window.toolbarManager) {
+                                // Revenir au mode pose de brique uniquement si ce n'est pas une dalle sélectionnée
+                                if (window.toolbarManager && !lastWasSlab) {
+                                    console.log('[LOG][SceneManager] switching to placement due to empty click (non-slab)');
                                     window.toolbarManager.setInteractionMode('placement');
                                 }
                                 
-                                // S'assurer que l'onglet construction est activé
-                                if (window.TabManager) {
+                                // S'assurer que l'onglet construction est activé (sauf si slab reste sélectionnée)
+                                if (window.TabManager && !lastWasSlab) {
+                                    console.log('[LOG][SceneManager] switching tab to construction due to empty click (non-slab)');
                                     window.TabManager.switchMainTab('construction');
                                 }
                                 
@@ -3475,6 +3565,10 @@ class SceneManager {
         if (window.AssiseManager && element.type !== 'slab' && !isToolGLB && !isFormeAcier) {
             const beforeY = element.position.y;
             window.AssiseManager.addElementToAssise(element.id);
+            // Pendant l'import, préserver la hauteur Y originale
+            if (this.isImporting && Math.abs(element.position.y - beforeY) > 0.01) {
+                element.updatePosition(element.position.x, beforeY, element.position.z);
+            }
             if (element.type === 'beam') {
                 // Protection: AssiseManager ne devrait pas déplacer la poutre, mais si c'est le cas on restaure.
                 if (Math.abs(element.position.y - beforeY) > 0.01) {
@@ -3493,15 +3587,17 @@ class SceneManager {
         }
         
         // NOUVELLE FONCTIONNALITÉ : Joint horizontal automatique pour chaque élément de construction posé
+        // Désactivée pendant l'import pour éviter la création de joints en double
         // EXCEPTION: Ne pas créer de joints pour les formes acier ni pour les PROFIL_*
         const isProfilType = element.blockType && typeof element.blockType === 'string' && element.blockType.toUpperCase().startsWith('PROFIL');
-        if (!element.isVerticalJoint && !element.isHorizontalJoint && !isFormeAcier && !isProfilType && (element.type === 'brick' || element.type === 'block') && element.type !== 'insulation') {
+        if (!this.isImporting && !element.isVerticalJoint && !element.isHorizontalJoint && !isFormeAcier && !isProfilType && (element.type === 'brick' || element.type === 'block') && element.type !== 'insulation') {
             // console.log('🔧 Activation automatique du joint horizontal pour:', element.type, element.id);
             this.createAutomaticHorizontalJoint(element);
         }
         
         // NOUVELLE FONCTIONNALITÉ : Détection et traitement des blocs coupés lors du placement direct
-        if (!element.isVerticalJoint && !element.isHorizontalJoint && this.isCutBlock(element)) {
+    // Désactivée pendant l'import pour éviter les insertions non souhaitées
+    if (!this.isImporting && !element.isVerticalJoint && !element.isHorizontalJoint && this.isCutBlock(element)) {
             console.log('🔧 Bloc coupé détecté lors du placement direct:', element.id);
             
             // Chercher un bloc adjacent potentiel pour activer les joints
@@ -3519,7 +3615,8 @@ class SceneManager {
         }
         
         // NOUVELLE FONCTIONNALITÉ : Détection et traitement des briques entières placées près d'un bloc coupé
-        if (!element.isVerticalJoint && !element.isHorizontalJoint && !this.isCutBlock(element) && 
+        // Désactivée pendant l'import
+        if (!this.isImporting && !element.isVerticalJoint && !element.isHorizontalJoint && !this.isCutBlock(element) && 
             (element.type === 'brick' || element.type === 'block')) {
             
             // Chercher un bloc coupé adjacent potentiel pour activer les joints
@@ -3540,7 +3637,8 @@ class SceneManager {
         // Cela évite le double comptage des éléments
         
         // NOUVELLE FONCTIONNALITÉ: Ajouter automatiquement des joints si activé
-        if (window.ConstructionTools && 
+        // Désactivée pendant l'import
+        if (!this.isImporting && window.ConstructionTools && 
             (element.type === 'brick' || element.type === 'block') &&
             element.type !== 'insulation' &&
             !element.isVerticalJoint && 
@@ -3751,6 +3849,9 @@ class SceneManager {
     }
 
     selectElement(element) {
+        try {
+            console.log('[LOG][SceneManager.selectElement] selecting:', { type: element?.type, id: element?.id });
+        } catch(_){}
         // S'assurer d'enlever toute surbrillance de survol temporaire avant d'appliquer la sélection
         if (window.toolbarManager && typeof window.toolbarManager.clearHoverHighlight === 'function') {
             window.toolbarManager.clearHoverHighlight();
@@ -3926,6 +4027,9 @@ class SceneManager {
     }
 
     deselectElement() {
+        try {
+            console.log('[LOG][SceneManager.deselectElement] called. selectedElement=', this.selectedElement ? { type: this.selectedElement.type, id: this.selectedElement.id } : null);
+        } catch(_){}
         // Désélectionner l'élément actuel
         if (this.selectedElement) {
             this.deselectPrevious(this.selectedElement);
@@ -4318,11 +4422,96 @@ class SceneManager {
     }
 
     exportScene() {
-        return {
-            elements: Array.from(this.elements.values()).map(el => el.toJSON()),
-            gridSpacing: this.gridSpacing,
-            showGrid: this.showGrid
+        // Exporter les éléments et aussi les réglages dans un objet settings
+        const exported = {
+            elements: Array.from(this.elements.values()).map(el => {
+                try {
+                    // Voie normale: les éléments standards implémentent toJSON()
+                    if (el && typeof el.toJSON === 'function') return el.toJSON();
+
+                    // Fallback GLB: éléments ajoutés via import GLB (pas des WallElement)
+                    const isGLB = !!(el && (
+                        el.type === 'glb' ||
+                        el.isGLBModel ||
+                        el.userData?.isGLB ||
+                        el.mesh?.userData?.isGLB
+                    ));
+                    if (isGLB) {
+                        const mesh = el.mesh || el; // compatibilité
+                        const scale = mesh?.scale ? { x: mesh.scale.x, y: mesh.scale.y, z: mesh.scale.z } : undefined;
+                        const rotationY = (mesh && mesh.rotation && typeof mesh.rotation.y === 'number') ? mesh.rotation.y : 0;
+                        // Essayer de retrouver le chemin GLB depuis plusieurs sources
+                        const glbPath = el.userData?.glbPath || el.path || (typeof window !== 'undefined' && window.tempGLBInfo?.path) || null;
+
+                        return {
+                            id: el.id || mesh?.id || `glb_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                            type: 'glb',
+                            material: 'glb_model',
+                            position: el.position || (mesh ? { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z } : { x: 0, y: 0, z: 0 }),
+                            dimensions: el.dimensions || { length: 0, width: 0, height: 0 },
+                            rotation: rotationY,
+                            blockType: el.glbType || el.userData?.glbType || 'glb',
+                            isVerticalJoint: !!el.isVerticalJoint,
+                            isHorizontalJoint: !!el.isHorizontalJoint,
+                            // Indicateurs/métadonnées GLB pour la réimportation
+                            isGLBElement: true,
+                            glbPath: glbPath || undefined,
+                            meshScale: scale
+                        };
+                    }
+
+                    // Fallback générique: sérialiser grâce au mesh minimalement
+                    if (el && el.mesh) {
+                        const mesh = el.mesh;
+                        return {
+                            id: el.id,
+                            type: el.type || mesh.userData?.elementType || 'unknown',
+                            material: el.material || 'standard',
+                            position: el.position || { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+                            dimensions: el.dimensions || { length: 0, width: 0, height: 0 },
+                            rotation: el.rotation || mesh.rotation?.y || 0,
+                            blockType: el.blockType || undefined,
+                            isVerticalJoint: !!el.isVerticalJoint,
+                            isHorizontalJoint: !!el.isHorizontalJoint
+                        };
+                    }
+
+                    console.warn('⚠️ exportScene: Élément non sérialisable détecté, ignoré', el);
+                    return null;
+                } catch (e) {
+                    console.warn('⚠️ exportScene: échec de sérialisation pour un élément', e, el);
+                    return null;
+                }
+            }).filter(Boolean),
+            settings: {
+                gridSpacing: this.gridSpacing,
+                showGrid: this.showGrid
+            }
         };
+
+        // Ajouter les réglages d'assise (base heights et joints) pour une restauration fidèle
+        try {
+            if (window.AssiseManager) {
+                // jointHeightByType
+                const jht = {};
+                window.AssiseManager.jointHeightByType?.forEach((v, k) => { jht[k] = v; });
+                // baseHeightByType
+                const bht = {};
+                window.AssiseManager.baseHeightByType?.forEach((v, k) => { bht[k] = v; });
+                // jointHeightByAssise
+                const jha = {};
+                window.AssiseManager.jointHeightByAssise?.forEach((innerMap, type) => {
+                    jha[type] = {};
+                    innerMap?.forEach((v, idx) => { jha[type][idx] = v; });
+                });
+                // Stocker sous settings.assiseSettings pour être bien sérialisé par FileMenuHandler
+                exported.settings.assiseSettings = { jointHeightByType: jht, baseHeightByType: bht, jointHeightByAssise: jha };
+            }
+        } catch (e) {
+            console.warn('⚠️ exportScene: erreur export assiseSettings', e);
+        }
+
+        return exported;
     }
 
     importScene(sceneData) {
@@ -4342,6 +4531,36 @@ class SceneManager {
         try {
             this.clearAll();
             
+            // Appliquer d'abord les réglages d'assise fournis (baseHeight/joint heights)
+            try {
+                const settings = (sceneData.settings && sceneData.settings.assiseSettings) || sceneData.assiseSettings;
+                if (settings && window.AssiseManager) {
+                    // baseHeightByType en premier (impacte tous les calculs de hauteur)
+                    if (settings.baseHeightByType) {
+                        Object.entries(settings.baseHeightByType).forEach(([type, h]) => {
+                            window.AssiseManager.setBaseHeightForType(type, h);
+                        });
+                    }
+                    // jointHeightByType
+                    if (settings.jointHeightByType) {
+                        Object.entries(settings.jointHeightByType).forEach(([type, h]) => {
+                            window.AssiseManager.setJointHeightForType(type, h);
+                        });
+                    }
+                    // jointHeightByAssise (par assise spécifique)
+                    if (settings.jointHeightByAssise) {
+                        Object.entries(settings.jointHeightByAssise).forEach(([type, byIndex]) => {
+                            Object.entries(byIndex).forEach(([idxStr, h]) => {
+                                const idx = Number(idxStr);
+                                window.AssiseManager.setJointHeightForAssise(type, idx, h);
+                            });
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ Import assiseSettings (pré): erreur lors de l\'application', e);
+            }
+            
             if (sceneData.elements) {
                 // console.log(`📦 Import de ${sceneData.elements.length} éléments`);
                 
@@ -4357,7 +4576,15 @@ class SceneManager {
                     }
                     
                     elementsCreated.push(element);
-                    this.addElement(element);
+
+                    // Si c'est un joint et que des infos d'assise sont sauvegardées, l'ajouter directement dans la bonne assise
+                    if ((element.isVerticalJoint || element.isHorizontalJoint) &&
+                        element.referenceAssiseType !== undefined && element.referenceAssiseIndex !== undefined &&
+                        window.AssiseManager && typeof this.addElementToSpecificAssise === 'function') {
+                        this.addElementToSpecificAssise(element, element.referenceAssiseType, element.referenceAssiseIndex);
+                    } else {
+                        this.addElement(element);
+                    }
                 });
                 
                 // Seconde passe : corriger les positions Y des joints horizontaux
@@ -4374,12 +4601,15 @@ class SceneManager {
                 }
             }
 
-            if (sceneData.gridSpacing) {
-                this.setGridSpacing(sceneData.gridSpacing);
+            // Réglages d'assise déjà appliqués avant la création des éléments
+
+            const s = sceneData.settings || {};
+            if (s.gridSpacing) {
+                this.setGridSpacing(s.gridSpacing);
             }
 
-            if (sceneData.showGrid !== undefined) {
-                this.setGridVisible(sceneData.showGrid);
+            if (s.showGrid !== undefined) {
+                this.setGridVisible(s.showGrid);
             }
 
             // console.log('✅ Import de scène terminé');
@@ -4387,6 +4617,34 @@ class SceneManager {
             // Toujours restaurer l'état même en cas d'erreur
             this.isImporting = false;
             // console.log('🔄 Import terminé - événements réactivés');
+
+            // Post-traitement: réinitialiser le système de suggestions pour les clics adjacents
+            try {
+                if (window.ConstructionTools) {
+                    // Nettoyer tout état résiduel de suggestions
+                    if (typeof window.ConstructionTools.deactivateSuggestions === 'function') {
+                        window.ConstructionTools.deactivateSuggestions();
+                    } else if (typeof window.ConstructionTools.clearSuggestions === 'function') {
+                        window.ConstructionTools.clearSuggestions();
+                    }
+
+                    // Lever le blocage éventuel imposé par l'interface
+                    window.ConstructionTools.suggestionsDisabledByInterface = false;
+                    window.ConstructionTools.activeBrickForSuggestions = null;
+
+                    // Restaurer et repositionner le fantôme de pose si nécessaire
+                    if (window.ConstructionTools.ghostElement) {
+                        if (window.ConstructionTools.showGhost && !window.ConstructionTools.activeBrickForSuggestions) {
+                            window.ConstructionTools.ghostElement.mesh.visible = true;
+                        }
+                        if (typeof window.ConstructionTools.repositionGhostToCurrentAssise === 'function') {
+                            window.ConstructionTools.repositionGhostToCurrentAssise();
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ Import post-traitement suggestions: erreur lors de la réinitialisation', e);
+            }
         }
     }
 
@@ -6314,12 +6572,33 @@ class SceneManager {
                 try { this.activateJointControlInterface('right'); } catch(_) {}
                 return; // Ne pas créer d'autres joints pour éviter les doublons
             }
+            // 464102 → activer le joint GAUCHE uniquement sur le bloc de référence
+            if (suggestionLetter === '464102') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): 464102 → GAUCHE (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
+                try { this.activateJointControlInterface('left'); } catch(_) {}
+                return; // Ne pas créer d'autres joints pour éviter les doublons
+            }
             // 461101 → activer le joint DROIT uniquement sur le bloc de référence
             if (suggestionLetter === '461101') {
                 console.log(`🧪 JOINT-DEBUG (half-block override): 461101 → DROIT (référence)`);
                 window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
                 try { this.activateJointControlInterface('right'); } catch(_) {}
                 return; // Ne pas créer d'autres joints pour éviter les doublons
+            }
+            // 4601/460101 → activer le joint DROIT uniquement sur le bloc de référence (B14_HALF→B14_HALF A)
+            if (suggestionLetter === '4601' || suggestionLetter === '460101') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return; // éviter doublons
+            }
+            // 463101 (et compat '433101' si généré) → activer le joint DROIT uniquement sur le bloc de référence (B14_HALF→B14_1Q A)
+            if (suggestionLetter === '463101' || suggestionLetter === '433101') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → DROIT (référence)`);
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return; // éviter doublons
             }
         } catch(_) {}
 
@@ -6343,10 +6622,26 @@ class SceneManager {
             }
         } catch(_) {}
 
-        // OVERRIDE NUMÉRIQUE B14: 430401 (continuation) → activer le joint DROIT uniquement sur le bloc de référence
+        // OVERRIDE NUMÉRIQUE B14: 430201 → GAUCHE, 430401 → DROIT (référence)
         try {
+            if (suggestionLetter === '430201') {
+                console.log('🧪 JOINT-DEBUG (half-block override): 430201 → GAUCHE (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'left');
+                try { this.activateJointControlInterface('left'); } catch(_) {}
+                return;
+            }
             if (suggestionLetter === '430401') {
                 console.log('🧪 JOINT-DEBUG (half-block override): 430401 → DROIT (référence)');
+                window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
+                try { this.activateJointControlInterface('right'); } catch(_) {}
+                return;
+            }
+        } catch(_) {}
+
+        // OVERRIDE NUMÉRIQUE B14 ENTIER→3/4 (ou 3/4→3/4 selon libellé): 140301/140302 → activer le joint DROIT uniquement sur le bloc de référence
+        try {
+            if (suggestionLetter === '140301' || suggestionLetter === '140302') {
+                console.log(`🧪 JOINT-DEBUG (half-block override): ${suggestionLetter} → DROIT (référence)`);
                 window.ConstructionTools.createSpecificVerticalJoint(referenceElement, 'right');
                 try { this.activateJointControlInterface('right'); } catch(_) {}
                 return;

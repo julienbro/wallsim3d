@@ -516,8 +516,10 @@ class LibraryPreview3D {
         // Appliquer aux éléments sans canvas (créer des images)
         document.querySelectorAll('.library-item').forEach(item => {
             const type = item.getAttribute('data-type');
-            // Exclure diba des aperçus automatiques (icône statique suffisante)
-            if (type === 'diba') return;
+            // Exclure certains types/outils interactifs des aperçus automatiques
+            // - diba: icône statique suffisante
+            // - cordeau: possède un conteneur d'aperçu dédié (preview-container) et pas d'.item-icon
+            if (type === 'diba' || type === 'cordeau') return;
             
             // Traitement spécial pour les éléments GLB
             if (item.hasAttribute('data-glb-path') ||
@@ -526,6 +528,11 @@ class LibraryPreview3D {
                 return;
             }
             
+            // Si un conteneur d'aperçu personnalisé existe déjà, ne rien faire
+            if (item.querySelector('.preview-container')) {
+                return;
+            }
+
             if (type && !item.querySelector('.preview-3d') && !item.querySelector('.item-preview-3d')) {
                 // console.log(`🔍 Traitement élément sans aperçu: ${type}`);
                 this.createPreviewElement(item, type);

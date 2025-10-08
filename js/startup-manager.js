@@ -486,7 +486,8 @@ class StartupManager {
         // Créer un input file invisible pour sélectionner un fichier
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
-        fileInput.accept = '.json,.wsim';
+    // Accepter les projets WallSim (.wsm) et, en option, les anciens .json
+    fileInput.accept = '.wsm,.json';
         fileInput.style.display = 'none';
         
         fileInput.onchange = (event) => {

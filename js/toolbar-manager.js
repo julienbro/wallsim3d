@@ -403,7 +403,7 @@ class ToolbarManager {
             raycaster.setFromCamera(mouse, camera);
             const allIntersects = raycaster.intersectObjects(scene.children, true);
             
-            // Filtrer pour les éléments valides (même logique que pour les clics)
+            // Filtrer pour les éléments valides (même logique que pour les clics) + support explicite GLB
             const validIntersects = allIntersects.filter(intersect => {
                 const obj = intersect.object;
                 
@@ -417,6 +417,18 @@ class ToolbarManager {
                     return false;
                 }
                 
+                // Support explicite GLB: accepter si l'objet ou son parent immédiat correspond à un modèle GLB
+                const ud = obj.userData || {};
+                const parentUd = obj.parent ? (obj.parent.userData || {}) : {};
+                const isGLB = (ud.element && (ud.element.type === 'glb' || ud.element.isGLB)) ||
+                              ud.isGLB ||
+                              obj.isGLBModel === true ||
+                              ud.type === 'imported_model' ||
+                              (typeof obj.name === 'string' && obj.name.includes('GLB_')) ||
+                              (parentUd && (parentUd.isGLB || parentUd.type === 'imported_model' ||
+                                            (parentUd.element && (parentUd.element.type === 'glb' || parentUd.element.isGLB))));
+                if (isGLB) return true;
+
                 // Accepter les éléments avec userData valides
                 if (obj.userData?.elementId || obj.userData?.id || obj.userData?.type ||
                     obj.userData?.measurementId || obj.userData?.annotationId || obj.userData?.textLeaderId) {
@@ -429,6 +441,10 @@ class ToolbarManager {
                     obj.parent.userData?.toolType === 'measurement' ||
                     obj.parent.userData?.toolType === 'annotation' ||
                     obj.parent.userData?.toolType === 'textleader')) {
+                    return true;
+                }
+                // Reconnaître explicitement les dalles (slab) même si elles ne portent pas d'ID
+                if (ud.element && ud.element.type === 'slab') {
                     return true;
                 }
                 return false;
@@ -500,7 +516,12 @@ class ToolbarManager {
                 // Accepter uniquement les éléments sélectionnables usuels
                 const ud = obj.userData || {};
                 const isSelectableConstruction = (ud.element && (
-                    ud.element.type === 'brick' || ud.element.type === 'block' || ud.element.type === 'insulation' || ud.element.type === 'linteau' || ud.element.type === 'beam'
+                    ud.element.type === 'brick' ||
+                    ud.element.type === 'block' ||
+                    ud.element.type === 'insulation' ||
+                    ud.element.type === 'linteau' ||
+                    ud.element.type === 'beam' ||
+                    ud.element.type === 'slab'
                 ));
                 const isGLB = (ud.element && (ud.element.type === 'glb' || ud.element.isGLBModel)) || ud.isGLB || obj.isGLBModel;
                 const isAnnot = ud.measurementId !== undefined || ud.annotationId !== undefined || ud.textLeaderId !== undefined || ud.toolType === 'measurement' || ud.toolType === 'annotation' || ud.toolType === 'textleader';
@@ -554,7 +575,7 @@ class ToolbarManager {
             raycaster.setFromCamera(mouse, camera);
             const allIntersects = raycaster.intersectObjects(scene.children, true);
             
-            // Filtrer pour garder seulement les objets avec des userData valides
+            // Filtrer pour garder seulement les objets avec des userData valides + support explicite GLB
             const validIntersects = allIntersects.filter(intersect => {
                 const obj = intersect.object;
                 
@@ -568,6 +589,18 @@ class ToolbarManager {
                     return false;
                 }
                 
+                // Support explicite GLB: accepter si l'objet ou son parent immédiat correspond à un modèle GLB
+                const ud = obj.userData || {};
+                const parentUd = obj.parent ? (obj.parent.userData || {}) : {};
+                const isGLB = (ud.element && (ud.element.type === 'glb' || ud.element.isGLB)) ||
+                              ud.isGLB ||
+                              obj.isGLBModel === true ||
+                              ud.type === 'imported_model' ||
+                              (typeof obj.name === 'string' && obj.name.includes('GLB_')) ||
+                              (parentUd && (parentUd.isGLB || parentUd.type === 'imported_model' ||
+                                            (parentUd.element && (parentUd.element.type === 'glb' || parentUd.element.isGLB))));
+                if (isGLB) return true;
+
                 // 🔧 NOUVEAUTÉ: Vérifier les cotations et éléments spécialisés d'abord
                 // Cotations avec measurementId
                 if (obj.userData?.measurementId !== undefined || 
@@ -612,7 +645,7 @@ class ToolbarManager {
                 
                 // Accepter les Mesh qui ont des userData avec type valide
                 if (obj.type === 'Mesh' && obj.userData?.type && 
-                    ['brick', 'block', 'joint', 'measurement', 'annotation', 'textleader'].includes(obj.userData.type)) {
+                    ['brick', 'block', 'joint', 'measurement', 'annotation', 'textleader', 'slab'].includes(obj.userData.type)) {
                     return true;
                 }
                 
@@ -734,12 +767,14 @@ class ToolbarManager {
             const hasValidType = current.userData?.type === 'brick' || 
                                current.userData?.type === 'block' || 
                                current.userData?.type === 'insulation' ||
+                               current.userData?.type === 'slab' ||
                                current.userData?.type === 'joint' ||
                                current.userData?.isBrick ||
                                current.userData?.isBlock ||
                                (current.userData?.element?.type === 'brick') ||
                                (current.userData?.element?.type === 'block') ||
-                               (current.userData?.element?.type === 'insulation');
+                               (current.userData?.element?.type === 'insulation') ||
+                               (current.userData?.element?.type === 'slab');
             
             // Nouvelle vérification : vérifier si les userData contiennent des propriétés d'élément
             const hasElementProperties = current.userData && (

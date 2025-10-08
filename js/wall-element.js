@@ -258,23 +258,25 @@ class WallElement {
             // console.log('🔧 Type brique détecté → brique-rouge-classique');
             return 'brique-rouge-classique';
         } else if (options.type === 'block') {
-            const blockType = options.blockType;
-            // console.log('🔧 Type bloc détecté, blockType:', blockType);
+            const blockType = options.blockType || '';
+            // Préférer une texture dédiée pour les blocs standard
             if (blockType) {
-                // Blocs terre cuite → brique rouge classique
+                // Terre cuite
                 if (blockType.startsWith('TC_') || blockType === 'TERRE_CUITE' || blockType.startsWith('TC')) {
-                    // console.log('🔧 Bloc terre cuite → terracotta');
                     return 'terracotta';
                 }
-                // Blocs béton cellulaire → béton cellulaire blanc
-                else if (blockType.startsWith('BC_') || blockType.startsWith('BCA_')) {
-                    // console.log('🔧 Bloc béton cellulaire → cellular-concrete');
+                // Béton cellulaire
+                if (blockType.startsWith('BC_') || blockType.startsWith('BCA_') || blockType === 'CELLULAIRE') {
                     return 'cellular-concrete';
                 }
+                // Blocs béton creux usuels
+                const upper = blockType.toUpperCase();
+                if (upper.startsWith('B9') || upper.startsWith('B14') || upper.startsWith('B19') || upper.startsWith('B29')) {
+                    return 'tex-blocbeton';
+                }
             }
-            // Tous les autres blocs (B9, B14, B19, etc.) → brique grise
-            // console.log('🔧 Autres blocs → brique-grise');
-            return 'brique-grise';
+            // Fallback générique pour bloc (éviter une texture brique par défaut)
+            return 'concrete';
         } else if (options.type === 'slab') {
             // Dalles personnalisées → béton
             return 'concrete';
@@ -506,7 +508,8 @@ class WallElement {
         this.mesh.userData = { 
             element: this,
             blockType: this.blockType,
-            type: this.type
+            type: this.type,
+            material: this.material
         };
         
         // DEBUG: Log pour vérifier le chargement et l'assignation du blockType
@@ -1149,6 +1152,19 @@ class WallElement {
             isHorizontalJoint: this.isHorizontalJoint
         };
 
+        // Conserver des métadonnées utiles pour reconstruire correctement les joints après rechargement
+        if (this.isVerticalJoint || this.isHorizontalJoint) {
+            if (typeof this.originalBrickHeight === 'number') {
+                data.originalBrickHeight = this.originalBrickHeight;
+            }
+            if (this.referenceAssiseType !== undefined) {
+                data.referenceAssiseType = this.referenceAssiseType;
+            }
+            if (this.referenceAssiseIndex !== undefined) {
+                data.referenceAssiseIndex = this.referenceAssiseIndex;
+            }
+        }
+
         // Inclure les métadonnées GLB si applicable
         if (this.isGLBElement || this.glbPath) {
             data.isGLBElement = true;
@@ -1168,9 +1184,34 @@ class WallElement {
 
     // Désérialisation
     static fromJSON(data) {
+        // Compatibilité matériaux: éviter de charger des blocs avec des textures de briques
+        let material = data.material;
+        const blockType = data.blockType || '';
+        if (data.type === 'block') {
+            const matId = (material || '').toString();
+            const unknownInLib = (function(id){
+                try { return !window.MaterialLibrary || !window.MaterialLibrary.materials || !window.MaterialLibrary.materials[id]; }
+                catch(_) { return true; }
+            })(matId);
+            const looksLikeBrick = matId.includes('brique') || matId.includes('brick');
+            if (!material || looksLikeBrick || unknownInLib) {
+                const bt = (blockType || '').toUpperCase();
+                if (bt.startsWith('BC_') || bt.startsWith('BCA_') || data.insulationType === 'CELLULAIRE' || bt === 'CELLULAIRE') {
+                    material = 'cellular-concrete';
+                } else if (bt.startsWith('B9') || bt.startsWith('B14') || bt.startsWith('B19') || bt.startsWith('B29')) {
+                    material = 'tex-blocbeton';
+                } else if (bt.startsWith('TC_') || bt === 'TERRE_CUITE' || bt.startsWith('TC')) {
+                    material = 'terracotta';
+                } else {
+                    material = 'concrete';
+                }
+                // console.log('🔧 Compat matériaux: bloc importé avec matériau brick → corrigé en', material, 'pour blockType', blockType);
+            }
+        }
+
         const element = new WallElement({
             type: data.type,
-            material: data.material,
+            material,
             x: data.position.x,
             y: data.position.y,
             z: data.position.z,
@@ -1192,6 +1233,10 @@ class WallElement {
         // Restaurer les propriétés de joint
         element.isVerticalJoint = data.isVerticalJoint || false;
         element.isHorizontalJoint = data.isHorizontalJoint || false;
+        // Restaurer les métadonnées utilisées pour recalculer les joints
+        if (data.originalBrickHeight !== undefined) element.originalBrickHeight = data.originalBrickHeight;
+        if (data.referenceAssiseType !== undefined) element.referenceAssiseType = data.referenceAssiseType;
+        if (data.referenceAssiseIndex !== undefined) element.referenceAssiseIndex = data.referenceAssiseIndex;
         
         return element;
     }
