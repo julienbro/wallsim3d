@@ -1680,6 +1680,7 @@ class AssiseManager {
             'insulation': 20,  // Hauteur isolant standard
             'custom': 10,      // Hauteur par défaut pour éléments custom
             'linteau': 19,     // Hauteur linteau standard
+            'diba': 0,         // Membrane étanchéité (épaisseur insignifiante pour empilement)
             'PROFIL': 0,       // PROFIL: pas de hauteur par défaut, prendre la hauteur réelle des éléments
             
             // Sous-types de blocs avec leurs hauteurs spécifiques

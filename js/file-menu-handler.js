@@ -565,9 +565,42 @@ class FileMenuHandler {
                 elements: projectData.elements,
                 settings: projectData.settings || {}
             };
-            
-            if (typeof window.SceneManager.importScene === 'function') {
-                window.SceneManager.importScene(sceneData);
+
+            // Détecter s'il y a des éléments GLB dans le projet
+            const hasGLB = Array.isArray(projectData.elements) && projectData.elements.some(el => {
+                try {
+                    const t = (el && el.type) ? String(el.type).toLowerCase() : '';
+                    return !!(el && (el.glbPath || el.isGLBElement === true || t.includes('hourdis') || t.includes('poutrain') || t.includes('claveau') || t.includes('blochet') || t === 'glb'));
+                } catch (_) { return false; }
+            });
+
+            const gltfAvailable = (window.THREE && window.THREE.GLTFLoader) || window.GLTFLoader;
+
+            const doImport = () => {
+                if (typeof window.SceneManager.importScene === 'function') {
+                    window.SceneManager.importScene(sceneData);
+                }
+            };
+
+            // Si des GLB sont présents et que GLTFLoader n'est pas encore prêt, le charger d'abord
+            if (hasGLB && !gltfAvailable && typeof this.loadGLTFLoader === 'function') {
+                try {
+                    this.loadGLTFLoader()
+                        .then(() => {
+                            // Loader prêt → importer
+                            doImport();
+                        })
+                        .catch((err) => {
+                            console.warn('⚠️ GLTFLoader non disponible avant import de projet — les modèles GLB seront affichés en formes simples. Raison:', err?.message || err);
+                            doImport();
+                        });
+                } catch (e) {
+                    console.warn('⚠️ Échec tentative de préchargement GLTFLoader — import direct', e);
+                    doImport();
+                }
+            } else {
+                // Pas de GLB ou loader déjà prêt
+                doImport();
             }
         }
 
@@ -2036,15 +2069,19 @@ class FileMenuHandler {
      */
     loadGLTFLoader() {
         return new Promise((resolve, reject) => {
-            // Essayer d'abord le chargement ES6 moderne
-            console.log('🔄 Tentative de chargement GLTFLoader...');
-            this.loadGLTFLoaderES6().then(resolve).catch(() => {
-                console.log('🔄 ES6 échoué, tentative UMD...');
-                this.loadGLTFLoaderUMD().then(resolve).catch(() => {
-                    console.log('🔄 UMD échoué, tentative version spécifique...');
-                    this.loadGLTFLoaderSpecific().then(resolve).catch(() => {
-                        console.log('🔄 Tentative dernière chance avec version ancienne...');
-                        this.loadGLTFLoaderLegacy().then(resolve).catch(reject);
+            // Essayer d'abord un import local ES6 (offline-friendly)
+            console.log('🔄 Tentative de chargement GLTFLoader (local ES6)...');
+            this.loadGLTFLoaderLocalES6().then(resolve).catch(() => {
+                // Puis l'import ES6 via CDN
+                console.log('🔄 Local ES6 échoué, tentative ES6 CDN...');
+                this.loadGLTFLoaderES6().then(resolve).catch(() => {
+                    console.log('🔄 ES6 CDN échoué, tentative UMD CDN...');
+                    this.loadGLTFLoaderUMD().then(resolve).catch(() => {
+                        console.log('🔄 UMD CDN échoué, tentative version spécifique CDN...');
+                        this.loadGLTFLoaderSpecific().then(resolve).catch(() => {
+                            console.log('🔄 Tentative dernière chance avec version ancienne CDN...');
+                            this.loadGLTFLoaderLegacy().then(resolve).catch(reject);
+                        });
                     });
                 });
             });
@@ -2076,6 +2113,36 @@ class FileMenuHandler {
                 }
             } catch (error) {
                 console.warn('⚠️ GLTFLoader ES6 failed:', error.message);
+                reject(error);
+            }
+        });
+    }
+
+    /**
+     * Charger GLTFLoader via ES6 modules depuis le chemin local
+     */
+    loadGLTFLoaderLocalES6() {
+        return new Promise(async (resolve, reject) => {
+            try {
+                // Utiliser un chemin relatif local servi par le serveur statique
+                const localPath = `${location.origin}/lib/three/addons/loaders/GLTFLoader.js`;
+                console.log('📦 Tentative chargement GLTFLoader ES6 local...', localPath);
+                const mod = await import(/* @vite-ignore */ localPath);
+                const GLTFLoader = mod && (mod.GLTFLoader || mod.default);
+                if (GLTFLoader) {
+                    try {
+                        window.THREE.GLTFLoader = GLTFLoader;
+                    } catch (e) {
+                        window.GLTFLoader = GLTFLoader;
+                        console.log('📦 GLTFLoader local assigné à window.GLTFLoader');
+                    }
+                    console.log('✅ GLTFLoader ES6 local chargé et assigné');
+                    resolve();
+                } else {
+                    reject(new Error('Local GLTFLoader module did not expose GLTFLoader'));
+                }
+            } catch (error) {
+                console.warn('⚠️ GLTFLoader ES6 local failed:', error && (error.message || error));
                 reject(error);
             }
         });
@@ -2538,6 +2605,23 @@ class FileMenuHandler {
                     length: size.x,
                     width: size.z,
                     height: size.y
+                },
+                dispose: function(){
+                    try {
+                        if (this.mesh && typeof this.mesh.traverse === 'function') {
+                            this.mesh.traverse((child)=>{
+                                try {
+                                    if (child.geometry) child.geometry.dispose();
+                                    const m = child.material;
+                                    if (Array.isArray(m)) m.forEach(mm=>mm && mm.dispose && mm.dispose());
+                                    else if (m) m.dispose && m.dispose();
+                                } catch(_) {}
+                            });
+                        } else if (this.mesh) {
+                            try { this.mesh.geometry?.dispose?.(); } catch(_) {}
+                            try { Array.isArray(this.mesh.material) ? this.mesh.material.forEach(mm=>mm && mm.dispose && mm.dispose()) : this.mesh.material?.dispose?.(); } catch(_) {}
+                        }
+                    } catch(_) {}
                 },
                 userData: {
                     isGLB: true,

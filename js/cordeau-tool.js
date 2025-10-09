@@ -155,9 +155,20 @@ class CordeauTool {
         if (window.ConstructionTools && window.ConstructionTools.ghostElement) {
             window.ConstructionTools.ghostElement.mesh.visible = true;
         }
-        // Masquer l'indicateur d'accroche s'il existe
-        if (window.ConstructionTools && window.ConstructionTools.edgeCursorSnapPoint) {
-            window.ConstructionTools.edgeCursorSnapPoint.visible = false;
+        // Masquer et nettoyer tous les indicateurs d'accroche
+        if (window.ConstructionTools) {
+            try {
+                window.ConstructionTools.showEdgeSnap = false;
+                if (typeof window.ConstructionTools.clearEdgeSnapPoints === 'function') {
+                    window.ConstructionTools.clearEdgeSnapPoints();
+                }
+                if (window.ConstructionTools.edgeCursorSnapPoint) {
+                    window.ConstructionTools.edgeCursorSnapPoint.visible = false;
+                }
+                if (window.ConstructionTools.edgeSnapGroup) {
+                    window.ConstructionTools.edgeSnapGroup.visible = false;
+                }
+            } catch(_) {}
         }
         // Restaurer le mode précédent et nettoyer/mettre à jour les points d'accroche
         if (window.ConstructionTools) {
@@ -204,6 +215,24 @@ class CordeauTool {
             this.step = 0;
             this.startPoint = null;
             this.cleanupTemp();
+            // Cacher immédiatement les marqueurs d'aide (points/segments d'accroche)
+            if (window.ConstructionTools) {
+                try {
+                    window.ConstructionTools.showEdgeSnap = false;
+                    if (typeof window.ConstructionTools.clearEdgeSnapPoints === 'function') {
+                        window.ConstructionTools.clearEdgeSnapPoints();
+                    }
+                    if (window.ConstructionTools.edgeCursorSnapPoint) {
+                        window.ConstructionTools.edgeCursorSnapPoint.visible = false;
+                    }
+                    if (window.ConstructionTools.edgeSnapGroup) {
+                        window.ConstructionTools.edgeSnapGroup.visible = false;
+                    }
+                    if (window.ConstructionTools.edgeSnapEnabledForModes && window.ConstructionTools.edgeSnapEnabledForModes.delete) {
+                        window.ConstructionTools.edgeSnapEnabledForModes.delete('cordeau');
+                    }
+                } catch(_) {}
+            }
             // Sortir de l'outil et revenir au mode pose de brique
             this.deactivate();
             if (window.ConstructionTools) {
@@ -336,7 +365,7 @@ class CordeauTool {
         const length = direction.length();
         if (length < 0.001) return;
 
-    const radius = 0.1; // épaisseur ~0.1 cm
+        const radius = 0.1; // épaisseur ~0.1 cm
         const radialSegments = 12;
         const geometry = new THREE.CylinderGeometry(radius, radius, length, radialSegments);
         const material = new THREE.MeshStandardMaterial({ color: 0xFFD11A, roughness: 0.8, metalness: 0.0 });
@@ -353,8 +382,46 @@ class CordeauTool {
         const quat = new THREE.Quaternion().setFromUnitVectors(up, direction.clone().normalize());
         cylinder.setRotationFromQuaternion(quat);
 
-        // Le cylindre par défaut est centré et s'étend le long de Y; orientation déjà alignée via quaternion
-        this.group.add(cylinder);
+        // Enregistrer comme véritable élément de scène pour la sauvegarde .wsm
+        const element = {
+            id: 'cordeau_' + Math.random().toString(36).slice(2, 9),
+            type: 'cordeau',
+            mesh: cylinder,
+            material: 'cordeau-jaune',
+            position: { x: mid.x, y: mid.y, z: mid.z },
+            // Conserver les extrémités pour affichage des propriétés et sérialisation
+            start: { x: a.x, y: a.y, z: a.z },
+            end: { x: b.x, y: b.y, z: b.z },
+            dimensions: { length: length, width: radius * 2, height: radius * 2 },
+            getVolume: function () { return Math.PI * radius * radius * length / 1000000; },
+            getMass: function () { return 0; },
+            dispose: function () {
+                try {
+                    if (this.mesh) {
+                        if (this.mesh.geometry) this.mesh.geometry.dispose();
+                        if (this.mesh.material) this.mesh.material.dispose();
+                    }
+                } catch (_) {}
+            },
+            toJSON: function () {
+                return {
+                    id: this.id,
+                    type: 'cordeau',
+                    start: { x: this.start.x, y: this.start.y, z: this.start.z },
+                    end: { x: this.end.x, y: this.end.y, z: this.end.z },
+                    radius: radius,
+                    material: this.material
+                };
+            }
+        };
+        cylinder.userData.element = element;
+
+        if (window.SceneManager && typeof window.SceneManager.addElement === 'function') {
+            window.SceneManager.addElement(element);
+        } else {
+            // Fallback: si SceneManager indisponible, ajouter au groupe local pour visibilité immédiate
+            this.group.add(cylinder);
+        }
     }
 
     // Trouver le point d'extrémité le plus proche (3D) sous un seuil en cm

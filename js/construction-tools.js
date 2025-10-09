@@ -6307,6 +6307,11 @@ class ConstructionTools {
     
     // Nettoyer les suggestions
     clearSuggestions() {
+        // Annuler un requestAnimationFrame en attente si enregistré
+        if (this._pendingSuggestRaf) {
+            try { cancelAnimationFrame(this._pendingSuggestRaf); } catch(_){}
+            this._pendingSuggestRaf = null;
+        }
         this.suggestionGhosts.forEach(ghost => {
             if (ghost && ghost.mesh) {
                 window.SceneManager.scene.remove(ghost.mesh);
@@ -6340,12 +6345,28 @@ class ConstructionTools {
 
     // Activer les suggestions pour une brique spécifique
     activateSuggestionsForBrick(element, isUserClick = true) {
-        // // console.log(`🔍 DEBUG activateSuggestionsForBrick: element=${element?.id}, showSuggestions=${this.showSuggestions}, isUserClick=${isUserClick}`);
+        (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] activateSuggestionsForBrick', {
+            elementId: element?.id,
+            showSuggestions: this.showSuggestions,
+            isUserClick
+        });
         
         if (!this.showSuggestions || !element) {
-            // // console.log(`🔍 DEBUG: Sortie anticipée - showSuggestions=${this.showSuggestions}, element=${!!element}`);
+            (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] skip: showSuggestions or element missing', { showSuggestions: this.showSuggestions, hasElement: !!element });
             return;
         }
+
+        // Anti-rebond: éviter d'activer plusieurs fois dans un court intervalle
+        const now = performance && performance.now ? performance.now() : Date.now();
+        const isSameActive = !!(this.activeBrickForSuggestions && this.activeBrickForSuggestions.id === element.id);
+        if (this._lastSuggestAt && (now - this._lastSuggestAt) < 100) {
+            // Tolérer un refresh si l'utilisateur reclique la même brique
+            if (!(isUserClick && isSameActive)) {
+                (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] skip: debounce (<100ms)');
+                return; // ignorer les activations trop rapprochées (<100ms)
+            }
+        }
+        this._lastSuggestAt = now;
         
         // 🔒 NOUVEAU: Si les suggestions sont bloquées par l'interface et que ce n'est pas un clic utilisateur, ne pas réactiver
         if (this.suggestionsDisabledByInterface && !isUserClick) {
@@ -6354,9 +6375,32 @@ class ConstructionTools {
         }
         
         // Protection contre l'activation multiple sur le même élément
-        if (this.activeBrickForSuggestions && this.activeBrickForSuggestions.id === element.id) {
-            console.log('🎯 Suggestions déjà actives pour cette brique');
-            return;
+        if (isSameActive) {
+            if (isUserClick) {
+                // 🔁 Forcer un refresh des propositions sur reclique utilisateur
+                (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] refresh on same element', element.id);
+                this.suggestionsDisabledByInterface = false;
+                this.clearSuggestions();
+                // Ne pas toucher activeBrickForSuggestions (reste le même élément)
+                // Reprogrammer la création au prochain frame
+                const run = () => { try { this.createPlacementSuggestions(element); } catch(_){} };
+                if (typeof requestAnimationFrame === 'function') {
+                    this._pendingSuggestRaf = requestAnimationFrame(() => {
+                        this._pendingSuggestRaf = null;
+                        (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] run createPlacementSuggestions (refresh)');
+                        run();
+                    });
+                } else {
+                    setTimeout(run, 0);
+                }
+                // S'assurer que l'UI reste en mode sélection et l'icône visible
+                document.body.classList.add('selection-mode');
+                this.showDeleteIcon(element);
+                return;
+            } else {
+                (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] déjà actives pour', element.id);
+                return;
+            }
         }
         
         // Note: La vérification des assises est déjà faite dans scene-manager.js
@@ -6365,7 +6409,8 @@ class ConstructionTools {
         // // console.log(`🔍 DEBUG: Activation des suggestions pour ${element.id}`);
         
         // Nettoyer les suggestions précédentes
-        this.clearSuggestions();
+    (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] clearSuggestions before activate');
+    this.clearSuggestions();
         
         // Réinitialiser le blocage interface SEULEMENT si c'est un clic utilisateur
         if (isUserClick) {
@@ -6383,9 +6428,20 @@ class ConstructionTools {
         // Ajouter un effet de pulsation à la brique sélectionnée
         this.addPulseEffect(element);
         
-        // Créer les suggestions
+        // Créer les suggestions (déféré au prochain frame pour écourter le handler de clic)
         if (this.currentMode !== 'diba') {
-            this.createPlacementSuggestions(element);
+            const run = () => { try { this.createPlacementSuggestions(element); } catch(_){} };
+            if (typeof requestAnimationFrame === 'function') {
+                (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] schedule createPlacementSuggestions via rAF');
+                this._pendingSuggestRaf = requestAnimationFrame(() => {
+                    this._pendingSuggestRaf = null;
+                    (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] run createPlacementSuggestions now');
+                    run();
+                });
+            } else {
+                (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] schedule createPlacementSuggestions via setTimeout(0)');
+                setTimeout(run, 0);
+            }
         }
         
         // NE PAS créer automatiquement les joints pour les briques
@@ -6406,7 +6462,7 @@ class ConstructionTools {
         // Afficher l'icône de suppression près de la brique
         this.showDeleteIcon(element);
         
-        // console.log('Suggestions activées pour la brique:', element.id);
+        (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][TOOLS] activées pour', element.id);
     }
     
     // Ajouter un effet de pulsation à un élément
@@ -6484,7 +6540,7 @@ class ConstructionTools {
         
         // CORRECTION FANTÔME: Réactiver et repositionner le fantôme normal après désactivation des suggestions
         if (this.ghostElement) {
-            console.log('🔧 CORRECTION: Réactivation du fantôme après désactivation des suggestions');
+            (window.forceLog || console.log)('🔧 CORRECTION: Réactivation du fantôme après désactivation des suggestions');
             
             // Rendre le fantôme visible seulement s'il n'y a plus de suggestions actives
             if (!this.activeBrickForSuggestions) {
@@ -6532,23 +6588,35 @@ class ConstructionTools {
                             this.ghostElement.position.z
                         );
                     } else {
-                        console.warn('   - ⚠️ Impossible de repositionner le fantôme - méthodes non disponibles');
-                        console.log('   - Ghost element structure:', {
+                        (window.forceLog || console.log)('   - ⚠️ Impossible de repositionner le fantôme - méthodes non disponibles');
+                        (window.forceLog || console.log)('   - Ghost element structure:', {
                             hasPosition: !!this.ghostElement.position,
                             hasUpdatePosition: !!this.ghostElement.updatePosition,
                             hasMesh: !!this.ghostElement.mesh,
                             meshUserData: this.ghostElement.mesh ? this.ghostElement.mesh.userData : null
                         });
                     }
-                    console.log('   - ✅ Repositionnement terminé');
+                    (window.forceLog || console.log)('   - ✅ Repositionnement terminé');
                 } else {
-                    console.log('   - ⏸️ Repositionnement ignoré (mode suggestions actif)');
+                    (window.forceLog || console.log)('   - ⏸️ Repositionnement ignoré (mode suggestions actif)');
                 }
             } else {
-                console.warn('   - ⚠️ AssiseManager non disponible, repositionnement ignoré');
+                (window.forceLog || console.log)('   - ⚠️ AssiseManager non disponible, repositionnement ignoré');
             }
+
+            // 🔁 IMPORTANT: Réinitialiser le cache de dernière position pour ne pas ignorer les petits mouvements
+            this._lastGhostPosition = null;
+
+            // 🧠 KICK-START: Forcer une mise à jour immédiate basée sur la position actuelle du curseur
+            // Cela ré-attache visuellement le fantôme au curseur sans attendre un nouveau mousemove
+            try {
+                if (window.SceneManager && typeof window.SceneManager.updateCursorPosition === 'function') {
+                    (window.forceLog || console.log)('[SUGGEST][TOOLS] kick-start cursor update after deactivation');
+                    window.SceneManager.updateCursorPosition();
+                }
+            } catch (_) { /* no-op */ }
         } else {
-            console.log('   - Aucun fantôme à repositionner');
+            (window.forceLog || console.log)('   - Aucun fantôme à repositionner');
         }
         
         // Émettre un événement pour l'UI
@@ -7447,8 +7515,8 @@ class ConstructionTools {
             // Linteaux toujours en béton gris
             return 'concrete';
         } else if (this.currentMode === 'slab') {
-            // Dalle béton par défaut
-            return 'concrete';
+            // Dalle béton par défaut → texture Béton 1
+            return 'tex-beton1';
         }
         
         // Défaut pour les cas non prévus → brique rouge classique

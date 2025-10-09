@@ -51,9 +51,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Attendre un peu avant d'initialiser pour permettre à la popup de finir son animation
         // et que tous les scripts soient chargés
-        setTimeout(() => {
-            initializeApplicationCore();
-        }, 1500);
+        const schedule = () => initializeApplicationCore();
+        if (window.requestIdleCallback) {
+            requestIdleCallback(schedule, { timeout: 800 });
+        } else {
+            setTimeout(schedule, 300);
+        }
     });
 
     // Fallback pour l'ancien événement (compatibilité)
@@ -64,9 +67,12 @@ document.addEventListener('DOMContentLoaded', function() {
             StartupManager.updateExternalProgress(60, 'Three.js chargé (mode compatibilité)');
         }
         
-        setTimeout(() => {
-            initializeApplicationCore();
-        }, 1500);
+        const schedule = () => initializeApplicationCore();
+        if (window.requestIdleCallback) {
+            requestIdleCallback(schedule, { timeout: 800 });
+        } else {
+            setTimeout(schedule, 300);
+        }
     });
 
     // Timeout de sécurité

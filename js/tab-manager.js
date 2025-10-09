@@ -87,8 +87,13 @@ class TabManager {
         this.sharedScene = new THREE.Scene();
         this.sharedCamera = new THREE.PerspectiveCamera(45, 160/120, 0.1, 1000);
         
-        // Utiliser setTimeout pour la prochaine étape (éviter le blocage)
-        setTimeout(() => this._initRendererStep2(canvas), 1);
+        // Utiliser requestIdleCallback si dispo (réduit les violations setTimeout)
+        const next = () => this._initRendererStep2(canvas);
+        if (window.requestIdleCallback) {
+            requestIdleCallback(next, { timeout: 200 });
+        } else {
+            setTimeout(next, 1);
+        }
     }
 
     // Étape 2: Créer le renderer (opération coûteuse)
@@ -103,8 +108,13 @@ class TabManager {
         this.sharedRenderer.setSize(160, 120);
         this.sharedRenderer.setClearColor(0x000000, 0);
 
-        // Utiliser setTimeout pour la prochaine étape
-        setTimeout(() => this._initRendererStep3(), 1);
+        // Utiliser requestIdleCallback pour la prochaine étape
+        const next = () => this._initRendererStep3();
+        if (window.requestIdleCallback) {
+            requestIdleCallback(next, { timeout: 200 });
+        } else {
+            setTimeout(next, 1);
+        }
     }
 
     // Étape 3: Ajouter l'éclairage et finaliser
@@ -3977,6 +3987,45 @@ class TabManager {
         // Gestion spéciale pour les modèles GLB
         if (element.type === 'glb' || element.isGLBModel) {
             this.displayGLBProperties(element);
+            return;
+        }
+
+        // Cas spécial: cordeau (ficelle) → afficher longueur et extrémités
+        if (element.type === 'cordeau') {
+            const radius = (element.dimensions && element.dimensions.width) ? element.dimensions.width / 2 : 0.1;
+            const length = element.dimensions ? element.dimensions.length : (element.start && element.end ? new THREE.Vector3(element.end.x - element.start.x, element.end.y - element.start.y, element.end.z - element.start.z).length() : 0);
+            const start = element.start || { x: element.position?.x || 0, y: element.position?.y || 0, z: element.position?.z || 0 };
+            const end = element.end || { x: element.position?.x || 0, y: element.position?.y || 0, z: element.position?.z || 0 };
+
+            selectedElementProperties.innerHTML = `
+                <div class="element-info selected" data-type="cordeau">
+                    <h4>Propriétés - Cordeau</h4>
+                    <div class="property-row">
+                        <strong>Type:</strong>
+                        <span>Cordeau</span>
+                    </div>
+                    <div class="property-row">
+                        <strong>ID:</strong>
+                        <span class="property-value-id">${element.userData?.elementId || element.id || 'N/A'}</span>
+                    </div>
+                    <div class="property-row">
+                        <strong>Longueur (cm):</strong>
+                        <span class="property-value-distance">${(length).toFixed(1)}</span>
+                    </div>
+                    <div class="property-row">
+                        <strong>Rayon (cm):</strong>
+                        <span>${radius}</span>
+                    </div>
+                    <div class="property-row">
+                        <strong>Début:</strong>
+                        <span class="property-value-coordinates">X:${start.x.toFixed(1)} Y:${start.y.toFixed(1)} Z:${start.z.toFixed(1)}</span>
+                    </div>
+                    <div class="property-row">
+                        <strong>Fin:</strong>
+                        <span class="property-value-coordinates">X:${end.x.toFixed(1)} Y:${end.y.toFixed(1)} Z:${end.z.toFixed(1)}</span>
+                    </div>
+                </div>
+            `;
             return;
         }
         

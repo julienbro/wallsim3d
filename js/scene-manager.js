@@ -58,12 +58,86 @@ class SceneManager {
         // 🔧 STOCKAGE: Brique de référence pour joints automatiques
         this.lastReferenceBrick = null;
 
+    // 🔹 Suivi: dernier élément posé par l'utilisateur (utile pour relancer les suggestions de continuité)
+    this._lastPlacedElement = null;
+
+    // ⚡ Cache des cibles de raycast pour accélérer les clics (évite de re-traverser toute la scène)
+    this._raycastTargets = [];
+
         // Outil de maintenance: flag pour éviter double normalisation
         this._beamNormalizationRun = false;
 
         // Préférence: création automatique des joints verticaux (désactivée par défaut)
         // Lorsqu'elle est à false, aucune création automatique de joints verticaux n'a lieu
         this.autoVerticalJoints = false;
+    }
+
+    // Enregistrer les meshes d'un élément dans la liste des cibles de raycast
+    _registerRaycastTargetsForElement(element){
+        try {
+            if (!element) return;
+            const meshes = [];
+            const pushIf = (m)=>{
+                if (!m) return;
+                if (!m.userData) return;
+                if (!m.userData.element) return;
+                // Exclure joints explicites
+                if (m.userData.isJoint) return;
+                meshes.push(m);
+            };
+            if (element.mesh && typeof element.mesh.traverse === 'function'){
+                element.mesh.traverse(child=>{ if (child.isMesh) pushIf(child); });
+            } else if (element.mesh){
+                pushIf(element.mesh);
+            }
+            if (meshes.length){
+                this._raycastTargets.push(...meshes);
+            }
+        } catch(_){}
+    }
+
+    // Désenregistrer les meshes d'un élément de la liste des cibles
+    _unregisterRaycastTargetsForElement(element){
+        try {
+            if (!element || !this._raycastTargets || this._raycastTargets.length===0) return;
+            const ids = new Set();
+            if (element.mesh && typeof element.mesh.traverse === 'function'){
+                element.mesh.traverse(child=>{ if (child.isMesh) ids.add(child.id); });
+            } else if (element.mesh){
+                ids.add(element.mesh.id);
+            }
+            if (ids.size){
+                this._raycastTargets = this._raycastTargets.filter(m=> !ids.has(m.id));
+            }
+        } catch(_){}
+    }
+
+    // Retourne le dernier élément posé par l'utilisateur (brique/bloc), s'il est encore présent dans la scène
+    getLastPlacedElement() {
+        try {
+            const el = this._lastPlacedElement;
+            if (!el) return null;
+            // Valider que l'élément est toujours géré par la scène
+            if (this.elements && this.elements.has(el.id)) {
+                // console.debug('[SUGGEST][STATE] getLastPlacedElement →', el.id);
+                return el;
+            }
+            return null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    // Définit le dernier élément posé. Par convention, utilisé pour bricks/blocks hors import.
+    setLastPlacedElement(element) {
+        try {
+            if (!element) return;
+            // On ne mémorise que les briques/blocs standards
+            if (element.type === 'brick' || element.type === 'block') {
+                this._lastPlacedElement = element;
+                (window && window.forceLog ? window.forceLog : console.log)('🧭 [SUGGEST][STATE] Dernier élément posé:', { id: element.id, type: element.type });
+            }
+        } catch (_) { /* noop */ }
     }
 
     // Convertit un nom de vue en une portée canonique utilisée pour filtrer annotations/cotations
@@ -126,6 +200,13 @@ class SceneManager {
             console.error('❌ THREE.js n\'est pas encore chargé');
             return;
         }
+
+        // Log de démarrage pour confirmer l'instrumentation et contourner le filtre
+        try {
+            (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][READY] SceneManager instrumentation active', {
+                time: new Date().toISOString()
+            });
+        } catch(_){}
 
         // Initialiser les objets Three.js maintenant qu'ils sont disponibles
         this.raycaster = new THREE.Raycaster();
@@ -858,13 +939,19 @@ class SceneManager {
                             // console.log('🔧 DEBUG: suggestionType =', suggestionType);
                             // Nouveau: demander le nombre d'éléments à insérer pour une continuité
                             let multiInsertCount = 1;
+                            // Pour éviter les longs handlers de clic (et les [Violation]),
+                            // on désactive le prompt bloquant par défaut.
+                            // Activez-le avec ?multicont=1 dans l'URL si besoin ponctuel.
                             if (suggestionType === 'continuation') {
                                 try {
-                                    const input = prompt("Nombre d'éléments à insérer ?", "1");
-                                    if (input !== null) {
-                                        const n = parseInt(input, 10);
-                                        if (!isNaN(n) && n > 1 && n < 500) {
-                                            multiInsertCount = n;
+                                    const enableMultiPrompt = typeof window !== 'undefined' && window.location && /[?&]multicont=(1|true)\b/i.test(window.location.search);
+                                    if (enableMultiPrompt) {
+                                        const input = prompt("Nombre d'éléments à insérer ?", "1");
+                                        if (input !== null) {
+                                            const n = parseInt(input, 10);
+                                            if (!isNaN(n) && n > 1 && n < 500) {
+                                                multiInsertCount = n;
+                                            }
                                         }
                                     }
                                 } catch (e) {
@@ -2068,49 +2155,7 @@ class SceneManager {
                 }
             });
             
-            // AMÉLIORATION: Ajouter une fonction de filtrage des intersections plus robuste
-            const isValidElementMesh = (mesh) => {
-                return mesh && 
-                       mesh.userData && 
-                       mesh.userData.element && 
-                       mesh.userData.element.id &&
-                       !mesh.userData.isJoint && // Exclure les joints explicitement
-                       (
-                        mesh.userData.element.type === 'brick' || 
-                        mesh.userData.element.type === 'block' || 
-                        mesh.userData.element.type === 'insulation' ||
-                        mesh.userData.element.type === 'linteau' || // 🆕 autoriser la sélection des linteaux
-                        mesh.userData.element.type === 'beam' || // 🆕 autoriser la sélection des poutres
-                        mesh.userData.element.type === 'slab' || // 🆕 inclure les dalles dans les cibles de raycast
-                        mesh.userData.element.type === 'glb' ||
-                        mesh.userData.element.isGLBModel
-                       );
-            };
-            
-            // Filtrer plus strictement les meshes valides
-            const validElementMeshes = elementMeshes.filter(isValidElementMesh);
-            
-            // DEBUG: Informations sur les meshes filtrés
-            
-            // DEBUG: Informations sur tous les objets de la scène
-            const allSceneObjects = [];
-            this.scene.traverse((child) => {
-                if (child.isMesh && child !== this.groundPlane && child !== this.groundFloor) {
-                    allSceneObjects.push({
-                        name: child.name || 'unnamed',
-                        type: child.type || 'unknown',
-                        hasUserData: !!child.userData,
-                        hasElement: !!child.userData?.element,
-                        elementId: child.userData?.element?.id || 'none',
-                        isInElements: Array.from(this.elements.values()).some(el => el.mesh === child)
-                    });
-                }
-            });
-            /*
-            
-            */
-            
-            // Étendre le raycast pour inclure les objets de mesure/annotation
+            // Étendre le raycast pour inclure les objets de mesure/annotation (ces groupes ne sont pas volumineux)
             const measurementObjects = [];
             if (window.MeasurementTool && window.MeasurementTool.measurementGroup) {
                 window.MeasurementTool.measurementGroup.traverse(child => {
@@ -2163,7 +2208,9 @@ class SceneManager {
                 }
             }
             
-            const allRaycastObjects = [...validElementMeshes, ...measurementObjects, ...annotationObjects, ...textLeaderObjects, ...attachmentMarkerObjects];
+            // Utiliser la liste cache des éléments construits pour les cibles de raycast
+            const cachedTargets = Array.isArray(this._raycastTargets) ? this._raycastTargets : [];
+            const allRaycastObjects = [...cachedTargets, ...measurementObjects, ...annotationObjects, ...textLeaderObjects, ...attachmentMarkerObjects];
             
             const intersects = this.raycaster.intersectObjects(allRaycastObjects);
             
@@ -2592,7 +2639,27 @@ class SceneManager {
                                     const isLinteauMode = (currentType === 'linteau') ||
                                                          (window.ConstructionTools && window.ConstructionTools.currentMode === 'linteau');
                                     
-                                    if ((elementAssiseType !== currentType || elementAssiseIndex !== currentAssiseIndex) && !typeMatches && !isB29Exception && !isLinteauMode) {
+                                    // ✅ ASSOUPLISSEMENT: Autoriser les suggestions si on clique sur la DERNIÈRE brique posée
+                                    let isLastPlaced = false;
+                                    try {
+                                        const last = (typeof this.getLastPlacedElement === 'function') ? this.getLastPlacedElement() : null;
+                                        isLastPlaced = !!(last && last.id === element.id);
+                                    } catch(_) {}
+
+                                    (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][GATE] check', {
+                                        elementId: element.id,
+                                        elementAssiseType,
+                                        elementAssiseIndex,
+                                        currentType,
+                                        currentAssiseIndex,
+                                        detectedElementType,
+                                        typeMatches,
+                                        isB29Exception,
+                                        isLinteauMode,
+                                        isLastPlaced
+                                    });
+
+                                    if ((elementAssiseType !== currentType || elementAssiseIndex !== currentAssiseIndex) && !typeMatches && !isB29Exception && !isLinteauMode && !isLastPlaced) {
                                         canCreateSuggestions = false;
                                         console.log('🚫 Suggestions bloquées - Élément', element.id, 
                                                   'dans assise', elementAssiseType, elementAssiseIndex, 
@@ -2603,6 +2670,8 @@ class SceneManager {
                                             console.log('✅ Suggestions autorisées par exception B29 - Élément:', detectedElementType, 'dans assise:', elementAssiseType, 'courante:', currentType);
                                         } else if (isLinteauMode) {
                                             console.log('✅ Suggestions autorisées en mode LINTEAU - élément assise:', elementAssiseType, elementAssiseIndex, 'courante:', currentType, currentAssiseIndex);
+                                        } else if (isLastPlaced) {
+                                            console.log('✅ Suggestions autorisées pour la dernière brique posée (continuité rapide)');
                                         } else if (typeMatches && elementAssiseType !== currentType) {
                                             console.log('✅ Suggestions autorisées par type détecté - Élément type:', detectedElementType, 'assise courante:', currentType);
                                         } else {
@@ -2615,6 +2684,7 @@ class SceneManager {
                                     // console.log('🎯 Mode pose - Création de suggestions adjacentes');
                                     if (window.ConstructionTools.activateSuggestionsForBrick && !(window.ConstructionTools && window.ConstructionTools.currentMode === 'linteau')) {
                                         window.ConstructionTools.activateSuggestionsForBrick(element);
+                                        (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][ACTIVATE] via face SUP for element', element.id);
                                         // 🔧 CAPTURE: Sauvegarder la brique de référence pour les joints automatiques
                                         this.lastReferenceBrick = element;
                                         // console.log('🔧 SAUVEGARDE: Brique de référence =', this.lastReferenceBrick?.id || 'none');
@@ -2626,7 +2696,7 @@ class SceneManager {
                             }
                         }
                     }
-                } else {
+                    } else {
                     // RESTAURATION 6: Gestion des assises inférieures
 
                     if (!isGhostActive || forceSelection || isSelectionMode) {
@@ -2699,6 +2769,27 @@ class SceneManager {
                                     }
                                 }
                             }
+                        }
+
+                        // 🆕 NOUVEAU: Même si le fantôme est actif, autoriser l'activation des suggestions
+                        // en cliquant sur n'importe quelle face de la brique/bloc le plus proche (pas seulement la face supérieure).
+                        // Cela facilite l'apparition des adjacentes juste après avoir posé une première brique de continuité.
+                        if (constructionIntersects.length > 0) {
+                            try {
+                                const intersect = constructionIntersects[0];
+                                const targetElem = intersect.object.userData.element;
+                                if (targetElem && window.ConstructionTools && window.ConstructionTools.activateSuggestionsForBrick && window.ConstructionTools.currentMode !== 'linteau') {
+                                    let canCreateSuggestions = true;
+                                    if (window.AssiseManager && window.AssiseManager.canSelectElement) {
+                                        canCreateSuggestions = window.AssiseManager.canSelectElement(targetElem.id, true);
+                                    }
+                                    if (canCreateSuggestions) {
+                                        (window && window.forceLog ? window.forceLog : console.log)('[SUGGEST][ACTIVATE] via ANY face for element', targetElem.id);
+                                        window.ConstructionTools.activateSuggestionsForBrick(targetElem);
+                                        return; // Stopper le flux: on passe en mode suggestions
+                                    }
+                                }
+                            } catch (_) { /* noop */ }
                         }
                         
                         // Si pas de face supérieure trouvée, utiliser le sol (plan infini d'abord)
@@ -3493,6 +3584,10 @@ class SceneManager {
             document.addEventListener('glbMeshReady', onReady);
             // Conserver l'élément pour le suivi
             this.elements.set(element.id, element);
+            // Mémoriser le dernier élément posé si action utilisateur (pas pendant import)
+            if (!this.isImporting) {
+                this.setLastPlacedElement(element);
+            }
             return;
         }
 
@@ -3512,6 +3607,12 @@ class SceneManager {
         }
         
         this.scene.add(element.mesh);
+        // Enregistrer les cibles de raycast correspondantes
+        this._registerRaycastTargetsForElement(element);
+        // Mémoriser le dernier élément posé si action utilisateur (pas pendant import)
+        if (!this.isImporting) {
+            this.setLastPlacedElement(element);
+        }
         
         // CORRECTION AUTOMATIQUE: Appliquer la correction automatique des isolants après ajout à la scène
         if (element.type === 'insulation') {
@@ -3562,7 +3663,7 @@ class SceneManager {
         const isToolGLB = element.type === 'glb' && element.userData && element.userData.isTool;
         const isFormeAcier = element.blockType && element.blockType.startsWith('forme_acier');
         
-        if (window.AssiseManager && element.type !== 'slab' && !isToolGLB && !isFormeAcier) {
+    if (window.AssiseManager && element.type !== 'slab' && element.type !== 'cordeau' && !isToolGLB && !isFormeAcier) {
             const beforeY = element.position.y;
             window.AssiseManager.addElementToAssise(element.id);
             // Pendant l'import, préserver la hauteur Y originale
@@ -3784,6 +3885,13 @@ class SceneManager {
     removeElement(elementId) {
         const element = this.elements.get(elementId);
         if (element) {
+            // Nettoyer le pointeur du dernier posé si on supprime cet élément
+            if (this._lastPlacedElement && this._lastPlacedElement.id === elementId) {
+                console.log('🧭 [SUGGEST][STATE] Dernier élément posé supprimé → reset');
+                this._lastPlacedElement = null;
+            }
+            // Retirer les cibles de raycast
+            this._unregisterRaycastTargetsForElement(element);
             // NOUVEAU: Supprimer tous les joints associés à cet élément
             const jointsToRemove = [];
             this.elements.forEach((el, id) => {
@@ -4405,10 +4513,69 @@ class SceneManager {
         }
     }
 
+    // Détruit proprement un Object3D (géométrie + matériaux) récursivement
+    _safeDisposeObject3D(obj) {
+        try {
+            if (!obj) return;
+            // Parcourir récursivement
+            if (typeof obj.traverse === 'function') {
+                obj.traverse((child) => {
+                    try {
+                        if (child.geometry) {
+                            child.geometry.dispose?.();
+                        }
+                        const mat = child.material;
+                        if (Array.isArray(mat)) {
+                            mat.forEach(m => m && m.dispose && m.dispose());
+                        } else if (mat) {
+                            mat.dispose?.();
+                        }
+                    } catch(_) {}
+                });
+            } else {
+                if (obj.geometry) obj.geometry.dispose?.();
+                const mat = obj.material;
+                if (Array.isArray(mat)) {
+                    mat.forEach(m => m && m.dispose && m.dispose());
+                } else if (mat) {
+                    mat.dispose?.();
+                }
+            }
+        } catch(_) {}
+    }
+
+    // Détruit proprement un élément quel que soit son type/forme
+    _safeDisposeElement(element) {
+        try {
+            if (!element) return;
+            if (typeof element.dispose === 'function') {
+                // Laisser l'élément gérer son cycle de vie
+                element.dispose();
+                return;
+            }
+            // Fallback: tenter via mesh ou l'objet lui-même s'il est un Object3D
+            if (element.mesh) {
+                this._safeDisposeObject3D(element.mesh);
+            } else if (element.isObject3D) {
+                this._safeDisposeObject3D(element);
+            }
+        } catch(_) {}
+    }
+
     clearAll() {
         for (const [id, element] of this.elements) {
-            this.scene.remove(element.mesh);
-            element.dispose();
+            try {
+                // Retirer de la scène (garder robuste si element est un Object3D simple)
+                if (element?.mesh && element.mesh.parent) {
+                    element.mesh.parent.remove(element.mesh);
+                } else if (element?.isObject3D && element.parent) {
+                    element.parent.remove(element);
+                } else if (element?.mesh) {
+                    this.scene.remove(element.mesh);
+                }
+            } catch(_) {}
+            // Détruire proprement
+            this._safeDisposeElement(element);
         }
         this.elements.clear();
         this.selectedElement = null;
@@ -4567,6 +4734,67 @@ class SceneManager {
                 // Première passe : créer tous les éléments mais ne pas encore corriger les joints
                 const elementsCreated = [];
                 sceneData.elements.forEach((elementData, index) => {
+                    // Reconstruction spéciale pour le cordeau (ficelle)
+                    if (elementData && elementData.type === 'cordeau' && elementData.start && elementData.end) {
+                        try {
+                            const a = new THREE.Vector3(elementData.start.x, elementData.start.y, elementData.start.z);
+                            const b = new THREE.Vector3(elementData.end.x, elementData.end.y, elementData.end.z);
+                            const dir = new THREE.Vector3().subVectors(b, a);
+                            const len = dir.length();
+                            if (len > 0.001) {
+                                const radius = typeof elementData.radius === 'number' ? elementData.radius : 0.1;
+                                const geo = new THREE.CylinderGeometry(radius, radius, len, 12);
+                                const mat = new THREE.MeshStandardMaterial({ color: 0xFFD11A, roughness: 0.8, metalness: 0.0 });
+                                const mesh = new THREE.Mesh(geo, mat);
+                                mesh.castShadow = true; mesh.receiveShadow = false;
+                                mesh.userData.type = 'cordeau';
+                                const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+                                mesh.position.copy(mid);
+                                const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+                                mesh.setRotationFromQuaternion(quat);
+                                const element = {
+                                    id: elementData.id || ('cordeau_' + Math.random().toString(36).slice(2, 9)),
+                                    type: 'cordeau',
+                                    mesh,
+                                    material: elementData.material || 'cordeau-jaune',
+                                    position: { x: mid.x, y: mid.y, z: mid.z },
+                                    // Conserver les extrémités pour l'affichage des propriétés
+                                    start: { x: a.x, y: a.y, z: a.z },
+                                    end: { x: b.x, y: b.y, z: b.z },
+                                    dimensions: { length: len, width: radius*2, height: radius*2 },
+                                    getVolume: function () { return Math.PI * radius * radius * len / 1000000; },
+                                    getMass: function () { return 0; },
+                                    toJSON: function () {
+                                        return {
+                                            id: this.id,
+                                            type: 'cordeau',
+                                            start: { x: this.start.x, y: this.start.y, z: this.start.z },
+                                            end: { x: this.end.x, y: this.end.y, z: this.end.z },
+                                            radius: radius,
+                                            material: this.material
+                                        };
+                                    },
+                                    dispose: function() { try{ if (this.mesh) { this.mesh.geometry?.dispose(); this.mesh.material?.dispose(); } } catch(_){} }
+                                };
+                                mesh.userData.element = element;
+                                elementsCreated.push(element);
+                                this.addElement(element);
+                                return; // élément traité
+                            }
+                        } catch (e) { console.warn('⚠️ Import cordeau échoué:', e, elementData); }
+                    }
+                    // Reconstruction spéciale pour les membranes d'étanchéité (Diba)
+                    if (elementData && elementData.type === 'diba' && elementData.pathPoints && elementData.extrusion) {
+                        const dibaElement = this.buildDibaFromData(elementData);
+                        if (dibaElement) {
+                            elementsCreated.push(dibaElement);
+                            this.addElement(dibaElement);
+                            return; // passer à l'élément suivant
+                        }
+                        // Si la reconstruction échoue, on continue avec la voie générique (sécurité)
+                    }
+
+                    // Si l'élément exporté est un GLB, forcer la voie GLB dans WallElement
                     const element = WallElement.fromJSON(elementData);
                     // console.log(`📦 Import élément ${index + 1}/${sceneData.elements.length}: ${element.type} (${element.id}) à la position:`, element.position);
                     
@@ -4645,6 +4873,128 @@ class SceneManager {
             } catch (e) {
                 console.warn('⚠️ Import post-traitement suggestions: erreur lors de la réinitialisation', e);
             }
+        }
+    }
+
+    /**
+     * Construit un élément Diba (membrane d'étanchéité) à partir des données sérialisées
+     * @param {Object} data - Données exportées (id, material, pathPoints[], extrusion{direction{x,y,z}, length, thickness})
+     * @returns {Object|null} élément compatible SceneManager (id, type, mesh, position, dimensions, toJSON, getVolume, getMass)
+     */
+    buildDibaFromData(data) {
+        try {
+            if (!window.THREE) return null;
+            const pts = Array.isArray(data.pathPoints)
+                ? data.pathPoints.map(p => new THREE.Vector3(p.x, p.y, p.z))
+                : null;
+            if (!pts || pts.length < 2) return null;
+
+            const dirData = (data.extrusion && data.extrusion.direction) || { x: 0, y: 1, z: 0 };
+            const dir = new THREE.Vector3(dirData.x || 0, dirData.y || 0, dirData.z || 0);
+            if (dir.lengthSq() === 0) dir.set(0, 1, 0);
+            dir.normalize();
+
+            const len = (data.extrusion && typeof data.extrusion.length === 'number')
+                ? data.extrusion.length
+                : (data.dimensions && data.dimensions.height) || 15;
+            const thickness = (data.extrusion && typeof data.extrusion.thickness === 'number')
+                ? data.extrusion.thickness
+                : (data.dimensions && data.dimensions.width) || 0.5;
+
+            // Recréer la géométrie (reprend l'algorithme de DibaTool.buildDiba)
+            const offset = dir.clone().multiplyScalar(len);
+            const vertices = [];
+            const indices = [];
+            for (let i = 0; i < pts.length; i++) {
+                const p = pts[i];
+                const p2 = p.clone().add(offset);
+
+                // Calcul du vecteur latéral (épaisseur) selon la direction d'extrusion
+                let lateral;
+                if (Math.abs(dir.y) > 0.9) {
+                    // Extrusion principalement verticale → latéral horizontal perpendiculaire au segment
+                    if (i < pts.length - 1) {
+                        const forward = pts[i + 1].clone().sub(p); forward.y = 0; if (forward.length() < 1e-3) forward.set(1, 0, 0); forward.normalize();
+                        lateral = new THREE.Vector3(-forward.z, 0, forward.x);
+                    } else if (i > 0) {
+                        const back = p.clone().sub(pts[i - 1]); back.y = 0; if (back.length() < 1e-3) back.set(1, 0, 0); back.normalize();
+                        lateral = new THREE.Vector3(-back.z, 0, back.x);
+                    } else {
+                        lateral = new THREE.Vector3(1, 0, 0);
+                    }
+                } else {
+                    // Extrusion horizontale → épaisseur verticale
+                    lateral = new THREE.Vector3(0, 1, 0);
+                }
+                lateral.normalize().multiplyScalar(thickness / 2);
+
+                const pL = p.clone().add(lateral);
+                const pR = p.clone().sub(lateral);
+                const p2L = p2.clone().add(lateral);
+                const p2R = p2.clone().sub(lateral);
+                const baseIndex = vertices.length / 3;
+                [pL, pR, p2L, p2R].forEach(v => { vertices.push(v.x, v.y, v.z); });
+
+                if (i > 0) {
+                    const biPrev = baseIndex - 4;
+                    // faces latérales
+                    indices.push(biPrev, biPrev + 2, baseIndex + 2);
+                    indices.push(biPrev, baseIndex + 2, baseIndex);
+                    indices.push(biPrev + 1, baseIndex + 1, baseIndex + 3);
+                    indices.push(biPrev + 1, baseIndex + 3, biPrev + 3);
+                    // dessus/dessous
+                    indices.push(biPrev, baseIndex, baseIndex + 1);
+                    indices.push(biPrev, baseIndex + 1, biPrev + 1);
+                    indices.push(biPrev + 2, biPrev + 3, baseIndex + 3);
+                    indices.push(biPrev + 2, baseIndex + 3, baseIndex + 2);
+                }
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geo.setIndex(indices);
+            geo.computeVertexNormals();
+
+            let mat = null;
+            try { mat = window.MaterialLibrary && window.MaterialLibrary.getThreeJSMaterial(data.material || 'diba-noir'); } catch (_) { /* no-op */ }
+            if (!mat) mat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            mat.side = THREE.DoubleSide; mat.transparent = false; mat.needsUpdate = true;
+
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.userData = { elementType: 'diba', type: 'diba', preserveCustomY: true };
+
+            // Longueur développée de la polyligne
+            let pathLen = 0; for (let i = 1; i < pts.length; i++) { pathLen += pts[i].distanceTo(pts[i - 1]); }
+            const volumeCm3 = pathLen * thickness * len;
+
+            const element = {
+                id: data.id || ('diba_' + Math.random().toString(36).substr(2, 9)),
+                type: 'diba',
+                mesh,
+                material: data.material || 'diba-noir',
+                position: (data.position ? { x: data.position.x, y: data.position.y, z: data.position.z } : { x: pts[0].x, y: pts[0].y, z: pts[0].z }),
+                dimensions: { length: pathLen, width: thickness, height: len },
+                preserveCustomY: true,
+                getVolume: function () { return volumeCm3 / 1000000; },
+                getMass: function () { return 0; },
+                toJSON: function () {
+                    return {
+                        id: this.id,
+                        type: 'diba',
+                        material: this.material,
+                        position: { x: this.position.x, y: this.position.y, z: this.position.z },
+                        dimensions: this.dimensions,
+                        pathPoints: pts.map(p => ({ x: p.x, y: p.y, z: p.z })),
+                        extrusion: { direction: { x: dir.x, y: dir.y, z: dir.z }, length: len, thickness: thickness }
+                    };
+                }
+            };
+
+            mesh.userData.element = element;
+            return element;
+        } catch (e) {
+            console.warn('⚠️ Reconstruction Diba échouée:', e, data);
+            return null;
         }
     }
 

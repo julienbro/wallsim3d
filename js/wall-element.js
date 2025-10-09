@@ -182,17 +182,64 @@ class WallElement {
             return;
         }
         
-        // Vérifier que GLTFLoader est disponible
+        // Vérifier que GLTFLoader est disponible (et tenter de le charger si besoin)
         let GLTFLoaderClass = null;
-        
         if (window.THREE && window.THREE.GLTFLoader) {
             GLTFLoaderClass = window.THREE.GLTFLoader;
         } else if (window.GLTFLoader) {
             GLTFLoaderClass = window.GLTFLoader;
         } else {
-            console.warn('❌ GLTFLoader non disponible, fallback vers géométrie standard');
-            this.createMesh();
-            return;
+            console.warn('⚠️ GLTFLoader non disponible au moment de createGLBMesh — tentative de chargement asynchrone');
+            // Éviter le fallback immédiat sur géométrie simple: tenter de charger le loader puis relancer
+            const tryCount = (this._glbLoaderTries || 0) + 1;
+            this._glbLoaderTries = tryCount;
+            // Augmenter le nombre de tentatives pour couvrir les chargements lents (ex: ouverture de projet)
+            const maxTries = 30; // ~6s si 200ms d'intervalle
+
+            const retry = () => {
+                // Relancer la création GLB une fois le loader disponible
+                try {
+                    this.createGLBMesh();
+                } catch (_) { /* no-op */ }
+            };
+
+            // 1) Si FileMenuHandler sait charger GLTFLoader, l'utiliser
+            if (window.FileMenuHandler && typeof window.FileMenuHandler.loadGLTFLoader === 'function') {
+                try {
+                    window.FileMenuHandler.loadGLTFLoader()
+                        .then(() => retry())
+                        .catch(() => {
+                            // 2) Sinon, petite boucle d'attente: re-vérifier périodiquement
+                            if (this._glbLoaderTries <= maxTries) {
+                                setTimeout(retry, 200);
+                            } else {
+                                console.warn('❌ GLTFLoader indisponible après tentatives, fallback géométrie');
+                                this.createMesh();
+                            }
+                        });
+                    return; // on sort, `retry` rappellera createGLBMesh
+                } catch (_) {
+                    // 2) Boucle d'attente rudimentaire
+                    if (this._glbLoaderTries <= maxTries) {
+                        setTimeout(retry, 200);
+                        return;
+                    } else {
+                        console.warn('❌ GLTFLoader indisponible après tentatives, fallback géométrie');
+                        this.createMesh();
+                        return;
+                    }
+                }
+            } else {
+                // 2) Boucle d'attente rudimentaire sans FileMenuHandler
+                if (this._glbLoaderTries <= maxTries) {
+                    setTimeout(retry, 200);
+                    return;
+                } else {
+                    console.warn('❌ GLTFLoader indisponible après tentatives, fallback géométrie');
+                    this.createMesh();
+                    return;
+                }
+            }
         }
         
         try {
@@ -252,6 +299,11 @@ class WallElement {
     // Méthode pour déterminer le matériau par défaut selon les règles spécifiées
     getDefaultMaterial(options) {
         // console.log('🔧 getDefaultMaterial appelée avec:', options);
+        // GLB: utiliser un matériau neutre (éviter texture brique par défaut)
+        if (options && (options.type === 'glb' || options.glbPath || options.isGLBElement ||
+            (typeof options.type === 'string' && (options.type.includes('hourdis') || options.type.includes('poutrain') || options.type.includes('claveau') || options.type.includes('blochet'))))) {
+            return 'concrete';
+        }
         
         if (options.type === 'brick') {
             // Toutes les briques → brique rouge classique
@@ -278,8 +330,8 @@ class WallElement {
             // Fallback générique pour bloc (éviter une texture brique par défaut)
             return 'concrete';
         } else if (options.type === 'slab') {
-            // Dalles personnalisées → béton
-            return 'concrete';
+            // Dalles personnalisées → Béton 1 (texture)
+            return 'tex-beton1';
         } else if (options.type === 'joint') {
             // Tous les joints → gris souris
             return 'joint-gris-souris';

@@ -478,7 +478,7 @@ class DibaTool {
     const mat = window.MaterialLibrary ? window.MaterialLibrary.getThreeJSMaterial(this.materialId) : new THREE.MeshStandardMaterial({color:0x111111});
         if (mat) { mat.side = THREE.DoubleSide; mat.transparent=false; }
         const mesh = new THREE.Mesh(geo, mat);
-        mesh.userData = { elementType: 'diba', type:'diba' };
+    mesh.userData = { elementType: 'diba', type:'diba', preserveCustomY: true };
         window.SceneManager.scene.add(mesh);
         // Calcul longueur développée de la polyligne
         let pathLen = 0;
@@ -492,8 +492,30 @@ class DibaTool {
             mesh: mesh, 
             position: pts[0].clone(), 
             dimensions: { length: pathLen, width: thickness, height: len },
+            preserveCustomY: true,
             getVolume: function(){ return volumeCm3 / 1000000; }, // m3
             getMass: function(){ return 0; }, // masse négligeable (ou définir densité si souhaité)
+            dispose: function(){
+                try {
+                    if (this.mesh) {
+                        if (typeof this.mesh.traverse === 'function') {
+                            this.mesh.traverse((child)=>{
+                                try {
+                                    child.geometry?.dispose?.();
+                                    const m = child.material;
+                                    if (Array.isArray(m)) m.forEach(mm=>mm && mm.dispose && mm.dispose());
+                                    else if (m) m.dispose && m.dispose();
+                                } catch(_) {}
+                            });
+                        }
+                        if (this.mesh.geometry) this.mesh.geometry.dispose();
+                        if (this.mesh.material) {
+                            if (Array.isArray(this.mesh.material)) this.mesh.material.forEach(mm=>mm && mm.dispose && mm.dispose());
+                            else this.mesh.material.dispose();
+                        }
+                    }
+                } catch(_) {}
+            },
             toJSON: function(){
                 return {
                     id: this.id,

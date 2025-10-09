@@ -443,6 +443,10 @@ class ToolbarManager {
                     obj.parent.userData?.toolType === 'textleader')) {
                     return true;
                 }
+                // 🧵 Cordeau: accepter explicitement les meshes marqués comme cordeau
+                if (ud.type === 'cordeau' || (ud.element && ud.element.type === 'cordeau')) {
+                    return true;
+                }
                 // Reconnaître explicitement les dalles (slab) même si elles ne portent pas d'ID
                 if (ud.element && ud.element.type === 'slab') {
                     return true;
@@ -521,8 +525,9 @@ class ToolbarManager {
                     ud.element.type === 'insulation' ||
                     ud.element.type === 'linteau' ||
                     ud.element.type === 'beam' ||
-                    ud.element.type === 'slab'
-                ));
+                    ud.element.type === 'slab' ||
+                    ud.element.type === 'cordeau'
+                )) || (ud.type === 'cordeau');
                 const isGLB = (ud.element && (ud.element.type === 'glb' || ud.element.isGLBModel)) || ud.isGLB || obj.isGLBModel;
                 const isAnnot = ud.measurementId !== undefined || ud.annotationId !== undefined || ud.textLeaderId !== undefined || ud.toolType === 'measurement' || ud.toolType === 'annotation' || ud.toolType === 'textleader';
                 // Vérifier parent immédiat pour les objets de cotation/annotation/textLeader
@@ -645,7 +650,7 @@ class ToolbarManager {
                 
                 // Accepter les Mesh qui ont des userData avec type valide
                 if (obj.type === 'Mesh' && obj.userData?.type && 
-                    ['brick', 'block', 'joint', 'measurement', 'annotation', 'textleader', 'slab'].includes(obj.userData.type)) {
+                    ['brick', 'block', 'joint', 'measurement', 'annotation', 'textleader', 'slab', 'cordeau'].includes(obj.userData.type)) {
                     return true;
                 }
                 
@@ -767,6 +772,7 @@ class ToolbarManager {
             const hasValidType = current.userData?.type === 'brick' || 
                                current.userData?.type === 'block' || 
                                current.userData?.type === 'insulation' ||
+                               current.userData?.type === 'cordeau' ||
                                current.userData?.type === 'slab' ||
                                current.userData?.type === 'joint' ||
                                current.userData?.isBrick ||
@@ -774,6 +780,7 @@ class ToolbarManager {
                                (current.userData?.element?.type === 'brick') ||
                                (current.userData?.element?.type === 'block') ||
                                (current.userData?.element?.type === 'insulation') ||
+                               (current.userData?.element?.type === 'cordeau') ||
                                (current.userData?.element?.type === 'slab');
             
             // Nouvelle vérification : vérifier si les userData contiennent des propriétés d'élément
@@ -2216,8 +2223,16 @@ class ToolbarManager {
             // Support pour les éléments GLB
             'imported_model',
             'glb',
+            // 🧵 Cordeau (ficelle)
+            'cordeau',
             'claveau_beton_12_53'
         ];
+
+        // Autoriser explicitement la suppression des cordea(u)x
+        if (userData.type === 'cordeau' || (userData.element && userData.element.type === 'cordeau')) {
+            console.log('🟢 Cordeau autorisé pour suppression');
+            return true;
+        }
         
         // 🔧 CORRECTION MAJEURE: Vérifier spécifiquement les briques WallElement
         // Cas spécial pour les objets WallElement (briques de l'application)

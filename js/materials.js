@@ -13,6 +13,16 @@ class MaterialLibrary {
                 isTexture: true,
                 repeat: { x: 1, y: 1 }
             },
+            // ========== TEXTURE BÉTON 1 (pour dalles) ==========
+            'tex-beton1': {
+                name: 'Béton 1 (Texture)',
+                color: 0xFFFFFF,
+                mapUrl: 'assets/textures/beton_1.png',
+                section: 'modernes-composites',
+                description: 'Texture béton standard pour dalles et surfaces en béton apparent.',
+                isTexture: true,
+                repeat: { x: 1, y: 1 }
+            },
             // ========== ETANCHEITE ==========
             'diba-noir': {
                 name: 'Membrane Diba Noire',
