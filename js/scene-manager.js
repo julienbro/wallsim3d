@@ -939,19 +939,14 @@ class SceneManager {
                             // console.log('🔧 DEBUG: suggestionType =', suggestionType);
                             // Nouveau: demander le nombre d'éléments à insérer pour une continuité
                             let multiInsertCount = 1;
-                            // Pour éviter les longs handlers de clic (et les [Violation]),
-                            // on désactive le prompt bloquant par défaut.
-                            // Activez-le avec ?multicont=1 dans l'URL si besoin ponctuel.
+                            // Activer le prompt pour les briques de continuité
                             if (suggestionType === 'continuation') {
                                 try {
-                                    const enableMultiPrompt = typeof window !== 'undefined' && window.location && /[?&]multicont=(1|true)\b/i.test(window.location.search);
-                                    if (enableMultiPrompt) {
-                                        const input = prompt("Nombre d'éléments à insérer ?", "1");
-                                        if (input !== null) {
-                                            const n = parseInt(input, 10);
-                                            if (!isNaN(n) && n > 1 && n < 500) {
-                                                multiInsertCount = n;
-                                            }
+                                    const input = prompt("Nombre d'éléments à insérer ?", "1");
+                                    if (input !== null) {
+                                        const n = parseInt(input, 10);
+                                        if (!isNaN(n) && n > 1 && n < 500) {
+                                            multiInsertCount = n;
                                         }
                                     }
                                 } catch (e) {

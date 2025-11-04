@@ -10458,6 +10458,13 @@ class ConstructionTools {
             return;
         }
 
+        // NOUVELLE VÉRIFICATION: Ne pas créer de joints verticaux pour une brique isolée
+        // sur une assise supérieure sans briques adjacentes au même niveau
+        if (!this.shouldCreateVerticalJointsForElement(element)) {
+            // console.log(`❌ Joints verticaux non justifiés pour brique isolée:`, element.id);
+            return;
+        }
+
         // console.log(`🔧 Ajout automatique de joints pour ${element.type === 'brick' ? 'brique' : 'bloc'}:`, element.id);
 
         // Utiliser la nouvelle approche basée sur les calculs du système manuel
@@ -10499,6 +10506,145 @@ class ConstructionTools {
         });
 
         // console.log(`🔧 Résultat final: ${jointsCreated} joints VERTICAUX créés sur ${verticalJointPositions.length} calculés pour ${element.type === 'brick' ? 'brique' : 'bloc'} ${element.id}`);
+    }
+
+    /**
+     * Vérifie si des joints verticaux doivent être créés pour un élément donné
+     * Évite la création de joints pour des briques isolées sur des assises supérieures
+     * @param {WallElement} element - L'élément à vérifier
+     * @returns {boolean} True si des joints verticaux sont justifiés
+     */
+    shouldCreateVerticalJointsForElement(element) {
+        if (!element || !window.AssiseManager || !window.SceneManager) {
+            return false;
+        }
+
+        // Trouver l'assise et le type de l'élément
+        let assiseInfo = this.findElementAssiseInfo(element.id);
+        if (!assiseInfo) {
+            // Si l'élément n'est pas encore dans AssiseManager, utiliser les valeurs actuelles
+            const currentType = window.AssiseManager.currentType;
+            const currentIndex = window.AssiseManager.getCurrentAssiseIndexForType(currentType);
+            
+            if (!currentType || currentIndex === null || currentIndex === undefined) {
+                return false;
+            }
+            
+            assiseInfo = {
+                assiseType: currentType,
+                assiseIndex: currentIndex
+            };
+        }
+
+        // Trouver tous les éléments dans la même assise et du même type
+        const elementsInSameAssise = this.getElementsInSameAssise(element, assiseInfo.assiseType, assiseInfo.assiseIndex);
+        
+        // Si c'est la seule brique dans cette assise, ne pas créer de joints verticaux
+        if (elementsInSameAssise.length <= 1) {
+            if (window.debugVerticalJoints) {
+                console.log('🧪 [VERTICAL-JOINT-DEBUG] Brique isolée détectée - pas de joints verticaux:', {
+                    elementId: element.id,
+                    assiseType: assiseInfo.assiseType,
+                    assiseIndex: assiseInfo.assiseIndex,
+                    elementsInAssise: elementsInSameAssise.length
+                });
+            }
+            return false;
+        }
+
+        // Si il y a d'autres briques adjacentes, vérifier si elles sont proches
+        return this.hasAdjacentBricks(element, elementsInSameAssise);
+    }
+
+    /**
+     * Trouve tous les éléments (briques/blocs) dans la même assise qu'un élément donné
+     * @param {WallElement} element - L'élément de référence
+     * @param {string} assiseType - Le type d'assise
+     * @param {number} assiseIndex - L'index de l'assise
+     * @returns {Array} Liste des éléments dans la même assise
+     */
+    getElementsInSameAssise(element, assiseType, assiseIndex) {
+        if (!window.SceneManager || !window.AssiseManager) {
+            return [];
+        }
+
+        const allElements = Array.from(window.SceneManager.elements.values());
+        
+        return allElements.filter(el => {
+            if (!el || el.id === element.id) return false;
+            if (el.type !== 'brick' && el.type !== 'block') return false;
+            if (el.isVerticalJoint || el.isHorizontalJoint) return false;
+            
+            // Vérifier si l'élément est dans la même assise
+            try {
+                const elementAssiseInfo = this.findElementAssiseInfo(el.id);
+                return elementAssiseInfo && 
+                       elementAssiseInfo.assiseIndex === assiseIndex && 
+                       elementAssiseInfo.assiseType === assiseType;
+            } catch (e) {
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Trouve l'assise et le type d'assise d'un élément donné
+     * @param {string} elementId - L'ID de l'élément à chercher
+     * @returns {Object|null} Objet contenant {assiseType, assiseIndex} ou null si non trouvé
+     */
+    findElementAssiseInfo(elementId) {
+        if (!window.AssiseManager || !window.AssiseManager.elementsByType) {
+            return null;
+        }
+
+        // Parcourir tous les types d'assises
+        for (const [assiseType, assisesByIndex] of window.AssiseManager.elementsByType.entries()) {
+            // Parcourir tous les indices d'assises pour ce type
+            for (const [assiseIndex, elementsSet] of assisesByIndex.entries()) {
+                if (elementsSet && elementsSet.has(elementId)) {
+                    return {
+                        assiseType: assiseType,
+                        assiseIndex: assiseIndex
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Vérifie si un élément a des briques adjacentes dans la même assise
+     * @param {WallElement} element - L'élément à vérifier
+     * @param {Array} elementsInSameAssise - Les autres éléments dans la même assise
+     * @returns {boolean} True si il y a des briques adjacentes
+     */
+    hasAdjacentBricks(element, elementsInSameAssise) {
+        if (!element.mesh || !element.mesh.position) {
+            return false;
+        }
+
+        const elementPos = element.mesh.position;
+        const tolerance = Math.max(element.dimensions?.length || 20, 20) + 5; // Tolérance basée sur la longueur + 5cm
+
+        // Vérifier si au moins une brique est suffisamment proche pour justifier un joint
+        const adjacentBricks = elementsInSameAssise.filter(brick => {
+            if (!brick.mesh || !brick.mesh.position) return false;
+            
+            const distance = elementPos.distanceTo(brick.mesh.position);
+            return distance > 0 && distance < tolerance;
+        });
+
+        if (window.debugVerticalJoints && adjacentBricks.length > 0) {
+            console.log('🧪 [VERTICAL-JOINT-DEBUG] Briques adjacentes trouvées:', {
+                elementId: element.id,
+                adjacentCount: adjacentBricks.length,
+                tolerance: tolerance,
+                adjacentIds: adjacentBricks.map(b => b.id)
+            });
+        }
+
+        return adjacentBricks.length > 0;
     }
 
     /**

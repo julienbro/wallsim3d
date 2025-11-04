@@ -1068,7 +1068,12 @@
                     if (AM.snapPoint) markHidden(AM.snapPoint);
                 }
 
-                // 4) Masquer dans la scène les objets qui ressemblent à des marqueurs/aides
+                // 4) Masquer les outils de mesure
+                if (window.MeasurementTool && window.MeasurementTool.measurementGroup) {
+                    markHidden(window.MeasurementTool.measurementGroup);
+                }
+
+                // 5) Masquer dans la scène les objets qui ressemblent à des marqueurs/aides
                 const suspiciousName = (name) => {
                     if (!name) return false;
                     const s = name.toLowerCase();
@@ -1079,7 +1084,11 @@
                         s.includes('hover') || s.includes('highlight') ||
                         s.includes('floating') || s.includes('outline') ||
                         s.includes('grid') || s.includes('helper') ||
-                        s.includes('marker')
+                        s.includes('marker') || s.includes('joint') ||
+                        s.includes('line') || s.includes('guide') ||
+                        s.includes('snap') || s.includes('aide') ||
+                        s.includes('measurement') || s.includes('measure') ||
+                        s.includes('dimension') || s.includes('cotation')
                     );
                 };
 
@@ -1094,10 +1103,33 @@
                         const looksLikeAid = (
                             ud.isEdgeSnapMarker || ud.ghost || ud.preview || ud.isGhost ||
                             ud.suggestion || ud.isSuggestion || ud.isTemp ||
-                            ud.isAssiseProjectionMarker || ud.helper || ud.marker
+                            ud.isAssiseProjectionMarker || ud.helper || ud.marker ||
+                            ud.isJoint || ud.isVerticalJoint || ud.isHorizontalJoint ||
+                            ud.isWireframe
                         );
 
-                        if (looksLikeAid || suspiciousName(obj.name)) {
+                        // Masquer également les LineSegments qui sont probablement des contours d'aide
+                        const isEdgeHelper = obj.isLineSegments && (
+                            obj.material && (
+                                obj.material.color && obj.material.color.getHexString && (
+                                    obj.material.color.getHexString() === 'ffffff' ||  // Contours blancs
+                                    obj.material.color.getHexString() === '000000' ||  // Contours noirs
+                                    obj.material.color.getHexString() === 'ffff00' ||  // Contours jaunes
+                                    obj.material.color.getHexString() === 'ff0000' ||  // Contours rouges
+                                    obj.material.color.getHexString() === '8e44ad' ||  // Contours violets (joints)
+                                    obj.material.color.getHexString() === '00ff00' ||  // Contours verts
+                                    obj.material.color.getHexString() === '0080ff'     // Contours bleus
+                                )
+                            )
+                        );
+
+                        // Masquer les helpers de type BoxHelper, ArrowHelper, etc.
+                        const isThreeHelper = obj.isBoxHelper || obj.isArrowHelper || obj.isAxesHelper || 
+                                             obj.isCameraHelper || obj.isDirectionalLightHelper || 
+                                             obj.isHemisphereLightHelper || obj.isPlaneHelper ||
+                                             obj.isPointLightHelper || obj.isSpotLightHelper;
+
+                        if (looksLikeAid || suspiciousName(obj.name) || isEdgeHelper || isThreeHelper) {
                             markHidden(obj);
                         }
                     });
